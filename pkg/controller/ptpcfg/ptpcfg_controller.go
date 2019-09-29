@@ -96,13 +96,25 @@ func (r *ReconcilePtpCfg) Reconcile(request reconcile.Request) (reconcile.Result
 	reqLogger.Info("Reconciling PtpCfg")
 
 	// Fetch the PtpCfg instance
-	instance := &ptpv1.PtpCfg{}
-	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
+	defaultCfg := &ptpv1.PtpCfg{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{
+		Name: names.DefaultCfgName, Namespace: names.Namespace}, defaultCfg)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
+			defaultCfg.SetNamespace(names.Namespace)
+			defaultCfg.SetName(names.DefaultCfgName)
+			defaultCfg.Spec = ptpv1.PtpCfgSpec{
+				Profile: []ptpv1.PtpProfile{},
+				Recommend: []ptpv1.PtpRecommend{},
+			}
+			if err = r.client.Create(context.TODO(), defaultCfg); err != nil {
+				reqLogger.Error(err, "failed to create default ptp config",
+					"Namespace", names.Namespace, "Name", names.DefaultCfgName)
+				return reconcile.Result{}, err
+			}
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
@@ -125,7 +137,7 @@ func (r *ReconcilePtpCfg) Reconcile(request reconcile.Request) (reconcile.Result
 		return reconcile.Result{}, err
 	}
 
-	if err = r.syncLinuxptpDaemon(); err != nil {
+	if err = r.syncLinuxptpDaemon(defaultCfg); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -138,10 +150,10 @@ func (r *ReconcilePtpCfg) Reconcile(request reconcile.Request) (reconcile.Result
 	}
 
 	// Define a new Pod object
-	pod := newPodForCR(instance)
+	pod := newPodForCR(defaultCfg)
 
 	// Set PtpCfg instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, pod, r.scheme); err != nil {
+	if err := controllerutil.SetControllerReference(defaultCfg, pod, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -167,7 +179,7 @@ func (r *ReconcilePtpCfg) Reconcile(request reconcile.Request) (reconcile.Result
 }
 
 // syncLinuxptpDaemon synchronizes Linuxptp DaemonSet
-func (r *ReconcilePtpCfg) syncLinuxptpDaemon() error {
+func (r *ReconcilePtpCfg) syncLinuxptpDaemon(defaultCfg *ptpv1.PtpCfg) error {
 	var err error
 	objs := []*uns.Unstructured{}
 
@@ -181,8 +193,10 @@ func (r *ReconcilePtpCfg) syncLinuxptpDaemon() error {
 	}
 
 	for _, obj := range objs {
-		err = apply.ApplyObject(context.TODO(), r.client, obj)
-		if err != nil {
+		if err = controllerutil.SetControllerReference(defaultCfg, obj, r.scheme); err != nil {
+			return fmt.Errorf("failed to set owner reference: %v", err)
+		}
+		if err = apply.ApplyObject(context.TODO(), r.client, obj); err != nil {
 			return fmt.Errorf("failed to apply object %v with err: %v", obj, err)
 		}
 	}
