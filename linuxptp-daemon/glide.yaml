@@ -1,0 +1,27 @@
+package: github.com/openshift/linuxptp-daemon
+import:
+- package: github.com/jaypipes/ghw
+  version: ^0.4.0
+- package: github.com/pkg/errors
+  version: ^0.8.1
+- package: k8s.io/apimachinery
+  subpackages:
+  - pkg/api/errors
+  - pkg/apis/meta/v1
+- package: k8s.io/client-go
+  version: ^12.0.0
+  subpackages:
+  - kubernetes
+  - rest
+  - tools/clientcmd
+- package: golang.org/x/tools
+- package: github.com/google/go-cmp
+  version: ^0.3.1
+  subpackages:
+  - cmp
+- package: k8s.io/code-generator
+- package: k8s.io/gengo
+- package: k8s.io/klog
+  version: ^0.4.0
+- package: github.com/golang/glog
+- package: github.com/openshift/ptp-operator
