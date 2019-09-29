@@ -8,8 +8,9 @@ import (
 	"path/filepath"
 
 	"github.com/golang/glog"
-	"github.com/openshift/ptp-operator/pkg/render"
 	"github.com/openshift/ptp-operator/pkg/apply"
+	"github.com/openshift/ptp-operator/pkg/names"
+	"github.com/openshift/ptp-operator/pkg/render"
 	ptpv1 "github.com/openshift/ptp-operator/pkg/apis/ptp/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -27,8 +28,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
-var Namespace = "ptp"
-var manifestDir = "./bindata"
 var log = logf.Log.WithName("controller_ptpcfg")
 
 /**
@@ -174,9 +173,9 @@ func (r *ReconcilePtpCfg) syncLinuxptpDaemon() error {
 
 	data := render.MakeRenderData()
 	data.Data["Image"] = os.Getenv("LINUXPTP_DAEMON_IMAGE")
-	data.Data["Namespace"] = Namespace
+	data.Data["Namespace"] = names.Namespace
 	data.Data["ReleaseVersion"] = os.Getenv("RELEASEVERSION")
-	objs, err = render.RenderDir(filepath.Join(manifestDir, "linuxptp"), &data)
+	objs, err = render.RenderDir(filepath.Join(names.ManifestDir, "linuxptp"), &data)
 	if err != nil {
 		return fmt.Errorf("failed to render linuxptp daemon manifest: %v", err)
 	}
@@ -195,12 +194,12 @@ func (r *ReconcilePtpCfg) syncNodePtpDevice(nodeList *corev1.NodeList) error {
 	for _, node := range nodeList.Items {
 		found := &ptpv1.NodePtpDevice{}
 		err := r.client.Get(context.TODO(), types.NamespacedName{
-			Namespace: Namespace, Name: node.Name}, found)
+			Namespace: names.Namespace, Name: node.Name}, found)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				ptpDev := &ptpv1.NodePtpDevice{}
 				ptpDev.Name = node.Name
-				ptpDev.Namespace = Namespace
+				ptpDev.Namespace = names.Namespace
 				err = r.client.Create(context.TODO(), ptpDev)
 				if err != nil {
 					return fmt.Errorf("failed to create NodePtpDevice for node: %v", node.Name)
@@ -226,12 +225,12 @@ func (r *ReconcilePtpCfg) syncPtpCfg(ptpCfgList *ptpv1.PtpCfgList, nodeList *cor
 
 		cm := &corev1.ConfigMap{}
 		err = r.client.Get(context.TODO(), types.NamespacedName{
-			Namespace: Namespace, Name: "ptp-configmap-" + node.Name}, cm)
+			Namespace: names.Namespace, Name: "ptp-configmap-" + node.Name}, cm)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				nodePtpConfigMap := &corev1.ConfigMap{}
 				nodePtpConfigMap.Name = "ptp-configmap-" + node.Name
-				nodePtpConfigMap.Namespace = Namespace
+				nodePtpConfigMap.Namespace = names.Namespace
 				data, err := json.Marshal(nodePtpProfile)
 				if err != nil {
 					return fmt.Errorf("failed to Marshal nodePtpProfile: %v", err)
