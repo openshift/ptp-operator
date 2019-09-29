@@ -1,0 +1,36 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: linuxptp-daemon
+  namespace: ptp
+  annotations:
+    release.openshift.io/version: "{{.ReleaseVersion}}"
+spec:
+  selector:
+    matchLabels:
+      app: linuxptp-daemon
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: linuxptp-daemon
+    spec:
+      hostNetwork: true
+      hostPID: true
+      nodeSelector:
+        beta.kubernetes.io/os: linux
+      containers:
+      - name: linuxptp-daemon-container
+        securityContext:
+          privileged: true
+        image: {{.Image}}
+        command: [ "/bin/bash", "-c", "--" ]
+        args: [ "/usr/src/kube-ptp-daemon/bin/ptp --alsologtostderr -v 10" ]
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName

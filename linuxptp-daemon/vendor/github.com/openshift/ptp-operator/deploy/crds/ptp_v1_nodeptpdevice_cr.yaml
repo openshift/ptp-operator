@@ -1,0 +1,7 @@
+apiVersion: ptp.openshift.io/v1
+kind: NodePtpDevice
+metadata:
+  name: example-nodeptpdevice
+spec:
+  # Add fields here
+  size: 3

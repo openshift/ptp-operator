@@ -1,0 +1,103 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: ptpcfgs.ptp.openshift.io
+spec:
+  group: ptp.openshift.io
+  names:
+    kind: PtpCfg
+    listKind: PtpCfgList
+    plural: ptpcfgs
+    singular: ptpcfg
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          properties:
+            profile:
+              description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
+                Important: Run "operator-sdk generate k8s" to regenerate code after
+                modifying this file Add custom validation using kubebuilder tags:
+                https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html'
+              items:
+                properties:
+                  interface:
+                    type: string
+                  name:
+                    type: string
+                  phc2sysOpts:
+                    type: string
+                  ptp4lConf:
+                    type: string
+                  ptp4lOpts:
+                    type: string
+                required:
+                - name
+                - interface
+                type: object
+              type: array
+            recommend:
+              items:
+                properties:
+                  match:
+                    items:
+                      properties:
+                        nodeLabel:
+                          type: string
+                        nodeName:
+                          type: string
+                      type: object
+                    type: array
+                  priority:
+                    format: int64
+                    type: integer
+                  profile:
+                    type: string
+                required:
+                - profile
+                - priority
+                type: object
+              type: array
+          required:
+          - profile
+          - recommend
+          type: object
+        status:
+          properties:
+            matchList:
+              description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
+                of cluster Important: Run "operator-sdk generate k8s" to regenerate
+                code after modifying this file Add custom validation using kubebuilder
+                tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html'
+              items:
+                properties:
+                  nodeName:
+                    type: string
+                  profile:
+                    type: string
+                required:
+                - nodeName
+                - profile
+                type: object
+              type: array
+          type: object
+  version: v1
+  versions:
+  - name: v1
+    served: true
+    storage: true
