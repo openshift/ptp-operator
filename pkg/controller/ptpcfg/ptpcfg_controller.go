@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
-var Namespace = "default"
+var Namespace = "ptp"
 var manifestDir = "./bindata"
 var log = logf.Log.WithName("controller_ptpcfg")
 
@@ -226,7 +226,7 @@ func (r *ReconcilePtpCfg) syncPtpCfg(ptpCfgList *ptpv1.PtpCfgList, nodeList *cor
 
 		cm := &corev1.ConfigMap{}
 		err = r.client.Get(context.TODO(), types.NamespacedName{
-			Namespace: Namespace, Name: node.Name + "ptp-config-map"}, cm)
+			Namespace: Namespace, Name: "ptp-configmap-" + node.Name}, cm)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				nodePtpConfigMap := &corev1.ConfigMap{}

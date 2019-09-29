@@ -9,4 +9,4 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: ptp-operator
-  namespace: default
+  namespace: ptp
