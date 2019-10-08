@@ -7,6 +7,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/golang/glog"
 	"github.com/openshift/linuxptp-daemon/pkg/config"
 	"github.com/openshift/linuxptp-daemon/pkg/daemon"
@@ -16,11 +17,15 @@ import (
 
 type cliParams struct {
 	updateInterval	int
+	profile		string
 }
 
 // Parse Command line flags
 func flagInit(cp *cliParams) {
-        flag.IntVar(&cp.updateInterval, "update-interval", config.DefaultUpdateInterval, "Interval to update PTP status")
+        flag.IntVar(&cp.updateInterval, "update-interval", config.DefaultUpdateInterval,
+		"Interval to update PTP status")
+        flag.StringVar(&cp.profile, "linuxptp-profile", config.DefaultProfilePath,
+		"profile to start linuxptp processes")
 }
 
 
@@ -30,6 +35,7 @@ func main() {
 	flagInit(cp)
 
 	glog.Infof("resync period set to: %d [s]", cp.updateInterval)
+	glog.Infof("linuxptp profile path set to: %s", cp.profile)
 
 	cfg, err := config.GetKubeConfig()
 	if err != nil {
@@ -56,6 +62,13 @@ func main() {
 		stopCh,
 	).Run()
 
+	cfgWatcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		glog.Fatalf("error starting fsnotify watcher: %v", err)
+	}
+	defer cfgWatcher.Close()
+	cfgWatcher.Add(cp.profile)
+
 	tickerPull := time.NewTicker(time.Second * time.Duration(cp.updateInterval))
 	defer tickerPull.Stop()
 
@@ -66,6 +79,14 @@ func main() {
 		select {
 		case <-tickerPull.C:
 			glog.Infof("ticker pull")
+		case event, ok := <-cfgWatcher.Events:
+			if !ok {
+				continue
+			}
+			glog.Infof("cfgWatcher event: %v", event)
+			if event.Op&fsnotify.Remove == fsnotify.Remove {
+				ptpConfUpdate.UpdateCh <- true
+			}
 		case sig := <-sigCh:
 			glog.Infof("signal received, shutting down", sig)
 			return
