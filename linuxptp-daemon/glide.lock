@@ -1,5 +1,5 @@
-hash: c05c33c66589826e63c03ef6ef6fe55d076a4e3fce357844abff944656403a1e
-updated: 2019-09-29T03:12:50.135161214-04:00
+hash: 71a805b96b5fa8b1853ecd3eb29d5548df2f4e9198c2d4f3709eac71ffbbf458
+updated: 2019-10-08T05:58:09.686369382-04:00
 imports:
 - name: github.com/davecgh/go-spew
   version: 8991bc29aa16c548c550c7ff78260e27b9ab7c73
@@ -9,6 +9,8 @@ imports:
   version: ff4f55a206334ef123e4f79bbf348980da81ca46
   subpackages:
   - log
+- name: github.com/fsnotify/fsnotify
+  version: c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9
 - name: github.com/ghodss/yaml
   version: 25d852aebe32c875e9c044af3eef9c7dc6bc777f
 - name: github.com/go-openapi/jsonpointer
@@ -67,7 +69,7 @@ imports:
 - name: github.com/modern-go/reflect2
   version: 94122c33edd36123c84d5368cfb2b69df93a0ec8
 - name: github.com/openshift/ptp-operator
-  version: 40f1d9175df453ce7b530025d61b83ed039ec472
+  version: 51bf437196d933c7e47e781c6a7b0d5ce600d154
   subpackages:
   - pkg/apis/ptp/v1
 - name: github.com/pkg/errors
@@ -121,7 +123,7 @@ imports:
   subpackages:
   - rate
 - name: golang.org/x/tools
-  version: e7abfedfabcfcc6a3220ae994ab001754cf1a76a
+  version: 6536af71d98a5bb8f2cbd2f5e62afc2f6cc93dbb
 - name: google.golang.org/appengine
   version: 54a98f90d1c46b7731eb8fb305d2a321c30ef610
   subpackages:
@@ -277,7 +279,7 @@ imports:
   - util/homedir
   - util/keyutil
 - name: k8s.io/code-generator
-  version: 016f2b3d74d0fc556c1d55dfb3612a6a74a5ff50
+  version: 700b1226c0bdf36115cf94f496ac105b3bca1700
 - name: k8s.io/gengo
   version: ebc107f98eab922ef99d645781b87caca01f4f48
 - name: k8s.io/klog
@@ -291,7 +293,7 @@ imports:
   subpackages:
   - integer
 - name: sigs.k8s.io/controller-runtime
-  version: 801e12a501606245062a6ff77ac91eef8936d9fb
+  version: aac8bc7a3cbc56b99cc250d1506a0a39765b573d
   subpackages:
   - pkg/runtime/scheme
   - pkg/scheme

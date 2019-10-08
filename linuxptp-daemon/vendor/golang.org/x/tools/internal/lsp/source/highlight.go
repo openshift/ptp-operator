@@ -23,7 +23,8 @@ func Highlight(ctx context.Context, view View, uri span.URI, pos protocol.Positi
 	if err != nil {
 		return nil, err
 	}
-	ph := view.Session().Cache().ParseGoHandle(f.Handle(ctx), ParseFull)
+	fh := view.Snapshot().Handle(ctx, f)
+	ph := view.Session().Cache().ParseGoHandle(fh, ParseFull)
 	file, m, _, err := ph.Parse(ctx)
 	if err != nil {
 		return nil, err
@@ -38,11 +39,12 @@ func Highlight(ctx context.Context, view View, uri span.URI, pos protocol.Positi
 	}
 	path, _ := astutil.PathEnclosingInterval(file, rng.Start, rng.Start)
 	if len(path) == 0 {
-		return nil, errors.Errorf("no enclosing position found for %f:%f", pos.Line, pos.Character)
+		return nil, errors.Errorf("no enclosing position found for %v:%v", int(pos.Line), int(pos.Character))
 	}
 	id, ok := path[0].(*ast.Ident)
 	if !ok {
-		return nil, errors.Errorf("%f:%f is not an identifier", pos.Line, pos.Character)
+		// If the cursor is not within an identifier, return empty results.
+		return []protocol.Range{}, nil
 	}
 	var result []protocol.Range
 	if id.Obj != nil {

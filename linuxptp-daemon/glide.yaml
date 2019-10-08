@@ -25,3 +25,5 @@ import:
   version: ^0.4.0
 - package: github.com/golang/glog
 - package: github.com/openshift/ptp-operator
+- package: github.com/fsnotify/fsnotify
+  version: ^1.4.7
