@@ -14,6 +14,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/openshift/linuxptp-daemon/pkg/config"
 	"github.com/openshift/linuxptp-daemon/pkg/daemon"
+	"github.com/openshift/linuxptp-daemon/pkg/network"
 	ptpv1 "github.com/openshift/ptp-operator/pkg/apis/ptp/v1"
 
         "k8s.io/client-go/kubernetes"
@@ -53,6 +54,12 @@ func main() {
                 glog.Errorf("cannot create new config for kubeClient: %v", err)
                 return
         }
+
+	ptpDevs, err := network.DiscoverPTPDevices()
+	if err != nil {
+		glog.Errorf("discover PTP devices failed: %v", err)
+	}
+	glog.Infof("PTP capable NICs: %v", ptpDevs)
 
 	stopCh := make(chan struct{})
 	defer close(stopCh)

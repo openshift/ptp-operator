@@ -30,7 +30,7 @@ func netParseEthtoolTimeStampFeature(cmdOut *bytes.Buffer) bool {
 	var hardTxEnabled bool
 	var hardRawEnabled bool
 
-	glog.Infof("cmd output for %v", cmdOut)
+	glog.V(2).Infof("cmd output for %v", cmdOut)
 	scanner := bufio.NewScanner(cmdOut)
 	for scanner.Scan() {
 		line := strings.TrimPrefix(scanner.Text(), "\t")

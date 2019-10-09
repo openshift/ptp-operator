@@ -26,7 +26,7 @@ spec:
           privileged: true
         image: openshift.io/linuxptp-daemon
         command: [ "/bin/bash", "-c", "--" ]
-        args: [ "/usr/local/bin/ptp --alsologtostderr -v 10" ]
+        args: [ "/usr/local/bin/ptp --alsologtostderr" ]
         imagePullPolicy: IfNotPresent
         env:
         - name: NODE_NAME
