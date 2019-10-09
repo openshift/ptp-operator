@@ -97,9 +97,24 @@ func (dn *Daemon) Run() {
 	return
 }
 
+func printWhenNotNil(p *string, description string) {
+	if p != nil {
+		glog.Info(description, ": ", *p)
+	}
+}
+
 func applyNodePTPProfile(pm *ProcessManager, nodeProfile *ptpv1.PtpProfile) error {
 	glog.Infof("in applyNodePTPProfile")
-	glog.Infof("updating NodePTPProfile to: %+v", nodeProfile)
+
+	glog.Infof("updating NodePTPProfile to:")
+	glog.Infof("------------------------------------")
+	printWhenNotNil(nodeProfile.Name, "Profile Name")
+	printWhenNotNil(nodeProfile.Interface, "Interface")
+	printWhenNotNil(nodeProfile.Ptp4lOpts, "Ptp4lOpts")
+	printWhenNotNil(nodeProfile.Ptp4lConf, "Ptp4lConf")
+	printWhenNotNil(nodeProfile.Phc2sysOpts, "Phc2sysOpts")
+	glog.Infof("------------------------------------")
+
 	for _, p := range pm.process {
 		if p != nil {
 			glog.Infof("stopping process.... %+v", p)

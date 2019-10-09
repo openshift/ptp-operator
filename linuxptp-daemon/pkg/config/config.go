@@ -12,7 +12,7 @@ import (
 
 const (
 	DefaultUpdateInterval = 120
-	DefaultProfilePath = "/etc/linuxptp.profile"
+	DefaultProfilePath = "/etc/linuxptp"
 )
 
 func GetKubeConfig() (*rest.Config, error) {

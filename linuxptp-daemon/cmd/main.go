@@ -1,9 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
+	"io/ioutil"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -11,6 +14,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/openshift/linuxptp-daemon/pkg/config"
 	"github.com/openshift/linuxptp-daemon/pkg/daemon"
+	ptpv1 "github.com/openshift/ptp-operator/pkg/apis/ptp/v1"
 
         "k8s.io/client-go/kubernetes"
 )
@@ -24,7 +28,7 @@ type cliParams struct {
 func flagInit(cp *cliParams) {
         flag.IntVar(&cp.updateInterval, "update-interval", config.DefaultUpdateInterval,
 		"Interval to update PTP status")
-        flag.StringVar(&cp.profile, "linuxptp-profile", config.DefaultProfilePath,
+        flag.StringVar(&cp.profile, "linuxptp-profile-path", config.DefaultProfilePath,
 		"profile to start linuxptp processes")
 }
 
@@ -55,7 +59,7 @@ func main() {
 
 	ptpConfUpdate := &daemon.LinuxPTPConfUpdate{UpdateCh: make(chan bool)}
 	go daemon.New(
-		os.Getenv("PTP_NODE_NAME"),
+		os.Getenv("NODE_NAME"),
 		daemon.PtpNamespace,
 		kubeClient,
 		ptpConfUpdate,
@@ -67,7 +71,20 @@ func main() {
 		glog.Fatalf("error starting fsnotify watcher: %v", err)
 	}
 	defer cfgWatcher.Close()
-	cfgWatcher.Add(cp.profile)
+
+	nodeProfile := filepath.Join(cp.profile, os.Getenv("NODE_NAME"))
+
+	nodeProfileJson, err := ioutil.ReadFile(nodeProfile)
+	if err != nil {
+		glog.Fatalf("error reading node profile: %v", nodeProfile)
+	}
+	ptpConfig := &ptpv1.PtpProfile{}
+	err = json.Unmarshal(nodeProfileJson, ptpConfig)
+	ptpConfUpdate.NodeProfile = ptpConfig
+	ptpConfUpdate.UpdateCh <- true
+
+	glog.Infof("watching node profile: %v", nodeProfile)
+	cfgWatcher.Add(nodeProfile)
 
 	tickerPull := time.NewTicker(time.Second * time.Duration(cp.updateInterval))
 	defer tickerPull.Stop()
@@ -85,6 +102,13 @@ func main() {
 			}
 			glog.Infof("cfgWatcher event: %v", event)
 			if event.Op&fsnotify.Remove == fsnotify.Remove {
+				nodeProfileJson, err := ioutil.ReadFile(nodeProfile)
+				if err != nil {
+					glog.Errorf("error reading node profile: %v", nodeProfile)
+					continue
+				}
+				err = json.Unmarshal(nodeProfileJson, ptpConfig)
+				ptpConfUpdate.NodeProfile = ptpConfig
 				ptpConfUpdate.UpdateCh <- true
 			}
 		case sig := <-sigCh:
