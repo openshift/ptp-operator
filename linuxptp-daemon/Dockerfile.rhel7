@@ -1,0 +1,11 @@
+FROM registry.svc.ci.openshift.org/openshift/release:golang-1.10 AS builder
+ADD . /usr/src/linuxptp-daemon
+
+WORKDIR /usr/src/linuxptp-daemon
+RUN make clean && make
+
+FROM registry.svc.ci.openshift.org/openshift/origin-v4.0:base
+RUN yum -y update; yum install -y linuxptp ethtool hwdata; yum clean all
+COPY --from=builder /usr/src/linuxptp-daemon/bin/ptp /usr/local/bin/
+
+CMD ["/usr/local/bin/ptp"]
