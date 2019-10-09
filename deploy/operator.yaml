@@ -17,7 +17,7 @@ spec:
       containers:
         - name: ptp-operator
           # Replace this with the built image name
-          image: quay.io/zenghui/ptp-operator:v0.0.1
+          image: openshift.io/ptp-operator
           command: [ "/bin/bash", "-c", "--" ]
           args: [ "ptp-operator --alsologtostderr -v 10" ]
           imagePullPolicy: Never
@@ -33,4 +33,4 @@ spec:
             - name: OPERATOR_NAME
               value: "ptp-operator"
             - name: LINUXPTP_DAEMON_IMAGE
-              value: "zenghui/ptp-daemon:latest"
+              value: "openshift.io/linuxptp-daemon:latest"

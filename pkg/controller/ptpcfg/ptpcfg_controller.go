@@ -231,45 +231,45 @@ func (r *ReconcilePtpCfg) syncNodePtpDevice(nodeList *corev1.NodeList) error {
 
 // syncPtpCfg synchronizes PtpCfg CR
 func (r *ReconcilePtpCfg) syncPtpCfg(ptpCfgList *ptpv1.PtpCfgList, nodeList *corev1.NodeList) error {
+	var err error
+
+	nodePtpConfigMap := &corev1.ConfigMap{}
+	nodePtpConfigMap.Name = "ptp-configmap"
+	nodePtpConfigMap.Namespace = names.Namespace
+	nodePtpConfigMap.Data = make(map[string]string)
+
 	for _, node := range nodeList.Items {
 		nodePtpProfile, err := getRecommendNodePtpProfile(ptpCfgList, node)
 		if err != nil {
 			return fmt.Errorf("failed to get recommended node PtpCfg: %v", err)
 		}
 
-		cm := &corev1.ConfigMap{}
-		err = r.client.Get(context.TODO(), types.NamespacedName{
-			Namespace: names.Namespace, Name: "ptp-configmap-" + node.Name}, cm)
+		data, err := json.Marshal(nodePtpProfile)
 		if err != nil {
-			if errors.IsNotFound(err) {
-				nodePtpConfigMap := &corev1.ConfigMap{}
-				nodePtpConfigMap.Name = "ptp-configmap-" + node.Name
-				nodePtpConfigMap.Namespace = names.Namespace
-				data, err := json.Marshal(nodePtpProfile)
-				if err != nil {
-					return fmt.Errorf("failed to Marshal nodePtpProfile: %v", err)
-				}
-				nodePtpConfigMap.Data = map[string]string{"node-ptp-profile": string(data)}
+			return fmt.Errorf("failed to Marshal nodePtpProfile: %v", err)
+		}
+		nodePtpConfigMap.Data[node.Name] = string(data)
+	}
 
-				err = r.client.Create(context.TODO(), nodePtpConfigMap)
-				if err != nil {
-					return fmt.Errorf("failed to create node ptp config map: %v", err)
-				}
-				glog.Infof("create node ptp config map successfully for node: %v", node.Name)
-			} else {
-				return fmt.Errorf("failed to get node ptp config map: %v", err)
+	cm := &corev1.ConfigMap{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{
+		Namespace: names.Namespace, Name: "ptp-configmap"}, cm)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			err = r.client.Create(context.TODO(), nodePtpConfigMap)
+			if err != nil {
+				return fmt.Errorf("failed to create node ptp config map: %v", err)
 			}
+			glog.Infof("create node ptp config map successfully")
 		} else {
-			glog.Infof("node ptp config map already exists, updating")
-			data, err := json.Marshal(nodePtpProfile)
-			if err != nil {
-				return fmt.Errorf("failed to Marshal nodePtpProfile: %v", err)
-			}
-			cm.Data["node-ptp-profile"] = string(data)
-			err = r.client.Update(context.TODO(), cm)
-			if err != nil {
-				return fmt.Errorf("failed to update node ptp config map: %v", err)
-			}
+			return fmt.Errorf("failed to get node ptp config map: %v", err)
+		}
+	} else {
+		glog.Infof("node ptp config map already exists, updating")
+		cm.Data = nodePtpConfigMap.Data
+		err = r.client.Update(context.TODO(), cm)
+		if err != nil {
+			return fmt.Errorf("failed to update node ptp config map: %v", err)
 		}
 	}
 	return nil
