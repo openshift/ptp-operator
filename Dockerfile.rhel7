@@ -15,4 +15,4 @@ LABEL io.k8s.display-name="OpenShift ptp-operator" \
       com.redhat.delivery.appregistry=true \
       maintainer="Multus Team <multus-dev@redhat.com>"
 
-ENTRYPOINT ["/usr/local/bin/operator"]
+ENTRYPOINT ["/usr/local/bin/ptp-operator"]
