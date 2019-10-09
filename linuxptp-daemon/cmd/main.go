@@ -57,31 +57,49 @@ func main() {
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 
+	nodeName := os.Getenv("NODE_NAME")
 	ptpConfUpdate := &daemon.LinuxPTPConfUpdate{UpdateCh: make(chan bool)}
 	go daemon.New(
-		os.Getenv("NODE_NAME"),
+		nodeName,
 		daemon.PtpNamespace,
 		kubeClient,
 		ptpConfUpdate,
 		stopCh,
 	).Run()
 
-	cfgWatcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		glog.Fatalf("error starting fsnotify watcher: %v", err)
+	nodeProfile := filepath.Join(cp.profile, nodeName)
+	for {
+		if _, err := os.Stat(nodeProfile); err != nil {
+			if os.IsNotExist(err) {
+				glog.Infof("ptp profile doesn't exist for node: %v", nodeName)
+				glog.Infof("waiting for 60 seconds ... ")
+				time.Sleep(60 * time.Second)
+				continue
+			} else {
+				glog.Fatal("error stating node profile: %v", err)
+			}
+		}
+		break
 	}
-	defer cfgWatcher.Close()
-
-	nodeProfile := filepath.Join(cp.profile, os.Getenv("NODE_NAME"))
 
 	nodeProfileJson, err := ioutil.ReadFile(nodeProfile)
 	if err != nil {
 		glog.Fatalf("error reading node profile: %v", nodeProfile)
 	}
+
 	ptpConfig := &ptpv1.PtpProfile{}
 	err = json.Unmarshal(nodeProfileJson, ptpConfig)
+	if err != nil {
+		glog.Fatalf("failed to json.Unmarshal ptp profile: %v", err)
+	}
 	ptpConfUpdate.NodeProfile = ptpConfig
 	ptpConfUpdate.UpdateCh <- true
+
+	cfgWatcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		glog.Fatalf("error starting fsnotify watcher: %v", err)
+	}
+	defer cfgWatcher.Close()
 
 	glog.Infof("watching node profile: %v", nodeProfile)
 	cfgWatcher.Add(nodeProfile)
@@ -101,13 +119,19 @@ func main() {
 				continue
 			}
 			glog.Infof("cfgWatcher event: %v", event)
-			if event.Op&fsnotify.Remove == fsnotify.Remove {
+			mask := fsnotify.Create | fsnotify.Rename | fsnotify.Remove |
+				fsnotify.Write | fsnotify.Chmod
+			if ( event.Op & mask ) != 0 {
 				nodeProfileJson, err := ioutil.ReadFile(nodeProfile)
 				if err != nil {
 					glog.Errorf("error reading node profile: %v", nodeProfile)
 					continue
 				}
 				err = json.Unmarshal(nodeProfileJson, ptpConfig)
+				if err != nil {
+					glog.Errorf("failed to json.Unmarshal ptp profile: %v", err)
+					continue
+				}
 				ptpConfUpdate.NodeProfile = ptpConfig
 				ptpConfUpdate.UpdateCh <- true
 			}
