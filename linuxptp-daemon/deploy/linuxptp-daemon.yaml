@@ -19,7 +19,6 @@ spec:
       hostPID: true
       nodeSelector:
         beta.kubernetes.io/os: linux
-      serviceAccountName: linuxptp-service-account
       containers:
       - name: linuxptp-daemon-container
         securityContext:
