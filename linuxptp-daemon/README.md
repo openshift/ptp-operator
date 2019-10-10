@@ -66,7 +66,13 @@ metadata:
 
 ### Create linuxptp daemon
 
-1. This launches linuxptp DaemonSet pod on each node, daemon mounts ptp configmap and configures linuxptp processes(ptp4l, phc2sys) according to data sources in configmap. daemon uses node specific data source from configmap.
+1. Build linuxptp daemon image `openshift.io/linuxptp-daemon` used by linuxptp-daemon.yaml
+
+```
+$ make image
+```
+
+2. This launches linuxptp DaemonSet pod on each node, daemon mounts ptp configmap and configures linuxptp processes(ptp4l, phc2sys) according to data sources in configmap. daemon uses node specific data source from configmap.
 
 ```
 $ kubectl create -f deploy/linuxptp-daemon.yaml
