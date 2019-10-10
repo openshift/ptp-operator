@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	DefaultUpdateInterval = 120
+	DefaultUpdateInterval = 30
 	DefaultProfilePath = "/etc/linuxptp"
 )
 

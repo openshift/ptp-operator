@@ -10,7 +10,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/fsnotify/fsnotify"
 	"github.com/golang/glog"
 	"github.com/openshift/linuxptp-daemon/pkg/config"
 	"github.com/openshift/linuxptp-daemon/pkg/daemon"
@@ -22,14 +21,14 @@ import (
 
 type cliParams struct {
 	updateInterval	int
-	profile		string
+	profileDir	string
 }
 
 // Parse Command line flags
 func flagInit(cp *cliParams) {
         flag.IntVar(&cp.updateInterval, "update-interval", config.DefaultUpdateInterval,
 		"Interval to update PTP status")
-        flag.StringVar(&cp.profile, "linuxptp-profile-path", config.DefaultProfilePath,
+        flag.StringVar(&cp.profileDir, "linuxptp-profile-path", config.DefaultProfilePath,
 		"profile to start linuxptp processes")
 }
 
@@ -40,7 +39,7 @@ func main() {
 	flagInit(cp)
 
 	glog.Infof("resync period set to: %d [s]", cp.updateInterval)
-	glog.Infof("linuxptp profile path set to: %s", cp.profile)
+	glog.Infof("linuxptp profile path set to: %s", cp.profileDir)
 
 	cfg, err := config.GetKubeConfig()
 	if err != nil {
@@ -74,7 +73,7 @@ func main() {
 		stopCh,
 	).Run()
 
-	nodeProfile := filepath.Join(cp.profile, nodeName)
+	nodeProfile := filepath.Join(cp.profileDir, nodeName)
 	for {
 		if _, err := os.Stat(nodeProfile); err != nil {
 			if os.IsNotExist(err) {
@@ -89,6 +88,7 @@ func main() {
 		break
 	}
 
+	var appliedNodeProfileJson []byte
 	nodeProfileJson, err := ioutil.ReadFile(nodeProfile)
 	if err != nil {
 		glog.Fatalf("error reading node profile: %v", nodeProfile)
@@ -99,17 +99,9 @@ func main() {
 	if err != nil {
 		glog.Fatalf("failed to json.Unmarshal ptp profile: %v", err)
 	}
+	appliedNodeProfileJson = nodeProfileJson
 	ptpConfUpdate.NodeProfile = ptpConfig
 	ptpConfUpdate.UpdateCh <- true
-
-	cfgWatcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		glog.Fatalf("error starting fsnotify watcher: %v", err)
-	}
-	defer cfgWatcher.Close()
-
-	glog.Infof("watching node profile: %v", nodeProfile)
-	cfgWatcher.Add(nodeProfile)
 
 	tickerPull := time.NewTicker(time.Second * time.Duration(cp.updateInterval))
 	defer tickerPull.Stop()
@@ -121,27 +113,22 @@ func main() {
 		select {
 		case <-tickerPull.C:
 			glog.Infof("ticker pull")
-		case event, ok := <-cfgWatcher.Events:
-			if !ok {
+			nodeProfileJson, err := ioutil.ReadFile(nodeProfile)
+			if err != nil {
+				glog.Errorf("error reading node profile: %v", nodeProfile)
 				continue
 			}
-			glog.Infof("cfgWatcher event: %v", event)
-			mask := fsnotify.Create | fsnotify.Rename | fsnotify.Remove |
-				fsnotify.Write | fsnotify.Chmod
-			if ( event.Op & mask ) != 0 {
-				nodeProfileJson, err := ioutil.ReadFile(nodeProfile)
-				if err != nil {
-					glog.Errorf("error reading node profile: %v", nodeProfile)
-					continue
-				}
-				err = json.Unmarshal(nodeProfileJson, ptpConfig)
-				if err != nil {
-					glog.Errorf("failed to json.Unmarshal ptp profile: %v", err)
-					continue
-				}
-				ptpConfUpdate.NodeProfile = ptpConfig
-				ptpConfUpdate.UpdateCh <- true
+			if string(appliedNodeProfileJson) == string(nodeProfileJson) {
+				continue
 			}
+			err = json.Unmarshal(nodeProfileJson, ptpConfig)
+			if err != nil {
+				glog.Errorf("failed to json.Unmarshal ptp profile: %v", err)
+				continue
+			}
+			appliedNodeProfileJson = nodeProfileJson
+			ptpConfUpdate.NodeProfile = ptpConfig
+			ptpConfUpdate.UpdateCh <- true
 		case sig := <-sigCh:
 			glog.Infof("signal received, shutting down", sig)
 			return
