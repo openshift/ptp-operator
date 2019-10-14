@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: linuxptp-daemon
-  namespace: ptp
+  namespace: openshift-ptp
   annotations:
     release.openshift.io/version: "{{.ReleaseVersion}}"
 spec:
