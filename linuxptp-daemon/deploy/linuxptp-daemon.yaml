@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: linuxptp-daemon
-  namespace: ptp
+  namespace: openshift-ptp
 spec:
   selector:
     matchLabels:
@@ -38,4 +38,4 @@ spec:
       volumes:
         - name: config-volume
           configMap:
-            name: ptp-configmap
+            name: linuxptp-configmap

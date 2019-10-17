@@ -6,21 +6,21 @@
 
 ## Linuxptp Daemon
 Linuxptp Daemon runs as Kubernetes DaemonSet and manages linuxptp processes (ptp4l, phc2sys, timemaster).
-It mounts ptp configmap which contains aggregated ptp configurations and applies specific config for each node.
-Both linuxptp daemon and ptp configmap are created in `ptp` namespace.
+It mounts linuxptp configmap which contains aggregated ptp configurations and applies specific config for each node.
+Both linuxptp daemon and ptp configmap are created in `openshift-ptp` namespace.
 
 ## Quick Start
 
 ### Create namespace
 
-1. All ptp related resources run inside `ptp` namespace, including `linuxptp-daemon`, `ptp-configmap`.
+1. All ptp related resources run inside `openshift-ptp` namespace, including `linuxptp-daemon`, `linuxptp-configmap`.
 ```
 $ kubectl create -f deploy/00-ns.yaml
 ```
 
-### Generate ptp configmap data sources
+### Generate linuxptp configmap data sources
 
-1. ptp configmap contains data sources(linuxptp configuration) for all the nodes in cluster, each node has a data source entry in ptp configmap. The key name of data source is equal to node name, the value of data source is a string representing linuxptp configurations(ptp4lOpts, phc2sysOpts, Interface etc). Below shell script helps to generate data sources for all the nodes under `ptp-configmap` directory which will be used later to create configmap.
+1. linuxptp configmap contains data sources(linuxptp configuration) for all the nodes in cluster, each node has a data source entry in linuxptp configmap. The key name of data source is equal to node name, the value of data source is a string representing linuxptp configurations(ptp4lOpts, phc2sysOpts, Interface etc). Below shell script helps to generate data sources for all the nodes under `linuxptp-configmap` directory which will be used later to create configmap.
 ```
 $ ./hack/gen-configmap-data-source.sh
 
@@ -28,28 +28,28 @@ $ ./hack/gen-configmap-data-source.sh
 
 For example, if the cluster only has one node called `node.example.com`, then generated file would be:
 ```
-$ ls ./ptp-configmap
+$ ls ./linuxptp-configmap
 node.example.com
 ```
 
 ### Modify ptp configmap
 
-1. The generated data sources is under `./ptp-configmap` directory, one file per node. It has hard-coded linuxptp configuration in each node file. Usually user will need to change the config according to their own environments, for example, change the `Interface` name `eth0` to the PTP capable device `ens786f1` in node specific file.
+1. The generated data sources is under `./linuxptp-configmap` directory, one file per node. It has hard-coded linuxptp configuration in each node file. Usually user will need to change the config according to their own environments, for example, change the `Interface` name `eth0` to the PTP capable device `ens786f1` in node specific file.
 
 ```
-$ cat ptp-configmap/node.example.com
+$ cat linuxptp-configmap/node.example.com
 {"interface":"eth0", "ptp4lOpts":"-s -2", "phc2sysOpts":"-a -r"}
 
-$ vim ptp-configmap/node.example.com
+$ vim linuxptp-configmap/node.example.com
 {"interface":"ens786f1", "ptp4lOpts":"-s -2", "phc2sysOpts":"-a -r"}
 ```
 
 ### Create ptp configmap
 
-1. The name of ptp configmap is called `ptp-configmap`, this equals to the name of configmap mounted in linuxptp-daemon.yaml. `./ptp-configmap` is the directory where node specific data source is geneated.
+1. The name of linuxptp configmap is called `linuxptp-configmap`, this equals to the name of configmap mounted in linuxptp-daemon.yaml. `./linuxptp-configmap` is the directory where node specific data source is geneated.
 ```
-$ kubectl create configmap ptp-configmap --from-file ./ptp-configmap
-$ kubectl get configmap ptp-configmap -o yaml -n ptp
+$ kubectl create configmap linuxptp-configmap --from-file ./linuxptp-configmap
+$ kubectl get configmap linuxptp-configmap -o yaml -n openshift-ptp
 apiVersion: v1
 data:
   node.example.com: |
@@ -57,10 +57,10 @@ data:
 kind: ConfigMap
 metadata:
   creationTimestamp: "2019-10-10T09:03:39Z"
-  name: ptp-configmap
-  namespace: ptp
+  name: linuxptp-configmap
+  namespace: openshift-ptp
   resourceVersion: "2323998"
-  selfLink: /api/v1/namespaces/ptp/configmaps/ptp-configmap
+  selfLink: /api/v1/namespaces/openshift-ptp/configmaps/linuxptp-configmap
   uid: 40c031f4-e09d-40a8-b081-92c3b8c0accb
 ```
 
@@ -72,16 +72,16 @@ metadata:
 $ make image
 ```
 
-2. This launches linuxptp DaemonSet pod on each node, daemon mounts ptp configmap and configures linuxptp processes(ptp4l, phc2sys) according to data sources in configmap. daemon uses node specific data source from configmap.
+2. This launches linuxptp DaemonSet pod on each node, daemon mounts linuxptp configmap and configures linuxptp processes(ptp4l, phc2sys) according to data sources in configmap. daemon uses node specific data source from configmap.
 
 ```
 $ kubectl create -f deploy/linuxptp-daemon.yaml
 
-$ kubectl get pods -n ptp
+$ kubectl get pods -n openshift-ptp
 NAME                    READY   STATUS    RESTARTS   AGE
 linuxptp-daemon-txmpn   1/1     Running   0          105m
 
-$ kubectl logs linuxptp-daemon-txmpn -n ptp
+$ kubectl logs linuxptp-daemon-txmpn -n openshift-ptp
 I1010 07:28:11.655009   48998 main.go:41] resync period set to: 30 [s]
 I1010 07:28:11.655384   48998 main.go:42] linuxptp profile path set to: /etc/linuxptp
 I1010 07:28:11.655845   48998 main.go:49] successfully get kubeconfig

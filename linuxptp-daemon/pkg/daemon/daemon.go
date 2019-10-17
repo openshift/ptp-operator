@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	PtpNamespace = "ptp"
+	PtpNamespace = "openshift-ptp"
 	PTP4L_CONF_FILE_PATH = "/etc/ptp4l.conf"
 )
 
