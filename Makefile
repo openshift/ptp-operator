@@ -29,4 +29,4 @@ image:
 
 clean:
 	rm -rf build/_output/bin/ptp-operator
-	rm -r $(GOPATH)
+	rm -rf $(GOPATH)
