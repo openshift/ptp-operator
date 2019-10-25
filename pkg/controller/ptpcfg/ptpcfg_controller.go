@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/openshift/ptp-operator/pkg/apply"
@@ -28,6 +29,10 @@ import (
 )
 
 var log = logf.Log.WithName("controller_ptpcfg")
+
+const (
+	ResyncPeriod = 5 * time.Minute
+)
 
 /**
 * USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
@@ -55,16 +60,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// Watch for changes to primary resource PtpCfg
 	err = c.Watch(&source.Kind{Type: &ptpv1.PtpCfg{}}, &handler.EnqueueRequestForObject{})
-	if err != nil {
-		return err
-	}
-
-	// TODO(user): Modify this to be the types you create that are owned by the primary resource
-	// Watch for changes to secondary resource Pods and requeue the owner PtpCfg
-	err = c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &ptpv1.PtpCfg{},
-	})
 	if err != nil {
 		return err
 	}
@@ -148,7 +143,7 @@ func (r *ReconcilePtpCfg) Reconcile(request reconcile.Request) (reconcile.Result
 		return reconcile.Result{}, err
 	}
 
-	return reconcile.Result{}, nil
+	return reconcile.Result{RequeueAfter: ResyncPeriod}, nil
 }
 
 // syncLinuxptpDaemon synchronizes Linuxptp DaemonSet
