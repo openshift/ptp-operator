@@ -10,7 +10,7 @@ const Namespace = "openshift-ptp"
 // DefaultCfgName is the default ptp config map that created
 // by ptp-operator. It's set to the owner of resources of
 // linuxptp daemonset, ptp-configmap-<node-name> and nodePtpDevice.
-const DefaultCfgName = "default"
+const DefaultOperatorConfigName = "default"
 
 // ManifestDir is the directory where manifests are located.
 const ManifestDir = "./bindata"

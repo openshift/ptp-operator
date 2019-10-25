@@ -2,11 +2,19 @@ package operatorconfig
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"time"
 
+	"github.com/golang/glog"
+	"github.com/openshift/ptp-operator/pkg/apply"
+	"github.com/openshift/ptp-operator/pkg/names"
+	"github.com/openshift/ptp-operator/pkg/render"
 	ptpv1 "github.com/openshift/ptp-operator/pkg/apis/ptp/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	uns "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -20,6 +28,10 @@ import (
 )
 
 var log = logf.Log.WithName("controller_operatorconfig")
+
+const (
+	ResyncPeriod = 5 * time.Minute
+)
 
 /**
 * USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
@@ -51,16 +63,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// TODO(user): Modify this to be the types you create that are owned by the primary resource
-	// Watch for changes to secondary resource Pods and requeue the owner OperatorConfig
-	err = c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &ptpv1.OperatorConfig{},
-	})
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -87,12 +89,23 @@ func (r *ReconcileOperatorConfig) Reconcile(request reconcile.Request) (reconcil
 	reqLogger.Info("Reconciling OperatorConfig")
 
 	// Fetch the OperatorConfig instance
-	instance := &ptpv1.OperatorConfig{}
-	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
+	defaultCfg := &ptpv1.OperatorConfig{}
+	err := r.client.Get(context.TODO(), types.NamespacedName{
+		Name: names.DefaultOperatorConfigName, Namespace: names.Namespace}, defaultCfg)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
+			defaultCfg.SetNamespace(names.Namespace)
+			defaultCfg.SetName(names.DefaultOperatorConfigName)
+			defaultCfg.Spec = ptpv1.OperatorConfigSpec{
+				DaemonNodeSelector: map[string]string{},
+			}
+			if err = r.client.Create(context.TODO(), defaultCfg); err != nil {
+				reqLogger.Error(err, "failed to create default ptp config",
+					"Namespace", names.Namespace, "Name", names.DefaultOperatorConfigName)
+				return reconcile.Result{}, err
+			}
 			// Return and don't requeue
 			return reconcile.Result{}, nil
 		}
@@ -100,54 +113,71 @@ func (r *ReconcileOperatorConfig) Reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, err
 	}
 
-	// Define a new Pod object
-	pod := newPodForCR(instance)
-
-	// Set OperatorConfig instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, pod, r.scheme); err != nil {
+	nodeList := &corev1.NodeList{}
+	err = r.client.List(context.TODO(), &client.ListOptions{}, nodeList)
+	if err != nil {
+		glog.Errorf("failed to list nodes")
 		return reconcile.Result{}, err
 	}
 
-	// Check if this Pod already exists
-	found := &corev1.Pod{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
-		err = r.client.Create(context.TODO(), pod)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-
-		// Pod created successfully - don't requeue
-		return reconcile.Result{}, nil
-	} else if err != nil {
+	if err = r.syncNodePtpDevice(nodeList); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	// Pod already exists - don't requeue
-	reqLogger.Info("Skip reconcile: Pod already exists", "Pod.Namespace", found.Namespace, "Pod.Name", found.Name)
-	return reconcile.Result{}, nil
+	if err = r.syncLinuxptpDaemon(defaultCfg); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	return reconcile.Result{RequeueAfter: ResyncPeriod}, nil
 }
 
-// newPodForCR returns a busybox pod with the same name/namespace as the cr
-func newPodForCR(cr *ptpv1.OperatorConfig) *corev1.Pod {
-	labels := map[string]string{
-		"app": cr.Name,
+// syncLinuxptpDaemon synchronizes Linuxptp DaemonSet
+func (r *ReconcileOperatorConfig) syncLinuxptpDaemon(defaultCfg *ptpv1.OperatorConfig) error {
+        var err error
+        objs := []*uns.Unstructured{}
+
+        data := render.MakeRenderData()
+        data.Data["Image"] = os.Getenv("LINUXPTP_DAEMON_IMAGE")
+        data.Data["Namespace"] = names.Namespace
+        data.Data["ReleaseVersion"] = os.Getenv("RELEASEVERSION")
+        objs, err = render.RenderDir(filepath.Join(names.ManifestDir, "linuxptp"), &data)
+        if err != nil {
+                return fmt.Errorf("failed to render linuxptp daemon manifest: %v", err)
+        }
+
+        for _, obj := range objs {
+                if err = controllerutil.SetControllerReference(defaultCfg, obj, r.scheme); err != nil {
+                        return fmt.Errorf("failed to set owner reference: %v", err)
+                }
+                if err = apply.ApplyObject(context.TODO(), r.client, obj); err != nil {
+                        return fmt.Errorf("failed to apply object %v with err: %v", obj, err)
+                }
+        }
+        return nil
+}
+
+// syncNodePtpDevice synchronizes NodePtpDevice CR for each node
+func (r *ReconcileOperatorConfig) syncNodePtpDevice(nodeList *corev1.NodeList) error {
+	for _, node := range nodeList.Items {
+		found := &ptpv1.NodePtpDevice{}
+		err := r.client.Get(context.TODO(), types.NamespacedName{
+			Namespace: names.Namespace, Name: node.Name}, found)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				ptpDev := &ptpv1.NodePtpDevice{}
+				ptpDev.Name = node.Name
+				ptpDev.Namespace = names.Namespace
+				err = r.client.Create(context.TODO(), ptpDev)
+				if err != nil {
+					return fmt.Errorf("failed to create NodePtpDevice for node: %v", node.Name)
+				}
+				glog.Infof("create NodePtpDevice successfully for node: %v", node.Name)
+			} else {
+				return fmt.Errorf("failed to get NodePtpDevice for node: %v", node.Name)
+			}
+		} else {
+			glog.Infof("NodePtpDevice exists for node: %v, skipping", node.Name)
+		}
 	}
-	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      cr.Name + "-pod",
-			Namespace: cr.Namespace,
-			Labels:    labels,
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:    "busybox",
-					Image:   "busybox",
-					Command: []string{"sleep", "3600"},
-				},
-			},
-		},
-	}
+	return nil
 }

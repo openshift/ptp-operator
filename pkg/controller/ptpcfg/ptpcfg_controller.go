@@ -4,23 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-	"time"
 
 	"github.com/golang/glog"
-	"github.com/openshift/ptp-operator/pkg/apply"
 	"github.com/openshift/ptp-operator/pkg/names"
-	"github.com/openshift/ptp-operator/pkg/render"
 	ptpv1 "github.com/openshift/ptp-operator/pkg/apis/ptp/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	uns "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -29,10 +22,6 @@ import (
 )
 
 var log = logf.Log.WithName("controller_ptpcfg")
-
-const (
-	ResyncPeriod = 5 * time.Minute
-)
 
 /**
 * USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
@@ -89,34 +78,8 @@ func (r *ReconcilePtpCfg) Reconcile(request reconcile.Request) (reconcile.Result
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling PtpCfg")
 
-	// Fetch the PtpCfg instance
-	defaultCfg := &ptpv1.PtpCfg{}
-	err := r.client.Get(context.TODO(), types.NamespacedName{
-		Name: names.DefaultCfgName, Namespace: names.Namespace}, defaultCfg)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			// Request object not found, could have been deleted after reconcile request.
-			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
-			// Return and don't requeue
-			defaultCfg.SetNamespace(names.Namespace)
-			defaultCfg.SetName(names.DefaultCfgName)
-			defaultCfg.Spec = ptpv1.PtpCfgSpec{
-				Profile: []ptpv1.PtpProfile{},
-				Recommend: []ptpv1.PtpRecommend{},
-			}
-			if err = r.client.Create(context.TODO(), defaultCfg); err != nil {
-				reqLogger.Error(err, "failed to create default ptp config",
-					"Namespace", names.Namespace, "Name", names.DefaultCfgName)
-				return reconcile.Result{}, err
-			}
-			return reconcile.Result{}, nil
-		}
-		// Error reading the object - requeue the request.
-		return reconcile.Result{}, err
-	}
-
 	instances := &ptpv1.PtpCfgList{}
-	err = r.client.List(context.TODO(), &client.ListOptions{}, instances)
+	err := r.client.List(context.TODO(), &client.ListOptions{}, instances)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
@@ -131,70 +94,11 @@ func (r *ReconcilePtpCfg) Reconcile(request reconcile.Request) (reconcile.Result
 		return reconcile.Result{}, err
 	}
 
-	if err = r.syncLinuxptpDaemon(defaultCfg); err != nil {
-		return reconcile.Result{}, err
-	}
-
-	if err = r.syncNodePtpDevice(nodeList); err != nil {
-		return reconcile.Result{}, err
-	}
-
 	if err = r.syncPtpCfg(instances, nodeList); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	return reconcile.Result{RequeueAfter: ResyncPeriod}, nil
-}
-
-// syncLinuxptpDaemon synchronizes Linuxptp DaemonSet
-func (r *ReconcilePtpCfg) syncLinuxptpDaemon(defaultCfg *ptpv1.PtpCfg) error {
-	var err error
-	objs := []*uns.Unstructured{}
-
-	data := render.MakeRenderData()
-	data.Data["Image"] = os.Getenv("LINUXPTP_DAEMON_IMAGE")
-	data.Data["Namespace"] = names.Namespace
-	data.Data["ReleaseVersion"] = os.Getenv("RELEASEVERSION")
-	objs, err = render.RenderDir(filepath.Join(names.ManifestDir, "linuxptp"), &data)
-	if err != nil {
-		return fmt.Errorf("failed to render linuxptp daemon manifest: %v", err)
-	}
-
-	for _, obj := range objs {
-		if err = controllerutil.SetControllerReference(defaultCfg, obj, r.scheme); err != nil {
-			return fmt.Errorf("failed to set owner reference: %v", err)
-		}
-		if err = apply.ApplyObject(context.TODO(), r.client, obj); err != nil {
-			return fmt.Errorf("failed to apply object %v with err: %v", obj, err)
-		}
-	}
-	return nil
-}
-
-// syncNodePtpDevice synchronizes NodePtpDevice CR for each node
-func (r *ReconcilePtpCfg) syncNodePtpDevice(nodeList *corev1.NodeList) error {
-	for _, node := range nodeList.Items {
-		found := &ptpv1.NodePtpDevice{}
-		err := r.client.Get(context.TODO(), types.NamespacedName{
-			Namespace: names.Namespace, Name: node.Name}, found)
-		if err != nil {
-			if errors.IsNotFound(err) {
-				ptpDev := &ptpv1.NodePtpDevice{}
-				ptpDev.Name = node.Name
-				ptpDev.Namespace = names.Namespace
-				err = r.client.Create(context.TODO(), ptpDev)
-				if err != nil {
-					return fmt.Errorf("failed to create NodePtpDevice for node: %v", node.Name)
-				}
-				glog.Infof("create NodePtpDevice successfully for node: %v", node.Name)
-			} else {
-				return fmt.Errorf("failed to get NodePtpDevice for node: %v", node.Name)
-			}
-		} else {
-			glog.Infof("NodePtpDevice exists for node: %v, skipping", node.Name)
-		}
-	}
-	return nil
+	return reconcile.Result{}, nil
 }
 
 // syncPtpCfg synchronizes PtpCfg CR
