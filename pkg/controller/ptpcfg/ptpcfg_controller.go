@@ -14,7 +14,6 @@ import (
 	ptpv1 "github.com/openshift/ptp-operator/pkg/apis/ptp/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	uns "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -149,32 +148,6 @@ func (r *ReconcilePtpCfg) Reconcile(request reconcile.Request) (reconcile.Result
 		return reconcile.Result{}, err
 	}
 
-	// Define a new Pod object
-	pod := newPodForCR(defaultCfg)
-
-	// Set PtpCfg instance as the owner and controller
-	if err := controllerutil.SetControllerReference(defaultCfg, pod, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
-
-	// Check if this Pod already exists
-	found := &corev1.Pod{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
-		err = r.client.Create(context.TODO(), pod)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-
-		// Pod created successfully - don't requeue
-		return reconcile.Result{}, nil
-	} else if err != nil {
-		return reconcile.Result{}, err
-	}
-
-	// Pod already exists - don't requeue
-	reqLogger.Info("Skip reconcile: Pod already exists", "Pod.Namespace", found.Namespace, "Pod.Name", found.Name)
 	return reconcile.Result{}, nil
 }
 
@@ -273,27 +246,4 @@ func (r *ReconcilePtpCfg) syncPtpCfg(ptpCfgList *ptpv1.PtpCfgList, nodeList *cor
 		}
 	}
 	return nil
-}
-
-// newPodForCR returns a busybox pod with the same name/namespace as the cr
-func newPodForCR(cr *ptpv1.PtpCfg) *corev1.Pod {
-	labels := map[string]string{
-		"app": cr.Name,
-	}
-	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      cr.Name + "-pod",
-			Namespace: cr.Namespace,
-			Labels:    labels,
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:    "busybox",
-					Image:   "busybox",
-					Command: []string{"sleep", "3600"},
-				},
-			},
-		},
-	}
 }
