@@ -156,6 +156,24 @@ func schema_pkg_apis_ptp_v1_OperatorConfigSpec(ref common.ReferenceCallback) com
 			SchemaProps: spec.SchemaProps{
 				Description: "OperatorConfigSpec defines the desired state of OperatorConfig",
 				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"daemonNodeSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "INSERT ADDITIONAL SPEC FIELDS - desired state of cluster Important: Run \"operator-sdk generate k8s\" to regenerate code after modifying this file Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"daemonNodeSelector"},
 			},
 		},
 	}
