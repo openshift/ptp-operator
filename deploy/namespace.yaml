@@ -5,3 +5,4 @@ metadata:
   name: openshift-ptp
   labels:
     name: openshift-ptp
+    openshift.io/run-level: "1"

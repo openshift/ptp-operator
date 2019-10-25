@@ -20,7 +20,7 @@ spec:
           image: openshift.io/ptp-operator
           command: [ "/bin/bash", "-c", "--" ]
           args: [ "ptp-operator --alsologtostderr -v 10" ]
-          imagePullPolicy: Never
+          imagePullPolicy: IfNotPresent
           env:
             - name: WATCH_NAMESPACE
               valueFrom:
