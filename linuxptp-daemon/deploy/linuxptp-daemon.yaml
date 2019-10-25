@@ -18,7 +18,8 @@ spec:
       hostNetwork: true
       hostPID: true
       nodeSelector:
-        beta.kubernetes.io/os: linux
+        kubernetes.io/os: linux
+      serviceAccountName: linuxptp-daemon
       containers:
       - name: linuxptp-daemon-container
         securityContext:

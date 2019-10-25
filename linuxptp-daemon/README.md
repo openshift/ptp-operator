@@ -11,11 +11,12 @@ Both linuxptp daemon and ptp configmap are created in `openshift-ptp` namespace.
 
 ## Quick Start
 
-### Create namespace
+### Create namespace and service account
 
 1. All ptp related resources run inside `openshift-ptp` namespace, including `linuxptp-daemon`, `linuxptp-configmap`.
 ```
 $ kubectl create -f deploy/00-ns.yaml
+$ kubectl create -f deploy/01-sa.yaml
 ```
 
 ### Generate linuxptp configmap data sources
