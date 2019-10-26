@@ -106,7 +106,7 @@ func (r *ReconcilePtpCfg) syncPtpCfg(ptpCfgList *ptpv1.PtpCfgList, nodeList *cor
 	var err error
 
 	nodePtpConfigMap := &corev1.ConfigMap{}
-	nodePtpConfigMap.Name = "ptp-configmap"
+	nodePtpConfigMap.Name = names.DefaultPTPConfigMapName
 	nodePtpConfigMap.Namespace = names.Namespace
 	nodePtpConfigMap.Data = make(map[string]string)
 
@@ -125,7 +125,7 @@ func (r *ReconcilePtpCfg) syncPtpCfg(ptpCfgList *ptpv1.PtpCfgList, nodeList *cor
 
 	cm := &corev1.ConfigMap{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{
-		Namespace: names.Namespace, Name: "ptp-configmap"}, cm)
+		Namespace: names.Namespace, Name: names.DefaultPTPConfigMapName}, cm)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			err = r.client.Create(context.TODO(), nodePtpConfigMap)

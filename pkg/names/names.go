@@ -7,9 +7,13 @@ package names
 // and nodePtpDevice.
 const Namespace = "openshift-ptp"
 
-// DefaultCfgName is the default ptp config map that created
-// by ptp-operator. It's set to the owner of resources of
-// linuxptp daemonset, ptp-configmap-<node-name> and nodePtpDevice.
+// DefaultPTPConfigMapName is the default ptp config map that created
+// by ptp-operator.
+const DefaultPTPConfigMapName = "ptp-configmap"
+
+// DefaultOperatorConfigName is the default operator config that
+// created by ptp-operator. It's set to the owner of resources of
+// linuxptp daemonset, ptp-configmap and nodePtpDevice.
 const DefaultOperatorConfigName = "default"
 
 // ManifestDir is the directory where manifests are located.
