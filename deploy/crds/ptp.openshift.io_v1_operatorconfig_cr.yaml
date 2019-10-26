@@ -1,0 +1,7 @@
+apiVersion: ptp.openshift.io/v1
+kind: OperatorConfig
+metadata:
+  name: example-operatorconfig
+spec:
+  # Add fields here
+  size: 3

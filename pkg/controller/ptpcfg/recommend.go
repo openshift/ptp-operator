@@ -27,7 +27,7 @@ func getRecommendNodePtpProfile(
 		return profile, fmt.Errorf("get recommended ptp profile failed: %v", err)
 	}
 
-	glog.V(2).Infof("node ptp profile to be updated: %+v", profile)
+	glog.V(2).Infof("ptp profile to be updated: %+v for node: %s", profile, node.Name)
 	return profile, nil
 }
 
@@ -41,7 +41,7 @@ func getRecommendProfile(
 	glog.V(2).Infof("In getRecommendProfile")
 
 	profileName, _ := getRecommendProfileName(ptpCfgList, node)
-	glog.V(2).Infof("recommended ptp profile name: %v", profileName)
+	glog.V(2).Infof("recommended ptp profile name: %v for node: %s", profileName, node.Name)
 
 	for _, cfg := range ptpCfgList.Items {
 		if cfg.Spec.Profile != nil {
@@ -98,7 +98,9 @@ func getRecommendProfileName(
 
 				// nodeName has higher priority than nodeLabel
 				// return immediately if nodeName matches
-				if *m.NodeName == node.Name {
+				// make sure m.NodeName pointer is not nil before
+				// comparing values
+				if m.NodeName != nil && *m.NodeName == node.Name {
 					return *r.Profile, nil
 				}
 
@@ -108,7 +110,9 @@ func getRecommendProfileName(
 				// return immediately when label matches
 				// this makes sure priority field is respected
 				for k, _ := range node.Labels {
-					if *m.NodeLabel == k {
+					// make sure m.NodeLabel pointer is not nil before
+					// comparing values
+					if m.NodeLabel != nil && *m.NodeLabel == k {
 						return *r.Profile, nil
 						labelMatches = append(labelMatches, *r.Profile)
 					}

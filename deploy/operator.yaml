@@ -13,6 +13,8 @@ spec:
       labels:
         name: ptp-operator
     spec:
+      nodeSelector:
+        node-role.kubernetes.io/master: ""
       serviceAccountName: ptp-operator
       containers:
         - name: ptp-operator
