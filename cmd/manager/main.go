@@ -200,7 +200,7 @@ func createDefaultOperatorConfig(cfg *rest.Config) error {
 		Name: names.DefaultOperatorConfigName, Namespace: names.Namespace}, config)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			logger.Info("Create default SriovOperatorConfig")
+			logger.Info("Create default OperatorConfig")
 			config.Namespace = names.Namespace
 			config.Name = names.DefaultOperatorConfigName
 			err = c.Create(context.TODO(), config)

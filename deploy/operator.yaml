@@ -19,7 +19,7 @@ spec:
       containers:
         - name: ptp-operator
           # Replace this with the built image name
-          image: openshift.io/ptp-operator
+          image: quay.io/openshift/origin-ptp-operator
           command: [ "/bin/bash", "-c", "--" ]
           args: [ "ptp-operator --alsologtostderr -v 10" ]
           imagePullPolicy: IfNotPresent
@@ -33,6 +33,8 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
             - name: OPERATOR_NAME
-              value: "ptp-operator"
+              value: $OPERATOR_NAME
+            - name: RELEASE_VERSION
+              value: $RELEASE_VERSION
             - name: LINUXPTP_DAEMON_IMAGE
-              value: "openshift.io/linuxptp-daemon:latest"
+              value: $LINUXPTP_DAEMON_IMAGE
