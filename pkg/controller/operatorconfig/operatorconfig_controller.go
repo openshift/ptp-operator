@@ -124,11 +124,43 @@ func (r *ReconcileOperatorConfig) Reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, err
 	}
 
+	if err = r.createPTPConfigMap(defaultCfg); err != nil {
+		return reconcile.Result{}, err
+	}
+
 	if err = r.syncLinuxptpDaemon(defaultCfg); err != nil {
 		return reconcile.Result{}, err
 	}
 
 	return reconcile.Result{RequeueAfter: ResyncPeriod}, nil
+}
+
+// createPTPConfigMap creates PTP config map
+func (r *ReconcileOperatorConfig) createPTPConfigMap(defaultCfg *ptpv1.OperatorConfig) error {
+	var err error
+
+	cm := &corev1.ConfigMap{}
+	if err = controllerutil.SetControllerReference(defaultCfg, cm, r.scheme); err != nil {
+		return fmt.Errorf("failed to set owner reference: %v", err)
+	}
+
+	err = r.client.Get(context.TODO(), types.NamespacedName{
+		Namespace: names.Namespace, Name: names.DefaultPTPConfigMapName}, cm)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			cm.Name = names.DefaultPTPConfigMapName
+			cm.Namespace = names.Namespace
+			cm.Data = make(map[string]string)
+			err = r.client.Create(context.TODO(), cm)
+			if err != nil {
+				return fmt.Errorf("failed to create ptp config map: %v", err)
+			}
+			glog.Infof("create ptp config map successfully")
+		} else {
+			return fmt.Errorf("failed to node ptp config map: %v", err)
+		}
+	}
+        return nil
 }
 
 // syncLinuxptpDaemon synchronizes Linuxptp DaemonSet

@@ -127,21 +127,13 @@ func (r *ReconcilePtpCfg) syncPtpCfg(ptpCfgList *ptpv1.PtpCfgList, nodeList *cor
 	err = r.client.Get(context.TODO(), types.NamespacedName{
 		Namespace: names.Namespace, Name: names.DefaultPTPConfigMapName}, cm)
 	if err != nil {
-		if errors.IsNotFound(err) {
-			err = r.client.Create(context.TODO(), nodePtpConfigMap)
-			if err != nil {
-				return fmt.Errorf("failed to create node ptp config map: %v", err)
-			}
-			glog.Infof("create node ptp config map successfully")
-		} else {
-			return fmt.Errorf("failed to get node ptp config map: %v", err)
-		}
+		return fmt.Errorf("failed to get ptp config map: %v", err)
 	} else {
-		glog.Infof("node ptp config map already exists, updating")
+		glog.Infof("ptp config map already exists, updating")
 		cm.Data = nodePtpConfigMap.Data
 		err = r.client.Update(context.TODO(), cm)
 		if err != nil {
-			return fmt.Errorf("failed to update node ptp config map: %v", err)
+			return fmt.Errorf("failed to update ptp config map: %v", err)
 		}
 	}
 	return nil
