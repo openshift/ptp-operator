@@ -1,4 +1,4 @@
-package ptpcfg
+package ptpconfig
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 
 // getRecommendNodePtpProfile return recommended node ptp profile
 func getRecommendNodePtpProfile(
-	ptpCfgList *ptpv1.PtpCfgList,
+	ptpConfigList *ptpv1.PtpConfigList,
 	node corev1.Node,
 ) (
 	*ptpv1.PtpProfile,
@@ -22,7 +22,7 @@ func getRecommendNodePtpProfile(
 	var err	error
 	profile := &ptpv1.PtpProfile{}
 
-	profile, err = getRecommendProfile(ptpCfgList, node)
+	profile, err = getRecommendProfile(ptpConfigList, node)
 	if err != nil {
 		return profile, fmt.Errorf("get recommended ptp profile failed: %v", err)
 	}
@@ -32,7 +32,7 @@ func getRecommendNodePtpProfile(
 }
 
 func getRecommendProfile(
-	ptpCfgList *ptpv1.PtpCfgList,
+	ptpConfigList *ptpv1.PtpConfigList,
 	node corev1.Node,
 ) (
 	*ptpv1.PtpProfile,
@@ -40,10 +40,10 @@ func getRecommendProfile(
 ) {
 	glog.V(2).Infof("In getRecommendProfile")
 
-	profileName, _ := getRecommendProfileName(ptpCfgList, node)
+	profileName, _ := getRecommendProfileName(ptpConfigList, node)
 	glog.V(2).Infof("recommended ptp profile name: %v for node: %s", profileName, node.Name)
 
-	for _, cfg := range ptpCfgList.Items {
+	for _, cfg := range ptpConfigList.Items {
 		if cfg.Spec.Profile != nil {
 			for _, profile := range cfg.Spec.Profile {
 				if *profile.Name == profileName {
@@ -56,7 +56,7 @@ func getRecommendProfile(
 }
 
 func getRecommendProfileName(
-	ptpCfgList *ptpv1.PtpCfgList,
+	ptpConfigList *ptpv1.PtpConfigList,
 	node corev1.Node,
 ) ( string, error ) {
 	glog.V(2).Infof("In getRecommendProfileName")
@@ -67,7 +67,7 @@ func getRecommendProfileName(
 	)
 
 	// append recommend section from each custom resource into one list
-	for _, cfg := range ptpCfgList.Items {
+	for _, cfg := range ptpConfigList.Items {
 		if cfg.Spec.Recommend != nil {
 			allRecommend = append(allRecommend, cfg.Spec.Recommend...)
 		}

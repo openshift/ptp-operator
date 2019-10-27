@@ -17,9 +17,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/openshift/ptp-operator/pkg/apis/ptp/v1.OperatorConfig":       schema_pkg_apis_ptp_v1_OperatorConfig(ref),
 		"github.com/openshift/ptp-operator/pkg/apis/ptp/v1.OperatorConfigSpec":   schema_pkg_apis_ptp_v1_OperatorConfigSpec(ref),
 		"github.com/openshift/ptp-operator/pkg/apis/ptp/v1.OperatorConfigStatus": schema_pkg_apis_ptp_v1_OperatorConfigStatus(ref),
-		"github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpCfg":               schema_pkg_apis_ptp_v1_PtpCfg(ref),
-		"github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpCfgSpec":           schema_pkg_apis_ptp_v1_PtpCfgSpec(ref),
-		"github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpCfgStatus":         schema_pkg_apis_ptp_v1_PtpCfgStatus(ref),
+		"github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpConfig":            schema_pkg_apis_ptp_v1_PtpConfig(ref),
+		"github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpConfigSpec":        schema_pkg_apis_ptp_v1_PtpConfigSpec(ref),
+		"github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpConfigStatus":      schema_pkg_apis_ptp_v1_PtpConfigStatus(ref),
 	}
 }
 
@@ -190,11 +190,11 @@ func schema_pkg_apis_ptp_v1_OperatorConfigStatus(ref common.ReferenceCallback) c
 	}
 }
 
-func schema_pkg_apis_ptp_v1_PtpCfg(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_ptp_v1_PtpConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "PtpCfg is the Schema for the ptpcfgs API",
+				Description: "PtpConfig is the Schema for the ptpconfigs API",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -218,27 +218,27 @@ func schema_pkg_apis_ptp_v1_PtpCfg(ref common.ReferenceCallback) common.OpenAPID
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpCfgSpec"),
+							Ref: ref("github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpConfigSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpCfgStatus"),
+							Ref: ref("github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpConfigStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpCfgSpec", "github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpCfgStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpConfigSpec", "github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpConfigStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
-func schema_pkg_apis_ptp_v1_PtpCfgSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_ptp_v1_PtpConfigSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "PtpCfgSpec defines the desired state of PtpCfg",
+				Description: "PtpConfigSpec defines the desired state of PtpConfig",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"profile": {
@@ -275,11 +275,11 @@ func schema_pkg_apis_ptp_v1_PtpCfgSpec(ref common.ReferenceCallback) common.Open
 	}
 }
 
-func schema_pkg_apis_ptp_v1_PtpCfgStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_ptp_v1_PtpConfigStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "PtpCfgStatus defines the observed state of PtpCfg",
+				Description: "PtpConfigStatus defines the observed state of PtpConfig",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"matchList": {

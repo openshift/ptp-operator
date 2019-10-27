@@ -1,19 +1,20 @@
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: ptpcfgs.ptp.openshift.io
+  name: ptpconfigs.ptp.openshift.io
 spec:
   group: ptp.openshift.io
   names:
-    kind: PtpCfg
-    listKind: PtpCfgList
-    plural: ptpcfgs
-    singular: ptpcfg
-  scope: Namespaced
+    kind: PtpConfig
+    listKind: PtpConfigList
+    plural: ptpconfigs
+    singular: ptpconfig
+  scope: ""
   subresources:
     status: {}
   validation:
     openAPIV3Schema:
+      description: PtpConfig is the Schema for the ptpconfigs API
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -28,6 +29,7 @@ spec:
         metadata:
           type: object
         spec:
+          description: PtpConfigSpec defines the desired state of PtpConfig
           properties:
             profile:
               description: 'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
@@ -47,8 +49,8 @@ spec:
                   ptp4lOpts:
                     type: string
                 required:
-                - name
                 - interface
+                - name
                 type: object
               type: array
             recommend:
@@ -69,8 +71,8 @@ spec:
                   profile:
                     type: string
                 required:
-                - profile
                 - priority
+                - profile
                 type: object
               type: array
           required:
@@ -78,6 +80,7 @@ spec:
           - recommend
           type: object
         status:
+          description: PtpConfigStatus defines the observed state of PtpConfig
           properties:
             matchList:
               description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
@@ -96,6 +99,7 @@ spec:
                 type: object
               type: array
           type: object
+      type: object
   version: v1
   versions:
   - name: v1

@@ -7,9 +7,9 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// PtpCfgSpec defines the desired state of PtpCfg
+// PtpConfigSpec defines the desired state of PtpConfig
 // +k8s:openapi-gen=true
-type PtpCfgSpec struct {
+type PtpConfigSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
@@ -36,9 +36,9 @@ type MatchRule struct {
 	NodeName	*string	`json:"nodeName,omitempty"`
 }
 
-// PtpCfgStatus defines the observed state of PtpCfg
+// PtpConfigStatus defines the observed state of PtpConfig
 // +k8s:openapi-gen=true
-type PtpCfgStatus struct {
+type PtpConfigStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
@@ -52,26 +52,26 @@ type NodeMatchList struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// PtpCfg is the Schema for the ptpcfgs API
+// PtpConfig is the Schema for the ptpconfigs API
 // +k8s:openapi-gen=true
 // +kubebuilder:subresource:status
-type PtpCfg struct {
+type PtpConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   PtpCfgSpec   `json:"spec,omitempty"`
-	Status PtpCfgStatus `json:"status,omitempty"`
+	Spec   PtpConfigSpec   `json:"spec,omitempty"`
+	Status PtpConfigStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// PtpCfgList contains a list of PtpCfg
-type PtpCfgList struct {
+// PtpConfigList contains a list of PtpConfig
+type PtpConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []PtpCfg `json:"items"`
+	Items           []PtpConfig `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&PtpCfg{}, &PtpCfgList{})
+	SchemeBuilder.Register(&PtpConfig{}, &PtpConfigList{})
 }

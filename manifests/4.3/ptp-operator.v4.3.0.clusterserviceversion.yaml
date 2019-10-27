@@ -17,21 +17,21 @@ metadata:
       [
         {
           "apiVersion": "ptp.openshift.io/v1alpha1",
-          "kind": "PtpCfg",
+          "kind": "PtpConfig",
           "metadata": {
-            "name": "ptpcfg-1"
+            "name": "ptpconfig-1"
             "namespace": "openshift-ptp"
           },
           "spec": {
             "profile": [{
-                "name": "ptpcfg-profile-1",
+                "name": "ptpconfig-profile-1",
                 "interface": "eth0",
                 "ptp4lOpts": "-s -2",
                 "phc2sysOpts": "-a -r"
               }
             ],
             "recommend": [{
-                "profile": "ptpcfg-profile-1",
+                "profile": "ptpconfig-profile-1",
                 "priority": 50,
                 "match": [{
                     "nodeLabel": "node-role.kubernetes.io/worker=",
@@ -57,9 +57,9 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - kind: PtpCfg
+    - kind: PtpConfig
       version: v1
-      name: ptpcfg.ptp.openshift.io
+      name: ptpconfig.ptp.openshift.io
       displayName: PTP Configuration
       description: |
         Represents PTP Configuration that will be applied to linuxptp process based on node name or label
