@@ -8,7 +8,7 @@ pushd ${REPO_DIR}/deploy
 		clusterrole.yaml
 		crds/ptp.openshift.io_nodeptpdevices_crd.yaml
 		crds/ptp.openshift.io_operatorconfigs_crd.yaml
-		crds/ptp.openshift.io_ptpcfgs_crd.yaml"
+		crds/ptp.openshift.io_ptpconfigs_crd.yaml"
 
 	for f in ${FILES}; do
 		envsubst< ${f} | ${OPERATOR_EXEC} delete --ignore-not-found -n ${NAMESPACE} -f -

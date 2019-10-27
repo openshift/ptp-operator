@@ -7,7 +7,7 @@ pushd ${REPO_DIR}/deploy
 
 	FILES="crds/ptp.openshift.io_nodeptpdevices_crd.yaml
 		crds/ptp.openshift.io_operatorconfigs_crd.yaml
-		crds/ptp.openshift.io_ptpcfgs_crd.yaml
+		crds/ptp.openshift.io_ptpconfigs_crd.yaml
 		service_account.yaml
 		clusterrole.yaml
 		clusterrolebinding.yaml

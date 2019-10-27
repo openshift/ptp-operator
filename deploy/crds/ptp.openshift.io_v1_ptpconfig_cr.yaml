@@ -1,16 +1,16 @@
 apiVersion: ptp.openshift.io/v1
-kind: PtpCfg
+kind: PtpConfig
 metadata:
-  name: example-ptpcfg
+  name: example-ptpconfig
 spec:
   profile:
   - name: "profile1"
-    interface: "eth0"
+    interface: "ens787f1"
     ptp4lOpts: "-s -2"
     phc2sysOpts: "-a -r"
   recommend:
   - profile: "profile1"
     priority: 4
     match:
-    - nodeLabel: "node-role.kubernetes.io/worker="
-      nodeName: "nfvpe-13.oot.lab.eng.bos.redhat.com"
+    - nodeName: "node.example.com"
+      nodeLabel: "node-role.kubernetes.io/worker="
