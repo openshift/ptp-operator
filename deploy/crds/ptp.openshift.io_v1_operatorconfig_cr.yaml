@@ -1,7 +1,8 @@
 apiVersion: ptp.openshift.io/v1
 kind: OperatorConfig
 metadata:
-  name: example-operatorconfig
+  name: default
 spec:
-  # Add fields here
-  size: 3
+  daemonNodeSelector:
+    feature.node.kubernetes.io/ptp-capable: "yes"
+    node-role.kubernetes.io/worker: ""
