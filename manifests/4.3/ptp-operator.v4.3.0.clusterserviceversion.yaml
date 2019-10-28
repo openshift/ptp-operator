@@ -43,7 +43,7 @@ metadata:
         },
         {
           "apiVersion": "ptp.openshift.io/v1",
-          "kind": "OperatorConfig",
+          "kind": "PtpOperatorConfig",
           "metadata": {
             "name": "default"
             "namespace": "openshift-ptp"
@@ -73,9 +73,9 @@ spec:
       displayName: PTP Configuration
       description: |
         Represents PTP Configuration that will be applied to linuxptp process based on node name or label
-    - kind: OperatorConfig
+    - kind: PtpOperatorConfig
       version: v1
-      name: operatorconfigs.ptp.openshift.io
+      name: ptpoperatorconfigs.ptp.openshift.io
       displayName: Operator Configuration
       description: |
         Represents Configuration for Operator itself

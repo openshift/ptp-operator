@@ -1,5 +1,5 @@
 apiVersion: ptp.openshift.io/v1
-kind: OperatorConfig
+kind: PtpOperatorConfig
 metadata:
   name: default
 spec:

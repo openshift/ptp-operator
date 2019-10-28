@@ -7,18 +7,18 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// OperatorConfigSpec defines the desired state of OperatorConfig
+// PtpOperatorConfigSpec defines the desired state of PtpOperatorConfig
 // +k8s:openapi-gen=true
-type OperatorConfigSpec struct {
+type PtpOperatorConfigSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
 	DaemonNodeSelector map[string]string `json:"daemonNodeSelector"`
 }
 
-// OperatorConfigStatus defines the observed state of OperatorConfig
+// PtpOperatorConfigStatus defines the observed state of PtpOperatorConfig
 // +k8s:openapi-gen=true
-type OperatorConfigStatus struct {
+type PtpOperatorConfigStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
@@ -26,27 +26,27 @@ type OperatorConfigStatus struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// OperatorConfig is the Schema for the operatorconfigs API
+// PtpOperatorConfig is the Schema for the ptpoperatorconfigs API
 // +k8s:openapi-gen=true
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:path=operatorconfigs,scope=Namespaced
-type OperatorConfig struct {
+// +kubebuilder:resource:path=ptpoperatorconfigs,scope=Namespaced
+type PtpOperatorConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   OperatorConfigSpec   `json:"spec,omitempty"`
-	Status OperatorConfigStatus `json:"status,omitempty"`
+	Spec   PtpOperatorConfigSpec   `json:"spec,omitempty"`
+	Status PtpOperatorConfigStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// OperatorConfigList contains a list of OperatorConfig
-type OperatorConfigList struct {
+// PtpOperatorConfigList contains a list of PtpOperatorConfig
+type PtpOperatorConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []OperatorConfig `json:"items"`
+	Items           []PtpOperatorConfig `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&OperatorConfig{}, &OperatorConfigList{})
+	SchemeBuilder.Register(&PtpOperatorConfig{}, &PtpOperatorConfigList{})
 }

@@ -1,4 +1,4 @@
-package operatorconfig
+package ptpoperatorconfig
 
 import (
 	"context"
@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
-var log = logf.Log.WithName("controller_operatorconfig")
+var log = logf.Log.WithName("controller_ptpoperatorconfig")
 
 const (
 	ResyncPeriod = 5 * time.Minute
@@ -40,7 +40,7 @@ const (
 * business logic.  Delete these comments after modifying this file.*
  */
 
-// Add creates a new OperatorConfig Controller and adds it to the Manager. The Manager will set fields on the Controller
+// Add creates a new PtpOperatorConfig Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
 	return add(mgr, newReconciler(mgr))
@@ -48,19 +48,19 @@ func Add(mgr manager.Manager) error {
 
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileOperatorConfig{client: mgr.GetClient(), scheme: mgr.GetScheme()}
+	return &ReconcilePtpOperatorConfig{client: mgr.GetClient(), scheme: mgr.GetScheme()}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
-	c, err := controller.New("operatorconfig-controller", mgr, controller.Options{Reconciler: r})
+	c, err := controller.New("ptpoperatorconfig-controller", mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
 	}
 
-	// Watch for changes to primary resource OperatorConfig
-	err = c.Watch(&source.Kind{Type: &ptpv1.OperatorConfig{}}, &handler.EnqueueRequestForObject{})
+	// Watch for changes to primary resource PtpOperatorConfig
+	err = c.Watch(&source.Kind{Type: &ptpv1.PtpOperatorConfig{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
@@ -68,30 +68,30 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	return nil
 }
 
-// blank assignment to verify that ReconcileOperatorConfig implements reconcile.Reconciler
-var _ reconcile.Reconciler = &ReconcileOperatorConfig{}
+// blank assignment to verify that ReconcilePtpOperatorConfig implements reconcile.Reconciler
+var _ reconcile.Reconciler = &ReconcilePtpOperatorConfig{}
 
-// ReconcileOperatorConfig reconciles a OperatorConfig object
-type ReconcileOperatorConfig struct {
+// ReconcilePtpOperatorConfig reconciles a PtpOperatorConfig object
+type ReconcilePtpOperatorConfig struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
 	client client.Client
 	scheme *runtime.Scheme
 }
 
-// Reconcile reads that state of the cluster for a OperatorConfig object and makes changes based on the state read
-// and what is in the OperatorConfig.Spec
+// Reconcile reads that state of the cluster for a PtpOperatorConfig object and makes changes based on the state read
+// and what is in the PtpOperatorConfig.Spec
 // TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
 // a Pod as an example
 // Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (r *ReconcileOperatorConfig) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcilePtpOperatorConfig) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling OperatorConfig")
+	reqLogger.Info("Reconciling PtpOperatorConfig")
 
-	// Fetch the OperatorConfig instance
-	defaultCfg := &ptpv1.OperatorConfig{}
+	// Fetch the PtpOperatorConfig instance
+	defaultCfg := &ptpv1.PtpOperatorConfig{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{
 		Name: names.DefaultOperatorConfigName, Namespace: names.Namespace}, defaultCfg)
 	if err != nil {
@@ -100,7 +100,7 @@ func (r *ReconcileOperatorConfig) Reconcile(request reconcile.Request) (reconcil
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			defaultCfg.SetNamespace(names.Namespace)
 			defaultCfg.SetName(names.DefaultOperatorConfigName)
-			defaultCfg.Spec = ptpv1.OperatorConfigSpec{
+			defaultCfg.Spec = ptpv1.PtpOperatorConfigSpec{
 				DaemonNodeSelector: map[string]string{},
 			}
 			if err = r.client.Create(context.TODO(), defaultCfg); err != nil {
@@ -138,7 +138,7 @@ func (r *ReconcileOperatorConfig) Reconcile(request reconcile.Request) (reconcil
 }
 
 // createPTPConfigMap creates PTP config map
-func (r *ReconcileOperatorConfig) createPTPConfigMap(defaultCfg *ptpv1.OperatorConfig) error {
+func (r *ReconcilePtpOperatorConfig) createPTPConfigMap(defaultCfg *ptpv1.PtpOperatorConfig) error {
 	var err error
 
 	cm := &corev1.ConfigMap{}
@@ -166,8 +166,8 @@ func (r *ReconcileOperatorConfig) createPTPConfigMap(defaultCfg *ptpv1.OperatorC
 }
 
 // setDaemonNodeSelector synchronizes Linuxptp DaemonSet
-func (r *ReconcileOperatorConfig) setDaemonNodeSelector(
-	defaultCfg *ptpv1.OperatorConfig,
+func (r *ReconcilePtpOperatorConfig) setDaemonNodeSelector(
+	defaultCfg *ptpv1.PtpOperatorConfig,
 	obj *uns.Unstructured,
 ) (*uns.Unstructured, error) {
 	var err error
@@ -188,7 +188,7 @@ func (r *ReconcileOperatorConfig) setDaemonNodeSelector(
 }
 
 // syncLinuxptpDaemon synchronizes Linuxptp DaemonSet
-func (r *ReconcileOperatorConfig) syncLinuxptpDaemon(defaultCfg *ptpv1.OperatorConfig) error {
+func (r *ReconcilePtpOperatorConfig) syncLinuxptpDaemon(defaultCfg *ptpv1.PtpOperatorConfig) error {
         var err error
         objs := []*uns.Unstructured{}
 
@@ -217,7 +217,7 @@ func (r *ReconcileOperatorConfig) syncLinuxptpDaemon(defaultCfg *ptpv1.OperatorC
 }
 
 // syncNodePtpDevice synchronizes NodePtpDevice CR for each node
-func (r *ReconcileOperatorConfig) syncNodePtpDevice(nodeList *corev1.NodeList) error {
+func (r *ReconcilePtpOperatorConfig) syncNodePtpDevice(nodeList *corev1.NodeList) error {
 	for _, node := range nodeList.Items {
 		found := &ptpv1.NodePtpDevice{}
 		err := r.client.Get(context.TODO(), types.NamespacedName{
