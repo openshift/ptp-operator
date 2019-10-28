@@ -12,11 +12,13 @@ import (
 	"github.com/openshift/ptp-operator/pkg/names"
 	"github.com/openshift/ptp-operator/pkg/render"
 	ptpv1 "github.com/openshift/ptp-operator/pkg/apis/ptp/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	uns "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	kscheme "k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -163,6 +165,28 @@ func (r *ReconcileOperatorConfig) createPTPConfigMap(defaultCfg *ptpv1.OperatorC
         return nil
 }
 
+// setDaemonNodeSelector synchronizes Linuxptp DaemonSet
+func (r *ReconcileOperatorConfig) setDaemonNodeSelector(
+	defaultCfg *ptpv1.OperatorConfig,
+	obj *uns.Unstructured,
+) (*uns.Unstructured, error) {
+	var err error
+	if obj.GetKind() == "DaemonSet" && len(defaultCfg.Spec.DaemonNodeSelector) > 0 {
+		scheme := kscheme.Scheme
+		ds := &appsv1.DaemonSet{}
+		err = scheme.Convert(obj, ds, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert linuxptp obj to appsv1.DaemonSet: %v", err)
+		}
+		ds.Spec.Template.Spec.NodeSelector = defaultCfg.Spec.DaemonNodeSelector
+		err = scheme.Convert(ds, obj, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert appsv1.DaemonSet to linuxptp obj: %v", err)
+		}
+	}
+	return obj, nil
+}
+
 // syncLinuxptpDaemon synchronizes Linuxptp DaemonSet
 func (r *ReconcileOperatorConfig) syncLinuxptpDaemon(defaultCfg *ptpv1.OperatorConfig) error {
         var err error
@@ -178,6 +202,10 @@ func (r *ReconcileOperatorConfig) syncLinuxptpDaemon(defaultCfg *ptpv1.OperatorC
         }
 
         for _, obj := range objs {
+		obj, err = r.setDaemonNodeSelector(defaultCfg, obj)
+		if err != nil {
+			return err
+		}
                 if err = controllerutil.SetControllerReference(defaultCfg, obj, r.scheme); err != nil {
                         return fmt.Errorf("failed to set owner reference: %v", err)
                 }
