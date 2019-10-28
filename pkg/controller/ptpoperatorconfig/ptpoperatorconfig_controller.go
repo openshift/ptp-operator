@@ -93,19 +93,19 @@ func (r *ReconcilePtpOperatorConfig) Reconcile(request reconcile.Request) (recon
 	// Fetch the PtpOperatorConfig instance
 	defaultCfg := &ptpv1.PtpOperatorConfig{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{
-		Name: names.DefaultPtpOperatorConfigName, Namespace: names.Namespace}, defaultCfg)
+		Name: names.DefaultOperatorConfigName, Namespace: names.Namespace}, defaultCfg)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			defaultCfg.SetNamespace(names.Namespace)
-			defaultCfg.SetName(names.DefaultPtpOperatorConfigName)
+			defaultCfg.SetName(names.DefaultOperatorConfigName)
 			defaultCfg.Spec = ptpv1.PtpOperatorConfigSpec{
 				DaemonNodeSelector: map[string]string{},
 			}
 			if err = r.client.Create(context.TODO(), defaultCfg); err != nil {
 				reqLogger.Error(err, "failed to create default ptp config",
-					"Namespace", names.Namespace, "Name", names.DefaultPtpOperatorConfigName)
+					"Namespace", names.Namespace, "Name", names.DefaultOperatorConfigName)
 				return reconcile.Result{}, err
 			}
 			// Return and don't requeue

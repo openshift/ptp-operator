@@ -6,7 +6,7 @@ pushd ${REPO_DIR}/deploy
 	fi
 
 	FILES="crds/ptp.openshift.io_nodeptpdevices_crd.yaml
-		crds/ptp.openshift.io_operatorconfigs_crd.yaml
+		crds/ptp.openshift.io_ptpoperatorconfigs_crd.yaml
 		crds/ptp.openshift.io_ptpconfigs_crd.yaml
 		service_account.yaml
 		clusterrole.yaml

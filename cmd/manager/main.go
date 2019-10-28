@@ -191,8 +191,8 @@ func createDefaultOperatorConfig(cfg *rest.Config) error {
 	if err != nil {
 		return fmt.Errorf("Couldn't create client: %v", err)
 	}
-	config := &ptpv1.OperatorConfig{
-		Spec: ptpv1.OperatorConfigSpec{
+	config := &ptpv1.PtpOperatorConfig{
+		Spec: ptpv1.PtpOperatorConfigSpec{
 			DaemonNodeSelector: map[string]string{},
 		},
 	}
