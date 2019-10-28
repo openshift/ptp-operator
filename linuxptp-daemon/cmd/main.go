@@ -73,46 +73,29 @@ func main() {
 		stopCh,
 	).Run()
 
-	nodeProfile := filepath.Join(cp.profileDir, nodeName)
-	for {
-		if _, err := os.Stat(nodeProfile); err != nil {
-			if os.IsNotExist(err) {
-				glog.Infof("ptp profile doesn't exist for node: %v", nodeName)
-				glog.Infof("waiting for 60 seconds ... ")
-				time.Sleep(60 * time.Second)
-				continue
-			} else {
-				glog.Fatal("error stating node profile: %v", err)
-			}
-		}
-		break
-	}
-
-	var appliedNodeProfileJson []byte
-	nodeProfileJson, err := ioutil.ReadFile(nodeProfile)
-	if err != nil {
-		glog.Fatalf("error reading node profile: %v", nodeProfile)
-	}
-
-	ptpConfig := &ptpv1.PtpProfile{}
-	err = json.Unmarshal(nodeProfileJson, ptpConfig)
-	if err != nil {
-		glog.Fatalf("failed to json.Unmarshal ptp profile: %v", err)
-	}
-	appliedNodeProfileJson = nodeProfileJson
-	ptpConfUpdate.NodeProfile = ptpConfig
-	ptpConfUpdate.UpdateCh <- true
-
 	tickerPull := time.NewTicker(time.Second * time.Duration(cp.updateInterval))
 	defer tickerPull.Stop()
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
+	var appliedNodeProfileJson []byte
+	ptpConfig := &ptpv1.PtpProfile{}
+
 	for {
 		select {
 		case <-tickerPull.C:
 			glog.Infof("ticker pull")
+			nodeProfile := filepath.Join(cp.profileDir, nodeName)
+			if _, err := os.Stat(nodeProfile); err != nil {
+				if os.IsNotExist(err) {
+					glog.Infof("ptp profile doesn't exist for node: %v", nodeName)
+					continue
+				} else {
+					glog.Errorf("error stating node profile %v: %v", nodeName, err)
+					continue
+				}
+			}
 			nodeProfileJson, err := ioutil.ReadFile(nodeProfile)
 			if err != nil {
 				glog.Errorf("error reading node profile: %v", nodeProfile)
