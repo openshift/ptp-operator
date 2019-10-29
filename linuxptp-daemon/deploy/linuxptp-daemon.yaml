@@ -19,6 +19,8 @@ spec:
       hostPID: true
       nodeSelector:
         kubernetes.io/os: linux
+      tolerations:
+      - operator: Exists
       serviceAccountName: linuxptp-daemon
       containers:
       - name: linuxptp-daemon-container
