@@ -144,6 +144,14 @@ spec:
           verbs:
           - '*'
         serviceAccountName: ptp-operator
+      - rules:
+        - apiGroups:
+          - "ptp.openshift.io"
+          resources:
+          - '*'
+          verbs:
+          - '*'
+        serviceAccountName: linuxptp-daemon
       deployments:
       - name: ptp-operator
         spec:
