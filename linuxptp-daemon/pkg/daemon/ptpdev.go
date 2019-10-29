@@ -6,7 +6,7 @@ import (
 	ptpnetwork "github.com/openshift/linuxptp-daemon/pkg/network"
 )
 
-func getDevStatusUpdate(nodePTPDev *ptpv1.NodePtpDevice) (*ptpv1.NodePtpDevice, error) {
+func GetDevStatusUpdate(nodePTPDev *ptpv1.NodePtpDevice) (*ptpv1.NodePtpDevice, error) {
 	hostDevs, err := ptpnetwork.DiscoverPTPDevices()
 	if err != nil {
 		glog.Errorf("discover PTP devices failed: %v", err)
