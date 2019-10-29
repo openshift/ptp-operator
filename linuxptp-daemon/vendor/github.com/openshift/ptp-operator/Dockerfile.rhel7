@@ -1,12 +1,12 @@
-#FROM registry.svc.ci.openshift.org/ocp/builder:golang-1.12 AS builder
 FROM registry.svc.ci.openshift.org/openshift/release:golang-1.12 AS builder
 WORKDIR /go/src/github.com/openshift/ptp-operator
 COPY . .
-ENV GO111MODULE=on
+ENV GO111MODULE=off
 RUN make
 
 FROM registry.svc.ci.openshift.org/openshift/origin-v4.0:base
 COPY --from=builder /go/src/github.com/openshift/ptp-operator/build/_output/bin/ptp-operator /usr/local/bin/
+COPY --from=builder /go/src/github.com/openshift/ptp-operator/manifests /manifests
 COPY bindata /bindata
 
 LABEL io.k8s.display-name="OpenShift ptp-operator" \
@@ -15,4 +15,4 @@ LABEL io.k8s.display-name="OpenShift ptp-operator" \
       com.redhat.delivery.appregistry=true \
       maintainer="Multus Team <multus-dev@redhat.com>"
 
-ENTRYPOINT ["/usr/local/bin/operator"]
+ENTRYPOINT ["/usr/local/bin/ptp-operator"]

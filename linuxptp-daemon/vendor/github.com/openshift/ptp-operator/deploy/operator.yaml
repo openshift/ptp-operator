@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ptp-operator
-  namespace: ptp
+  namespace: openshift-ptp
 spec:
   replicas: 1
   selector:
@@ -13,14 +13,16 @@ spec:
       labels:
         name: ptp-operator
     spec:
+      nodeSelector:
+        node-role.kubernetes.io/master: ""
       serviceAccountName: ptp-operator
       containers:
         - name: ptp-operator
           # Replace this with the built image name
-          image: quay.io/zenghui/ptp-operator:v0.0.1
+          image: quay.io/openshift/origin-ptp-operator
           command: [ "/bin/bash", "-c", "--" ]
           args: [ "ptp-operator --alsologtostderr -v 10" ]
-          imagePullPolicy: Never
+          imagePullPolicy: IfNotPresent
           env:
             - name: WATCH_NAMESPACE
               valueFrom:
@@ -31,6 +33,8 @@ spec:
                 fieldRef:
                   fieldPath: metadata.name
             - name: OPERATOR_NAME
-              value: "ptp-operator"
+              value: $OPERATOR_NAME
+            - name: RELEASE_VERSION
+              value: $RELEASE_VERSION
             - name: LINUXPTP_DAEMON_IMAGE
-              value: "zenghui/ptp-daemon:latest"
+              value: $LINUXPTP_DAEMON_IMAGE

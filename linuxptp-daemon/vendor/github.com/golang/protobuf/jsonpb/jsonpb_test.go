@@ -473,10 +473,17 @@ var marshalingTests = []struct {
 	{"Any with message and indent", marshalerAllOptions, anySimple, anySimplePrettyJSON},
 	{"Any with WKT", marshaler, anyWellKnown, anyWellKnownJSON},
 	{"Any with WKT and indent", marshalerAllOptions, anyWellKnown, anyWellKnownPrettyJSON},
-	{"Duration", marshaler, &pb.KnownTypes{Dur: &durpb.Duration{Seconds: 3}}, `{"dur":"3s"}`},
-	{"Duration", marshaler, &pb.KnownTypes{Dur: &durpb.Duration{Seconds: 3, Nanos: 1e6}}, `{"dur":"3.001s"}`},
-	{"Duration beyond float64 precision", marshaler, &pb.KnownTypes{Dur: &durpb.Duration{Seconds: 100000000, Nanos: 1}}, `{"dur":"100000000.000000001s"}`},
-	{"negative Duration", marshaler, &pb.KnownTypes{Dur: &durpb.Duration{Seconds: -123, Nanos: -456}}, `{"dur":"-123.000000456s"}`},
+	{"Duration empty", marshaler, &durpb.Duration{}, `"0s"`},
+	{"Duration with secs", marshaler, &durpb.Duration{Seconds: 3}, `"3s"`},
+	{"Duration with -secs", marshaler, &durpb.Duration{Seconds: -3}, `"-3s"`},
+	{"Duration with nanos", marshaler, &durpb.Duration{Nanos: 1e6}, `"0.001s"`},
+	{"Duration with -nanos", marshaler, &durpb.Duration{Nanos: -1e6}, `"-0.001s"`},
+	{"Duration with large secs", marshaler, &durpb.Duration{Seconds: 1e10, Nanos: 1}, `"10000000000.000000001s"`},
+	{"Duration with 6-digit nanos", marshaler, &durpb.Duration{Nanos: 1e4}, `"0.000010s"`},
+	{"Duration with 3-digit nanos", marshaler, &durpb.Duration{Nanos: 1e6}, `"0.001s"`},
+	{"Duration with -secs -nanos", marshaler, &durpb.Duration{Seconds: -123, Nanos: -450}, `"-123.000000450s"`},
+	{"Duration max value", marshaler, &durpb.Duration{Seconds: 315576000000, Nanos: 999999999}, `"315576000000.999999999s"`},
+	{"Duration min value", marshaler, &durpb.Duration{Seconds: -315576000000, Nanos: -999999999}, `"-315576000000.999999999s"`},
 	{"Struct", marshaler, &pb.KnownTypes{St: &stpb.Struct{
 		Fields: map[string]*stpb.Value{
 			"one": {Kind: &stpb.Value_StringValue{"loneliest number"}},
@@ -549,15 +556,17 @@ func TestMarshalIllegalTime(t *testing.T) {
 		pb   proto.Message
 		fail bool
 	}{
-		{&pb.KnownTypes{Dur: &durpb.Duration{Seconds: 1, Nanos: 0}}, false},
-		{&pb.KnownTypes{Dur: &durpb.Duration{Seconds: -1, Nanos: 0}}, false},
-		{&pb.KnownTypes{Dur: &durpb.Duration{Seconds: 1, Nanos: -1}}, true},
-		{&pb.KnownTypes{Dur: &durpb.Duration{Seconds: -1, Nanos: 1}}, true},
-		{&pb.KnownTypes{Dur: &durpb.Duration{Seconds: 1, Nanos: 1000000000}}, true},
-		{&pb.KnownTypes{Dur: &durpb.Duration{Seconds: -1, Nanos: -1000000000}}, true},
-		{&pb.KnownTypes{Ts: &tspb.Timestamp{Seconds: 1, Nanos: 1}}, false},
-		{&pb.KnownTypes{Ts: &tspb.Timestamp{Seconds: 1, Nanos: -1}}, true},
-		{&pb.KnownTypes{Ts: &tspb.Timestamp{Seconds: 1, Nanos: 1000000000}}, true},
+		{&durpb.Duration{Seconds: 1, Nanos: 0}, false},
+		{&durpb.Duration{Seconds: -1, Nanos: 0}, false},
+		{&durpb.Duration{Seconds: 1, Nanos: -1}, true},
+		{&durpb.Duration{Seconds: -1, Nanos: 1}, true},
+		{&durpb.Duration{Seconds: 315576000001}, true},
+		{&durpb.Duration{Seconds: -315576000001}, true},
+		{&durpb.Duration{Seconds: 1, Nanos: 1000000000}, true},
+		{&durpb.Duration{Seconds: -1, Nanos: -1000000000}, true},
+		{&tspb.Timestamp{Seconds: 1, Nanos: 1}, false},
+		{&tspb.Timestamp{Seconds: 1, Nanos: -1}, true},
+		{&tspb.Timestamp{Seconds: 1, Nanos: 1000000000}, true},
 	}
 	for _, tt := range tests {
 		_, err := marshaler.MarshalToString(tt.pb)
@@ -575,10 +584,10 @@ func TestMarshalJSONPBMarshaler(t *testing.T) {
 	msg := dynamicMessage{RawJson: rawJson}
 	str, err := new(Marshaler).MarshalToString(&msg)
 	if err != nil {
-		t.Errorf("an unexpected error occurred when marshalling JSONPBMarshaler: %v", err)
+		t.Errorf("an unexpected error occurred when marshaling JSONPBMarshaler: %v", err)
 	}
 	if str != rawJson {
-		t.Errorf("marshalling JSON produced incorrect output: got %s, wanted %s", str, rawJson)
+		t.Errorf("marshaling JSON produced incorrect output: got %s, wanted %s", str, rawJson)
 	}
 }
 
@@ -586,17 +595,39 @@ func TestMarshalAnyJSONPBMarshaler(t *testing.T) {
 	msg := dynamicMessage{RawJson: `{ "foo": "bar", "baz": [0, 1, 2, 3] }`}
 	a, err := ptypes.MarshalAny(&msg)
 	if err != nil {
-		t.Errorf("an unexpected error occurred when marshalling to Any: %v", err)
+		t.Errorf("an unexpected error occurred when marshaling to Any: %v", err)
 	}
 	str, err := new(Marshaler).MarshalToString(a)
 	if err != nil {
-		t.Errorf("an unexpected error occurred when marshalling Any to JSON: %v", err)
+		t.Errorf("an unexpected error occurred when marshaling Any to JSON: %v", err)
 	}
 	// after custom marshaling, it's round-tripped through JSON decoding/encoding already,
 	// so the keys are sorted, whitespace is compacted, and "@type" key has been added
 	expected := `{"@type":"type.googleapis.com/` + dynamicMessageName + `","baz":[0,1,2,3],"foo":"bar"}`
 	if str != expected {
-		t.Errorf("marshalling JSON produced incorrect output: got %s, wanted %s", str, expected)
+		t.Errorf("marshaling JSON produced incorrect output: got %s, wanted %s", str, expected)
+	}
+
+	// Do it again, but this time with indentation:
+
+	marshaler := Marshaler{Indent: "  "}
+	str, err = marshaler.MarshalToString(a)
+	if err != nil {
+		t.Errorf("an unexpected error occurred when marshaling Any to JSON: %v", err)
+	}
+	// same as expected above, but pretty-printed w/ indentation
+	expected = `{
+  "@type": "type.googleapis.com/` + dynamicMessageName + `",
+  "baz": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "foo": "bar"
+}`
+	if str != expected {
+		t.Errorf("marshaling JSON produced incorrect output: got %s, wanted %s", str, expected)
 	}
 }
 
@@ -605,11 +636,11 @@ func TestMarshalWithCustomValidation(t *testing.T) {
 
 	js, err := new(Marshaler).MarshalToString(&msg)
 	if err != nil {
-		t.Errorf("an unexpected error occurred when marshalling to json: %v", err)
+		t.Errorf("an unexpected error occurred when marshaling to json: %v", err)
 	}
 	err = Unmarshal(strings.NewReader(js), &msg)
 	if err != nil {
-		t.Errorf("an unexpected error occurred when unmarshalling from json: %v", err)
+		t.Errorf("an unexpected error occurred when unmarshaling from json: %v", err)
 	}
 }
 
@@ -852,7 +883,7 @@ func TestUnmarshaling(t *testing.T) {
 
 		err := tt.unmarshaler.Unmarshal(strings.NewReader(tt.json), p)
 		if err != nil {
-			t.Errorf("unmarshalling %s: %v", tt.desc, err)
+			t.Errorf("unmarshaling %s: %v", tt.desc, err)
 			continue
 		}
 
@@ -986,7 +1017,7 @@ func TestAnyWithCustomResolver(t *testing.T) {
 	}
 	wanted := `{"@type":"https://foobar.com/some.random.MessageKind","oBool":true,"oInt64":"1020304","oString":"foobar","oBytes":"AQIDBA=="}`
 	if js != wanted {
-		t.Errorf("marshalling JSON produced incorrect output: got %s, wanted %s", js, wanted)
+		t.Errorf("marshaling JSON produced incorrect output: got %s, wanted %s", js, wanted)
 	}
 
 	u := Unmarshaler{AnyResolver: resolver}
@@ -1001,7 +1032,7 @@ func TestAnyWithCustomResolver(t *testing.T) {
 		t.Errorf("custom resolver was invoked with wrong URL: got %q, wanted %q", resolvedTypeUrls[1], "https://foobar.com/some.random.MessageKind")
 	}
 	if !proto.Equal(any, roundTrip) {
-		t.Errorf("message contents not set correctly after unmarshalling JSON: got %s, wanted %s", roundTrip, any)
+		t.Errorf("message contents not set correctly after unmarshaling JSON: got %s, wanted %s", roundTrip, any)
 	}
 }
 
@@ -1012,7 +1043,7 @@ func TestUnmarshalJSONPBUnmarshaler(t *testing.T) {
 		t.Errorf("an unexpected error occurred when parsing into JSONPBUnmarshaler: %v", err)
 	}
 	if msg.RawJson != rawJson {
-		t.Errorf("message contents not set correctly after unmarshalling JSON: got %s, wanted %s", msg.RawJson, rawJson)
+		t.Errorf("message contents not set correctly after unmarshaling JSON: got %s, wanted %s", msg.RawJson, rawJson)
 	}
 }
 
@@ -1046,7 +1077,7 @@ func TestUnmarshalAnyJSONPBUnmarshaler(t *testing.T) {
 	}
 
 	if !proto.Equal(&got, &want) {
-		t.Errorf("message contents not set correctly after unmarshalling JSON: got %v, wanted %v", got, want)
+		t.Errorf("message contents not set correctly after unmarshaling JSON: got %v, wanted %v", got, want)
 	}
 }
 

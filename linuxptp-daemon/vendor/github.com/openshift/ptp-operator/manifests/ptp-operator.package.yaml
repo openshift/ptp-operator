@@ -1,0 +1,4 @@
+packageName: ptp-operator
+channels:
+- name: 4.3
+  currentCSV: ptp-operator.v4.3.0

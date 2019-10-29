@@ -19,11 +19,6 @@ import (
 	errors "golang.org/x/xerrors"
 )
 
-type packageKey struct {
-	mode source.ParseMode
-	id   packageID
-}
-
 type metadata struct {
 	id          packageID
 	pkgPath     packagePath
@@ -44,8 +39,14 @@ func (s *snapshot) load(ctx context.Context, uri span.URI) ([]*metadata, error) 
 
 	cfg := s.view.Config(ctx)
 	pkgs, err := packages.Load(cfg, fmt.Sprintf("file=%s", uri.Filename()))
-	log.Print(ctx, "go/packages.Load", tag.Of("packages", len(pkgs)))
 
+	// If the context was canceled, return early.
+	// Otherwise, we might be type-checking an incomplete result.
+	if err == context.Canceled {
+		return nil, errors.Errorf("no metadata for %s: %v", uri.Filename(), err)
+	}
+
+	log.Print(ctx, "go/packages.Load", tag.Of("packages", len(pkgs)))
 	if len(pkgs) == 0 {
 		if err == nil {
 			err = errors.Errorf("go/packages.Load: no packages found for %s", uri)
@@ -104,18 +105,11 @@ func (c *cache) shouldLoad(ctx context.Context, s *snapshot, originalFH, current
 		return true
 	}
 
-	// Get the original parsed file in order to check package name and imports.
-	original, _, _, err := c.ParseGoHandle(originalFH, source.ParseHeader).Parse(ctx)
-	if err != nil {
-		log.Error(ctx, "no ParseGoHandle for original FileHandle", err, telemetry.URI.Of(originalFH.Identity().URI))
-		return false
-	}
-
-	// Get the current parsed file in order to check package name and imports.
-	current, _, _, err := c.ParseGoHandle(currentFH, source.ParseHeader).Parse(ctx)
-	if err != nil {
-		log.Error(ctx, "no ParseGoHandle for original FileHandle", err, telemetry.URI.Of(currentFH.Identity().URI))
-		return false
+	// Get the original and current parsed files in order to check package name and imports.
+	original, _, _, originalErr := c.ParseGoHandle(originalFH, source.ParseHeader).Parse(ctx)
+	current, _, _, currentErr := c.ParseGoHandle(currentFH, source.ParseHeader).Parse(ctx)
+	if originalErr != nil || currentErr != nil {
+		return (originalErr == nil) != (currentErr == nil)
 	}
 
 	// Check if the package's metadata has changed. The cases handled are:

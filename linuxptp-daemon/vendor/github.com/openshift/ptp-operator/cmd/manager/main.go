@@ -7,12 +7,16 @@ import (
 	"os"
 	"runtime"
 
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
 
 	"github.com/openshift/ptp-operator/pkg/apis"
 	"github.com/openshift/ptp-operator/pkg/controller"
+	"github.com/openshift/ptp-operator/pkg/names"
+	ptpv1 "github.com/openshift/ptp-operator/pkg/apis/ptp/v1"
 
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	kubemetrics "github.com/operator-framework/operator-sdk/pkg/kube-metrics"
@@ -24,6 +28,7 @@ import (
 	"github.com/spf13/pflag"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
@@ -141,6 +146,12 @@ func main() {
 		}
 	}
 
+	err = createDefaultOperatorConfig(cfg)
+	if err != nil {
+		log.Error(err, "")
+		os.Exit(1)
+	}
+
 	log.Info("Starting the Cmd.")
 
 	// Start the Cmd
@@ -169,6 +180,35 @@ func serveCRMetrics(cfg *rest.Config) error {
 	// Generate and serve custom resource specific metrics.
 	err = kubemetrics.GenerateAndServeCRMetrics(cfg, ns, filteredGVK, metricsHost, operatorMetricsPort)
 	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func createDefaultOperatorConfig(cfg *rest.Config) error {
+	logger := log.WithName("createDefaultOperatorConfig")
+	c, err := client.New(cfg, client.Options{})
+	if err != nil {
+		return fmt.Errorf("Couldn't create client: %v", err)
+	}
+	config := &ptpv1.PtpOperatorConfig{
+		Spec: ptpv1.PtpOperatorConfigSpec{
+			DaemonNodeSelector: map[string]string{},
+		},
+	}
+	err = c.Get(context.TODO(), types.NamespacedName{
+		Name: names.DefaultOperatorConfigName, Namespace: names.Namespace}, config)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			logger.Info("Create default OperatorConfig")
+			config.Namespace = names.Namespace
+			config.Name = names.DefaultOperatorConfigName
+			err = c.Create(context.TODO(), config)
+			if err != nil {
+				return err
+			}
+		}
+		// Error reading the object - requeue the request.
 		return err
 	}
 	return nil

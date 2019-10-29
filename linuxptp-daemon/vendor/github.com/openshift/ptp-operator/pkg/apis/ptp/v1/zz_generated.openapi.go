@@ -11,12 +11,15 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"./pkg/apis/ptp/v1.NodePtpDevice":       schema_pkg_apis_ptp_v1_NodePtpDevice(ref),
-		"./pkg/apis/ptp/v1.NodePtpDeviceSpec":   schema_pkg_apis_ptp_v1_NodePtpDeviceSpec(ref),
-		"./pkg/apis/ptp/v1.NodePtpDeviceStatus": schema_pkg_apis_ptp_v1_NodePtpDeviceStatus(ref),
-		"./pkg/apis/ptp/v1.PtpCfg":              schema_pkg_apis_ptp_v1_PtpCfg(ref),
-		"./pkg/apis/ptp/v1.PtpCfgSpec":          schema_pkg_apis_ptp_v1_PtpCfgSpec(ref),
-		"./pkg/apis/ptp/v1.PtpCfgStatus":        schema_pkg_apis_ptp_v1_PtpCfgStatus(ref),
+		"github.com/openshift/ptp-operator/pkg/apis/ptp/v1.NodePtpDevice":           schema_pkg_apis_ptp_v1_NodePtpDevice(ref),
+		"github.com/openshift/ptp-operator/pkg/apis/ptp/v1.NodePtpDeviceSpec":       schema_pkg_apis_ptp_v1_NodePtpDeviceSpec(ref),
+		"github.com/openshift/ptp-operator/pkg/apis/ptp/v1.NodePtpDeviceStatus":     schema_pkg_apis_ptp_v1_NodePtpDeviceStatus(ref),
+		"github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpConfig":               schema_pkg_apis_ptp_v1_PtpConfig(ref),
+		"github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpConfigSpec":           schema_pkg_apis_ptp_v1_PtpConfigSpec(ref),
+		"github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpConfigStatus":         schema_pkg_apis_ptp_v1_PtpConfigStatus(ref),
+		"github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpOperatorConfig":       schema_pkg_apis_ptp_v1_PtpOperatorConfig(ref),
+		"github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpOperatorConfigSpec":   schema_pkg_apis_ptp_v1_PtpOperatorConfigSpec(ref),
+		"github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpOperatorConfigStatus": schema_pkg_apis_ptp_v1_PtpOperatorConfigStatus(ref),
 	}
 }
 
@@ -25,6 +28,7 @@ func schema_pkg_apis_ptp_v1_NodePtpDevice(ref common.ReferenceCallback) common.O
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "NodePtpDevice is the Schema for the nodeptpdevices API",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -47,19 +51,19 @@ func schema_pkg_apis_ptp_v1_NodePtpDevice(ref common.ReferenceCallback) common.O
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./pkg/apis/ptp/v1.NodePtpDeviceSpec"),
+							Ref: ref("github.com/openshift/ptp-operator/pkg/apis/ptp/v1.NodePtpDeviceSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./pkg/apis/ptp/v1.NodePtpDeviceStatus"),
+							Ref: ref("github.com/openshift/ptp-operator/pkg/apis/ptp/v1.NodePtpDeviceStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/ptp/v1.NodePtpDeviceSpec", "./pkg/apis/ptp/v1.NodePtpDeviceStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/openshift/ptp-operator/pkg/apis/ptp/v1.NodePtpDeviceSpec", "github.com/openshift/ptp-operator/pkg/apis/ptp/v1.NodePtpDeviceStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
@@ -68,10 +72,9 @@ func schema_pkg_apis_ptp_v1_NodePtpDeviceSpec(ref common.ReferenceCallback) comm
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "NodePtpDeviceSpec defines the desired state of NodePtpDevice",
-				Properties:  map[string]spec.Schema{},
+				Type:        []string{"object"},
 			},
 		},
-		Dependencies: []string{},
 	}
 }
 
@@ -80,6 +83,7 @@ func schema_pkg_apis_ptp_v1_NodePtpDeviceStatus(ref common.ReferenceCallback) co
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "NodePtpDeviceStatus defines the observed state of NodePtpDevice",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"devices": {
 						SchemaProps: spec.SchemaProps{
@@ -88,7 +92,7 @@ func schema_pkg_apis_ptp_v1_NodePtpDeviceStatus(ref common.ReferenceCallback) co
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("./pkg/apis/ptp/v1.PtpDevice"),
+										Ref: ref("github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpDevice"),
 									},
 								},
 							},
@@ -98,15 +102,16 @@ func schema_pkg_apis_ptp_v1_NodePtpDeviceStatus(ref common.ReferenceCallback) co
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/ptp/v1.PtpDevice"},
+			"github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpDevice"},
 	}
 }
 
-func schema_pkg_apis_ptp_v1_PtpCfg(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_ptp_v1_PtpConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "PtpCfg is the Schema for the ptpcfgs API",
+				Description: "PtpConfig is the Schema for the ptpconfigs API",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -129,27 +134,28 @@ func schema_pkg_apis_ptp_v1_PtpCfg(ref common.ReferenceCallback) common.OpenAPID
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./pkg/apis/ptp/v1.PtpCfgSpec"),
+							Ref: ref("github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpConfigSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("./pkg/apis/ptp/v1.PtpCfgStatus"),
+							Ref: ref("github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpConfigStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/ptp/v1.PtpCfgSpec", "./pkg/apis/ptp/v1.PtpCfgStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpConfigSpec", "github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpConfigStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 
-func schema_pkg_apis_ptp_v1_PtpCfgSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_ptp_v1_PtpConfigSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "PtpCfgSpec defines the desired state of PtpCfg",
+				Description: "PtpConfigSpec defines the desired state of PtpConfig",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"profile": {
 						SchemaProps: spec.SchemaProps{
@@ -158,7 +164,7 @@ func schema_pkg_apis_ptp_v1_PtpCfgSpec(ref common.ReferenceCallback) common.Open
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("./pkg/apis/ptp/v1.PtpProfile"),
+										Ref: ref("github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpProfile"),
 									},
 								},
 							},
@@ -170,7 +176,7 @@ func schema_pkg_apis_ptp_v1_PtpCfgSpec(ref common.ReferenceCallback) common.Open
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("./pkg/apis/ptp/v1.PtpRecommend"),
+										Ref: ref("github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpRecommend"),
 									},
 								},
 							},
@@ -181,15 +187,16 @@ func schema_pkg_apis_ptp_v1_PtpCfgSpec(ref common.ReferenceCallback) common.Open
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/ptp/v1.PtpProfile", "./pkg/apis/ptp/v1.PtpRecommend"},
+			"github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpProfile", "github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpRecommend"},
 	}
 }
 
-func schema_pkg_apis_ptp_v1_PtpCfgStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_pkg_apis_ptp_v1_PtpConfigStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "PtpCfgStatus defines the observed state of PtpCfg",
+				Description: "PtpConfigStatus defines the observed state of PtpConfig",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"matchList": {
 						SchemaProps: spec.SchemaProps{
@@ -198,7 +205,7 @@ func schema_pkg_apis_ptp_v1_PtpCfgStatus(ref common.ReferenceCallback) common.Op
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("./pkg/apis/ptp/v1.NodeMatchList"),
+										Ref: ref("github.com/openshift/ptp-operator/pkg/apis/ptp/v1.NodeMatchList"),
 									},
 								},
 							},
@@ -208,6 +215,90 @@ func schema_pkg_apis_ptp_v1_PtpCfgStatus(ref common.ReferenceCallback) common.Op
 			},
 		},
 		Dependencies: []string{
-			"./pkg/apis/ptp/v1.NodeMatchList"},
+			"github.com/openshift/ptp-operator/pkg/apis/ptp/v1.NodeMatchList"},
+	}
+}
+
+func schema_pkg_apis_ptp_v1_PtpOperatorConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PtpOperatorConfig is the Schema for the ptpoperatorconfigs API",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpOperatorConfigSpec"),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpOperatorConfigStatus"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpOperatorConfigSpec", "github.com/openshift/ptp-operator/pkg/apis/ptp/v1.PtpOperatorConfigStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+	}
+}
+
+func schema_pkg_apis_ptp_v1_PtpOperatorConfigSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PtpOperatorConfigSpec defines the desired state of PtpOperatorConfig",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"daemonNodeSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "INSERT ADDITIONAL SPEC FIELDS - desired state of cluster Important: Run \"operator-sdk generate k8s\" to regenerate code after modifying this file Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html",
+							Type:        []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"daemonNodeSelector"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_ptp_v1_PtpOperatorConfigStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PtpOperatorConfigStatus defines the observed state of PtpOperatorConfig",
+				Type:        []string{"object"},
+			},
+		},
 	}
 }

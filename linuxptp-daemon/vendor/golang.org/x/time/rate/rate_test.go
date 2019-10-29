@@ -2,17 +2,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build go1.7
+
 package rate
 
 import (
+	"context"
 	"math"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
-
-	"golang.org/x/net/context"
 )
 
 func TestLimit(t *testing.T) {
@@ -130,6 +131,15 @@ func TestLimiterJumpBackwards(t *testing.T) {
 	})
 }
 
+// Ensure that tokensFromDuration doesn't produce
+// rounding errors by truncating nanoseconds.
+// See golang.org/issues/34861.
+func TestLimiter_noTruncationErrors(t *testing.T) {
+	if !NewLimiter(0.7692307692307693, 1).Allow() {
+		t.Fatal("expected true")
+	}
+}
+
 func TestSimultaneousRequests(t *testing.T) {
 	const (
 		limit       = 1
@@ -164,6 +174,9 @@ func TestSimultaneousRequests(t *testing.T) {
 }
 
 func TestLongRunningQPS(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode")
+	}
 	if runtime.GOOS == "openbsd" {
 		t.Skip("low resolution time.Sleep invalidates test (golang.org/issue/14183)")
 		return
@@ -348,6 +361,15 @@ func TestReserveSetLimit(t *testing.T) {
 	runReserve(t, lim, request{t2, 1, t4, true}) // violates Limit and Burst
 }
 
+func TestReserveSetBurst(t *testing.T) {
+	lim := NewLimiter(5, 2)
+
+	runReserve(t, lim, request{t0, 2, t0, true})
+	runReserve(t, lim, request{t0, 2, t4, true})
+	lim.SetBurstAt(t3, 4)
+	runReserve(t, lim, request{t0, 4, t9, true}) // violates Limit and Burst
+}
+
 func TestReserveSetLimitCancel(t *testing.T) {
 	lim := NewLimiter(5, 2)
 
@@ -442,4 +464,14 @@ func BenchmarkAllowN(b *testing.B) {
 			lim.AllowN(now, 1)
 		}
 	})
+}
+
+func BenchmarkWaitNNoDelay(b *testing.B) {
+	lim := NewLimiter(Limit(b.N), b.N)
+	ctx := context.Background()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		lim.WaitN(ctx, 1)
+	}
 }

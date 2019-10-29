@@ -1,14 +1,12 @@
-PACKAGE=github.com/openshift/ptp-operator
-MAIN_PACKAGE=$(PACKAGE)/cmd/manager
+all: bin
 
-BIN=build/_output/bin/ptp-operator
-GOOS=linux
-GO_BUILD=GOOS=$(GOOS) go build -o $(BIN) $(MAIN_PACKAGE)
-
-all: buildbin
-
-buildbin:
-	$(GO_BUILD)
-
+bin:
+	hack/build.sh
+image:
+	docker build -t openshift.io/ptp-operator -f Dockerfile.rhel7 .
 clean:
 	rm -rf build/_output/bin/ptp-operator
+deploy-setup:
+	hack/deploy-setup.sh
+undeploy:
+	hack/undeploy.sh

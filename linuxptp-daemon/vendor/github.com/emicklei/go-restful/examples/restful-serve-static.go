@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"path"
 
@@ -27,7 +28,7 @@ func main() {
 	restful.Add(ws)
 
 	println("[go-restful] serving files on http://localhost:8080/static from local /tmp")
-	http.ListenAndServe(":8080", nil)
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 func staticFromPathParam(req *restful.Request, resp *restful.Response) {

@@ -1,12 +1,12 @@
 hash: 71a805b96b5fa8b1853ecd3eb29d5548df2f4e9198c2d4f3709eac71ffbbf458
-updated: 2019-10-08T05:58:09.686369382-04:00
+updated: 2019-10-29T01:18:49.832562526-04:00
 imports:
 - name: github.com/davecgh/go-spew
-  version: 8991bc29aa16c548c550c7ff78260e27b9ab7c73
+  version: d8f796af33cc11cb798c1aaeb27a4ebc5099927d
   subpackages:
   - spew
 - name: github.com/emicklei/go-restful
-  version: ff4f55a206334ef123e4f79bbf348980da81ca46
+  version: 99f05a26a0a1c71e664ebe6a76d29b2c80333056
   subpackages:
   - log
 - name: github.com/fsnotify/fsnotify
@@ -14,22 +14,22 @@ imports:
 - name: github.com/ghodss/yaml
   version: 25d852aebe32c875e9c044af3eef9c7dc6bc777f
 - name: github.com/go-openapi/jsonpointer
-  version: 46af16f9f7b149af66e5d1bd010e3574dc06de98
+  version: ed123515f087412cd7ef02e49b0b0a5e6a79a360
 - name: github.com/go-openapi/jsonreference
   version: 82f31475a8f7a12bc26962f6e26ceade8ea6f66a
 - name: github.com/go-openapi/spec
-  version: 6aced65f8501fe1217321abf0749d354824ba2ff
+  version: 744796356cda816d3166723c28d45c5f58f590df
 - name: github.com/go-openapi/swag
-  version: 1d0bd113de87027671077d3c71eb3ac5d7dbba72
+  version: c3d0f7896d589f3babb99eea24bbc7de98108e72
 - name: github.com/gogo/protobuf
-  version: 342cbe0a04158f6dcb03ca0079991a51a4248c02
+  version: 5628607bb4c51c3157aacc3a50f0ab707582b805
   subpackages:
   - proto
   - sortkeys
 - name: github.com/golang/glog
   version: 23def4e6c14b4da8ac2ed8007337bc5eb5007998
 - name: github.com/golang/protobuf
-  version: aa810b61a9c79d51363740d207bb46cf8e620ed5
+  version: ed6926b37a637426117ccab59282c3839528a700
   subpackages:
   - proto
   - ptypes
@@ -41,23 +41,23 @@ imports:
   subpackages:
   - cmp
 - name: github.com/google/gofuzz
-  version: 24818f796faf91cd76ec7bddd72458fbced7a6c1
+  version: db92cf7ae75e4a7a28abc005addab2b394362888
 - name: github.com/googleapis/gnostic
-  version: 0c5108395e2debce0d731cf0287ddf7242066aba
+  version: dde5565d98663c4c06e162ffd3fb829ec84a46d8
   subpackages:
   - OpenAPIv2
   - compiler
   - extensions
 - name: github.com/imdario/mergo
-  version: 9316a62528ac99aaecb4e47eadd6dc8aa6533d58
+  version: 1afb36080aec31e0d1528973ebe6721b191b0369
 - name: github.com/jaypipes/ghw
   version: 29869ac89830376f4997b823e455dac004acce4e
 - name: github.com/jaypipes/pcidb
   version: 98ef3ee36c69f20650fe7855047ad042338c6983
 - name: github.com/json-iterator/go
-  version: ab8a2e0c74be9d3be70b3184d9acc634935ded82
+  version: 03217c3e97663914aec3faafde50d081f197a0a2
 - name: github.com/mailru/easyjson
-  version: d5b7844b561a7bc640052f1b935f7b800330d7e0
+  version: 6c0755d89d1e153c9986ad90e886a626bd66aad0
   subpackages:
   - buffer
   - jlexer
@@ -69,23 +69,26 @@ imports:
 - name: github.com/modern-go/reflect2
   version: 94122c33edd36123c84d5368cfb2b69df93a0ec8
 - name: github.com/openshift/ptp-operator
-  version: 51bf437196d933c7e47e781c6a7b0d5ce600d154
+  version: deaf8b45ba1364cd2981503eb32caac49415ade6
   subpackages:
   - pkg/apis/ptp/v1
+  - pkg/client/clientset/versioned
+  - pkg/client/clientset/versioned/scheme
+  - pkg/client/clientset/versioned/typed/ptp/v1
 - name: github.com/pkg/errors
   version: ba968bfe8b2f7e042a574c888954fccecfa385b4
 - name: github.com/PuerkitoBio/purell
-  version: 8a290539e2e8629dbc4e6bad948158f790ec31f4
+  version: 44968752391892e1b0d0b821ee79e9a85fa13049
 - name: github.com/PuerkitoBio/urlesc
-  version: 5bd2802263f21d8788851d5305584c82a5c75d7e
+  version: de5bf2ad457846296e2031421a34e2568e304e35
 - name: github.com/spf13/pflag
-  version: 583c0c0531f06d5278b7d917446061adc344b5cd
+  version: 2e9d26c8c37aae03e3f9d4e90b7116f5accb7cab
 - name: golang.org/x/crypto
-  version: e84da0312774c21d64ee2317962ef669b27ffb41
+  version: 8986dd9e96cf0a6f74da406c005ba3df38527c04
   subpackages:
   - ssh/terminal
 - name: golang.org/x/net
-  version: 65e2d4e15006aab9813ff8769e768bbf4bb667a0
+  version: fe3aa8a4527195a6057b3fad46619d7d090e99b5
   subpackages:
   - context
   - context/ctxhttp
@@ -94,38 +97,30 @@ imports:
   - http2/hpack
   - idna
 - name: golang.org/x/oauth2
-  version: 9f3314589c9a9136388751d9adae6b0ed400978a
+  version: 0f29369cfe4552d0e4bcddc57cc75f4d7e672a33
   subpackages:
   - internal
 - name: golang.org/x/sys
-  version: 3b5209105503162ded1863c307ac66fec31120dd
+  version: 195ce5e7f934b923d8fc432cf5a2561f2b334da9
   subpackages:
   - unix
   - windows
 - name: golang.org/x/text
-  version: e6919f6577db79269a6443b9dc46d18f2238fb5d
+  version: 3d0f7978add91030e5e8976ff65ccdd828286cba
   subpackages:
-  - cases
-  - internal
-  - internal/language
-  - internal/language/compact
-  - internal/tag
-  - language
-  - runes
   - secure/bidirule
-  - secure/precis
   - transform
   - unicode/bidi
   - unicode/norm
   - width
 - name: golang.org/x/time
-  version: f51c12702a4d776e4c1fa9b0fabab841babae631
+  version: 555d28b269f0569763d25dbe1a237ae74c6bcc82
   subpackages:
   - rate
 - name: golang.org/x/tools
-  version: 6536af71d98a5bb8f2cbd2f5e62afc2f6cc93dbb
+  version: 9cc4af7d6b2c2a2e47f9cfaa500cd669b42e449b
 - name: google.golang.org/appengine
-  version: 54a98f90d1c46b7731eb8fb305d2a321c30ef610
+  version: 16bce7d3dc4e458f2f6f56a1349cbbfcdc8a8fdf
   subpackages:
   - internal
   - internal/base
@@ -135,13 +130,13 @@ imports:
   - internal/urlfetch
   - urlfetch
 - name: gopkg.in/inf.v0
-  version: 3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4
+  version: d2d2541c53f18d2a059457998ce2876cc8e67cbf
 - name: gopkg.in/yaml.v2
-  version: 5420a8b6744d3b0345ab293f6fcba19c978f1183
+  version: f221b8435cfb71e54062f6c6e99e9ade30b124d5
 - name: howett.net/plist
   version: 591f970eefbbeb04d7b37f334a0c4c3256e32876
 - name: k8s.io/api
-  version: 7cf5895f2711098d7d9527db0a4a49fb0dff7de2
+  version: 5524a3672fbb1d8e9528811576c859dbedffeed7
   subpackages:
   - admissionregistration/v1beta1
   - apps/v1
@@ -180,7 +175,7 @@ imports:
   - storage/v1alpha1
   - storage/v1beta1
 - name: k8s.io/apimachinery
-  version: 1799e75a07195de9460b8ef7300883499f12127b
+  version: af6325b3a843fc0c4c448b1bd770ebab40e9acc4
   subpackages:
   - pkg/api/errors
   - pkg/api/meta
@@ -279,24 +274,24 @@ imports:
   - util/homedir
   - util/keyutil
 - name: k8s.io/code-generator
-  version: 700b1226c0bdf36115cf94f496ac105b3bca1700
+  version: f361089c127c5bb0fb7adb3ed5141a43dea194aa
 - name: k8s.io/gengo
-  version: ebc107f98eab922ef99d645781b87caca01f4f48
+  version: 7fa3014cb28f99ce2d9e803bcd3efa7edd4effa9
 - name: k8s.io/klog
   version: 3ca30a56d8a775276f9cdae009ba326fdc05af7f
 - name: k8s.io/kube-openapi
-  version: b3a7cee44a305be0a69e1b9ac03018307287e1b0
+  version: 0270cf2f1c1d995d34b36019a6f65d58e6e33ad4
   subpackages:
   - pkg/common
 - name: k8s.io/utils
-  version: c2654d5206da6b7b6ace12841e8f359bb89b443c
+  version: 8d271d903fe4c290aa361acfb242cff7bcee96f1
   subpackages:
   - integer
 - name: sigs.k8s.io/controller-runtime
-  version: aac8bc7a3cbc56b99cc250d1506a0a39765b573d
+  version: ad57a976ffa1eac39bc9d9cb267ca5489fb8f038
   subpackages:
   - pkg/runtime/scheme
   - pkg/scheme
 - name: sigs.k8s.io/yaml
-  version: fd68e9863619f6ec2fdd8625fe1f02e7c877e480
+  version: 4cd0c284b15f1735b8cc247df097d262b8903f9f
 testImports: []
