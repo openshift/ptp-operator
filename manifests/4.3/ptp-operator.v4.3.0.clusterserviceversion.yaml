@@ -181,7 +181,7 @@ spec:
                 - name: OPERATOR_NAME
                   value: ptp-operator
                 - name: LINUXPTP_DAEMON_IMAGE
-                  value: quay.io/openshift/origin-linuxptp-daemon:latest
+                  value: quay.io/openshift/origin-ptp:latest
     strategy: deployment
   installModes:
   - supported: true

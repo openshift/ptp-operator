@@ -10,4 +10,4 @@ spec:
   - name: linuxptp-daemon
     from:
       kind: DockerImage
-      name: quay.io/openshift/origin-linuxptp-daemon:4.3
+      name: quay.io/openshift/origin-ptp:4.3
