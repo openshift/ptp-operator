@@ -165,7 +165,7 @@ spec:
                 operator: Equal
               containers:
               - name: ptp-operator
-                image: quay.io/openshift/origin-ptp-operator:latest
+                image: quay.io/openshift/origin-ptp-operator:4.3
                 imagePullPolicy: Always
                 command:
                 - ptp-operator
@@ -181,7 +181,7 @@ spec:
                 - name: OPERATOR_NAME
                   value: ptp-operator
                 - name: LINUXPTP_DAEMON_IMAGE
-                  value: quay.io/openshift/origin-ptp:latest
+                  value: quay.io/openshift/origin-ptp:4.3
     strategy: deployment
   installModes:
   - supported: true
