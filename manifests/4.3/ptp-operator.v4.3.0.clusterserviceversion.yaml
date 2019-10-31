@@ -8,7 +8,7 @@ metadata:
     categories: "Time"
     provider: Red Hat
     support: Red Hat
-    containerImage: : quay.io/openshift/origin-ptp-operator:4.3
+    containerImage: quay.io/openshift/origin-ptp-operator:4.3
     createdAt: 2019-10-14
     certified: "false"
     repository: https://github.com/openshift/ptp-operator
