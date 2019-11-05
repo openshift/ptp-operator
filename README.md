@@ -84,7 +84,7 @@ spec:
   - profile: "profile1"
     priority: 4
     match:
-    - nodeLabel: "node-role.kubernetes.io/worker="
+    - nodeLabel: "node-role.kubernetes.io/worker"
 ```
 
 In above example, `profile1` will be applied by `linuxptp-daemon` to nodes labeled with `node-role.kubernetes.io/worker`.
