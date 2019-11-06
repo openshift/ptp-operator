@@ -9,6 +9,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+
+func printWhenNotNil(p *string, description string) {
+        if p != nil {
+                glog.Info(description, ": ", *p)
+        }
+}
+
 // getRecommendNodePtpProfile return recommended node ptp profile
 func getRecommendNodePtpProfile(
 	ptpConfigList *ptpv1.PtpConfigList,
@@ -27,7 +34,13 @@ func getRecommendNodePtpProfile(
 		return profile, fmt.Errorf("get recommended ptp profile failed: %v", err)
 	}
 
-	glog.V(2).Infof("ptp profile to be updated: %+v for node: %s", profile, node.Name)
+	glog.Infof("ptp profile to be updated for node: %s", node.Name)
+	glog.Infof("------------------------------------")
+	printWhenNotNil(profile.Name, "Profile Name")
+	printWhenNotNil(profile.Interface, "Interface")
+	printWhenNotNil(profile.Ptp4lOpts, "Ptp4lOpts")
+	printWhenNotNil(profile.Phc2sysOpts, "Phc2sysOpts")
+	glog.Infof("------------------------------------")
 	return profile, nil
 }
 
