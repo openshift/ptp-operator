@@ -170,7 +170,7 @@ spec:
               tolerations:
               - effect: NoSchedule
                 key: node-role.kubernetes.io/master
-                operator: Equal
+                operator: Exists
               containers:
               - name: ptp-operator
                 image: quay.io/openshift/origin-ptp-operator:4.3
