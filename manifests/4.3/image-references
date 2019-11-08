@@ -7,7 +7,7 @@ spec:
     from:
       kind: DockerImage
       name: quay.io/openshift/origin-ptp-operator:4.3
-  - name: linuxptp-daemon
+  - name: ptp
     from:
       kind: DockerImage
       name: quay.io/openshift/origin-ptp:4.3
