@@ -32,7 +32,7 @@ import (
 var log = logf.Log.WithName("controller_ptpoperatorconfig")
 
 const (
-	ResyncPeriod = 5 * time.Minute
+	ResyncPeriod = 2 * time.Minute
 )
 
 /**
