@@ -18,7 +18,7 @@ metadata:
           "apiVersion": "ptp.openshift.io/v1",
           "kind": "PtpConfig",
           "metadata": {
-            "name": "ptpconfig-1"
+            "name": "ptpconfig-1",
             "namespace": "openshift-ptp"
           },
           "spec": {
@@ -45,11 +45,11 @@ metadata:
           "apiVersion": "ptp.openshift.io/v1",
           "kind": "PtpOperatorConfig",
           "metadata": {
-            "name": "default"
+            "name": "default",
             "namespace": "openshift-ptp"
           },
           "spec": {
-            "daemonNodeSelector": make(map[string]string)
+            "daemonNodeSelector": {}
           }
         }
       ]
