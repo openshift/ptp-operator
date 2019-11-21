@@ -5,7 +5,7 @@ metadata:
   namespace: openshift-ptp
   annotations:
     capabilities: Basic Install
-    categories: "Time"
+    categories: Networking
     provider: Red Hat
     support: Red Hat
     containerImage: quay.io/openshift/origin-ptp-operator:4.4
