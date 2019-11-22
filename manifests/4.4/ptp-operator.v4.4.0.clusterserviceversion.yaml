@@ -5,7 +5,7 @@ metadata:
   namespace: openshift-ptp
   annotations:
     capabilities: Basic Install
-    categories: "Time"
+    categories: Networking
     provider: Red Hat
     support: Red Hat
     containerImage: quay.io/openshift/origin-ptp-operator:4.4
@@ -40,6 +40,15 @@ metadata:
               }
             ]
           }
+        },
+        {
+          "apiVersion": "ptp.openshift.io/v1",
+          "kind": "NodePtpDevice",
+          "metadata": {
+            "name": "node.example.com",
+            "namespace": "openshift-ptp"
+          },
+          "spec": {}
         },
         {
           "apiVersion": "ptp.openshift.io/v1",
