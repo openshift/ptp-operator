@@ -12,7 +12,7 @@ metadata:
     createdAt: 2019-10-14
     certified: "false"
     repository: https://github.com/openshift/ptp-operator
-    olm.skipRange: ">=4.3.0 <4.3.0"
+    olm.skipRange: ">=4.3.0-0 <4.3.0"
     alm-examples: |-
       [
         {
