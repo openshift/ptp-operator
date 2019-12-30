@@ -1,5 +1,0 @@
-apiVersion: ptp.openshift.io/v1
-kind: NodePtpDevice
-metadata:
-  name: node.example.com
-spec: {}
