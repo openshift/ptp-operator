@@ -114,6 +114,8 @@ func main() {
 	var appliedNodeProfileJson []byte
 	ptpConfig := &ptpv1.PtpProfile{}
 
+	daemon.StartMetricsServer("0.0.0.0:9091")
+
 	for {
 		select {
 		case <-tickerPull.C:

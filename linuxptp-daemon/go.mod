@@ -9,6 +9,7 @@ require (
 	github.com/jaypipes/ghw v0.0.0-20190630182512-29869ac89830
 	github.com/mailru/easyjson v0.0.0-20191009090205-6c0755d89d1e // indirect
 	github.com/openshift/ptp-operator v0.0.0-20191029035809-deaf8b45ba13
+	github.com/prometheus/client_golang v0.9.3-0.20190127221311-3c4408c8b829
 	golang.org/x/crypto v0.0.0-20191029031824-8986dd9e96cf // indirect
 	golang.org/x/net v0.0.0-20191028085509-fe3aa8a45271 // indirect
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45 // indirect

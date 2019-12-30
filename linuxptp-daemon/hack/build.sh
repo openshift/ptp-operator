@@ -17,3 +17,4 @@ export GO15VENDOREXPERIMENT=1
 export GOBIN=${PWD}/bin
 export GOPATH=${PWD}/.gopath
 go build -tags no_openssl "$@" -o bin/ptp ${REPO_PATH}/cmd
+

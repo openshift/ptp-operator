@@ -64,6 +64,8 @@ func New(
 	ptpUpdate	*LinuxPTPConfUpdate,
 	stopCh		<-chan struct{},
 ) *Daemon {
+	RegisterMetrics(nodeName)
+
 	return &Daemon{
 		nodeName:	nodeName,
 		namespace:	namespace,
@@ -105,6 +107,18 @@ func printWhenNotNil(p *string, description string) {
 
 func applyNodePTPProfile(pm *ProcessManager, nodeProfile *ptpv1.PtpProfile) error {
 	glog.Infof("in applyNodePTPProfile")
+
+	// If output doesn't exist we add it for the prometheus exporter
+	if nodeProfile.Phc2sysOpts != nil && !strings.Contains(*nodeProfile.Phc2sysOpts,"-m") {
+		glog.Info("adding -m to printing messages to stdout for phc2sys to use prometheus exporter")
+		*nodeProfile.Phc2sysOpts = fmt.Sprintf("%s -m",*nodeProfile.Phc2sysOpts)
+	}
+
+	// If output doesn't exist we add it for the prometheus exporter
+	if nodeProfile.Ptp4lOpts != nil && !strings.Contains(*nodeProfile.Ptp4lOpts,"-m") {
+		glog.Info("adding -m to printing messages to stdout for ptp4l to use prometheus exporter")
+		*nodeProfile.Ptp4lOpts = fmt.Sprintf("%s -m",*nodeProfile.Ptp4lOpts)
+	}
 
 	glog.Infof("updating NodePTPProfile to:")
 	glog.Infof("------------------------------------")
@@ -201,7 +215,9 @@ func cmdRun(p *ptpProcess) {
 	scanner := bufio.NewScanner(cmdReader)
 	go func() {
 		for scanner.Scan() {
-			fmt.Printf("%s\n", scanner.Text())
+			output := scanner.Text()
+			fmt.Printf("%s\n", output)
+			extractMetrics(p.name,output)
 		}
 		done <- struct{}{}
 	}()
