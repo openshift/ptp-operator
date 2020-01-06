@@ -3,17 +3,19 @@ package daemon
 import (
 	"fmt"
 	"github.com/golang/glog"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-	"net/http"
 
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	utilwait "k8s.io/apimachinery/pkg/util/wait"
 
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	ptpv1 "github.com/openshift/ptp-operator/pkg/apis/ptp/v1"
 )
 
 const (
@@ -35,11 +37,11 @@ var (
 			Help: "",
 		},[]string{"process","node"})
 
-	StateOfPI = prometheus.NewGaugeVec(
+	MaxOffsetFromMaster = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: PTPNamespace,
 			Subsystem: PTPSubsystem,
-			Name: "state_of_pi",
+			Name: "max_offset_from_master",
 			Help: "",
 		},[]string{"process","node"})
 
@@ -65,7 +67,7 @@ var registerMetrics sync.Once
 func RegisterMetrics(nodeName string) {
 	registerMetrics.Do(func() {
 		prometheus.MustRegister(OffsetFromMaster)
-		prometheus.MustRegister(StateOfPI)
+		prometheus.MustRegister(MaxOffsetFromMaster)
 		prometheus.MustRegister(FrequencyAdjustment)
 		prometheus.MustRegister(DelayFromMaster)
 
@@ -78,12 +80,12 @@ func RegisterMetrics(nodeName string) {
 }
 
 // updatePTPMetrics ...
-func updatePTPMetrics(process string, offsetFromMaster, stateOfPI, frequencyAdjustment, delayFromMaster float64) {
+func updatePTPMetrics(process string, offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster float64) {
 	OffsetFromMaster.With(prometheus.Labels{
 	"process": process,"node": NodeName}).Set(offsetFromMaster)
 
-	StateOfPI.With(prometheus.Labels{
-	"process": process,"node": NodeName}).Set(stateOfPI)
+	MaxOffsetFromMaster.With(prometheus.Labels{
+	"process": process,"node": NodeName}).Set(maxOffsetFromMaster)
 
 	FrequencyAdjustment.With(prometheus.Labels{
 		"process": process,"node": NodeName}).Set(frequencyAdjustment)
@@ -94,85 +96,70 @@ func updatePTPMetrics(process string, offsetFromMaster, stateOfPI, frequencyAdju
 
 // extractMetrics ...
 func extractMetrics(processName, output string){
-	if processName == ptp4lProcessName && strings.Contains(output,"offset") {
-		offsetFromMaster, stateOfPI, frequencyAdjustment, delayFromMaster := extractPtp4lMetrics(output)
-		updatePTPMetrics(processName,offsetFromMaster, stateOfPI, frequencyAdjustment, delayFromMaster)
-	}
-
-	if processName == phc2sysProcessName && strings.Contains(output,"offset") {
-		offsetFromMaster, stateOfPI, frequencyAdjustment, delayFromMaster := extractPhc2sysMetrics(output)
-		updatePTPMetrics(processName,offsetFromMaster, stateOfPI, frequencyAdjustment, delayFromMaster)
+	if strings.Contains(output,"max") {
+		offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster := extractSummaryMetrics(processName,output)
+		updatePTPMetrics(processName,offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster)
 	}
 }
 
-func extractPtp4lMetrics(output string) (offsetFromMaster, stateOfPI, frequencyAdjustment, delayFromMaster float64) {
+func extractSummaryMetrics(processName, output string) (offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster float64) {
+	output = strings.Replace(output,"CLOCK_REALTIME","", 1)
 	fields := strings.Fields(output)
 
-	if len(fields) != 10 {
-		glog.Error("ptp4l failed to extract metrics unknown output format")
+	if len(fields) != 13 {
+		glog.Errorf("%s failed to extract metrics unknown output format",processName)
 		return
 	}
 
-	offsetFromMaster, err := strconv.ParseFloat(fields[3], 64)
+	offsetFromMaster, err := strconv.ParseFloat(fields[2], 64)
 	if err != nil {
-		glog.Errorf("ptp4l failed to parse offset from master output %s error %v",fields[3], err)
+		glog.Errorf("%s failed to parse offset from master output %s error %v",processName,fields[2], err)
 	}
 
-	if len(fields[4]) != 2 {
-		glog.Errorf("ptp4l failed to parse state of pi output %s",fields[4])
-	}
-
-	stateOfPI, err = strconv.ParseFloat(string(fields[4][1]), 64)
+	maxOffsetFromMaster, err = strconv.ParseFloat(fields[4], 64)
 	if err != nil {
-		glog.Errorf("ptp4l failed to parse parse state of pi output %s error %v",string(fields[4][1]), err)
+		glog.Errorf("%s failed to parse max offset from master output %s error %v",processName,fields[4], err)
 	}
 
 	frequencyAdjustment, err = strconv.ParseFloat(fields[6], 64)
 	if err != nil {
-		glog.Errorf("ptp4l failed to parse frequency adjustment output %s error %v",fields[6], err)
+		glog.Errorf("%s failed to parse frequency adjustment output %s error %v",processName,fields[6], err)
 	}
 
-	delayFromMaster, err = strconv.ParseFloat(fields[9], 64)
+	delayFromMaster, err = strconv.ParseFloat(fields[10], 64)
 	if err != nil {
-		glog.Errorf("ptp4l failed to parse delay from master output %s error %v",fields[9], err)
+		glog.Errorf("%s failed to parse delay from master output %s error %v",processName,fields[10], err)
 	}
 
 	return
 }
 
-func extractPhc2sysMetrics(output string) (offsetFromMaster, stateOfPI, frequencyAdjustment, delayFromMaster float64) {
-	fields := strings.Fields(output)
+func addFlagsForMonitor(nodeProfile *ptpv1.PtpProfile) {
+	// If output doesn't exist we add it for the prometheus exporter
+	if nodeProfile.Phc2sysOpts != nil {
+		if !strings.Contains(*nodeProfile.Phc2sysOpts,"-m") {
+			glog.Info("adding -m to print messages to stdout for phc2sys to use prometheus exporter")
+			*nodeProfile.Phc2sysOpts = fmt.Sprintf("%s -m",*nodeProfile.Phc2sysOpts)
+		}
 
-	if len(fields) != 10 {
-		glog.Info("phc2sys failed to extract metrics unknown output format")
-		return
+		if !strings.Contains(*nodeProfile.Phc2sysOpts,"-u") {
+			glog.Info("adding -u 1 to print summary messages to stdout for phc2sys to use prometheus exporter")
+			*nodeProfile.Phc2sysOpts = fmt.Sprintf("%s -u 1",*nodeProfile.Phc2sysOpts)
+		}
 	}
 
-	offsetFromMaster, err := strconv.ParseFloat(fields[4], 64)
-	if err != nil {
-		glog.Errorf("phc2sys failed to parse offset from master output %s error %v",fields[4], err)
-	}
+	// If output doesn't exist we add it for the prometheus exporter
+	if nodeProfile.Ptp4lOpts != nil {
+		if !strings.Contains(*nodeProfile.Ptp4lOpts,"-m") {
+			glog.Info("adding -m to print messages to stdout for ptp4l to use prometheus exporter")
+			*nodeProfile.Ptp4lOpts = fmt.Sprintf("%s -m",*nodeProfile.Ptp4lOpts)
+		}
 
-	if len(fields[5]) != 2 {
-		glog.Errorf("phc2sys failed to parse state of pi output %s",fields[5])
+		if !strings.Contains(*nodeProfile.Ptp4lOpts,"--summary_interval") {
+			glog.Info("adding --summary_interval 1 to print summary messages to stdout for ptp4l to use prometheus exporter")
+			*nodeProfile.Ptp4lOpts = fmt.Sprintf("%s --summary_interval 1",*nodeProfile.Ptp4lOpts)
+		}
 	}
-
-	stateOfPI, err = strconv.ParseFloat(string(fields[5][1]), 64)
-	if err != nil {
-		glog.Errorf("phc2sys failed to parse parse state of pi output %s error %v",string(fields[5][1]), err)
-	}
-
-	frequencyAdjustment, err = strconv.ParseFloat(fields[7], 64)
-	if err != nil {
-		glog.Errorf("phc2sys failed to parse frequency adjustment output %s error %v",fields[7], err)
-	}
-
-	delayFromMaster, err = strconv.ParseFloat(fields[9], 64)
-	if err != nil {
-		glog.Errorf("phc2sys failed to parse delay from master output %s error %v",fields[9], err)
-	}
-
-	return
 }
 
 // StartMetricsServer runs the prometheus listner so that metrics can be collected

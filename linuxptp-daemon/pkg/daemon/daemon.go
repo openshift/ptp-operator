@@ -108,17 +108,7 @@ func printWhenNotNil(p *string, description string) {
 func applyNodePTPProfile(pm *ProcessManager, nodeProfile *ptpv1.PtpProfile) error {
 	glog.Infof("in applyNodePTPProfile")
 
-	// If output doesn't exist we add it for the prometheus exporter
-	if nodeProfile.Phc2sysOpts != nil && !strings.Contains(*nodeProfile.Phc2sysOpts,"-m") {
-		glog.Info("adding -m to printing messages to stdout for phc2sys to use prometheus exporter")
-		*nodeProfile.Phc2sysOpts = fmt.Sprintf("%s -m",*nodeProfile.Phc2sysOpts)
-	}
-
-	// If output doesn't exist we add it for the prometheus exporter
-	if nodeProfile.Ptp4lOpts != nil && !strings.Contains(*nodeProfile.Ptp4lOpts,"-m") {
-		glog.Info("adding -m to printing messages to stdout for ptp4l to use prometheus exporter")
-		*nodeProfile.Ptp4lOpts = fmt.Sprintf("%s -m",*nodeProfile.Ptp4lOpts)
-	}
+	addFlagsForMonitor(nodeProfile)
 
 	glog.Infof("updating NodePTPProfile to:")
 	glog.Infof("------------------------------------")
@@ -185,7 +175,7 @@ func phc2sysCreateCmd(nodeProfile *ptpv1.PtpProfile) *exec.Cmd {
 
 // ptp4lCreateCmd generate ptp4l command
 func ptp4lCreateCmd(nodeProfile *ptpv1.PtpProfile) *exec.Cmd {
-	cmdLine := fmt.Sprintf("/usr/sbin/ptp4l -m -f %s -i %s %s",
+	cmdLine := fmt.Sprintf("/usr/sbin/ptp4l -f %s -i %s %s",
 		PTP4L_CONF_FILE_PATH,
 		*nodeProfile.Interface,
 		*nodeProfile.Ptp4lOpts)
