@@ -2,7 +2,6 @@ module github.com/openshift/ptp-operator
 
 require (
 	github.com/Masterminds/sprig v0.0.0-20190301161902-9f8fceff796f
-	github.com/NYTimes/gziphandler v1.0.1 // indirect
 	github.com/go-openapi/spec v0.19.2
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/onsi/gomega v1.4.3
@@ -37,3 +36,5 @@ replace (
 )
 
 replace github.com/operator-framework/operator-sdk => github.com/operator-framework/operator-sdk v0.10.0
+
+go 1.13

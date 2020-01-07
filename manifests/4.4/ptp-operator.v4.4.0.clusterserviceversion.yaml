@@ -110,6 +110,7 @@ spec:
         labels:
           name: openshift-ptp
           openshift.io/run-level: "1"
+          openshift.io/cluster-monitoring: "true"
       EOF
 
       $ oc create -f - <<EOF
@@ -151,6 +152,20 @@ spec:
           - ptp.openshift.io
           resources:
           - '*'
+          verbs:
+          - '*'
+        - apiGroups:
+          - monitoring.coreos.com
+          resources:
+          - servicemonitors
+          - prometheusrule
+          verbs:
+          - '*'
+        - apiGroups:
+          - rbac.authorization.k8s.io
+          resources:
+          - roles
+          - rolebindings
           verbs:
           - '*'
         serviceAccountName: ptp-operator
