@@ -2,6 +2,7 @@ FROM registry.svc.ci.openshift.org/openshift/release:golang-1.10 AS builder
 ADD . /usr/src/linuxptp-daemon
 
 WORKDIR /usr/src/linuxptp-daemon
+ENV GO111MODULE=off
 RUN make clean && make
 
 FROM registry.svc.ci.openshift.org/openshift/origin-v4.0:base
