@@ -103,32 +103,36 @@ func extractMetrics(processName, output string){
 }
 
 func extractSummaryMetrics(processName, output string) (offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster float64) {
-	output = strings.Replace(output,"CLOCK_REALTIME","", 1)
+	// remove everything before the rms string
+	// This makes the out to equals
+	indx := strings.Index(output, "rms")
+	output = output[indx:]
 	fields := strings.Fields(output)
 
-	if len(fields) != 13 {
-		glog.Errorf("%s failed to extract metrics unknown output format",processName)
-		return
+
+	offsetFromMaster, err := strconv.ParseFloat(fields[1], 64)
+	if err != nil {
+		glog.Errorf("%s failed to parse offset from master output %s error %v",processName,fields[1], err)
 	}
 
-	offsetFromMaster, err := strconv.ParseFloat(fields[2], 64)
+	maxOffsetFromMaster, err = strconv.ParseFloat(fields[3], 64)
 	if err != nil {
-		glog.Errorf("%s failed to parse offset from master output %s error %v",processName,fields[2], err)
+		glog.Errorf("%s failed to parse max offset from master output %s error %v",processName,fields[3], err)
 	}
 
-	maxOffsetFromMaster, err = strconv.ParseFloat(fields[4], 64)
+	frequencyAdjustment, err = strconv.ParseFloat(fields[5], 64)
 	if err != nil {
-		glog.Errorf("%s failed to parse max offset from master output %s error %v",processName,fields[4], err)
+		glog.Errorf("%s failed to parse frequency adjustment output %s error %v",processName,fields[5], err)
 	}
 
-	frequencyAdjustment, err = strconv.ParseFloat(fields[6], 64)
-	if err != nil {
-		glog.Errorf("%s failed to parse frequency adjustment output %s error %v",processName,fields[6], err)
-	}
-
-	delayFromMaster, err = strconv.ParseFloat(fields[10], 64)
-	if err != nil {
-		glog.Errorf("%s failed to parse delay from master output %s error %v",processName,fields[10], err)
+	if len(fields) >= 10 {
+		delayFromMaster, err = strconv.ParseFloat(fields[9], 64)
+		if err != nil {
+			glog.Errorf("%s failed to parse delay from master output %s error %v", processName, fields[9], err)
+		}
+	} else {
+		// If there is no delay from master this mean we are out of sync
+		glog.Warningf("no delay from master process %s out of sync", processName)
 	}
 
 	return
