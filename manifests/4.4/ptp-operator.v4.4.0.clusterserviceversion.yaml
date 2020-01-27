@@ -158,7 +158,7 @@ spec:
           - monitoring.coreos.com
           resources:
           - servicemonitors
-          - prometheusrule
+          - prometheusrules
           verbs:
           - '*'
         - apiGroups:
