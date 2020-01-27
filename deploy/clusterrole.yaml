@@ -37,7 +37,7 @@ rules:
   resources: ["servicemonitors"]
   verbs: ["*"]
 - apiGroups: ["monitoring.coreos.com"]
-  resources: ["prometheusrule"]
+  resources: ["prometheusrules"]
   verbs: ["*"]
 - apiGroups: ["rbac.authorization.k8s.io"]
   resources: ["roles"]
