@@ -23,7 +23,7 @@ spec:
       containers:
         - name: ptp-operator
           # Replace this with the built image name
-          image: quay.io/openshift/origin-ptp-operator
+          image: $PTP_OPERATOR_IMAGE
           command: [ "/bin/bash", "-c", "--" ]
           args: [ "ptp-operator --alsologtostderr -v 10" ]
           imagePullPolicy: IfNotPresent
