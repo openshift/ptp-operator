@@ -14,9 +14,9 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/openshift/ptp-operator/pkg/apis"
+	ptpv1 "github.com/openshift/ptp-operator/pkg/apis/ptp/v1"
 	"github.com/openshift/ptp-operator/pkg/controller"
 	"github.com/openshift/ptp-operator/pkg/names"
-	ptpv1 "github.com/openshift/ptp-operator/pkg/apis/ptp/v1"
 
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	kubemetrics "github.com/operator-framework/operator-sdk/pkg/kube-metrics"
