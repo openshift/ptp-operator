@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/golang/glog"
+	ptpv1 "github.com/openshift/ptp-operator/pkg/apis/ptp/v1"
 	"github.com/openshift/ptp-operator/pkg/apply"
 	"github.com/openshift/ptp-operator/pkg/names"
 	"github.com/openshift/ptp-operator/pkg/render"
-	ptpv1 "github.com/openshift/ptp-operator/pkg/apis/ptp/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -23,9 +23,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
@@ -162,7 +162,7 @@ func (r *ReconcilePtpOperatorConfig) createPTPConfigMap(defaultCfg *ptpv1.PtpOpe
 			return fmt.Errorf("failed to node ptp config map: %v", err)
 		}
 	}
-        return nil
+	return nil
 }
 
 // setDaemonNodeSelector synchronizes Linuxptp DaemonSet
@@ -189,31 +189,31 @@ func (r *ReconcilePtpOperatorConfig) setDaemonNodeSelector(
 
 // syncLinuxptpDaemon synchronizes Linuxptp DaemonSet
 func (r *ReconcilePtpOperatorConfig) syncLinuxptpDaemon(defaultCfg *ptpv1.PtpOperatorConfig) error {
-        var err error
-        objs := []*uns.Unstructured{}
+	var err error
+	objs := []*uns.Unstructured{}
 
-        data := render.MakeRenderData()
-        data.Data["Image"] = os.Getenv("LINUXPTP_DAEMON_IMAGE")
-        data.Data["Namespace"] = names.Namespace
-        data.Data["ReleaseVersion"] = os.Getenv("RELEASEVERSION")
-        objs, err = render.RenderDir(filepath.Join(names.ManifestDir, "linuxptp"), &data)
-        if err != nil {
-                return fmt.Errorf("failed to render linuxptp daemon manifest: %v", err)
-        }
+	data := render.MakeRenderData()
+	data.Data["Image"] = os.Getenv("LINUXPTP_DAEMON_IMAGE")
+	data.Data["Namespace"] = names.Namespace
+	data.Data["ReleaseVersion"] = os.Getenv("RELEASEVERSION")
+	objs, err = render.RenderDir(filepath.Join(names.ManifestDir, "linuxptp"), &data)
+	if err != nil {
+		return fmt.Errorf("failed to render linuxptp daemon manifest: %v", err)
+	}
 
-        for _, obj := range objs {
+	for _, obj := range objs {
 		obj, err = r.setDaemonNodeSelector(defaultCfg, obj)
 		if err != nil {
 			return err
 		}
-                if err = controllerutil.SetControllerReference(defaultCfg, obj, r.scheme); err != nil {
-                        return fmt.Errorf("failed to set owner reference: %v", err)
-                }
-                if err = apply.ApplyObject(context.TODO(), r.client, obj); err != nil {
-                        return fmt.Errorf("failed to apply object %v with err: %v", obj, err)
-                }
-        }
-        return nil
+		if err = controllerutil.SetControllerReference(defaultCfg, obj, r.scheme); err != nil {
+			return fmt.Errorf("failed to set owner reference: %v", err)
+		}
+		if err = apply.ApplyObject(context.TODO(), r.client, obj); err != nil {
+			return fmt.Errorf("failed to apply object %v with err: %v", obj, err)
+		}
+	}
+	return nil
 }
 
 // syncNodePtpDevice synchronizes NodePtpDevice CR for each node

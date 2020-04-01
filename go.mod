@@ -2,17 +2,21 @@ module github.com/openshift/ptp-operator
 
 require (
 	github.com/Masterminds/sprig v0.0.0-20190301161902-9f8fceff796f
+	github.com/ghodss/yaml v1.0.0
 	github.com/go-openapi/spec v0.19.2
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
+	github.com/onsi/ginkgo v1.7.0
 	github.com/onsi/gomega v1.4.3
 	github.com/operator-framework/operator-sdk v0.10.1-0.20190919225052-3a85983ecc72
 	github.com/pkg/errors v0.8.1
 	github.com/spf13/pflag v1.0.3
-	k8s.io/api v0.0.0-20190612125737-db0771252981
-	k8s.io/apimachinery v0.0.0-20190612125636-6a5db36e93ad
+	k8s.io/api v0.18.0
+	k8s.io/apimachinery v0.18.0
 	k8s.io/client-go v11.0.0+incompatible
 	k8s.io/code-generator v0.0.0-20191026065352-f361089c127c
 	k8s.io/kube-openapi v0.0.0-20190816220812-743ec37842bf
+	k8s.io/kubelet v0.18.0
+	k8s.io/utils v0.0.0-20190308190857-21c4ce38f2a7
 	sigs.k8s.io/controller-runtime v0.1.12
 	sigs.k8s.io/controller-tools v0.1.10
 )

@@ -1,5 +1,9 @@
 all: bin
 
+deps-update:
+	go mod tidy && \
+	go mod vendor
+
 bin:
 	hack/build.sh
 image:
@@ -10,3 +14,6 @@ deploy-setup:
 	hack/deploy-setup.sh
 undeploy:
 	hack/undeploy.sh
+
+functests:
+	hack/run-functests.sh

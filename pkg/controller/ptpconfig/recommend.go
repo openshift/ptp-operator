@@ -9,11 +9,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-
 func printWhenNotNil(p *string, description string) {
-        if p != nil {
-                glog.Info(description, ": ", *p)
-        }
+	if p != nil {
+		glog.Info(description, ": ", *p)
+	}
 }
 
 // getRecommendNodePtpProfile return recommended node ptp profile
@@ -26,7 +25,7 @@ func getRecommendNodePtpProfile(
 ) {
 	glog.V(2).Infof("in getRecommendNodePtpProfile")
 
-	var err	error
+	var err error
 	profile := &ptpv1.PtpProfile{}
 
 	profile, err = getRecommendProfile(ptpConfigList, node)
@@ -71,12 +70,12 @@ func getRecommendProfile(
 func getRecommendProfileName(
 	ptpConfigList *ptpv1.PtpConfigList,
 	node corev1.Node,
-) ( string, error ) {
+) (string, error) {
 	glog.V(2).Infof("In getRecommendProfileName")
 
 	var (
-		labelMatches	[]string
-		allRecommend	[]ptpv1.PtpRecommend
+		labelMatches []string
+		allRecommend []ptpv1.PtpRecommend
 	)
 
 	// append recommend section from each custom resource into one list

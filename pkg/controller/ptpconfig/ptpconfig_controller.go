@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"github.com/golang/glog"
-	"github.com/openshift/ptp-operator/pkg/names"
 	ptpv1 "github.com/openshift/ptp-operator/pkg/apis/ptp/v1"
+	"github.com/openshift/ptp-operator/pkg/names"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
