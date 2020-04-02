@@ -74,7 +74,6 @@ func getRecommendProfileName(
 	glog.V(2).Infof("In getRecommendProfileName")
 
 	var (
-		labelMatches []string
 		allRecommend []ptpv1.PtpRecommend
 	)
 
@@ -126,12 +125,8 @@ func getRecommendProfileName(
 					// comparing values
 					if m.NodeLabel != nil && *m.NodeLabel == k {
 						return *r.Profile, nil
-						labelMatches = append(labelMatches, *r.Profile)
 					}
 				}
-			}
-			if len(labelMatches) > 0 {
-				break
 			}
 		}
 	}

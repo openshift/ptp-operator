@@ -19,3 +19,7 @@ limitations under the License.
 package v1
 
 type NodePtpDeviceExpansion interface{}
+
+type PtpConfigExpansion interface{}
+
+type PtpOperatorConfigExpansion interface{}
