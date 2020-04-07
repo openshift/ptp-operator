@@ -50,6 +50,7 @@ type NodeMatchList struct {
 	Profile  *string `json:"profile"`
 }
 
+// +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // PtpConfig is the Schema for the ptpconfigs API

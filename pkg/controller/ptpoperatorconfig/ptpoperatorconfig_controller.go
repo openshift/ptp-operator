@@ -116,7 +116,7 @@ func (r *ReconcilePtpOperatorConfig) Reconcile(request reconcile.Request) (recon
 	}
 
 	nodeList := &corev1.NodeList{}
-	err = r.client.List(context.TODO(), &client.ListOptions{}, nodeList)
+	err = r.client.List(context.TODO(), nodeList, &client.ListOptions{})
 	if err != nil {
 		glog.Errorf("failed to list nodes")
 		return reconcile.Result{}, err

@@ -27,6 +27,8 @@ import (
 type PtpV1Interface interface {
 	RESTClient() rest.Interface
 	NodePtpDevicesGetter
+	PtpConfigsGetter
+	PtpOperatorConfigsGetter
 }
 
 // PtpV1Client is used to interact with features provided by the ptp.openshift.io group.
@@ -36,6 +38,14 @@ type PtpV1Client struct {
 
 func (c *PtpV1Client) NodePtpDevices(namespace string) NodePtpDeviceInterface {
 	return newNodePtpDevices(c, namespace)
+}
+
+func (c *PtpV1Client) PtpConfigs(namespace string) PtpConfigInterface {
+	return newPtpConfigs(c, namespace)
+}
+
+func (c *PtpV1Client) PtpOperatorConfigs(namespace string) PtpOperatorConfigInterface {
+	return newPtpOperatorConfigs(c, namespace)
 }
 
 // NewForConfig creates a new PtpV1Client for the given config.

@@ -79,7 +79,7 @@ func (r *ReconcilePtpConfig) Reconcile(request reconcile.Request) (reconcile.Res
 	reqLogger.Info("Reconciling PtpConfig")
 
 	instances := &ptpv1.PtpConfigList{}
-	err := r.client.List(context.TODO(), &client.ListOptions{}, instances)
+	err := r.client.List(context.TODO(), instances, &client.ListOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
@@ -88,7 +88,7 @@ func (r *ReconcilePtpConfig) Reconcile(request reconcile.Request) (reconcile.Res
 	}
 
 	nodeList := &corev1.NodeList{}
-	err = r.client.List(context.TODO(), &client.ListOptions{}, nodeList)
+	err = r.client.List(context.TODO(), nodeList, &client.ListOptions{})
 	if err != nil {
 		glog.Errorf("failed to list nodes")
 		return reconcile.Result{}, err
