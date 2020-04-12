@@ -77,16 +77,14 @@ func DiscoverPTPDevices() ([]string, error) {
 			continue
 		}
 
-		cmd = exec.Command("readlink", "-f", fmt.Sprintf("/sys/class/net/%s", dev.Name))
-		cmd.Stdout = &out
-		err = cmd.Run()
+		link, err := os.Readlink(fmt.Sprintf("/sys/class/net/%s", dev.Name))
 		if err != nil {
 			glog.Infof("could not grab NIC PCI address for %v: %v", dev.Name, err)
 			continue
 		}
 
 		// sysfs address looks like: /sys/devices/pci0000:17/0000:17:02.0/0000:19:00.5/net/eno1
-		pathSegments := strings.Split(out.String(), "/")
+		pathSegments := strings.Split(link, "/")
 		if len(pathSegments) != 8 {
 			glog.Infof("unexpected sysfs address for %v: %v", dev.Name, out.String())
 			continue
