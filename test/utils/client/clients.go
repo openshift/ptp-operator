@@ -11,6 +11,8 @@ import (
 	networkv1client "k8s.io/client-go/kubernetes/typed/networking/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+
+	ptpv1 "github.com/openshift/ptp-operator/pkg/client/clientset/versioned/typed/ptp/v1"
 )
 
 // Client defines the client set that will be used for testing
@@ -26,6 +28,7 @@ type ClientSet struct {
 	networkv1client.NetworkingV1Client
 	appsv1client.AppsV1Interface
 	discovery.DiscoveryInterface
+	ptpv1.PtpV1Interface
 	Config *rest.Config
 }
 
@@ -54,6 +57,7 @@ func New(kubeconfig string) *ClientSet {
 	clientSet.AppsV1Interface = appsv1client.NewForConfigOrDie(config)
 	clientSet.DiscoveryInterface = discovery.NewDiscoveryClientForConfigOrDie(config)
 	clientSet.NetworkingV1Client = *networkv1client.NewForConfigOrDie(config)
+	clientSet.PtpV1Interface = ptpv1.NewForConfigOrDie(config)
 	clientSet.Config = config
 	return clientSet
 }
