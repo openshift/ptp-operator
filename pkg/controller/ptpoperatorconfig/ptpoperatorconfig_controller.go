@@ -142,10 +142,6 @@ func (r *ReconcilePtpOperatorConfig) createPTPConfigMap(defaultCfg *ptpv1.PtpOpe
 	var err error
 
 	cm := &corev1.ConfigMap{}
-	if err = controllerutil.SetControllerReference(defaultCfg, cm, r.scheme); err != nil {
-		return fmt.Errorf("failed to set owner reference: %v", err)
-	}
-
 	err = r.client.Get(context.TODO(), types.NamespacedName{
 		Namespace: names.Namespace, Name: names.DefaultPTPConfigMapName}, cm)
 	if err != nil {
@@ -153,6 +149,11 @@ func (r *ReconcilePtpOperatorConfig) createPTPConfigMap(defaultCfg *ptpv1.PtpOpe
 			cm.Name = names.DefaultPTPConfigMapName
 			cm.Namespace = names.Namespace
 			cm.Data = make(map[string]string)
+
+			if err = controllerutil.SetControllerReference(defaultCfg, cm, r.scheme); err != nil {
+				return fmt.Errorf("failed to set owner reference: %v", err)
+			}
+
 			err = r.client.Create(context.TODO(), cm)
 			if err != nil {
 				return fmt.Errorf("failed to create ptp config map: %v", err)
