@@ -16,3 +16,5 @@ approvers:
   - fepan
   - s1061123
   - SchSeba
+component: "Networking"
+subcomponent: "ptp"
