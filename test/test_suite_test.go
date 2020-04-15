@@ -10,13 +10,13 @@ import (
 	. "github.com/onsi/ginkgo"
 	"github.com/onsi/ginkgo/reporters"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	_ "github.com/openshift/ptp-operator/test/ptp"
 	testutils "github.com/openshift/ptp-operator/test/utils"
 	testclient "github.com/openshift/ptp-operator/test/utils/client"
 	"github.com/openshift/ptp-operator/test/utils/namespaces"
-
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // TODO: we should refactor tests to use client from controller-runtime package
@@ -40,6 +40,8 @@ func TestTest(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	// create test namespace
+	Expect(testclient.Client).NotTo(BeNil())
+
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: testutils.NamespaceTesting,

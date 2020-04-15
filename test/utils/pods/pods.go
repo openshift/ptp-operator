@@ -188,5 +188,5 @@ func ExecCommand(cs *testclient.ClientSet, pod corev1.Pod, command []string) (by
 		Tty:    true,
 	})
 
-	return buf, nil
+	return buf, err
 }
