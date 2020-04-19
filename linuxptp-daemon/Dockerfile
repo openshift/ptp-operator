@@ -2,20 +2,14 @@ FROM fedora:30 AS builder
 
 RUN yum install -y make golang
 
-RUN mkdir /usr/src/linuxptp-daemon
-WORKDIR /usr/src/linuxptp-daemon
-
-COPY go.mod .
-COPY go.sum .
-
-RUN go mod download
+ENV GOPATH="/go"
+WORKDIR /go/src/github.com/openshift/linuxptp-daemon
 
 COPY . .
-
-RUN make clean && go build -tags no_openssl -o bin/ptp ./cmd
+RUN make clean && make
 
 FROM fedora:30
 RUN yum install -y linuxptp ethtool make hwdata
-COPY --from=builder /usr/src/linuxptp-daemon/bin/ptp /usr/local/bin/ptp
+COPY --from=builder /go/src/github.com/openshift/linuxptp-daemon/bin/ptp /usr/local/bin/ptp
 
 CMD ["/usr/local/bin/ptp"]
