@@ -11,29 +11,26 @@ import (
 	"time"
 
 	"github.com/golang/glog"
+	"k8s.io/client-go/kubernetes"
+
 	"github.com/openshift/linuxptp-daemon/pkg/config"
 	"github.com/openshift/linuxptp-daemon/pkg/daemon"
-	"github.com/openshift/linuxptp-daemon/pkg/network"
 	ptpv1 "github.com/openshift/ptp-operator/pkg/apis/ptp/v1"
 	ptpclient "github.com/openshift/ptp-operator/pkg/client/clientset/versioned"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-        "k8s.io/client-go/kubernetes"
 )
 
 type cliParams struct {
-	updateInterval	int
-	profileDir	string
+	updateInterval int
+	profileDir     string
 }
 
 // Parse Command line flags
 func flagInit(cp *cliParams) {
-        flag.IntVar(&cp.updateInterval, "update-interval", config.DefaultUpdateInterval,
+	flag.IntVar(&cp.updateInterval, "update-interval", config.DefaultUpdateInterval,
 		"Interval to update PTP status")
-        flag.StringVar(&cp.profileDir, "linuxptp-profile-path", config.DefaultProfilePath,
+	flag.StringVar(&cp.profileDir, "linuxptp-profile-path", config.DefaultProfilePath,
 		"profile to start linuxptp processes")
 }
-
 
 func main() {
 	cp := &cliParams{}
@@ -50,11 +47,11 @@ func main() {
 	}
 	glog.Infof("successfully get kubeconfig")
 
-        kubeClient, err := kubernetes.NewForConfig(cfg)
-        if err != nil {
-                glog.Errorf("cannot create new config for kubeClient: %v", err)
-                return
-        }
+	kubeClient, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		glog.Errorf("cannot create new config for kubeClient: %v", err)
+		return
+	}
 
 	ptpClient, err := ptpclient.NewForConfig(cfg)
 	if err != nil {
@@ -62,36 +59,15 @@ func main() {
 		return
 	}
 
-	// Discover PTP capable devices
-	// Don't return in case of discover failure
-	ptpDevs, err := network.DiscoverPTPDevices()
-	if err != nil {
-		glog.Errorf("discover PTP devices failed: %v", err)
-	}
-	glog.Infof("PTP capable NICs: %v", ptpDevs)
-
-
-	// Update NodePtpDevice Custom Resource
-	// TODO: move this one-shoot update to a loop thread for continuous update
-
 	// The name of NodePtpDevice CR for this node is equal to the node name
 	nodeName := os.Getenv("NODE_NAME")
-
-	// Assume NodePtpDevice CR for this particular node
-	// is already created manually or by PTP-Operator.
-	ptpDev, err := ptpClient.PtpV1().NodePtpDevices(daemon.PtpNamespace).Get(nodeName, metav1.GetOptions{})
-	if err != nil {
-		glog.Errorf("failed to get NodePtpDevice CR for node %s: %v", nodeName, err)
+	if nodeName == "" {
+		glog.Error("cannot find NODE_NAME environment variable")
+		return
 	}
 
-	// Render status of NodePtpDevice CR by inspecting PTP capability of node network devices
-	ptpDev, _ = daemon.GetDevStatusUpdate(ptpDev)
-
-	// Update NodePtpDevice CR
-	_, err = ptpClient.PtpV1().NodePtpDevices(daemon.PtpNamespace).UpdateStatus(ptpDev)
-	if err != nil {
-		glog.Errorf("failed to update Node PTP device CR: %v", err)
-	}
+	// Run a loop to update the device status
+	go daemon.RunDeviceStatusUpdate(ptpClient, nodeName)
 
 	stopCh := make(chan struct{})
 	defer close(stopCh)

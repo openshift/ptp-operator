@@ -22,7 +22,7 @@ const (
 	PTPNamespace = "openshift"
 	PTPSubsystem = "ptp"
 
-	ptp4lProcessName = "ptp4l"
+	ptp4lProcessName   = "ptp4l"
 	phc2sysProcessName = "phc2sys"
 )
 
@@ -33,33 +33,33 @@ var (
 		prometheus.GaugeOpts{
 			Namespace: PTPNamespace,
 			Subsystem: PTPSubsystem,
-			Name: "offset_from_master",
-			Help: "",
-		},[]string{"process","node"})
+			Name:      "offset_from_master",
+			Help:      "",
+		}, []string{"process", "node"})
 
 	MaxOffsetFromMaster = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: PTPNamespace,
 			Subsystem: PTPSubsystem,
-			Name: "max_offset_from_master",
-			Help: "",
-		},[]string{"process","node"})
+			Name:      "max_offset_from_master",
+			Help:      "",
+		}, []string{"process", "node"})
 
 	FrequencyAdjustment = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: PTPNamespace,
 			Subsystem: PTPSubsystem,
-			Name: "frequency_adjustment",
-			Help: "",
-		},[]string{"process","node"})
+			Name:      "frequency_adjustment",
+			Help:      "",
+		}, []string{"process", "node"})
 
 	DelayFromMaster = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: PTPNamespace,
 			Subsystem: PTPSubsystem,
-			Name: "delay_from_master",
-			Help: "",
-		},[]string{"process","node"})
+			Name:      "delay_from_master",
+			Help:      "",
+		}, []string{"process", "node"})
 )
 
 var registerMetrics sync.Once
@@ -82,23 +82,23 @@ func RegisterMetrics(nodeName string) {
 // updatePTPMetrics ...
 func updatePTPMetrics(process string, offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster float64) {
 	OffsetFromMaster.With(prometheus.Labels{
-	"process": process,"node": NodeName}).Set(offsetFromMaster)
+		"process": process, "node": NodeName}).Set(offsetFromMaster)
 
 	MaxOffsetFromMaster.With(prometheus.Labels{
-	"process": process,"node": NodeName}).Set(maxOffsetFromMaster)
+		"process": process, "node": NodeName}).Set(maxOffsetFromMaster)
 
 	FrequencyAdjustment.With(prometheus.Labels{
-		"process": process,"node": NodeName}).Set(frequencyAdjustment)
+		"process": process, "node": NodeName}).Set(frequencyAdjustment)
 
 	DelayFromMaster.With(prometheus.Labels{
-		"process": process,"node": NodeName}).Set(delayFromMaster)
+		"process": process, "node": NodeName}).Set(delayFromMaster)
 }
 
 // extractMetrics ...
-func extractMetrics(processName, output string){
-	if strings.Contains(output,"max") {
-		offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster := extractSummaryMetrics(processName,output)
-		updatePTPMetrics(processName,offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster)
+func extractMetrics(processName, output string) {
+	if strings.Contains(output, "max") {
+		offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster := extractSummaryMetrics(processName, output)
+		updatePTPMetrics(processName, offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster)
 	}
 }
 
@@ -109,20 +109,19 @@ func extractSummaryMetrics(processName, output string) (offsetFromMaster, maxOff
 	output = output[indx:]
 	fields := strings.Fields(output)
 
-
 	offsetFromMaster, err := strconv.ParseFloat(fields[1], 64)
 	if err != nil {
-		glog.Errorf("%s failed to parse offset from master output %s error %v",processName,fields[1], err)
+		glog.Errorf("%s failed to parse offset from master output %s error %v", processName, fields[1], err)
 	}
 
 	maxOffsetFromMaster, err = strconv.ParseFloat(fields[3], 64)
 	if err != nil {
-		glog.Errorf("%s failed to parse max offset from master output %s error %v",processName,fields[3], err)
+		glog.Errorf("%s failed to parse max offset from master output %s error %v", processName, fields[3], err)
 	}
 
 	frequencyAdjustment, err = strconv.ParseFloat(fields[5], 64)
 	if err != nil {
-		glog.Errorf("%s failed to parse frequency adjustment output %s error %v",processName,fields[5], err)
+		glog.Errorf("%s failed to parse frequency adjustment output %s error %v", processName, fields[5], err)
 	}
 
 	if len(fields) >= 10 {
@@ -141,27 +140,27 @@ func extractSummaryMetrics(processName, output string) (offsetFromMaster, maxOff
 func addFlagsForMonitor(nodeProfile *ptpv1.PtpProfile) {
 	// If output doesn't exist we add it for the prometheus exporter
 	if nodeProfile.Phc2sysOpts != nil {
-		if !strings.Contains(*nodeProfile.Phc2sysOpts,"-m") {
+		if !strings.Contains(*nodeProfile.Phc2sysOpts, "-m") {
 			glog.Info("adding -m to print messages to stdout for phc2sys to use prometheus exporter")
-			*nodeProfile.Phc2sysOpts = fmt.Sprintf("%s -m",*nodeProfile.Phc2sysOpts)
+			*nodeProfile.Phc2sysOpts = fmt.Sprintf("%s -m", *nodeProfile.Phc2sysOpts)
 		}
 
-		if !strings.Contains(*nodeProfile.Phc2sysOpts,"-u") {
+		if !strings.Contains(*nodeProfile.Phc2sysOpts, "-u") {
 			glog.Info("adding -u 1 to print summary messages to stdout for phc2sys to use prometheus exporter")
-			*nodeProfile.Phc2sysOpts = fmt.Sprintf("%s -u 1",*nodeProfile.Phc2sysOpts)
+			*nodeProfile.Phc2sysOpts = fmt.Sprintf("%s -u 1", *nodeProfile.Phc2sysOpts)
 		}
 	}
 
 	// If output doesn't exist we add it for the prometheus exporter
 	if nodeProfile.Ptp4lOpts != nil {
-		if !strings.Contains(*nodeProfile.Ptp4lOpts,"-m") {
+		if !strings.Contains(*nodeProfile.Ptp4lOpts, "-m") {
 			glog.Info("adding -m to print messages to stdout for ptp4l to use prometheus exporter")
-			*nodeProfile.Ptp4lOpts = fmt.Sprintf("%s -m",*nodeProfile.Ptp4lOpts)
+			*nodeProfile.Ptp4lOpts = fmt.Sprintf("%s -m", *nodeProfile.Ptp4lOpts)
 		}
 
-		if !strings.Contains(*nodeProfile.Ptp4lOpts,"--summary_interval") {
+		if !strings.Contains(*nodeProfile.Ptp4lOpts, "--summary_interval") {
 			glog.Info("adding --summary_interval 1 to print summary messages to stdout for ptp4l to use prometheus exporter")
-			*nodeProfile.Ptp4lOpts = fmt.Sprintf("%s --summary_interval 1",*nodeProfile.Ptp4lOpts)
+			*nodeProfile.Ptp4lOpts = fmt.Sprintf("%s --summary_interval 1", *nodeProfile.Ptp4lOpts)
 		}
 	}
 }

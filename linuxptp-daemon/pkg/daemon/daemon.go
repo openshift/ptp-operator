@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	PtpNamespace = "openshift-ptp"
+	PtpNamespace         = "openshift-ptp"
 	PTP4L_CONF_FILE_PATH = "/etc/ptp4l.conf"
 )
 
@@ -23,34 +23,34 @@ const (
 // Processes in ProcessManager will be started
 // or stopped simultaneously.
 type ProcessManager struct {
-	process	[]*ptpProcess
+	process []*ptpProcess
 }
 
 type ptpProcess struct {
-	name	string
-	exitCh	chan bool
-	cmd	*exec.Cmd
+	name   string
+	exitCh chan bool
+	cmd    *exec.Cmd
 }
 
 // LinuxPTPUpdate controls whether to update linuxPTP conf
 // and contains linuxPTP conf to be updated. It's rendered
 // and passed to linuxptp instance by daemon.
 type LinuxPTPConfUpdate struct {
-	UpdateCh	chan bool
-	NodeProfile	*ptpv1.PtpProfile
+	UpdateCh    chan bool
+	NodeProfile *ptpv1.PtpProfile
 }
 
 // Daemon is the main structure for linuxptp instance.
 // It contains all the necessary data to run linuxptp instance.
 type Daemon struct {
 	// node name where daemon is running
-	nodeName	string
-	namespace	string
+	nodeName  string
+	namespace string
 
-        // kubeClient allows interaction with Kubernetes, including the node we are running on.
-        kubeClient      *kubernetes.Clientset
+	// kubeClient allows interaction with Kubernetes, including the node we are running on.
+	kubeClient *kubernetes.Clientset
 
-	ptpUpdate	*LinuxPTPConfUpdate
+	ptpUpdate *LinuxPTPConfUpdate
 	// channel ensure LinuxPTP.Run() exit when main function exits.
 	// stopCh is created by main function and passed by Daemon via NewLinuxPTP()
 	stopCh <-chan struct{}
@@ -58,20 +58,20 @@ type Daemon struct {
 
 // NewLinuxPTP is called by daemon to generate new linuxptp instance
 func New(
-	nodeName	string,
-	namespace	string,
-	kubeClient	*kubernetes.Clientset,
-	ptpUpdate	*LinuxPTPConfUpdate,
-	stopCh		<-chan struct{},
+	nodeName string,
+	namespace string,
+	kubeClient *kubernetes.Clientset,
+	ptpUpdate *LinuxPTPConfUpdate,
+	stopCh <-chan struct{},
 ) *Daemon {
 	RegisterMetrics(nodeName)
 
 	return &Daemon{
-		nodeName:	nodeName,
-		namespace:	namespace,
-                kubeClient:     kubeClient,
-		ptpUpdate:	ptpUpdate,
-		stopCh:		stopCh,
+		nodeName:   nodeName,
+		namespace:  namespace,
+		kubeClient: kubeClient,
+		ptpUpdate:  ptpUpdate,
+		stopCh:     stopCh,
 	}
 }
 
@@ -141,25 +141,25 @@ func applyNodePTPProfile(pm *ProcessManager, nodeProfile *ptpv1.PtpProfile) erro
 
 	if nodeProfile.Phc2sysOpts != nil {
 		pm.process = append(pm.process, &ptpProcess{
-			name: "phc2sys",
+			name:   "phc2sys",
 			exitCh: make(chan bool),
-			cmd: phc2sysCreateCmd(nodeProfile)})
+			cmd:    phc2sysCreateCmd(nodeProfile)})
 	} else {
 		glog.Infof("applyNodePTPProfile: not starting phc2sys, phc2sysOpts is empty")
 	}
 
 	if nodeProfile.Ptp4lOpts != nil && nodeProfile.Interface != nil {
 		pm.process = append(pm.process, &ptpProcess{
-			name: "ptp4l",
+			name:   "ptp4l",
 			exitCh: make(chan bool),
-			cmd: ptp4lCreateCmd(nodeProfile)})
+			cmd:    ptp4lCreateCmd(nodeProfile)})
 	} else {
 		glog.Infof("applyNodePTPProfile: not starting ptp4l, ptp4lOpts or interface is empty")
 	}
 
 	for _, p := range pm.process {
 		if p != nil {
-			time.Sleep(1*time.Second)
+			time.Sleep(1 * time.Second)
 			go cmdRun(p)
 		}
 	}
@@ -184,7 +184,6 @@ func ptp4lCreateCmd(nodeProfile *ptpv1.PtpProfile) *exec.Cmd {
 	return exec.Command(args[0], args[1:]...)
 }
 
-
 // cmdRun runs given ptpProcess and wait for errors
 func cmdRun(p *ptpProcess) {
 	glog.Infof("Starting %s...", p.name)
@@ -207,7 +206,7 @@ func cmdRun(p *ptpProcess) {
 		for scanner.Scan() {
 			output := scanner.Text()
 			fmt.Printf("%s\n", output)
-			extractMetrics(p.name,output)
+			extractMetrics(p.name, output)
 		}
 		done <- struct{}{}
 	}()
@@ -229,7 +228,7 @@ func cmdRun(p *ptpProcess) {
 }
 
 // cmdStop stops ptpProcess launched by cmdRun
-func cmdStop (p *ptpProcess) {
+func cmdStop(p *ptpProcess) {
 	glog.Infof("Stopping %s...", p.name)
 	if p.cmd == nil {
 		return
