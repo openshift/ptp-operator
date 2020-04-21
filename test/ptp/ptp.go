@@ -1,4 +1,4 @@
-package test
+package ptp
 
 import (
 	"bufio"
@@ -21,12 +21,16 @@ import (
 
 	. "github.com/openshift/ptp-operator/test/utils"
 	"github.com/openshift/ptp-operator/test/utils/client"
+	testclient "github.com/openshift/ptp-operator/test/utils/client"
 	"github.com/openshift/ptp-operator/test/utils/execute"
 	"github.com/openshift/ptp-operator/test/utils/nodes"
 	"github.com/openshift/ptp-operator/test/utils/pods"
 )
 
-var _ = Describe("ptp", func() {
+var _ = Describe("[ptp]", func() {
+	BeforeEach(func() {
+		Expect(testclient.Client).NotTo(BeNil())
+	})
 
 	Context("PTP configuration verifications", func() {
 		// Setup verification
@@ -405,7 +409,7 @@ func getMasterSlaveAttachedInterfaces(pod v1core.Pod) []string {
 		}
 
 		return nil
-	}, 3*time.Minute, 2*time.Second).Should(BeNil())
+	}, 3*time.Minute, 5*time.Second).Should(BeNil())
 
 	return IntList
 }
@@ -446,7 +450,7 @@ func getPtpMasterSlaveAttachedInterfaces(pod v1core.Pod) []string {
 
 			PCIAddr = pathSegments[5] // 0000:19:00.5
 			return nil
-		}, 2*time.Minute, 1*time.Second).Should(BeNil())
+		}, 3*time.Minute, 5*time.Second).Should(BeNil())
 
 		if skipInterface || PCIAddr == "" {
 			continue
@@ -457,15 +461,14 @@ func getPtpMasterSlaveAttachedInterfaces(pod v1core.Pod) []string {
 			// If the physfn doesn't exist this means the interface is not a virtual function so we ca add it to the list
 			stdout, err = pods.ExecCommand(client.Client, pod, []string{"ls", fmt.Sprintf("/sys/bus/pci/devices/%s/physfn", PCIAddr)})
 			if err != nil {
+				if strings.Contains(stdout.String(), "No such file or directory") {
+					return nil
+				}
 				return err
 			}
 
 			if stdout.String() == "" {
 				return fmt.Errorf("empty response from pod retrying")
-			}
-
-			if strings.Contains(stdout.String(), "cannot access") {
-				return nil
 			}
 
 			// Virtual function
@@ -526,27 +529,29 @@ func replaceTestPod(pod v1core.Pod, timeout time.Duration) (v1core.Pod, error) {
 
 func getNonPtpMasterSlaveAttachedInterfaces(pod v1core.Pod) []string {
 	var ptpSupportedInterfaces []string
+	var err error
 	var stdout bytes.Buffer
 
 	intList := getMasterSlaveAttachedInterfaces(pod)
 	for _, interf := range intList {
 		Eventually(func() error {
-			var err error
 			stdout, err = pods.ExecCommand(client.Client, pod, []string{"ethtool", "-T", interf})
 			if err != nil && !strings.Contains(stdout.String(), "No such device") {
 				return err
 			}
+			if stdout.String() == "" {
+				return fmt.Errorf("empty response from pod retrying")
+			}
 			return nil
-		}, 2*time.Minute, 1*time.Second).Should(BeNil())
+		}, 3*time.Minute, 2*time.Second).Should(BeNil())
 
 		if strings.Contains(stdout.String(), "No such device") {
 			continue
 		}
 
-		if isPTPEnabled(&stdout) == false {
+		if !isPTPEnabled(&stdout) {
 			ptpSupportedInterfaces = append(ptpSupportedInterfaces, interf)
 		}
-		time.Sleep(time.Second)
 	}
 	return ptpSupportedInterfaces
 }
