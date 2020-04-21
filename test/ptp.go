@@ -175,7 +175,7 @@ var _ = Describe("ptp", func() {
 						ptpRunningPods = append(ptpRunningPods, pod)
 					}
 				}
-				Expect(len(ptpRunningPods)).To(BeNumerically(">", 0), fmt.Sprint("Fail to detect PTP slave/master pods on Cluster"))
+				Expect(len(ptpRunningPods)).To(BeNumerically(">=", 2), fmt.Sprint("Fail to detect PTP slave/master pods on Cluster"))
 			})
 
 			// 25729
@@ -538,6 +538,11 @@ func getNonPtpMasterSlaveAttachedInterfaces(pod v1core.Pod) []string {
 			}
 			return nil
 		}, 2*time.Minute, 1*time.Second).Should(BeNil())
+
+		if strings.Contains(stdout.String(), "No such device") {
+			continue
+		}
+
 		if isPTPEnabled(&stdout) == false {
 			ptpSupportedInterfaces = append(ptpSupportedInterfaces, interf)
 		}
