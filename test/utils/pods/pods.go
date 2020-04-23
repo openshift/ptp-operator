@@ -2,45 +2,20 @@ package pods
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"os"
 	"time"
 
 	testclient "github.com/openshift/ptp-operator/test/utils/client"
-
+	"github.com/openshift/ptp-operator/test/utils/images"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/utils/pointer"
 )
-
-const hugePageCommand = "yum install -y libhugetlbfs python3 && echo -e \"import time\nwhile True:\n\tprint('ABCD'*%s)\n\ttime.sleep(0.5)\" > printer.py && cat printer.py && LD_PRELOAD=libhugetlbfs.so HUGETLB_VERBOSE=10 HUGETLB_MORECORE=yes HUGETLB_FORCE_ELFMAP=yes python3 printer.py > /dev/null"
-
-// GetBusybox returns pod with the busybox image
-func GetBusybox() *corev1.Pod {
-	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "test-",
-			Labels: map[string]string{
-				"test": "",
-			},
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:    "test",
-					Image:   "busybox",
-					Command: []string{"sleep", "10h"},
-				},
-			},
-		},
-	}
-}
 
 func getDefinition(namespace string) *corev1.Pod {
 	podObject := &corev1.Pod{
@@ -50,7 +25,7 @@ func getDefinition(namespace string) *corev1.Pod {
 		Spec: corev1.PodSpec{
 			TerminationGracePeriodSeconds: pointer.Int64Ptr(0),
 			Containers: []corev1.Container{{Name: "test",
-				Image:   "quay.io/schseba/utility-container:latest",
+				Image:   images.For(images.TestUtils),
 				Command: []string{"/bin/bash", "-c", "sleep INF"}}}}}
 
 	return podObject
@@ -66,48 +41,6 @@ func RedefineWithCommand(pod *corev1.Pod, command []string, args []string) *core
 // RedefineWithRestartPolicy updates the pod defintion with a restart policy
 func RedefineWithRestartPolicy(pod *corev1.Pod, restartPolicy corev1.RestartPolicy) *corev1.Pod {
 	pod.Spec.RestartPolicy = restartPolicy
-	return pod
-}
-
-// DefineWithHugePages creates a pod with a 4Gi of hugepages and run command to write data to that memory
-func DefineWithHugePages(namespace, nodeName, writeSize string) *corev1.Pod {
-	pod := RedefineWithRestartPolicy(
-		RedefineWithCommand(
-			getDefinition(namespace),
-			[]string{"/bin/bash", "-c", fmt.Sprintf(hugePageCommand, writeSize)}, []string{},
-		),
-		corev1.RestartPolicyNever,
-	)
-
-	pod.Spec.NodeSelector = map[string]string{
-		"kubernetes.io/hostname": nodeName,
-	}
-
-	// Resource request
-	pod.Spec.Containers[0].Resources.Requests = corev1.ResourceList{}
-	pod.Spec.Containers[0].Resources.Requests["memory"] = resource.MustParse("1Gi")
-	pod.Spec.Containers[0].Resources.Requests["hugepages-1Gi"] = resource.MustParse("4Gi")
-	pod.Spec.Containers[0].Resources.Requests["cpu"] = *resource.NewQuantity(int64(4), resource.DecimalSI)
-
-	// Resource limit
-	pod.Spec.Containers[0].Resources.Limits = corev1.ResourceList{}
-	pod.Spec.Containers[0].Resources.Limits["memory"] = resource.MustParse("1Gi")
-	pod.Spec.Containers[0].Resources.Limits["hugepages-1Gi"] = resource.MustParse("4Gi")
-	pod.Spec.Containers[0].Resources.Limits["cpu"] = *resource.NewQuantity(int64(4), resource.DecimalSI)
-
-	// Hugepages volume mount
-	pod.Spec.Containers[0].VolumeMounts = []corev1.VolumeMount{{Name: "hugepages", MountPath: "/dev/hugepages "}}
-
-	// Security context capabilities
-	pod.Spec.Containers[0].SecurityContext = &corev1.SecurityContext{RunAsUser: pointer.Int64Ptr(0),
-		Capabilities: &corev1.Capabilities{Add: []corev1.Capability{"IPC_LOCK"}}}
-
-	// Hugepages volume
-	pod.Spec.Volumes = []corev1.Volume{{Name: "hugepages",
-		VolumeSource: corev1.VolumeSource{
-			EmptyDir: &corev1.EmptyDirVolumeSource{
-				Medium: corev1.StorageMediumHugePages}}}}
-
 	return pod
 }
 
