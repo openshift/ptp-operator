@@ -109,7 +109,6 @@ spec:
         name: openshift-ptp
         labels:
           name: openshift-ptp
-          openshift.io/run-level: "1"
           openshift.io/cluster-monitoring: "true"
       EOF
 
@@ -177,6 +176,17 @@ spec:
           verbs:
           - '*'
         serviceAccountName: linuxptp-daemon
+      permissions:
+        - serviceAccountName: linuxptp-daemon
+          rules:
+            - apiGroups:
+              - security.openshift.io
+              resources:
+              - securitycontextconstraints
+              verbs:
+              - use
+              resourceNames:
+              - privileged
       deployments:
       - name: ptp-operator
         spec:

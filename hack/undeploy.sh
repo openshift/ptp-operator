@@ -6,6 +6,8 @@ pushd ${REPO_DIR}/deploy
 		service_account.yaml
 		clusterrolebinding.yaml
 		clusterrole.yaml
+		role.yaml
+		rolebinding.yaml
 		crds/ptp.openshift.io_nodeptpdevices_crd.yaml
 		crds/ptp.openshift.io_ptpoperatorconfigs_crd.yaml
 		crds/ptp.openshift.io_ptpconfigs_crd.yaml"

@@ -11,7 +11,9 @@ pushd ${REPO_DIR}/deploy
 		service_account.yaml
 		clusterrole.yaml
 		clusterrolebinding.yaml
-		operator.yaml"
+		operator.yaml
+		role.yaml
+		rolebinding.yaml"
 
 	for f in ${FILES}; do
 		if [ "$(echo ${EXCLUSIONS[@]} | grep -o ${f} | wc -w | xargs)" == "0" ] ; then
