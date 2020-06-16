@@ -257,8 +257,24 @@ var _ = Describe("[ptp]", func() {
 				})
 			})
 		})
+		Context("PTP metric is present", func() {
+			// 27324
+			It("on slave", func() {
+				slavePodDetected := false
+				for _, pod := range ptpRunningPods {
+					if podRole(pod, PtpSlaveNodeLabel) {
+						Eventually(func() string {
+							buf, _ := pods.ExecCommand(client.Client, pod, []string{"curl", "127.0.0.1:9091/metrics"})
+							return buf.String()
+						}, 3*time.Minute, 2*time.Second).Should(ContainSubstring("openshift_ptp_max_offset_from_master"),
+							fmt.Sprint("Time metrics are not detected"))
+						slavePodDetected = true
+					}
+				}
+				Expect(slavePodDetected).ToNot(BeFalse(), "No slave pods detected")
+			})
+		})
 	})
-
 })
 
 func configurePTP() {
