@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# resource list
+resources=()
+
+# ptp operator namespace
+resources+=(ns/openshift-ptp)
+
+# other ptp operator related namespaces
+resources+=(ns/openshift-marketplace)
+
+# sriovnetwork.openshift.io
+resources+=(nodeptpdevices ptpconfigs ptpoperatorconfigs)
+
+# run the collection of resources using must-gather
+for resource in ${resources[@]}; do
+  /usr/bin/oc adm inspect --dest-dir must-gather --all-namespaces ${resource}
+done
+
+exit 0
