@@ -3,6 +3,7 @@
 package test_test
 
 import (
+	"context"
 	"flag"
 	"testing"
 	"time"
@@ -47,12 +48,12 @@ var _ = BeforeSuite(func() {
 			Name: testutils.NamespaceTesting,
 		},
 	}
-	_, err := testclient.Client.Namespaces().Create(ns)
+	_, err := testclient.Client.Namespaces().Create(context.Background(), ns, metav1.CreateOptions{})
 	Expect(err).ToNot(HaveOccurred())
 })
 
 var _ = AfterSuite(func() {
-	err := testclient.Client.Namespaces().Delete(testutils.NamespaceTesting, &metav1.DeleteOptions{})
+	err := testclient.Client.Namespaces().Delete(context.Background(), testutils.NamespaceTesting, metav1.DeleteOptions{})
 	Expect(err).ToNot(HaveOccurred())
 	err = namespaces.WaitForDeletion(testclient.Client, testutils.NamespaceTesting, 5*time.Minute)
 })
