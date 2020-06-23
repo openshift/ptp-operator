@@ -259,11 +259,25 @@ var _ = Describe("[ptp]", func() {
 			})
 		})
 		Context("PTP metric is present", func() {
+			BeforeEach(func() {
+				ptpRunningPods = []v1core.Pod{}
+				ptpPods, err := client.Client.Pods(PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
+				Expect(err).NotTo(HaveOccurred())
+				Expect(len(ptpPods.Items)).To(BeNumerically(">", 0), fmt.Sprint("linuxptp-daemon is not deployed on cluster"))
+				for _, pod := range ptpPods.Items {
+					if podRole(pod, slaveNodeLabel) || podRole(pod, masterNodeLabel) {
+						waitUntilLogIsDetected(pod, 3*time.Minute, "Profile Name:")
+						ptpRunningPods = append(ptpRunningPods, pod)
+					}
+				}
+				Expect(len(ptpRunningPods)).To(BeNumerically(">=", 2), fmt.Sprint("Fail to detect PTP slave/master pods on Cluster"))
+			})
+
 			// 27324
 			It("on slave", func() {
 				slavePodDetected := false
 				for _, pod := range ptpRunningPods {
-					if podRole(pod, PtpSlaveNodeLabel) {
+					if podRole(pod, slaveNodeLabel) {
 						Eventually(func() string {
 							buf, _ := pods.ExecCommand(client.Client, pod, []string{"curl", "127.0.0.1:9091/metrics"})
 							return buf.String()
