@@ -359,7 +359,7 @@ func discoveryPTPConfiguration(namespace string) ([]ptpv1.PtpConfig, []ptpv1.Ptp
 				masters = append(masters, config)
 			}
 			if isPtpSlave(*profile.Ptp4lOpts, *profile.Phc2sysOpts) {
-				slaves = append(masters, config)
+				slaves = append(slaves, config)
 			}
 		}
 	}
