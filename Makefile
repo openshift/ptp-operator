@@ -27,9 +27,9 @@ functests:
 
 generate-client:
 	bash vendor/k8s.io/code-generator/generate-groups.sh client \
-      	github.com/openshift/ptp-operator/pkg/client \
-      	github.com/openshift/ptp-operator/pkg/apis \
-      	ptp:v1
+		github.com/openshift/ptp-operator/pkg/client \
+		github.com/openshift/ptp-operator/pkg/apis \
+		ptp:v1 --go-header-file hack/boilerplate.go.txt
 
 generate: operator-sdk
 	$(GOBIN)/operator-sdk generate k8s

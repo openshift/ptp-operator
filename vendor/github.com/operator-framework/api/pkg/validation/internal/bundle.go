@@ -1,14 +1,14 @@
 package internal
 
 import (
-	"encoding/json"
 	"fmt"
+	"strings"
 
+	"github.com/operator-framework/api/pkg/manifests"
+	operatorsv1alpha1 "github.com/operator-framework/api/pkg/operators/v1alpha1"
 	"github.com/operator-framework/api/pkg/validation/errors"
 	interfaces "github.com/operator-framework/api/pkg/validation/interfaces"
-
-	operatorsv1alpha1 "github.com/operator-framework/operator-lifecycle-manager/pkg/api/apis/operators/v1alpha1"
-	"github.com/operator-framework/operator-registry/pkg/registry"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 var BundleValidator interfaces.Validator = interfaces.ValidatorFunc(validateBundles)
@@ -16,79 +16,76 @@ var BundleValidator interfaces.Validator = interfaces.ValidatorFunc(validateBund
 func validateBundles(objs ...interface{}) (results []errors.ManifestResult) {
 	for _, obj := range objs {
 		switch v := obj.(type) {
-		case *registry.Bundle:
+		case *manifests.Bundle:
 			results = append(results, validateBundle(v))
 		}
 	}
 	return results
 }
 
-func validateBundle(bundle *registry.Bundle) (result errors.ManifestResult) {
-	bcsv, err := bundle.ClusterServiceVersion()
-	if err != nil {
-		result.Add(errors.ErrInvalidParse("error getting bundle CSV", err))
-		return result
-	}
-	csv, rerr := bundleCSVToCSV(bcsv)
-	if rerr != (errors.Error{}) {
-		result.Add(rerr)
-		return result
-	}
-	result = validateOwnedCRDs(bundle, csv)
-	result.Name = csv.Spec.Version.String()
+func validateBundle(bundle *manifests.Bundle) (result errors.ManifestResult) {
+	result = validateOwnedCRDs(bundle, bundle.CSV)
+	result.Name = bundle.CSV.Spec.Version.String()
 	return result
 }
 
-func bundleCSVToCSV(bcsv *registry.ClusterServiceVersion) (*operatorsv1alpha1.ClusterServiceVersion, errors.Error) {
-	spec := operatorsv1alpha1.ClusterServiceVersionSpec{}
-	if err := json.Unmarshal(bcsv.Spec, &spec); err != nil {
-		return nil, errors.ErrInvalidParse(fmt.Sprintf("converting bundle CSV %q", bcsv.GetName()), err)
-	}
-	return &operatorsv1alpha1.ClusterServiceVersion{
-		TypeMeta:   bcsv.TypeMeta,
-		ObjectMeta: bcsv.ObjectMeta,
-		Spec:       spec,
-	}, errors.Error{}
-}
+func validateOwnedCRDs(bundle *manifests.Bundle, csv *operatorsv1alpha1.ClusterServiceVersion) (result errors.ManifestResult) {
+	ownedKeys := getOwnedCustomResourceDefintionKeys(csv)
 
-func validateOwnedCRDs(bundle *registry.Bundle, csv *operatorsv1alpha1.ClusterServiceVersion) (result errors.ManifestResult) {
-	ownedCrdNames := getOwnedCustomResourceDefintionNames(csv)
-	crdNames, err := getBundleCRDNames(bundle)
-	if err != (errors.Error{}) {
-		result.Add(err)
-		return result
+	// Check for duplicate keys in the bundle, which may occur if a v1 and v1beta1 CRD of the same GVK appear.
+	keySet := make(map[schema.GroupVersionKind]struct{})
+	for _, key := range getBundleCRDKeys(bundle) {
+		if _, hasKey := keySet[key]; hasKey {
+			result.Add(errors.ErrInvalidBundle(fmt.Sprintf("duplicate CRD %q in bundle %q", key, bundle.Name), key))
+		}
+		// Always add key to keySet so the below validations run correctly.
+		keySet[key] = struct{}{}
 	}
 
-	// validating names
-	for _, crdName := range ownedCrdNames {
-		if _, ok := crdNames[crdName]; !ok {
-			result.Add(errors.ErrInvalidBundle(fmt.Sprintf("owned CRD %q not found in bundle %q", crdName, bundle.Name), crdName))
+	// All owned keys must match a CRD in bundle.
+	for _, ownedKey := range ownedKeys {
+		if _, ok := keySet[ownedKey]; !ok {
+			result.Add(errors.ErrInvalidBundle(fmt.Sprintf("owned CRD %q not found in bundle %q", ownedKey, bundle.Name), ownedKey))
 		} else {
-			delete(crdNames, crdName)
+			delete(keySet, ownedKey)
 		}
 	}
-	// CRDs not defined in the CSV present in the bundle
-	for crdName := range crdNames {
-		result.Add(errors.WarnInvalidBundle(fmt.Sprintf("owned CRD %q is present in bundle %q but not defined in CSV", crdName, bundle.Name), crdName))
+	// All CRDs present in a CSV must be present in the bundle.
+	for key := range keySet {
+		result.Add(errors.WarnInvalidBundle(fmt.Sprintf("CRD %q is present in bundle %q but not defined in CSV", key, bundle.Name), key))
 	}
+
 	return result
 }
 
-func getOwnedCustomResourceDefintionNames(csv *operatorsv1alpha1.ClusterServiceVersion) (names []string) {
-	for _, ownedCrd := range csv.Spec.CustomResourceDefinitions.Owned {
-		names = append(names, ownedCrd.Name)
+// getBundleCRDKeys returns a list of definition keys for all owned CRDs in csv.
+func getOwnedCustomResourceDefintionKeys(csv *operatorsv1alpha1.ClusterServiceVersion) (keys []schema.GroupVersionKind) {
+	for _, owned := range csv.Spec.CustomResourceDefinitions.Owned {
+		group := owned.Name
+		if split := strings.SplitN(group, ".", 2); len(split) == 2 {
+			group = split[1]
+		}
+		keys = append(keys, schema.GroupVersionKind{Group: group, Version: owned.Version, Kind: owned.Kind})
 	}
-	return names
+	return keys
 }
 
-func getBundleCRDNames(bundle *registry.Bundle) (map[string]struct{}, errors.Error) {
-	crds, err := bundle.CustomResourceDefinitions()
-	if err != nil {
-		return nil, errors.ErrInvalidParse("error getting bundle CRDs", err)
+// getBundleCRDKeys returns a set of definition keys for all CRDs in bundle.
+func getBundleCRDKeys(bundle *manifests.Bundle) (keys []schema.GroupVersionKind) {
+	// Collect all v1 and v1beta1 CRD keys, skipping group which CSVs do not support.
+	for _, crd := range bundle.V1CRDs {
+		for _, version := range crd.Spec.Versions {
+			keys = append(keys, schema.GroupVersionKind{Group: crd.Spec.Group, Version: version.Name, Kind: crd.Spec.Names.Kind})
+		}
 	}
-	crdNames := map[string]struct{}{}
-	for _, crd := range crds {
-		crdNames[crd.GetName()] = struct{}{}
+	for _, crd := range bundle.V1beta1CRDs {
+		if len(crd.Spec.Versions) == 0 {
+			keys = append(keys, schema.GroupVersionKind{Group: crd.Spec.Group, Version: crd.Spec.Version, Kind: crd.Spec.Names.Kind})
+		} else {
+			for _, version := range crd.Spec.Versions {
+				keys = append(keys, schema.GroupVersionKind{Group: crd.Spec.Group, Version: version.Name, Kind: crd.Spec.Names.Kind})
+			}
+		}
 	}
-	return crdNames, errors.Error{}
+	return keys
 }
