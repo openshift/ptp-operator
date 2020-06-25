@@ -25,6 +25,27 @@ spec:
       - operator: Exists
       serviceAccountName: linuxptp-daemon
       containers:
+      - name: kube-rbac-proxy
+        image: {{.KubeRbacProxy}}
+        args:
+          - --logtostderr
+          - --secure-listen-address=:8443
+          - --tls-cipher-suites=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_RSA_WITH_AES_128_CBC_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
+          - --upstream=http://127.0.0.1:9091/
+          - --tls-private-key-file=/etc/metrics/tls.key
+          - --tls-cert-file=/etc/metrics/tls.crt
+        ports:
+          - containerPort: 8443
+            name: https
+        resources:
+          requests:
+            cpu: 10m
+            memory: 20Mi
+        terminationMessagePolicy: FallbackToLogsOnError
+        volumeMounts:
+          - name: linuxptp-certs
+            mountPath: /etc/metrics
+            readOnly: True
       - name: linuxptp-daemon-container
         securityContext:
           privileged: true
@@ -40,13 +61,13 @@ spec:
         volumeMounts:
         - name: config-volume
           mountPath: /etc/linuxptp
-        ports:
-          - name: metrics-port
-            containerPort: 9091
       volumes:
         - name: config-volume
           configMap:
             name: ptp-configmap
+        - name: linuxptp-certs
+          secret:
+            secretName: linuxptp-daemon-secret
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
@@ -59,6 +80,11 @@ spec:
   endpoints:
     - interval: 10s
       port: metrics
+      bearerTokenFile: "/var/run/secrets/kubernetes.io/serviceaccount/token"
+      scheme: "https"
+      tlsConfig:
+        caFile: "/etc/prometheus/configmaps/serving-certs-ca-bundle/service-ca.crt"
+        serverName: "ptp-monitor-service.{{.Namespace}}.svc"
   jobLabel: app
   namespaceSelector:
     matchNames:
@@ -70,6 +96,9 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    prometheus.io/scrape: "true"
+    service.alpha.openshift.io/serving-cert-secret-name: linuxptp-daemon-secret
   labels:
     name: ptp-monitor-service
   name:  ptp-monitor-service
@@ -80,9 +109,8 @@ spec:
   clusterIP: None
   ports:
     - name: metrics
-      port: 9091
-      protocol: TCP
-      targetPort: 9091
+      port: 8443
+      targetPort: https
   sessionAffinity: None
   type: ClusterIP
 ---
