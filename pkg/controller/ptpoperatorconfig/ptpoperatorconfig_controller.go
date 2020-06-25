@@ -197,6 +197,7 @@ func (r *ReconcilePtpOperatorConfig) syncLinuxptpDaemon(defaultCfg *ptpv1.PtpOpe
 	data.Data["Image"] = os.Getenv("LINUXPTP_DAEMON_IMAGE")
 	data.Data["Namespace"] = names.Namespace
 	data.Data["ReleaseVersion"] = os.Getenv("RELEASEVERSION")
+	data.Data["KubeRbacProxy"] = os.Getenv("KUBE_RBAC_PROXY_IMAGE")
 	objs, err = render.RenderDir(filepath.Join(names.ManifestDir, "linuxptp"), &data)
 	if err != nil {
 		return fmt.Errorf("failed to render linuxptp daemon manifest: %v", err)

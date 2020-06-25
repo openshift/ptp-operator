@@ -175,6 +175,18 @@ spec:
           - '*'
           verbs:
           - '*'
+        - apiGroups:
+          - "authentication.k8s.io"
+          resources:
+          - "tokenreviews"
+          verbs:
+          - "create"
+        - apiGroups:
+          - "authorization.k8s.io"
+          resources:
+          - "subjectaccessreviews"
+          verbs:
+          - "create"
         serviceAccountName: linuxptp-daemon
       permissions:
         - serviceAccountName: linuxptp-daemon
@@ -225,6 +237,8 @@ spec:
                   value: ptp-operator
                 - name: LINUXPTP_DAEMON_IMAGE
                   value: quay.io/openshift/origin-ptp:4.6
+                - name: KUBE_RBAC_PROXY_IMAGE
+                  value: quay.io/openshift/origin-kube-rbac-proxy:4.6
     strategy: deployment
   installModes:
   - supported: true
