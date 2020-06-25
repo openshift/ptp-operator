@@ -167,7 +167,7 @@ var _ = Describe("[ptp]", func() {
 				profileSlave := "Profile Name: test-slave"
 				profileMaster := "Profile Name: test-grandmaster"
 				for _, pod := range ptpRunningPods {
-					podLogs, err := pods.GetLog(&pod)
+					podLogs, err := pods.GetLog(&pod, PtpContainerName)
 					Expect(err).NotTo(HaveOccurred(), "Error to find needed log due to %s", err)
 					if podRole(pod, slaveNodeLabel) {
 						Expect(podLogs).Should(ContainSubstring(profileSlave),
@@ -190,7 +190,7 @@ var _ = Describe("[ptp]", func() {
 				grandMaster := "assuming the grand master role"
 				for _, pod := range ptpRunningPods {
 					if podRole(pod, masterNodeLabel) {
-						podLogs, err := pods.GetLog(&pod)
+						podLogs, err := pods.GetLog(&pod, PtpContainerName)
 						Expect(err).NotTo(HaveOccurred(), "Error to find needed log due to %s", err)
 						Expect(podLogs).Should(ContainSubstring(grandMaster),
 							fmt.Sprintf("Log message \"%s\" not found in pod's log %s", grandMaster, pod.Name))
@@ -201,7 +201,7 @@ var _ = Describe("[ptp]", func() {
 						}
 					}
 					if podRole(pod, slaveNodeLabel) {
-						podLogs, err := pods.GetLog(&pod)
+						podLogs, err := pods.GetLog(&pod, PtpContainerName)
 						Expect(err).NotTo(HaveOccurred(), "Error to find needed log due to %s", err)
 						for _, line := range strings.Split(podLogs, "\n") {
 							if strings.Contains(line, "new foreign master") {
@@ -279,7 +279,7 @@ var _ = Describe("[ptp]", func() {
 				for _, pod := range ptpRunningPods {
 					if podRole(pod, slaveNodeLabel) {
 						Eventually(func() string {
-							buf, _ := pods.ExecCommand(client.Client, pod, []string{"curl", "127.0.0.1:9091/metrics"})
+							buf, _ := pods.ExecCommand(client.Client, pod, PtpContainerName, []string{"curl", "127.0.0.1:9091/metrics"})
 							return buf.String()
 						}, 3*time.Minute, 2*time.Second).Should(ContainSubstring("openshift_ptp_max_offset_from_master"),
 							fmt.Sprint("Time metrics are not detected"))
@@ -477,7 +477,7 @@ func mutateProfile(profile ptpv1.PtpConfig, profileName string, nodeName string)
 
 func waitUntilLogIsDetected(pod v1core.Pod, timeout time.Duration, neededLog string) {
 	Eventually(func() string {
-		logs, _ := pods.GetLog(&pod)
+		logs, _ := pods.GetLog(&pod, PtpContainerName)
 		return logs
 	}, timeout, 1*time.Second).Should(ContainSubstring(neededLog), fmt.Sprintf("Timeout to detect log \"%s\" in pod \"%s\"", neededLog, pod.Name))
 }
@@ -498,7 +498,7 @@ func getPtpPodOnNode(nodeName string) (v1core.Pod, error) {
 func getMasterSlaveAttachedInterfaces(pod v1core.Pod) []string {
 	var IntList []string
 	Eventually(func() error {
-		stdout, err := pods.ExecCommand(client.Client, pod, []string{"ls", "/sys/class/net/"})
+		stdout, err := pods.ExecCommand(client.Client, pod, PtpContainerName, []string{"ls", "/sys/class/net/"})
 		if err != nil {
 			return err
 		}
@@ -530,7 +530,7 @@ func getPtpMasterSlaveAttachedInterfaces(pod v1core.Pod) []string {
 
 		// Get readlink status
 		Eventually(func() error {
-			stdout, err = pods.ExecCommand(client.Client, pod, []string{"readlink", "-f", fmt.Sprintf("/sys/class/net/%s", interf)})
+			stdout, err = pods.ExecCommand(client.Client, pod, PtpContainerName, []string{"readlink", "-f", fmt.Sprintf("/sys/class/net/%s", interf)})
 			if err != nil {
 				return err
 			}
@@ -563,7 +563,7 @@ func getPtpMasterSlaveAttachedInterfaces(pod v1core.Pod) []string {
 		// Check if this is a virtual function
 		Eventually(func() error {
 			// If the physfn doesn't exist this means the interface is not a virtual function so we ca add it to the list
-			stdout, err = pods.ExecCommand(client.Client, pod, []string{"ls", fmt.Sprintf("/sys/bus/pci/devices/%s/physfn", PCIAddr)})
+			stdout, err = pods.ExecCommand(client.Client, pod, PtpContainerName, []string{"ls", fmt.Sprintf("/sys/bus/pci/devices/%s/physfn", PCIAddr)})
 			if err != nil {
 				if strings.Contains(stdout.String(), "No such file or directory") {
 					return nil
@@ -585,7 +585,7 @@ func getPtpMasterSlaveAttachedInterfaces(pod v1core.Pod) []string {
 		}
 
 		Eventually(func() error {
-			stdout, err = pods.ExecCommand(client.Client, pod, []string{"ethtool", "-T", interf})
+			stdout, err = pods.ExecCommand(client.Client, pod, PtpContainerName, []string{"ethtool", "-T", interf})
 			if stdout.String() == "" {
 				return fmt.Errorf("empty response from pod retrying")
 			}
@@ -639,7 +639,7 @@ func getNonPtpMasterSlaveAttachedInterfaces(pod v1core.Pod) []string {
 	intList := getMasterSlaveAttachedInterfaces(pod)
 	for _, interf := range intList {
 		Eventually(func() error {
-			stdout, err = pods.ExecCommand(client.Client, pod, []string{"ethtool", "-T", interf})
+			stdout, err = pods.ExecCommand(client.Client, pod, PtpContainerName, []string{"ethtool", "-T", interf})
 			if err != nil && !strings.Contains(stdout.String(), "No such device") {
 				return err
 			}
