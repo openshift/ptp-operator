@@ -21,6 +21,7 @@ import (
 	ptpv1 "github.com/openshift/ptp-operator/pkg/apis/ptp/v1"
 
 	. "github.com/openshift/ptp-operator/test/utils"
+	"github.com/openshift/ptp-operator/test/utils/clean"
 	"github.com/openshift/ptp-operator/test/utils/client"
 	testclient "github.com/openshift/ptp-operator/test/utils/client"
 	"github.com/openshift/ptp-operator/test/utils/discovery"
@@ -293,31 +294,8 @@ var _ = Describe("[ptp]", func() {
 })
 
 func configurePTP() {
-	ptpconfigList, err := client.Client.PtpConfigs(PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{})
+	err := clean.All()
 	Expect(err).ToNot(HaveOccurred())
-
-	for _, ptpConfig := range ptpconfigList.Items {
-		if ptpConfig.Name == PtpGrandMasterPolicyName || ptpConfig.Name == PtpSlavePolicyName {
-			err = client.Client.PtpConfigs(PtpLinuxDaemonNamespace).Delete(context.Background(), ptpConfig.Name, metav1.DeleteOptions{})
-			Expect(err).ToNot(HaveOccurred())
-		}
-	}
-
-	nodeList, err := client.Client.Nodes().List(context.Background(), metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=", PtpGrandmasterNodeLabel)})
-	Expect(err).ToNot(HaveOccurred())
-	for _, node := range nodeList.Items {
-		delete(node.Labels, PtpGrandmasterNodeLabel)
-		_, err = client.Client.Nodes().Update(context.Background(), &node, metav1.UpdateOptions{})
-		Expect(err).ToNot(HaveOccurred())
-	}
-
-	nodeList, err = client.Client.Nodes().List(context.Background(), metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=", PtpSlaveNodeLabel)})
-	Expect(err).ToNot(HaveOccurred())
-	for _, node := range nodeList.Items {
-		delete(node.Labels, PtpSlaveNodeLabel)
-		_, err = client.Client.Nodes().Update(context.Background(), &node, metav1.UpdateOptions{})
-		Expect(err).ToNot(HaveOccurred())
-	}
 
 	ptpNodes, err := nodes.GetNodeTopology(client.Client)
 	Expect(err).ToNot(HaveOccurred())
