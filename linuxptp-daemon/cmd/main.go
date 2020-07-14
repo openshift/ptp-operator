@@ -123,7 +123,7 @@ func main() {
 			ptpConfUpdate.NodeProfile = ptpConfig
 			ptpConfUpdate.UpdateCh <- true
 		case sig := <-sigCh:
-			glog.Infof("signal received, shutting down", sig)
+			glog.Info("signal received, shutting down", sig)
 			return
 		}
 	}

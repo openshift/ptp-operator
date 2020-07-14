@@ -3,6 +3,8 @@ package daemon
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"os/exec"
 	"strings"
 	"syscall"
@@ -16,6 +18,7 @@ import (
 const (
 	PtpNamespace         = "openshift-ptp"
 	PTP4L_CONF_FILE_PATH = "/etc/ptp4l.conf"
+	PTP4L_CONF_DIR       = "/ptp4l-conf"
 )
 
 // ProcessManager manages a set of ptpProcess
@@ -96,7 +99,6 @@ func (dn *Daemon) Run() {
 			return
 		}
 	}
-	return
 }
 
 func printWhenNotNil(p *string, description string) {
@@ -149,6 +151,20 @@ func applyNodePTPProfile(pm *ProcessManager, nodeProfile *ptpv1.PtpProfile) erro
 	}
 
 	if nodeProfile.Ptp4lOpts != nil && nodeProfile.Interface != nil {
+		if nodeProfile.Ptp4lConf != nil && *nodeProfile.Ptp4lConf != "" {
+			if _, err := os.Stat(PTP4L_CONF_DIR); os.IsNotExist(err) {
+				err = os.Mkdir(PTP4L_CONF_DIR, 0644)
+				if err != nil {
+					return fmt.Errorf("failed to create the ptp4l custom configuration directory: %v", err)
+				}
+			}
+
+			err := ioutil.WriteFile(fmt.Sprintf("%s/%s.conf", PTP4L_CONF_DIR, *nodeProfile.Name), []byte(*nodeProfile.Ptp4lConf), 0644)
+			if err != nil {
+				return fmt.Errorf("failed to write the configuration file named %s: %v", fmt.Sprintf("%s/%s.conf", PTP4L_CONF_DIR, *nodeProfile.Name), err)
+			}
+		}
+
 		pm.process = append(pm.process, &ptpProcess{
 			name:   "ptp4l",
 			exitCh: make(chan bool),
@@ -175,8 +191,13 @@ func phc2sysCreateCmd(nodeProfile *ptpv1.PtpProfile) *exec.Cmd {
 
 // ptp4lCreateCmd generate ptp4l command
 func ptp4lCreateCmd(nodeProfile *ptpv1.PtpProfile) *exec.Cmd {
+	confFilePath := PTP4L_CONF_FILE_PATH
+	if nodeProfile.Ptp4lConf != nil && *nodeProfile.Ptp4lConf != "" {
+		confFilePath = fmt.Sprintf("%s/%s.conf", PTP4L_CONF_DIR, *nodeProfile.Name)
+	}
+
 	cmdLine := fmt.Sprintf("/usr/sbin/ptp4l -f %s -i %s %s",
-		PTP4L_CONF_FILE_PATH,
+		confFilePath,
 		*nodeProfile.Interface,
 		*nodeProfile.Ptp4lOpts)
 
