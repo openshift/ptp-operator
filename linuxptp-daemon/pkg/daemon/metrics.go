@@ -99,6 +99,9 @@ func extractMetrics(processName, output string) {
 	if strings.Contains(output, "max") {
 		offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster := extractSummaryMetrics(processName, output)
 		updatePTPMetrics(processName, offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster)
+	} else if strings.Contains(output, "offset") {
+		offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster := extractRegularMetrics(processName, output)
+		updatePTPMetrics(processName, offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster)
 	}
 }
 
@@ -128,6 +131,42 @@ func extractSummaryMetrics(processName, output string) (offsetFromMaster, maxOff
 		delayFromMaster, err = strconv.ParseFloat(fields[9], 64)
 		if err != nil {
 			glog.Errorf("%s failed to parse delay from master output %s error %v", processName, fields[9], err)
+		}
+	} else {
+		// If there is no delay from master this mean we are out of sync
+		glog.Warningf("no delay from master process %s out of sync", processName)
+	}
+
+	return
+}
+
+func extractRegularMetrics(processName, output string) (offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster float64) {
+	// remove everything before the rms string
+	// This makes the out to equals
+	output = strings.Replace(output, "path", "", 1)
+	indx := strings.Index(output, "offset")
+	output = output[indx:]
+	fields := strings.Fields(output)
+
+	offsetFromMaster, err := strconv.ParseFloat(fields[1], 64)
+	if err != nil {
+		glog.Errorf("%s failed to parse offset from master output %s error %v", processName, fields[1], err)
+	}
+
+	maxOffsetFromMaster, err = strconv.ParseFloat(fields[1], 64)
+	if err != nil {
+		glog.Errorf("%s failed to parse max offset from master output %s error %v", processName, fields[1], err)
+	}
+
+	frequencyAdjustment, err = strconv.ParseFloat(fields[4], 64)
+	if err != nil {
+		glog.Errorf("%s failed to parse frequency adjustment output %s error %v", processName, fields[4], err)
+	}
+
+	if len(fields) >= 7 {
+		delayFromMaster, err = strconv.ParseFloat(fields[6], 64)
+		if err != nil {
+			glog.Errorf("%s failed to parse delay from master output %s error %v", processName, fields[6], err)
 		}
 	} else {
 		// If there is no delay from master this mean we are out of sync
