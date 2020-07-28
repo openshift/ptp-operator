@@ -9,7 +9,7 @@ spec:
     listKind: NodePtpDeviceList
     plural: nodeptpdevices
     singular: nodeptpdevice
-  scope: ""
+  scope: Namespaced
   versions:
     - name: v1
       schema:
