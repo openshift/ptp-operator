@@ -9,7 +9,7 @@ spec:
     listKind: PtpConfigList
     plural: ptpconfigs
     singular: ptpconfig
-  scope: ""
+  scope: Namespaced
   versions:
     - name: v1
       schema:
