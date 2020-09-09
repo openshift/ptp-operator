@@ -103,7 +103,7 @@ I1010 07:28:11.702098   48998 utils.go:67] grabbing NIC timestamp capability for
 I1010 07:28:11.703581   48998 utils.go:67] grabbing NIC timestamp capability for veth79297004
 I1010 07:28:11.705105   48998 utils.go:67] grabbing NIC timestamp capability for vethfed50896
 I1010 07:28:11.706621   48998 main.go:61] PTP capable NICs: [eno1 eno2 ens785f0 ens785f1 ens786f0 ens786f1]
-I1010 07:28:11.706945   48998 daemon.go:107] in applyNodePTPProfile
+I1010 07:28:11.706945   48998 daemon.go:107] in applyNodePTPProfiles
 I1010 07:28:11.706970   48998 daemon.go:109] updating NodePTPProfile to:
 I1010 07:28:11.706979   48998 daemon.go:110] ------------------------------------
 I1010 07:28:11.706991   48998 daemon.go:102] Profile Name: profile1

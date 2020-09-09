@@ -35,14 +35,6 @@ type ptpProcess struct {
 	cmd    *exec.Cmd
 }
 
-// LinuxPTPUpdate controls whether to update linuxPTP conf
-// and contains linuxPTP conf to be updated. It's rendered
-// and passed to linuxptp instance by daemon.
-type LinuxPTPConfUpdate struct {
-	UpdateCh    chan bool
-	NodeProfile *ptpv1.PtpProfile
-}
-
 // Daemon is the main structure for linuxptp instance.
 // It contains all the necessary data to run linuxptp instance.
 type Daemon struct {
@@ -84,7 +76,7 @@ func (dn *Daemon) Run() {
 	for {
 		select {
 		case <-dn.ptpUpdate.UpdateCh:
-			err := applyNodePTPProfile(processManager, dn.ptpUpdate.NodeProfile)
+			err := applyNodePTPProfiles(processManager, dn.ptpUpdate.NodeProfiles)
 			if err != nil {
 				glog.Errorf("linuxPTP apply node profile failed: %v", err)
 			}
@@ -107,19 +99,8 @@ func printWhenNotNil(p *string, description string) {
 	}
 }
 
-func applyNodePTPProfile(pm *ProcessManager, nodeProfile *ptpv1.PtpProfile) error {
-	glog.Infof("in applyNodePTPProfile")
-
-	addFlagsForMonitor(nodeProfile)
-
-	glog.Infof("updating NodePTPProfile to:")
-	glog.Infof("------------------------------------")
-	printWhenNotNil(nodeProfile.Name, "Profile Name")
-	printWhenNotNil(nodeProfile.Interface, "Interface")
-	printWhenNotNil(nodeProfile.Ptp4lOpts, "Ptp4lOpts")
-	printWhenNotNil(nodeProfile.Ptp4lConf, "Ptp4lConf")
-	printWhenNotNil(nodeProfile.Phc2sysOpts, "Phc2sysOpts")
-	glog.Infof("------------------------------------")
+func applyNodePTPProfiles(pm *ProcessManager, nodeProfile []ptpv1.PtpProfile) error {
+	glog.Infof("in applyNodePTPProfiles")
 
 	for _, p := range pm.process {
 		if p != nil {
@@ -141,13 +122,42 @@ func applyNodePTPProfile(pm *ProcessManager, nodeProfile *ptpv1.PtpProfile) erro
 	// compare nodeProfile with previous config,
 	// only apply when nodeProfile changes
 
+	glog.Infof("updating NodePTPProfiles to:")
+	for _, profile := range nodeProfile {
+		err := applyNodePtpProfile(pm, &profile)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Start all the process
+	for _, p := range pm.process {
+		if p != nil {
+			time.Sleep(1 * time.Second)
+			go cmdRun(p)
+		}
+	}
+	return nil
+}
+
+func applyNodePtpProfile(pm *ProcessManager, nodeProfile *ptpv1.PtpProfile) error {
+	addFlagsForMonitor(nodeProfile)
+
+	glog.Infof("------------------------------------")
+	printWhenNotNil(nodeProfile.Name, "Profile Name")
+	printWhenNotNil(nodeProfile.Interface, "Interface")
+	printWhenNotNil(nodeProfile.Ptp4lOpts, "Ptp4lOpts")
+	printWhenNotNil(nodeProfile.Ptp4lConf, "Ptp4lConf")
+	printWhenNotNil(nodeProfile.Phc2sysOpts, "Phc2sysOpts")
+	glog.Infof("------------------------------------")
+
 	if nodeProfile.Phc2sysOpts != nil {
 		pm.process = append(pm.process, &ptpProcess{
 			name:   "phc2sys",
 			exitCh: make(chan bool),
 			cmd:    phc2sysCreateCmd(nodeProfile)})
 	} else {
-		glog.Infof("applyNodePTPProfile: not starting phc2sys, phc2sysOpts is empty")
+		glog.Infof("applyNodePTPProfiles: not starting phc2sys, phc2sysOpts is empty")
 	}
 
 	if nodeProfile.Ptp4lOpts != nil && nodeProfile.Interface != nil {
@@ -170,15 +180,9 @@ func applyNodePTPProfile(pm *ProcessManager, nodeProfile *ptpv1.PtpProfile) erro
 			exitCh: make(chan bool),
 			cmd:    ptp4lCreateCmd(nodeProfile)})
 	} else {
-		glog.Infof("applyNodePTPProfile: not starting ptp4l, ptp4lOpts or interface is empty")
+		glog.Infof("applyNodePTPProfiles: not starting ptp4l, ptp4lOpts or interface is empty")
 	}
 
-	for _, p := range pm.process {
-		if p != nil {
-			time.Sleep(1 * time.Second)
-			go cmdRun(p)
-		}
-	}
 	return nil
 }
 
