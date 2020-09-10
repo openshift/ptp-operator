@@ -69,8 +69,6 @@ type ReconcilePtpConfig struct {
 
 // Reconcile reads that state of the cluster for a PtpConfig object and makes changes based on the state read
 // and what is in the PtpConfig.Spec
-// TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
-// a Pod as an example
 // Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
@@ -111,14 +109,14 @@ func (r *ReconcilePtpConfig) syncPtpConfig(ptpConfigList *ptpv1.PtpConfigList, n
 	nodePtpConfigMap.Data = make(map[string]string)
 
 	for _, node := range nodeList.Items {
-		nodePtpProfile, err := getRecommendNodePtpProfile(ptpConfigList, node)
+		nodePtpProfiles, err := getRecommendNodePtpProfiles(ptpConfigList, node)
 		if err != nil {
 			return fmt.Errorf("failed to get recommended node PtpConfig: %v", err)
 		}
 
-		data, err := json.Marshal(nodePtpProfile)
+		data, err := json.Marshal(nodePtpProfiles)
 		if err != nil {
-			return fmt.Errorf("failed to Marshal nodePtpProfile: %v", err)
+			return fmt.Errorf("failed to Marshal nodePtpProfiles: %v", err)
 		}
 		nodePtpConfigMap.Data[node.Name] = string(data)
 	}

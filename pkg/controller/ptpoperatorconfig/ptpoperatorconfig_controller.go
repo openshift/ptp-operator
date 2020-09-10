@@ -123,14 +123,17 @@ func (r *ReconcilePtpOperatorConfig) Reconcile(request reconcile.Request) (recon
 	}
 
 	if err = r.syncNodePtpDevice(nodeList); err != nil {
+		glog.Errorf("failed to sync node ptp device: %v", err)
 		return reconcile.Result{}, err
 	}
 
 	if err = r.createPTPConfigMap(defaultCfg); err != nil {
+		glog.Errorf("failed to create ptp config map node: %v", err)
 		return reconcile.Result{}, err
 	}
 
 	if err = r.syncLinuxptpDaemon(defaultCfg); err != nil {
+		glog.Errorf("failed to sync linux ptp daemon: %v", err)
 		return reconcile.Result{}, err
 	}
 
