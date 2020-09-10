@@ -11,8 +11,9 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	ptpv1 "github.com/openshift/ptp-operator/pkg/apis/ptp/v1"
 	"k8s.io/client-go/kubernetes"
+
+	ptpv1 "github.com/openshift/ptp-operator/pkg/apis/ptp/v1"
 )
 
 const (
@@ -30,9 +31,12 @@ type ProcessManager struct {
 }
 
 type ptpProcess struct {
-	name   string
-	exitCh chan bool
-	cmd    *exec.Cmd
+	name            string
+	iface           string
+	ptp4lSocketPath string
+	ptp4lConfigPath string
+	exitCh          chan bool
+	cmd             *exec.Cmd
 }
 
 // Daemon is the main structure for linuxptp instance.
@@ -46,6 +50,9 @@ type Daemon struct {
 	kubeClient *kubernetes.Clientset
 
 	ptpUpdate *LinuxPTPConfUpdate
+
+	processManager *ProcessManager
+
 	// channel ensure LinuxPTP.Run() exit when main function exits.
 	// stopCh is created by main function and passed by Daemon via NewLinuxPTP()
 	stopCh <-chan struct{}
@@ -62,26 +69,26 @@ func New(
 	RegisterMetrics(nodeName)
 
 	return &Daemon{
-		nodeName:   nodeName,
-		namespace:  namespace,
-		kubeClient: kubeClient,
-		ptpUpdate:  ptpUpdate,
-		stopCh:     stopCh,
+		nodeName:       nodeName,
+		namespace:      namespace,
+		kubeClient:     kubeClient,
+		ptpUpdate:      ptpUpdate,
+		processManager: &ProcessManager{},
+		stopCh:         stopCh,
 	}
 }
 
 // Run in a for loop to listen for any LinuxPTPConfUpdate changes
 func (dn *Daemon) Run() {
-	processManager := &ProcessManager{}
 	for {
 		select {
 		case <-dn.ptpUpdate.UpdateCh:
-			err := applyNodePTPProfiles(processManager, dn.ptpUpdate.NodeProfiles)
+			err := dn.applyNodePTPProfiles()
 			if err != nil {
 				glog.Errorf("linuxPTP apply node profile failed: %v", err)
 			}
 		case <-dn.stopCh:
-			for _, p := range processManager.process {
+			for _, p := range dn.processManager.process {
 				if p != nil {
 					cmdStop(p)
 					p = nil
@@ -99,10 +106,10 @@ func printWhenNotNil(p *string, description string) {
 	}
 }
 
-func applyNodePTPProfiles(pm *ProcessManager, nodeProfile []ptpv1.PtpProfile) error {
+func (dn *Daemon) applyNodePTPProfiles() error {
 	glog.Infof("in applyNodePTPProfiles")
 
-	for _, p := range pm.process {
+	for _, p := range dn.processManager.process {
 		if p != nil {
 			glog.Infof("stopping process.... %+v", p)
 			cmdStop(p)
@@ -112,26 +119,28 @@ func applyNodePTPProfiles(pm *ProcessManager, nodeProfile []ptpv1.PtpProfile) er
 
 	// All process should have been stopped,
 	// clear process in process manager.
-	// Assigning pm.process to nil releases
+	// Assigning processManager.process to nil releases
 	// the underlying slice to the garbage
 	// collector (assuming there are no other
 	// references).
-	pm.process = nil
+	dn.processManager.process = nil
 
 	// TODO:
 	// compare nodeProfile with previous config,
 	// only apply when nodeProfile changes
 
 	glog.Infof("updating NodePTPProfiles to:")
-	for _, profile := range nodeProfile {
-		err := applyNodePtpProfile(pm, &profile)
+	runID := 0
+	for _, profile := range dn.ptpUpdate.NodeProfiles {
+		err := dn.applyNodePtpProfile(runID, &profile)
 		if err != nil {
 			return err
 		}
+		runID++
 	}
 
 	// Start all the process
-	for _, p := range pm.process {
+	for _, p := range dn.processManager.process {
 		if p != nil {
 			time.Sleep(1 * time.Second)
 			go cmdRun(p)
@@ -140,8 +149,13 @@ func applyNodePTPProfiles(pm *ProcessManager, nodeProfile []ptpv1.PtpProfile) er
 	return nil
 }
 
-func applyNodePtpProfile(pm *ProcessManager, nodeProfile *ptpv1.PtpProfile) error {
+func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) error {
+	// This add the flags needed for monitor
 	addFlagsForMonitor(nodeProfile)
+
+	socketPath := fmt.Sprintf("/var/run/ptp4l.%d.socket", runID)
+	// This will create the configuration needed to run the ptp4l and phc2sys
+	dn.addProfileConfig(socketPath, nodeProfile)
 
 	glog.Infof("------------------------------------")
 	printWhenNotNil(nodeProfile.Name, "Profile Name")
@@ -152,38 +166,55 @@ func applyNodePtpProfile(pm *ProcessManager, nodeProfile *ptpv1.PtpProfile) erro
 	glog.Infof("------------------------------------")
 
 	if nodeProfile.Phc2sysOpts != nil {
-		pm.process = append(pm.process, &ptpProcess{
+		dn.processManager.process = append(dn.processManager.process, &ptpProcess{
 			name:   "phc2sys",
+			iface:  *nodeProfile.Interface,
 			exitCh: make(chan bool),
 			cmd:    phc2sysCreateCmd(nodeProfile)})
 	} else {
-		glog.Infof("applyNodePTPProfiles: not starting phc2sys, phc2sysOpts is empty")
+		glog.Infof("applyNodePtpProfile: not starting phc2sys, phc2sysOpts is empty")
 	}
 
 	if nodeProfile.Ptp4lOpts != nil && nodeProfile.Interface != nil {
-		if nodeProfile.Ptp4lConf != nil && *nodeProfile.Ptp4lConf != "" {
-			if _, err := os.Stat(PTP4L_CONF_DIR); os.IsNotExist(err) {
-				err = os.Mkdir(PTP4L_CONF_DIR, 0644)
-				if err != nil {
-					return fmt.Errorf("failed to create the ptp4l custom configuration directory: %v", err)
-				}
-			}
-
-			err := ioutil.WriteFile(fmt.Sprintf("%s/%s.conf", PTP4L_CONF_DIR, *nodeProfile.Name), []byte(*nodeProfile.Ptp4lConf), 0644)
-			if err != nil {
-				return fmt.Errorf("failed to write the configuration file named %s: %v", fmt.Sprintf("%s/%s.conf", PTP4L_CONF_DIR, *nodeProfile.Name), err)
-			}
+		configPath := fmt.Sprintf("/var/run/ptp4l.%d.config", runID)
+		err := ioutil.WriteFile(configPath, []byte(*nodeProfile.Ptp4lConf), 0644)
+		if err != nil {
+			return fmt.Errorf("failed to write the configuration file named %s: %v", configPath, err)
 		}
 
-		pm.process = append(pm.process, &ptpProcess{
-			name:   "ptp4l",
-			exitCh: make(chan bool),
-			cmd:    ptp4lCreateCmd(nodeProfile)})
+		dn.processManager.process = append(dn.processManager.process, &ptpProcess{
+			name:            "ptp4l",
+			iface:           *nodeProfile.Interface,
+			ptp4lConfigPath: configPath,
+			ptp4lSocketPath: socketPath,
+			exitCh:          make(chan bool),
+			cmd:             ptp4lCreateCmd(nodeProfile, configPath)})
 	} else {
-		glog.Infof("applyNodePTPProfiles: not starting ptp4l, ptp4lOpts or interface is empty")
+		glog.Infof("applyNodePtpProfile: not starting ptp4l, ptp4lOpts or interface is empty")
 	}
 
 	return nil
+}
+
+func (dn *Daemon) addProfileConfig(socketPath string, nodeProfile *ptpv1.PtpProfile) {
+	// TODO: later implement a merge capability
+	if nodeProfile.Ptp4lConf == nil || *nodeProfile.Ptp4lConf == "" {
+		// We need to copy this to another variable because is a pointer
+		config := string(dn.ptpUpdate.defaultPTP4lConfig)
+		nodeProfile.Ptp4lConf = &config
+	}
+
+	config := fmt.Sprintf("%s\nuds_address %s\nmessage_tag [%s]",
+		*nodeProfile.Ptp4lConf,
+		socketPath,
+		*nodeProfile.Interface)
+	nodeProfile.Ptp4lConf = &config
+
+	commandLine := fmt.Sprintf("%s -z %s -t [%s]",
+		*nodeProfile.Phc2sysOpts,
+		socketPath,
+		*nodeProfile.Interface)
+	nodeProfile.Phc2sysOpts = &commandLine
 }
 
 // phc2sysCreateCmd generate phc2sys command
@@ -194,12 +225,7 @@ func phc2sysCreateCmd(nodeProfile *ptpv1.PtpProfile) *exec.Cmd {
 }
 
 // ptp4lCreateCmd generate ptp4l command
-func ptp4lCreateCmd(nodeProfile *ptpv1.PtpProfile) *exec.Cmd {
-	confFilePath := PTP4L_CONF_FILE_PATH
-	if nodeProfile.Ptp4lConf != nil && *nodeProfile.Ptp4lConf != "" {
-		confFilePath = fmt.Sprintf("%s/%s.conf", PTP4L_CONF_DIR, *nodeProfile.Name)
-	}
-
+func ptp4lCreateCmd(nodeProfile *ptpv1.PtpProfile, confFilePath string) *exec.Cmd {
 	cmdLine := fmt.Sprintf("/usr/sbin/ptp4l -f %s -i %s %s",
 		confFilePath,
 		*nodeProfile.Interface,
@@ -231,7 +257,7 @@ func cmdRun(p *ptpProcess) {
 		for scanner.Scan() {
 			output := scanner.Text()
 			fmt.Printf("%s\n", output)
-			extractMetrics(p.name, output)
+			extractMetrics(p.name, p.iface, output)
 		}
 		done <- struct{}{}
 	}()
@@ -262,6 +288,20 @@ func cmdStop(p *ptpProcess) {
 	if p.cmd.Process != nil {
 		glog.Infof("Sending TERM to PID: %d", p.cmd.Process.Pid)
 		p.cmd.Process.Signal(syscall.SIGTERM)
+	}
+
+	if p.ptp4lSocketPath != "" {
+		err := os.Remove(p.ptp4lSocketPath)
+		if err != nil {
+			glog.Errorf("failed to remove ptp4l socket path %s: %v", p.ptp4lSocketPath, err)
+		}
+	}
+
+	if p.ptp4lConfigPath != "" {
+		err := os.Remove(p.ptp4lConfigPath)
+		if err != nil {
+			glog.Errorf("failed to remove ptp4l config path %s: %v", p.ptp4lConfigPath, err)
+		}
 	}
 
 	<-p.exitCh

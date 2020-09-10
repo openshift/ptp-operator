@@ -35,7 +35,7 @@ var (
 			Subsystem: PTPSubsystem,
 			Name:      "offset_from_master",
 			Help:      "",
-		}, []string{"process", "node"})
+		}, []string{"process", "node", "iface"})
 
 	MaxOffsetFromMaster = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -43,7 +43,7 @@ var (
 			Subsystem: PTPSubsystem,
 			Name:      "max_offset_from_master",
 			Help:      "",
-		}, []string{"process", "node"})
+		}, []string{"process", "node", "iface"})
 
 	FrequencyAdjustment = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -51,7 +51,7 @@ var (
 			Subsystem: PTPSubsystem,
 			Name:      "frequency_adjustment",
 			Help:      "",
-		}, []string{"process", "node"})
+		}, []string{"process", "node", "iface"})
 
 	DelayFromMaster = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -59,7 +59,7 @@ var (
 			Subsystem: PTPSubsystem,
 			Name:      "delay_from_master",
 			Help:      "",
-		}, []string{"process", "node"})
+		}, []string{"process", "node", "iface"})
 )
 
 var registerMetrics sync.Once
@@ -80,28 +80,28 @@ func RegisterMetrics(nodeName string) {
 }
 
 // updatePTPMetrics ...
-func updatePTPMetrics(process string, offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster float64) {
+func updatePTPMetrics(process, iface string, offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster float64) {
 	OffsetFromMaster.With(prometheus.Labels{
-		"process": process, "node": NodeName}).Set(offsetFromMaster)
+		"process": process, "node": NodeName, "iface": iface}).Set(offsetFromMaster)
 
 	MaxOffsetFromMaster.With(prometheus.Labels{
-		"process": process, "node": NodeName}).Set(maxOffsetFromMaster)
+		"process": process, "node": NodeName, "iface": iface}).Set(maxOffsetFromMaster)
 
 	FrequencyAdjustment.With(prometheus.Labels{
-		"process": process, "node": NodeName}).Set(frequencyAdjustment)
+		"process": process, "node": NodeName, "iface": iface}).Set(frequencyAdjustment)
 
 	DelayFromMaster.With(prometheus.Labels{
-		"process": process, "node": NodeName}).Set(delayFromMaster)
+		"process": process, "node": NodeName, "iface": iface}).Set(delayFromMaster)
 }
 
 // extractMetrics ...
-func extractMetrics(processName, output string) {
+func extractMetrics(processName, iface, output string) {
 	if strings.Contains(output, "max") {
 		offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster := extractSummaryMetrics(processName, output)
-		updatePTPMetrics(processName, offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster)
+		updatePTPMetrics(processName, iface, offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster)
 	} else if strings.Contains(output, "offset") {
 		offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster := extractRegularMetrics(processName, output)
-		updatePTPMetrics(processName, offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster)
+		updatePTPMetrics(processName, iface, offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster)
 	}
 }
 

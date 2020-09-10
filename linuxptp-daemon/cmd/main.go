@@ -70,7 +70,12 @@ func main() {
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 
-	ptpConfUpdate := &daemon.LinuxPTPConfUpdate{UpdateCh: make(chan bool)}
+	ptpConfUpdate, err := daemon.NewLinuxPTPConfUpdate()
+	if err != nil {
+		glog.Errorf("failed to create a ptp config update: %v", err)
+		return
+	}
+
 	go daemon.New(
 		nodeName,
 		daemon.PtpNamespace,

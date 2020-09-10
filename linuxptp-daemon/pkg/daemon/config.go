@@ -3,6 +3,8 @@ package daemon
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
 
 	"github.com/golang/glog"
 
@@ -16,6 +18,24 @@ type LinuxPTPConfUpdate struct {
 	UpdateCh               chan bool
 	NodeProfiles           []ptpv1.PtpProfile
 	appliedNodeProfileJson []byte
+	defaultPTP4lConfig     []byte
+}
+
+func NewLinuxPTPConfUpdate() (*LinuxPTPConfUpdate, error) {
+	if _, err := os.Stat(PTP4L_CONF_FILE_PATH); err != nil {
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("ptp.conf file doesn't exist")
+		} else {
+			return nil, fmt.Errorf("unknow error searching for the %s file: %v", PTP4L_CONF_FILE_PATH, err)
+		}
+	}
+
+	defaultPTP4lConfig, err := ioutil.ReadFile(PTP4L_CONF_FILE_PATH)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read %s: %v", PTP4L_CONF_FILE_PATH, err)
+	}
+
+	return &LinuxPTPConfUpdate{UpdateCh: make(chan bool), defaultPTP4lConfig: defaultPTP4lConfig}, nil
 }
 
 func (l *LinuxPTPConfUpdate) UpdateConfig(nodeProfilesJson []byte) error {
@@ -23,8 +43,8 @@ func (l *LinuxPTPConfUpdate) UpdateConfig(nodeProfilesJson []byte) error {
 		return nil
 	}
 
-	if nodeProfiles, ok := tryToLoadOldConfig(nodeProfilesJson); ok {
-		glog.Info("load profiles using old method")
+	if nodeProfiles, ok := tryToLoadConfig(nodeProfilesJson); ok {
+		glog.Info("load profiles")
 		l.appliedNodeProfileJson = nodeProfilesJson
 		l.NodeProfiles = nodeProfiles
 		l.UpdateCh <- true
@@ -32,8 +52,8 @@ func (l *LinuxPTPConfUpdate) UpdateConfig(nodeProfilesJson []byte) error {
 		return nil
 	}
 
-	if nodeProfiles, ok := tryToLoadConfig(nodeProfilesJson); ok {
-		glog.Info("load profiles")
+	if nodeProfiles, ok := tryToLoadOldConfig(nodeProfilesJson); ok {
+		glog.Info("load profiles using old method")
 		l.appliedNodeProfileJson = nodeProfilesJson
 		l.NodeProfiles = nodeProfiles
 		l.UpdateCh <- true
