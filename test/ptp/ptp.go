@@ -226,6 +226,9 @@ var _ = Describe("[ptp]", func() {
 			//25743
 			It("Can provide a profile with higher priority", func() {
 				var testPtpPod v1core.Pod
+				if discovery.Enabled() {
+					Skip("Skipping because adding a different profile")
+				}
 
 				By("Creating a config with higher priority", func() {
 					ptpConfigSlave, err := client.Client.PtpV1Interface.PtpConfigs("openshift-ptp").Get(context.Background(), PtpSlavePolicyName, metav1.GetOptions{})
