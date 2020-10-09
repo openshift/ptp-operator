@@ -1,10 +1,11 @@
-FROM registry.svc.ci.openshift.org/ocp/builder:golang-1.12 AS builder
-WORKDIR /go/src/github.com/openshift/ptp-operator
+FROM registry.svc.ci.openshift.org/ocp/builder:rhel-8-golang-1.15-openshift-4.6 AS builder
+WORKDIR /go/src/github.com/openshift/ptp-operator/must-gather
 COPY . .
 
-FROM registry.svc.ci.openshift.org/ocp/4.0:cli
+FROM registry.svc.ci.openshift.org/ocp/4.7:must-gather
 LABEL io.k8s.display-name="ptp-operator-must-gather" \
       io.k8s.description="This is a PTP must-gather image that collectes PTP operator related resources."
 COPY --from=builder /go/src/github.com/openshift/ptp-operator/must-gather/collection-scripts/* /usr/bin/
+RUN chmod +x /usr/bin/gather
 
 ENTRYPOINT /usr/bin/gather
