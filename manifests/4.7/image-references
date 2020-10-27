@@ -1,0 +1,17 @@
+---
+kind: ImageStream
+apiVersion: image.openshift.io/v1
+spec:
+  tags:
+  - name: ptp-operator
+    from:
+      kind: DockerImage
+      name: quay.io/openshift/origin-ptp-operator:4.7
+  - name: ptp
+    from:
+      kind: DockerImage
+      name: quay.io/openshift/origin-ptp:4.7
+  - name: kube-rbac-proxy
+    from:
+      kind: DockerImage
+      name: quay.io/openshift/origin-kube-rbac-proxy:4.7
