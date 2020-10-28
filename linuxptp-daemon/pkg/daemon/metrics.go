@@ -112,6 +112,11 @@ func extractSummaryMetrics(processName, output string) (offsetFromMaster, maxOff
 	output = output[indx:]
 	fields := strings.Fields(output)
 
+	if len(fields) < 5 {
+		glog.Errorf("%s failed to parse output %s: unexpected number of fields", processName, output)
+		return
+	}
+
 	offsetFromMaster, err := strconv.ParseFloat(fields[1], 64)
 	if err != nil {
 		glog.Errorf("%s failed to parse offset from master output %s error %v", processName, fields[1], err)
@@ -147,6 +152,11 @@ func extractRegularMetrics(processName, output string) (offsetFromMaster, maxOff
 	indx := strings.Index(output, "offset")
 	output = output[indx:]
 	fields := strings.Fields(output)
+
+	if len(fields) < 5 {
+		glog.Errorf("%s failed to parse output %s: unexpected number of fields", processName, output)
+		return
+	}
 
 	offsetFromMaster, err := strconv.ParseFloat(fields[1], 64)
 	if err != nil {
