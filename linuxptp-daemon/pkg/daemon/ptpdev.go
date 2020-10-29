@@ -1,9 +1,10 @@
 package daemon
 
 import (
+	"time"
+
 	"github.com/golang/glog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"time"
 
 	ptpv1 "github.com/openshift/ptp-operator/pkg/apis/ptp/v1"
 	ptpclient "github.com/openshift/ptp-operator/pkg/client/clientset/versioned"
@@ -18,19 +19,12 @@ func GetDevStatusUpdate(nodePTPDev *ptpv1.NodePtpDevice) (*ptpv1.NodePtpDevice, 
 		return nodePTPDev, err
 	}
 	glog.Infof("PTP capable NICs: %v", hostDevs)
+
+	newDevices := make([]ptpv1.PtpDevice, 0)
 	for _, hostDev := range hostDevs {
-		contained := false
-		for _, crDev := range nodePTPDev.Status.Devices {
-			if hostDev == crDev.Name {
-				contained = true
-				break
-			}
-		}
-		if !contained {
-			nodePTPDev.Status.Devices = append(nodePTPDev.Status.Devices,
-				ptpv1.PtpDevice{Name: hostDev, Profile: ""})
-		}
+		newDevices = append(newDevices, ptpv1.PtpDevice{Name: hostDev, Profile: ""})
 	}
+	nodePTPDev.Status.Devices = newDevices
 	return nodePTPDev, nil
 }
 
