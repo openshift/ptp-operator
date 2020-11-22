@@ -53,6 +53,13 @@ func (l *LinuxPTPConfUpdate) UpdateConfig(nodeProfilesJson []byte) error {
 	}
 
 	if nodeProfiles, ok := tryToLoadOldConfig(nodeProfilesJson); ok {
+		// Support empty old config
+		// '{"name":null,"interface":null}'
+		if nodeProfiles[0].Name == nil || nodeProfiles[0].Interface == nil {
+			glog.Infof("Skip no profile %+v", nodeProfiles[0])
+			return nil
+		}
+
 		glog.Info("load profiles using old method")
 		l.appliedNodeProfileJson = nodeProfilesJson
 		l.NodeProfiles = nodeProfiles
