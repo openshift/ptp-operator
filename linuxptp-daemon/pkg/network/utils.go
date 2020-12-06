@@ -83,14 +83,21 @@ func DiscoverPTPDevices() ([]string, error) {
 			continue
 		}
 
-		// sysfs address looks like: /sys/devices/pci0000:17/0000:17:02.0/0000:19:00.5/net/eno1
+		var PCIAddr string
 		pathSegments := strings.Split(link, "/")
-		if len(pathSegments) != 8 {
+		if len(pathSegments)-3 <= 0 {
 			glog.Infof("unexpected sysfs address for %v: %v", dev.Name, out.String())
 			continue
 		}
 
-		PCIAddr := pathSegments[5] // 0000:19:00.5
+		// sysfs address for N3000 looks like: ../../devices/pci0000:85/0000:85:00.0/0000:86:00.0/0000:87:10.0/0000:8a:00.1/net/eth1
+		// sysfs address looks like: /sys/devices/pci0000:17/0000:17:02.0/0000:19:00.5/net/eno1
+		PCIAddr = pathSegments[len(pathSegments)-3]
+
+		if _, err := os.Stat(fmt.Sprintf("/sys/bus/pci/devices/%s", PCIAddr)); os.IsNotExist(err) {
+			glog.Infof("unexpected device address for device name %s PCI %s: %v", dev.Name, PCIAddr, err)
+			continue
+		}
 
 		// If the physfn doesn't exist this means the interface is not a virtual function so we ca add it to the list
 		if _, err := os.Stat(fmt.Sprintf("/sys/bus/pci/devices/%s/physfn", PCIAddr)); os.IsNotExist(err) {
