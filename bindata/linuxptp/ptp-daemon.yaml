@@ -27,6 +27,7 @@ spec:
       containers:
       - name: kube-rbac-proxy
         image: {{.KubeRbacProxy}}
+        imagePullPolicy: IfNotPresent
         args:
           - --logtostderr
           - --secure-listen-address=:8443
@@ -53,6 +54,10 @@ spec:
         command: [ "/bin/bash", "-c", "--" ]
         args: [ "/usr/local/bin/ptp --alsologtostderr -v 10" ]
         imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            cpu: 100m
+            memory: 50Mi
         env:
         - name: NODE_NAME
           valueFrom:
