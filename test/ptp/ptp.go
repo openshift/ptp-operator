@@ -233,7 +233,8 @@ var _ = Describe("[ptp]", func() {
 							fmt.Sprintf("Log message \"%s\" not found in pod's log %s", grandMaster, pod.Name))
 						for _, line := range strings.Split(podLogs, "\n") {
 							if strings.Contains(line, "selected local clock") && strings.Contains(line, "as best master") {
-								masterID = strings.Split(line, " ")[4]
+								// Log example: ptp4l[10731.364]: [eno1] selected local clock 3448ed.fffe.f38e00 as best master
+								masterID = strings.Split(line, " ")[5]
 							}
 						}
 					}
@@ -243,7 +244,8 @@ var _ = Describe("[ptp]", func() {
 
 						for _, line := range strings.Split(podLogs, "\n") {
 							if strings.Contains(line, "new foreign master") {
-								slaveMasterID = strings.Split(line, " ")[6]
+								// Log example: ptp4l[11292.467]: [eno1] port 1: new foreign master 3448ed.fffe.f38e00-1
+								slaveMasterID = strings.Split(line, " ")[7]
 							}
 						}
 					}
