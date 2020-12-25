@@ -26,12 +26,12 @@ func All() error {
 		_, err = client.Client.Nodes().Update(context.Background(), &node, metav1.UpdateOptions{})
 	}
 
-	nodeList, err = client.Client.Nodes().List(context.Background(), metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=", utils.PtpSlaveNodeLabel)})
+	nodeList, err = client.Client.Nodes().List(context.Background(), metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=", utils.PtpClientNodeLabel)})
 	if err != nil {
-		return fmt.Errorf("clean.All: Failed to retrieve slave node list %v", err)
+		return fmt.Errorf("clean.All: Failed to retrieve ptp client node list %v", err)
 	}
 	for _, node := range nodeList.Items {
-		delete(node.Labels, utils.PtpSlaveNodeLabel)
+		delete(node.Labels, utils.PtpClientNodeLabel)
 		_, err = client.Client.Nodes().Update(context.Background(), &node, metav1.UpdateOptions{})
 		if err != nil {
 			return fmt.Errorf("clean.All: Failed to remove label from %s %v", node.Name, err)
@@ -47,7 +47,7 @@ func Configs() error {
 	}
 
 	for _, ptpConfig := range ptpconfigList.Items {
-		if ptpConfig.Name == utils.PtpGrandMasterPolicyName || ptpConfig.Name == utils.PtpSlavePolicyName {
+		if ptpConfig.Name == utils.PtpGrandMasterPolicyName || ptpConfig.Name == utils.PtpClientPolicyName {
 			err = client.Client.PtpConfigs(utils.PtpLinuxDaemonNamespace).Delete(context.Background(), ptpConfig.Name, metav1.DeleteOptions{})
 			if err != nil {
 				return fmt.Errorf("clean.All: Failed to delete ptp config %s %v", ptpConfig.Name, err)
