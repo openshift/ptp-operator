@@ -244,6 +244,10 @@ func cmdRun(p *ptpProcess) {
 		p.exitCh <- true
 	}()
 
+	//
+	// don't discard process stderr output
+	//
+	p.cmd.Stderr = os.Stderr
 	cmdReader, err := p.cmd.StdoutPipe()
 	if err != nil {
 		glog.Errorf("cmdRun() error creating StdoutPipe for %s: %v", p.name, err)
