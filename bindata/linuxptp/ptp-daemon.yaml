@@ -66,6 +66,8 @@ spec:
         volumeMounts:
         - name: config-volume
           mountPath: /etc/linuxptp
+        - name: socket-dir
+          mountPath: /var/run
       volumes:
         - name: config-volume
           configMap:
@@ -73,6 +75,10 @@ spec:
         - name: linuxptp-certs
           secret:
             secretName: linuxptp-daemon-secret
+        - name: socket-dir
+          hostPath:
+            path: /var/run/ptp
+            type: DirectoryOrCreate
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
