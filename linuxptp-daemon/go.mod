@@ -9,11 +9,7 @@ require (
 	github.com/mailru/easyjson v0.0.0-20191009090205-6c0755d89d1e // indirect
 	github.com/openshift/ptp-operator v0.0.0-20191029035809-deaf8b45ba13
 	github.com/prometheus/client_golang v0.9.3-0.20190127221311-3c4408c8b829
-	golang.org/x/crypto v0.0.0-20191029031824-8986dd9e96cf // indirect
-	golang.org/x/net v0.0.0-20191028085509-fe3aa8a45271 // indirect
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45 // indirect
-	golang.org/x/sys v0.0.0-20191028164358-195ce5e7f934 // indirect
-	golang.org/x/text v0.3.3 // indirect
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	k8s.io/api v0.0.0-20191025225708-5524a3672fbb // indirect
 	k8s.io/apimachinery v0.0.0-20191025225532-af6325b3a843
@@ -32,6 +28,7 @@ replace (
 
 replace (
 	github.com/coreos/prometheus-operator => github.com/coreos/prometheus-operator v0.29.0
+	github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
 	// Pinned to v2.9.2 (kubernetes-1.13.1) so https://proxy.golang.org can
 	// resolve it correctly.
 	github.com/prometheus/prometheus => github.com/prometheus/prometheus v0.0.0-20190424153033-d3245f150225
