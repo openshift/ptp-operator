@@ -6,6 +6,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -29,6 +31,17 @@ import (
 	"github.com/openshift/ptp-operator/test/utils/nodes"
 	"github.com/openshift/ptp-operator/test/utils/pods"
 )
+
+var isSingleNode bool
+
+func init() {
+	singleNodeCluster := os.Getenv("SINGLE_NODE_CLUSTER")
+	if singleNodeCluster != "" {
+		isSingleNode, _ = strconv.ParseBool(singleNodeCluster)
+	} else {
+		isSingleNode, _ = nodes.IsSingleNode()
+	}
+}
 
 var _ = Describe("[ptp]", func() {
 	BeforeEach(func() {
@@ -102,7 +115,9 @@ var _ = Describe("[ptp]", func() {
 		var masterProfile, slaveProfile string
 
 		execute.BeforeAll(func() {
-
+			if isSingleNode {
+				Skip("Running in single node mode")
+			}
 			if !discovery.Enabled() {
 				configurePTP()
 			}
@@ -143,6 +158,9 @@ var _ = Describe("[ptp]", func() {
 
 		Context("PTP Interfaces discovery", func() {
 			BeforeEach(func() {
+				if isSingleNode {
+					Skip("Running in single node mode")
+				}
 				if discoveryFailed {
 					Skip("Failed to find a valid ptp slave configuration")
 				}
@@ -304,6 +322,9 @@ var _ = Describe("[ptp]", func() {
 
 		Context("PTP metric is present", func() {
 			BeforeEach(func() {
+				if isSingleNode {
+					Skip("Running in single node mode")
+				}
 				if discoveryFailed {
 					Skip("Failed to find a valid ptp slave configuration")
 				}
