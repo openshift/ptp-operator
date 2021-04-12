@@ -1,0 +1,24 @@
+# permissions for end users to edit nodeptpdevices.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: nodeptpdevice-editor-role
+rules:
+- apiGroups:
+  - ptp.openshift.io
+  resources:
+  - nodeptpdevices
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ptp.openshift.io
+  resources:
+  - nodeptpdevices/status
+  verbs:
+  - get
