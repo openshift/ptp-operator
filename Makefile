@@ -169,6 +169,15 @@ generate-client:
 		github.com/openshift/ptp-operator/api/v1 \
 		ptp:v1 --go-header-file hack/boilerplate.go.txt
 
+daemon-build:
+	./hack/daemon-build.sh
+
+daemon-build-image:
+	./hack/daemon-build-image.sh
+
+daemon-clean:
+	./hack/daemon-cleanup.sh
+
 
 # find or download controller-gen
 # download controller-gen if necessary
