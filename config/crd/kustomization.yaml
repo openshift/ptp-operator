@@ -1,0 +1,27 @@
+# This kustomization.yaml is not intended to be run by itself,
+# since it depends on service name and namespace that are out of this kustomize package.
+# It should be run by config/default
+resources:
+- bases/ptp.openshift.io_ptpconfigs.yaml
+- bases/ptp.openshift.io_nodeptpdevices.yaml
+- bases/ptp.openshift.io_ptpoperatorconfigs.yaml
+#+kubebuilder:scaffold:crdkustomizeresource
+
+patchesStrategicMerge:
+# [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix.
+# patches here are for enabling the conversion webhook for each CRD
+#- patches/webhook_in_ptpconfigs.yaml
+#- patches/webhook_in_nodeptpdevices.yaml
+#- patches/webhook_in_ptpoperatorconfigs.yaml
+#+kubebuilder:scaffold:crdkustomizewebhookpatch
+
+# [CERTMANAGER] To enable webhook, uncomment all the sections with [CERTMANAGER] prefix.
+# patches here are for enabling the CA injection for each CRD
+#- patches/cainjection_in_ptpconfigs.yaml
+#- patches/cainjection_in_nodeptpdevices.yaml
+#- patches/cainjection_in_ptpoperatorconfigs.yaml
+#+kubebuilder:scaffold:crdkustomizecainjectionpatch
+
+# the following config is for teaching kustomize how to do kustomization for CRDs.
+configurations:
+- kustomizeconfig.yaml

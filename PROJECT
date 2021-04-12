@@ -1,0 +1,35 @@
+domain: openshift.io
+layout: go.kubebuilder.io/v3
+plugins:
+  manifests.sdk.operatorframework.io/v2: {}
+  scorecard.sdk.operatorframework.io/v2: {}
+projectName: ptp-operator-upgrade-2
+repo: github.com/openshift/ptp-operator
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: openshift.io
+  group: ptp
+  kind: PtpConfig
+  path: github.com/openshift/ptp-operator/api/v1
+  version: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: openshift.io
+  group: ptp
+  kind: NodePtpDevice
+  path: github.com/openshift/ptp-operator/api/v1
+  version: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: openshift.io
+  group: ptp
+  kind: PtpOperatorConfig
+  path: github.com/openshift/ptp-operator/api/v1
+  version: v1
+version: "3"
