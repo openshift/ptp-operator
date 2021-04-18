@@ -33,7 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/util/jsonpath"
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 )
 
 func init() {
@@ -188,7 +188,7 @@ func (g *gcpAuthProvider) Login() error { return nil }
 type cachedTokenSource struct {
 	lk          sync.Mutex
 	source      oauth2.TokenSource
-	accessToken string `datapolicy:"token"`
+	accessToken string
 	expiry      time.Time
 	persister   restclient.AuthProviderConfigPersister
 	cache       map[string]string
@@ -269,8 +269,8 @@ func (t *cachedTokenSource) baseCache() map[string]string {
 type commandTokenSource struct {
 	cmd       string
 	args      []string
-	tokenKey  string `datapolicy:"token"`
-	expiryKey string `datapolicy:"secret-key"`
+	tokenKey  string
+	expiryKey string
 	timeFmt   string
 }
 

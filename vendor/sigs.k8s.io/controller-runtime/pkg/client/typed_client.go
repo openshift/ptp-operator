@@ -22,10 +22,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-var _ Reader = &typedClient{}
-var _ Writer = &typedClient{}
-var _ StatusWriter = &typedClient{}
-
 // client is a client.Client that reads and writes directly from/to an API server.  It lazily initializes
 // new clients at the time they are used, and caches the client.
 type typedClient struct {
@@ -34,7 +30,7 @@ type typedClient struct {
 }
 
 // Create implements client.Client
-func (c *typedClient) Create(ctx context.Context, obj Object, opts ...CreateOption) error {
+func (c *typedClient) Create(ctx context.Context, obj runtime.Object, opts ...CreateOption) error {
 	o, err := c.cache.getObjMeta(obj)
 	if err != nil {
 		return err
@@ -52,7 +48,7 @@ func (c *typedClient) Create(ctx context.Context, obj Object, opts ...CreateOpti
 }
 
 // Update implements client.Client
-func (c *typedClient) Update(ctx context.Context, obj Object, opts ...UpdateOption) error {
+func (c *typedClient) Update(ctx context.Context, obj runtime.Object, opts ...UpdateOption) error {
 	o, err := c.cache.getObjMeta(obj)
 	if err != nil {
 		return err
@@ -71,7 +67,7 @@ func (c *typedClient) Update(ctx context.Context, obj Object, opts ...UpdateOpti
 }
 
 // Delete implements client.Client
-func (c *typedClient) Delete(ctx context.Context, obj Object, opts ...DeleteOption) error {
+func (c *typedClient) Delete(ctx context.Context, obj runtime.Object, opts ...DeleteOption) error {
 	o, err := c.cache.getObjMeta(obj)
 	if err != nil {
 		return err
@@ -90,7 +86,7 @@ func (c *typedClient) Delete(ctx context.Context, obj Object, opts ...DeleteOpti
 }
 
 // DeleteAllOf implements client.Client
-func (c *typedClient) DeleteAllOf(ctx context.Context, obj Object, opts ...DeleteAllOfOption) error {
+func (c *typedClient) DeleteAllOf(ctx context.Context, obj runtime.Object, opts ...DeleteAllOfOption) error {
 	o, err := c.cache.getObjMeta(obj)
 	if err != nil {
 		return err
@@ -109,7 +105,7 @@ func (c *typedClient) DeleteAllOf(ctx context.Context, obj Object, opts ...Delet
 }
 
 // Patch implements client.Client
-func (c *typedClient) Patch(ctx context.Context, obj Object, patch Patch, opts ...PatchOption) error {
+func (c *typedClient) Patch(ctx context.Context, obj runtime.Object, patch Patch, opts ...PatchOption) error {
 	o, err := c.cache.getObjMeta(obj)
 	if err != nil {
 		return err
@@ -132,7 +128,7 @@ func (c *typedClient) Patch(ctx context.Context, obj Object, patch Patch, opts .
 }
 
 // Get implements client.Client
-func (c *typedClient) Get(ctx context.Context, key ObjectKey, obj Object) error {
+func (c *typedClient) Get(ctx context.Context, key ObjectKey, obj runtime.Object) error {
 	r, err := c.cache.getResource(obj)
 	if err != nil {
 		return err
@@ -144,7 +140,7 @@ func (c *typedClient) Get(ctx context.Context, key ObjectKey, obj Object) error 
 }
 
 // List implements client.Client
-func (c *typedClient) List(ctx context.Context, obj ObjectList, opts ...ListOption) error {
+func (c *typedClient) List(ctx context.Context, obj runtime.Object, opts ...ListOption) error {
 	r, err := c.cache.getResource(obj)
 	if err != nil {
 		return err
@@ -160,7 +156,7 @@ func (c *typedClient) List(ctx context.Context, obj ObjectList, opts ...ListOpti
 }
 
 // UpdateStatus used by StatusWriter to write status.
-func (c *typedClient) UpdateStatus(ctx context.Context, obj Object, opts ...UpdateOption) error {
+func (c *typedClient) UpdateStatus(ctx context.Context, obj runtime.Object, opts ...UpdateOption) error {
 	o, err := c.cache.getObjMeta(obj)
 	if err != nil {
 		return err
@@ -181,7 +177,7 @@ func (c *typedClient) UpdateStatus(ctx context.Context, obj Object, opts ...Upda
 }
 
 // PatchStatus used by StatusWriter to write status.
-func (c *typedClient) PatchStatus(ctx context.Context, obj Object, patch Patch, opts ...PatchOption) error {
+func (c *typedClient) PatchStatus(ctx context.Context, obj runtime.Object, patch Patch, opts ...PatchOption) error {
 	o, err := c.cache.getObjMeta(obj)
 	if err != nil {
 		return err

@@ -17,11 +17,10 @@ limitations under the License.
 package certwatcher
 
 import (
-	"context"
 	"crypto/tls"
 	"sync"
 
-	"github.com/fsnotify/fsnotify"
+	"gopkg.in/fsnotify.v1"
 	logf "sigs.k8s.io/controller-runtime/pkg/internal/log"
 )
 
@@ -70,7 +69,7 @@ func (cw *CertWatcher) GetCertificate(_ *tls.ClientHelloInfo) (*tls.Certificate,
 }
 
 // Start starts the watch on the certificate and key files.
-func (cw *CertWatcher) Start(ctx context.Context) error {
+func (cw *CertWatcher) Start(stopCh <-chan struct{}) error {
 	files := []string{cw.certPath, cw.keyPath}
 
 	for _, f := range files {
@@ -83,8 +82,8 @@ func (cw *CertWatcher) Start(ctx context.Context) error {
 
 	log.Info("Starting certificate watcher")
 
-	// Block until the context is done.
-	<-ctx.Done()
+	// Block until the stop channel is closed.
+	<-stopCh
 
 	return cw.watcher.Close()
 }

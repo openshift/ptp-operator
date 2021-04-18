@@ -173,6 +173,11 @@ func (o *CreateOptions) ApplyToCreate(co *CreateOptions) {
 
 var _ CreateOption = &CreateOptions{}
 
+// CreateDryRunAll sets the "dry run" option to "all".
+//
+// Deprecated: Use DryRunAll
+var CreateDryRunAll = DryRunAll
+
 // }}}
 
 // {{{ Delete Options
@@ -455,6 +460,14 @@ func (m MatchingLabelsSelector) ApplyToDeleteAllOf(opts *DeleteAllOfOptions) {
 	m.ApplyToList(&opts.ListOptions)
 }
 
+// MatchingField filters the list operation on the given field selector
+// (or index in the case of cached lists).
+//
+// Deprecated: Use MatchingFields
+func MatchingField(name, val string) MatchingFields {
+	return MatchingFields{name: val}
+}
+
 // MatchingFields filters the list/delete operation on the given field Set
 // (or index in the case of cached lists).
 type MatchingFields fields.Set
@@ -582,6 +595,11 @@ func (o *UpdateOptions) ApplyToUpdate(uo *UpdateOptions) {
 	}
 }
 
+// UpdateDryRunAll sets the "dry run" option to "all".
+//
+// Deprecated: Use DryRunAll
+var UpdateDryRunAll = DryRunAll
+
 // }}}
 
 // {{{ Patch Options
@@ -663,6 +681,11 @@ func (forceOwnership) ApplyToPatch(opts *PatchOptions) {
 	definitelyTrue := true
 	opts.Force = &definitelyTrue
 }
+
+// PatchDryRunAll sets the "dry run" option to "all".
+//
+// Deprecated: Use DryRunAll
+var PatchDryRunAll = DryRunAll
 
 // }}}
 

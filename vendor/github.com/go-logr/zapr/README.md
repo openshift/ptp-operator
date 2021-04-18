@@ -2,7 +2,7 @@ Zapr :zap:
 ==========
 
 A [logr](https://github.com/go-logr/logr) implementation using
-[Zap](https://github.com/uber-go/zap).
+[Zap](go.uber.org/zap).
 
 Usage
 -----
@@ -13,7 +13,7 @@ import (
 
     "go.uber.org/zap"
     "github.com/go-logr/logr"
-    "github.com/go-logr/zapr"
+    "github.com/directxman12/zapr"
 )
 
 func main() {

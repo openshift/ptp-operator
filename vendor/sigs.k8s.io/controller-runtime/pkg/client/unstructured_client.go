@@ -25,10 +25,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-var _ Reader = &unstructuredClient{}
-var _ Writer = &unstructuredClient{}
-var _ StatusWriter = &unstructuredClient{}
-
 // client is a client.Client that reads and writes directly from/to an API server.  It lazily initializes
 // new clients at the time they are used, and caches the client.
 type unstructuredClient struct {
@@ -37,7 +33,7 @@ type unstructuredClient struct {
 }
 
 // Create implements client.Client
-func (uc *unstructuredClient) Create(ctx context.Context, obj Object, opts ...CreateOption) error {
+func (uc *unstructuredClient) Create(ctx context.Context, obj runtime.Object, opts ...CreateOption) error {
 	u, ok := obj.(*unstructured.Unstructured)
 	if !ok {
 		return fmt.Errorf("unstructured client did not understand object: %T", obj)
@@ -65,7 +61,7 @@ func (uc *unstructuredClient) Create(ctx context.Context, obj Object, opts ...Cr
 }
 
 // Update implements client.Client
-func (uc *unstructuredClient) Update(ctx context.Context, obj Object, opts ...UpdateOption) error {
+func (uc *unstructuredClient) Update(ctx context.Context, obj runtime.Object, opts ...UpdateOption) error {
 	u, ok := obj.(*unstructured.Unstructured)
 	if !ok {
 		return fmt.Errorf("unstructured client did not understand object: %T", obj)
@@ -94,7 +90,7 @@ func (uc *unstructuredClient) Update(ctx context.Context, obj Object, opts ...Up
 }
 
 // Delete implements client.Client
-func (uc *unstructuredClient) Delete(ctx context.Context, obj Object, opts ...DeleteOption) error {
+func (uc *unstructuredClient) Delete(ctx context.Context, obj runtime.Object, opts ...DeleteOption) error {
 	_, ok := obj.(*unstructured.Unstructured)
 	if !ok {
 		return fmt.Errorf("unstructured client did not understand object: %T", obj)
@@ -117,7 +113,7 @@ func (uc *unstructuredClient) Delete(ctx context.Context, obj Object, opts ...De
 }
 
 // DeleteAllOf implements client.Client
-func (uc *unstructuredClient) DeleteAllOf(ctx context.Context, obj Object, opts ...DeleteAllOfOption) error {
+func (uc *unstructuredClient) DeleteAllOf(ctx context.Context, obj runtime.Object, opts ...DeleteAllOfOption) error {
 	_, ok := obj.(*unstructured.Unstructured)
 	if !ok {
 		return fmt.Errorf("unstructured client did not understand object: %T", obj)
@@ -140,7 +136,7 @@ func (uc *unstructuredClient) DeleteAllOf(ctx context.Context, obj Object, opts 
 }
 
 // Patch implements client.Client
-func (uc *unstructuredClient) Patch(ctx context.Context, obj Object, patch Patch, opts ...PatchOption) error {
+func (uc *unstructuredClient) Patch(ctx context.Context, obj runtime.Object, patch Patch, opts ...PatchOption) error {
 	_, ok := obj.(*unstructured.Unstructured)
 	if !ok {
 		return fmt.Errorf("unstructured client did not understand object: %T", obj)
@@ -168,7 +164,7 @@ func (uc *unstructuredClient) Patch(ctx context.Context, obj Object, patch Patch
 }
 
 // Get implements client.Client
-func (uc *unstructuredClient) Get(ctx context.Context, key ObjectKey, obj Object) error {
+func (uc *unstructuredClient) Get(ctx context.Context, key ObjectKey, obj runtime.Object) error {
 	u, ok := obj.(*unstructured.Unstructured)
 	if !ok {
 		return fmt.Errorf("unstructured client did not understand object: %T", obj)
@@ -194,7 +190,7 @@ func (uc *unstructuredClient) Get(ctx context.Context, key ObjectKey, obj Object
 }
 
 // List implements client.Client
-func (uc *unstructuredClient) List(ctx context.Context, obj ObjectList, opts ...ListOption) error {
+func (uc *unstructuredClient) List(ctx context.Context, obj runtime.Object, opts ...ListOption) error {
 	u, ok := obj.(*unstructured.UnstructuredList)
 	if !ok {
 		return fmt.Errorf("unstructured client did not understand object: %T", obj)
@@ -221,7 +217,7 @@ func (uc *unstructuredClient) List(ctx context.Context, obj ObjectList, opts ...
 		Into(obj)
 }
 
-func (uc *unstructuredClient) UpdateStatus(ctx context.Context, obj Object, opts ...UpdateOption) error {
+func (uc *unstructuredClient) UpdateStatus(ctx context.Context, obj runtime.Object, opts ...UpdateOption) error {
 	_, ok := obj.(*unstructured.Unstructured)
 	if !ok {
 		return fmt.Errorf("unstructured client did not understand object: %T", obj)
@@ -243,7 +239,7 @@ func (uc *unstructuredClient) UpdateStatus(ctx context.Context, obj Object, opts
 		Into(obj)
 }
 
-func (uc *unstructuredClient) PatchStatus(ctx context.Context, obj Object, patch Patch, opts ...PatchOption) error {
+func (uc *unstructuredClient) PatchStatus(ctx context.Context, obj runtime.Object, patch Patch, opts ...PatchOption) error {
 	u, ok := obj.(*unstructured.Unstructured)
 	if !ok {
 		return fmt.Errorf("unstructured client did not understand object: %T", obj)
