@@ -52,7 +52,7 @@ type MDStat struct {
 func (fs FS) MDStat() ([]MDStat, error) {
 	data, err := ioutil.ReadFile(fs.proc.Path("mdstat"))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error parsing mdstat %s: %s", fs.proc.Path("mdstat"), err)
 	}
 	mdstat, err := parseMDStat(data)
 	if err != nil {
@@ -107,14 +107,11 @@ func parseMDStat(mdStatData []byte) ([]MDStat, error) {
 		syncedBlocks := size
 		recovering := strings.Contains(lines[syncLineIdx], "recovery")
 		resyncing := strings.Contains(lines[syncLineIdx], "resync")
-		checking := strings.Contains(lines[syncLineIdx], "check")
 
 		// Append recovery and resyncing state info.
-		if recovering || resyncing || checking {
+		if recovering || resyncing {
 			if recovering {
 				state = "recovering"
-			} else if checking {
-				state = "checking"
 			} else {
 				state = "resyncing"
 			}

@@ -18,13 +18,12 @@ package source
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sync"
 
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/util/workqueue"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/internal/log"
@@ -54,20 +53,13 @@ const (
 type Source interface {
 	// Start is internal and should be called only by the Controller to register an EventHandler with the Informer
 	// to enqueue reconcile.Requests.
-	Start(context.Context, handler.EventHandler, workqueue.RateLimitingInterface, ...predicate.Predicate) error
-}
-
-// SyncingSource is a source that needs syncing prior to being usable. The controller
-// will call its WaitForSync prior to starting workers.
-type SyncingSource interface {
-	Source
-	WaitForSync(ctx context.Context) error
+	Start(handler.EventHandler, workqueue.RateLimitingInterface, ...predicate.Predicate) error
 }
 
 // NewKindWithCache creates a Source without InjectCache, so that it is assured that the given cache is used
 // and not overwritten. It can be used to watch objects in a different cluster by passing the cache
 // from that other cluster
-func NewKindWithCache(object client.Object, cache cache.Cache) SyncingSource {
+func NewKindWithCache(object runtime.Object, cache cache.Cache) Source {
 	return &kindWithCache{kind: Kind{Type: object, cache: cache}}
 }
 
@@ -75,29 +67,25 @@ type kindWithCache struct {
 	kind Kind
 }
 
-func (ks *kindWithCache) Start(ctx context.Context, handler handler.EventHandler, queue workqueue.RateLimitingInterface,
+func (ks *kindWithCache) Start(handler handler.EventHandler, queue workqueue.RateLimitingInterface,
 	prct ...predicate.Predicate) error {
-	return ks.kind.Start(ctx, handler, queue, prct...)
-}
-
-func (ks *kindWithCache) WaitForSync(ctx context.Context) error {
-	return ks.kind.WaitForSync(ctx)
+	return ks.kind.Start(handler, queue, prct...)
 }
 
 // Kind is used to provide a source of events originating inside the cluster from Watches (e.g. Pod Create)
 type Kind struct {
 	// Type is the type of object to watch.  e.g. &v1.Pod{}
-	Type client.Object
+	Type runtime.Object
 
 	// cache used to watch APIs
 	cache cache.Cache
 }
 
-var _ SyncingSource = &Kind{}
+var _ Source = &Kind{}
 
 // Start is internal and should be called only by the Controller to register an EventHandler with the Informer
 // to enqueue reconcile.Requests.
-func (ks *Kind) Start(ctx context.Context, handler handler.EventHandler, queue workqueue.RateLimitingInterface,
+func (ks *Kind) Start(handler handler.EventHandler, queue workqueue.RateLimitingInterface,
 	prct ...predicate.Predicate) error {
 
 	// Type should have been specified by the user.
@@ -111,7 +99,7 @@ func (ks *Kind) Start(ctx context.Context, handler handler.EventHandler, queue w
 	}
 
 	// Lookup the Informer from the Cache and add an EventHandler which populates the Queue
-	i, err := ks.cache.GetInformer(ctx, ks.Type)
+	i, err := ks.cache.GetInformer(context.TODO(), ks.Type)
 	if err != nil {
 		if kindMatchErr, ok := err.(*meta.NoKindMatchError); ok {
 			log.Error(err, "if kind is a CRD, it should be installed before calling Start",
@@ -128,16 +116,6 @@ func (ks *Kind) String() string {
 		return fmt.Sprintf("kind source: %v", ks.Type.GetObjectKind().GroupVersionKind().String())
 	}
 	return fmt.Sprintf("kind source: unknown GVK")
-}
-
-// WaitForSync implements SyncingSource to allow controllers to wait with starting
-// workers until the cache is synced.
-func (ks *Kind) WaitForSync(ctx context.Context) error {
-	if !ks.cache.WaitForCacheSync(ctx) {
-		// Would be great to return something more informative here
-		return errors.New("cache did not sync")
-	}
-	return nil
 }
 
 var _ inject.Cache = &Kind{}
@@ -195,7 +173,6 @@ func (cs *Channel) InjectStopChannel(stop <-chan struct{}) error {
 
 // Start implements Source and should only be called by the Controller.
 func (cs *Channel) Start(
-	ctx context.Context,
 	handler handler.EventHandler,
 	queue workqueue.RateLimitingInterface,
 	prct ...predicate.Predicate) error {
@@ -214,17 +191,12 @@ func (cs *Channel) Start(
 		cs.DestBufferSize = defaultBufferSize
 	}
 
-	dst := make(chan event.GenericEvent, cs.DestBufferSize)
-
-	cs.destLock.Lock()
-	cs.dest = append(cs.dest, dst)
-	cs.destLock.Unlock()
-
 	cs.once.Do(func() {
 		// Distribute GenericEvents to all EventHandler / Queue pairs Watching this source
-		go cs.syncLoop(ctx)
+		go cs.syncLoop()
 	})
 
+	dst := make(chan event.GenericEvent, cs.DestBufferSize)
 	go func() {
 		for evt := range dst {
 			shouldHandle := true
@@ -240,6 +212,11 @@ func (cs *Channel) Start(
 			}
 		}
 	}()
+
+	cs.destLock.Lock()
+	defer cs.destLock.Unlock()
+
+	cs.dest = append(cs.dest, dst)
 
 	return nil
 }
@@ -267,20 +244,14 @@ func (cs *Channel) distribute(evt event.GenericEvent) {
 	}
 }
 
-func (cs *Channel) syncLoop(ctx context.Context) {
+func (cs *Channel) syncLoop() {
 	for {
 		select {
-		case <-ctx.Done():
+		case <-cs.stop:
 			// Close destination channels
 			cs.doStop()
 			return
-		case evt, stillOpen := <-cs.Source:
-			if !stillOpen {
-				// if the source channel is closed, we're never gonna get
-				// anything more on it, so stop & bail
-				cs.doStop()
-				return
-			}
+		case evt := <-cs.Source:
 			cs.distribute(evt)
 		}
 	}
@@ -296,7 +267,7 @@ var _ Source = &Informer{}
 
 // Start is internal and should be called only by the Controller to register an EventHandler with the Informer
 // to enqueue reconcile.Requests.
-func (is *Informer) Start(ctx context.Context, handler handler.EventHandler, queue workqueue.RateLimitingInterface,
+func (is *Informer) Start(handler handler.EventHandler, queue workqueue.RateLimitingInterface,
 	prct ...predicate.Predicate) error {
 
 	// Informer should have been specified by the user.
@@ -312,15 +283,13 @@ func (is *Informer) String() string {
 	return fmt.Sprintf("informer source: %p", is.Informer)
 }
 
-var _ Source = Func(nil)
-
 // Func is a function that implements Source
-type Func func(context.Context, handler.EventHandler, workqueue.RateLimitingInterface, ...predicate.Predicate) error
+type Func func(handler.EventHandler, workqueue.RateLimitingInterface, ...predicate.Predicate) error
 
 // Start implements Source
-func (f Func) Start(ctx context.Context, evt handler.EventHandler, queue workqueue.RateLimitingInterface,
+func (f Func) Start(evt handler.EventHandler, queue workqueue.RateLimitingInterface,
 	pr ...predicate.Predicate) error {
-	return f(ctx, evt, queue, pr...)
+	return f(evt, queue, pr...)
 }
 
 func (f Func) String() string {

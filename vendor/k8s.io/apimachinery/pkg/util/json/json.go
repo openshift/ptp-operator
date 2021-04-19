@@ -39,8 +39,7 @@ func Marshal(v interface{}) ([]byte, error) {
 const maxDepth = 10000
 
 // Unmarshal unmarshals the given data
-// If v is a *map[string]interface{}, *[]interface{}, or *interface{} numbers
-// are converted to int64 or float64
+// If v is a *map[string]interface{}, numbers are converted to int64 or float64
 func Unmarshal(data []byte, v interface{}) error {
 	switch v := v.(type) {
 	case *map[string]interface{}:
@@ -53,7 +52,7 @@ func Unmarshal(data []byte, v interface{}) error {
 			return err
 		}
 		// If the decode succeeds, post-process the map to convert json.Number objects to int64 or float64
-		return ConvertMapNumbers(*v, 0)
+		return convertMapNumbers(*v, 0)
 
 	case *[]interface{}:
 		// Build a decoder from the given data
@@ -65,43 +64,16 @@ func Unmarshal(data []byte, v interface{}) error {
 			return err
 		}
 		// If the decode succeeds, post-process the map to convert json.Number objects to int64 or float64
-		return ConvertSliceNumbers(*v, 0)
-
-	case *interface{}:
-		// Build a decoder from the given data
-		decoder := json.NewDecoder(bytes.NewBuffer(data))
-		// Preserve numbers, rather than casting to float64 automatically
-		decoder.UseNumber()
-		// Run the decode
-		if err := decoder.Decode(v); err != nil {
-			return err
-		}
-		// If the decode succeeds, post-process the map to convert json.Number objects to int64 or float64
-		return ConvertInterfaceNumbers(v, 0)
+		return convertSliceNumbers(*v, 0)
 
 	default:
 		return json.Unmarshal(data, v)
 	}
 }
 
-// ConvertInterfaceNumbers converts any json.Number values to int64 or float64.
-// Values which are map[string]interface{} or []interface{} are recursively visited
-func ConvertInterfaceNumbers(v *interface{}, depth int) error {
-	var err error
-	switch v2 := (*v).(type) {
-	case json.Number:
-		*v, err = convertNumber(v2)
-	case map[string]interface{}:
-		err = ConvertMapNumbers(v2, depth+1)
-	case []interface{}:
-		err = ConvertSliceNumbers(v2, depth+1)
-	}
-	return err
-}
-
-// ConvertMapNumbers traverses the map, converting any json.Number values to int64 or float64.
+// convertMapNumbers traverses the map, converting any json.Number values to int64 or float64.
 // values which are map[string]interface{} or []interface{} are recursively visited
-func ConvertMapNumbers(m map[string]interface{}, depth int) error {
+func convertMapNumbers(m map[string]interface{}, depth int) error {
 	if depth > maxDepth {
 		return fmt.Errorf("exceeded max depth of %d", maxDepth)
 	}
@@ -112,9 +84,9 @@ func ConvertMapNumbers(m map[string]interface{}, depth int) error {
 		case json.Number:
 			m[k], err = convertNumber(v)
 		case map[string]interface{}:
-			err = ConvertMapNumbers(v, depth+1)
+			err = convertMapNumbers(v, depth+1)
 		case []interface{}:
-			err = ConvertSliceNumbers(v, depth+1)
+			err = convertSliceNumbers(v, depth+1)
 		}
 		if err != nil {
 			return err
@@ -123,9 +95,9 @@ func ConvertMapNumbers(m map[string]interface{}, depth int) error {
 	return nil
 }
 
-// ConvertSliceNumbers traverses the slice, converting any json.Number values to int64 or float64.
+// convertSliceNumbers traverses the slice, converting any json.Number values to int64 or float64.
 // values which are map[string]interface{} or []interface{} are recursively visited
-func ConvertSliceNumbers(s []interface{}, depth int) error {
+func convertSliceNumbers(s []interface{}, depth int) error {
 	if depth > maxDepth {
 		return fmt.Errorf("exceeded max depth of %d", maxDepth)
 	}
@@ -136,9 +108,9 @@ func ConvertSliceNumbers(s []interface{}, depth int) error {
 		case json.Number:
 			s[i], err = convertNumber(v)
 		case map[string]interface{}:
-			err = ConvertMapNumbers(v, depth+1)
+			err = convertMapNumbers(v, depth+1)
 		case []interface{}:
-			err = ConvertSliceNumbers(v, depth+1)
+			err = convertSliceNumbers(v, depth+1)
 		}
 		if err != nil {
 			return err

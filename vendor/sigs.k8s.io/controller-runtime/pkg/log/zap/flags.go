@@ -19,33 +19,34 @@ limitations under the License.
 package zap
 
 import (
-	"flag"
 	"fmt"
 	"strconv"
 	"strings"
 
+	"github.com/spf13/pflag"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
 var levelStrings = map[string]zapcore.Level{
-	"debug": zap.DebugLevel,
-	"info":  zap.InfoLevel,
-	"error": zap.ErrorLevel,
-}
-
-var stackLevelStrings = map[string]zapcore.Level{
-	"info":  zap.InfoLevel,
-	"error": zap.ErrorLevel,
-	"panic": zap.PanicLevel,
+	"debug":  zap.DebugLevel,
+	"-1":     zap.DebugLevel,
+	"info":   zap.InfoLevel,
+	"0":      zap.InfoLevel,
+	"error":  zap.ErrorLevel,
+	"2":      zap.ErrorLevel,
+	"dpanic": zap.DPanicLevel,
+	"panic":  zap.PanicLevel,
+	"warn":   zap.WarnLevel,
+	"fatal":  zap.FatalLevel,
 }
 
 type encoderFlag struct {
-	setFunc func(NewEncoderFunc)
+	setFunc func(zapcore.Encoder)
 	value   string
 }
 
-var _ flag.Value = &encoderFlag{}
+var _ pflag.Value = &encoderFlag{}
 
 func (ev *encoderFlag) String() string {
 	return ev.value
@@ -59,9 +60,9 @@ func (ev *encoderFlag) Set(flagValue string) error {
 	val := strings.ToLower(flagValue)
 	switch val {
 	case "json":
-		ev.setFunc(newJSONEncoder)
+		ev.setFunc(newJSONEncoder())
 	case "console":
-		ev.setFunc(newConsoleEncoder)
+		ev.setFunc(newConsoleEncoder())
 	default:
 		return fmt.Errorf("invalid encoder value \"%s\"", flagValue)
 	}
@@ -69,12 +70,22 @@ func (ev *encoderFlag) Set(flagValue string) error {
 	return nil
 }
 
+func newJSONEncoder() zapcore.Encoder {
+	encoderConfig := zap.NewProductionEncoderConfig()
+	return zapcore.NewJSONEncoder(encoderConfig)
+}
+
+func newConsoleEncoder() zapcore.Encoder {
+	encoderConfig := zap.NewDevelopmentEncoderConfig()
+	return zapcore.NewConsoleEncoder(encoderConfig)
+}
+
 type levelFlag struct {
 	setFunc func(zapcore.LevelEnabler)
 	value   string
 }
 
-var _ flag.Value = &levelFlag{}
+var _ pflag.Value = &levelFlag{}
 
 func (ev *levelFlag) Set(flagValue string) error {
 	level, validLevel := levelStrings[strings.ToLower(flagValue)]
@@ -89,9 +100,8 @@ func (ev *levelFlag) Set(flagValue string) error {
 		} else {
 			return fmt.Errorf("invalid log level \"%s\"", flagValue)
 		}
-	} else {
-		ev.setFunc(zap.NewAtomicLevelAt(level))
 	}
+	ev.setFunc(zap.NewAtomicLevelAt(level))
 	ev.value = flagValue
 	return nil
 }
@@ -109,10 +119,10 @@ type stackTraceFlag struct {
 	value   string
 }
 
-var _ flag.Value = &stackTraceFlag{}
+var _ pflag.Value = &stackTraceFlag{}
 
 func (ev *stackTraceFlag) Set(flagValue string) error {
-	level, validLevel := stackLevelStrings[strings.ToLower(flagValue)]
+	level, validLevel := levelStrings[strings.ToLower(flagValue)]
 	if !validLevel {
 		return fmt.Errorf("invalid stacktrace level \"%s\"", flagValue)
 	}
