@@ -107,6 +107,8 @@ spec:
       kind: Namespace
       metadata:
         name: openshift-ptp
+        annotations:
+          workload.openshift.io/allowed: "management"
         labels:
           name: openshift-ptp
           openshift.io/cluster-monitoring: "true"
@@ -208,6 +210,8 @@ spec:
               name: ptp-operator
           template:
             metadata:
+              annotations:
+                target.workload.openshift.io/management: '{"effect": "PreferredDuringScheduling"}'
               labels:
                 name: ptp-operator
             spec:
