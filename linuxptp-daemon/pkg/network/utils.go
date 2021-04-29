@@ -16,9 +16,6 @@ const (
 	_ETHTOOL_HARDWARE_RECEIVE_CAP   = "hardware-receive"
 	_ETHTOOL_HARDWARE_TRANSMIT_CAP  = "hardware-transmit"
 	_ETHTOOL_HARDWARE_RAW_CLOCK_CAP = "hardware-raw-clock"
-	_ETHTOOL_RX_HARDWARE_FLAG       = "(SOF_TIMESTAMPING_RX_HARDWARE)"
-	_ETHTOOL_TX_HARDWARE_FLAG       = "(SOF_TIMESTAMPING_TX_HARDWARE)"
-	_ETHTOOL_RAW_HARDWARE_FLAG      = "(SOF_TIMESTAMPING_RAW_HARDWARE)"
 )
 
 func ethtoolInstalled() bool {
@@ -37,13 +34,13 @@ func netParseEthtoolTimeStampFeature(cmdOut *bytes.Buffer) bool {
 		line := strings.TrimPrefix(scanner.Text(), "\t")
 		parts := strings.Fields(line)
 		if parts[0] == _ETHTOOL_HARDWARE_RECEIVE_CAP {
-			hardRxEnabled = parts[1] == _ETHTOOL_RX_HARDWARE_FLAG
+			hardRxEnabled = true
 		}
 		if parts[0] == _ETHTOOL_HARDWARE_TRANSMIT_CAP {
-			hardTxEnabled = parts[1] == _ETHTOOL_TX_HARDWARE_FLAG
+			hardTxEnabled = true
 		}
 		if parts[0] == _ETHTOOL_HARDWARE_RAW_CLOCK_CAP {
-			hardRawEnabled = parts[1] == _ETHTOOL_RAW_HARDWARE_FLAG
+			hardRawEnabled = true
 		}
 	}
 	return hardRxEnabled && hardTxEnabled && hardRawEnabled
