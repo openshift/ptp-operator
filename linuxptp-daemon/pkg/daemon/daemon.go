@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"strings"
@@ -17,9 +18,11 @@ import (
 )
 
 const (
-	PtpNamespace         = "openshift-ptp"
-	PTP4L_CONF_FILE_PATH = "/etc/ptp4l.conf"
-	PTP4L_CONF_DIR       = "/ptp4l-conf"
+	PtpNamespace            = "openshift-ptp"
+	PTP4L_CONF_FILE_PATH    = "/etc/ptp4l.conf"
+	PTP4L_CONF_DIR          = "/ptp4l-conf"
+	connectionRetryInterval = 1 * time.Second
+	eventSocket             = "/cloud-native/events.sock"
 )
 
 // ProcessManager manages a set of ptpProcess
@@ -45,6 +48,8 @@ type Daemon struct {
 	// node name where daemon is running
 	nodeName  string
 	namespace string
+	// write logs to socket, this will also send metrics to the socket
+	stdoutToSocket bool
 
 	// kubeClient allows interaction with Kubernetes, including the node we are running on.
 	kubeClient *kubernetes.Clientset
@@ -62,15 +67,18 @@ type Daemon struct {
 func New(
 	nodeName string,
 	namespace string,
+	stdoutToSocket bool,
 	kubeClient *kubernetes.Clientset,
 	ptpUpdate *LinuxPTPConfUpdate,
 	stopCh <-chan struct{},
 ) *Daemon {
-	RegisterMetrics(nodeName)
-
+	if !stdoutToSocket {
+		RegisterMetrics(nodeName)
+	}
 	return &Daemon{
 		nodeName:       nodeName,
 		namespace:      namespace,
+		stdoutToSocket: stdoutToSocket,
 		kubeClient:     kubeClient,
 		ptpUpdate:      ptpUpdate,
 		processManager: &ProcessManager{},
@@ -143,7 +151,7 @@ func (dn *Daemon) applyNodePTPProfiles() error {
 	for _, p := range dn.processManager.process {
 		if p != nil {
 			time.Sleep(1 * time.Second)
-			go cmdRun(p)
+			go cmdRun(p, dn.stdoutToSocket)
 		}
 	}
 	return nil
@@ -151,7 +159,7 @@ func (dn *Daemon) applyNodePTPProfiles() error {
 
 func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) error {
 	// This add the flags needed for monitor
-	addFlagsForMonitor(nodeProfile)
+	addFlagsForMonitor(nodeProfile, dn.stdoutToSocket)
 
 	socketPath := fmt.Sprintf("/var/run/ptp4l.%d.socket", runID)
 	// This will create the configuration needed to run the ptp4l and phc2sys
@@ -248,11 +256,17 @@ func ptp4lCreateCmd(nodeProfile *ptpv1.PtpProfile, confFilePath string) *exec.Cm
 }
 
 // cmdRun runs given ptpProcess and wait for errors
-func cmdRun(p *ptpProcess) {
+func cmdRun(p *ptpProcess, stdoutToSocket bool) {
 	glog.Infof("Starting %s...", p.name)
 	glog.Infof("%s cmd: %+v", p.name, p.cmd)
-
+	var c net.Conn
+	var err error
 	defer func() {
+		if stdoutToSocket && c != nil {
+			if err := c.Close(); err != nil {
+				glog.Errorf("closing connection returned error %s", err)
+			}
+		}
 		p.exitCh <- true
 	}()
 
@@ -268,15 +282,44 @@ func cmdRun(p *ptpProcess) {
 
 	done := make(chan struct{})
 
-	scanner := bufio.NewScanner(cmdReader)
-	go func() {
-		for scanner.Scan() {
-			output := scanner.Text()
-			fmt.Printf("%s\n", output)
-			extractMetrics(p.name, p.iface, output)
-		}
-		done <- struct{}{}
-	}()
+	if !stdoutToSocket {
+		scanner := bufio.NewScanner(cmdReader)
+		go func() {
+			for scanner.Scan() {
+				output := scanner.Text()
+				fmt.Printf("%s\n", output)
+				extractMetrics(p.name, p.iface, output)
+			}
+			done <- struct{}{}
+		}()
+	} else {
+		go func() {
+		connect:
+			select {
+			case <-p.exitCh:
+				done <- struct{}{}
+			default:
+				c, err = net.Dial("unix", eventSocket)
+				if err != nil {
+					glog.Errorf("error trying to connect to event socket")
+					time.Sleep(connectionRetryInterval)
+					goto connect
+				}
+			}
+			scanner := bufio.NewScanner(cmdReader)
+			for scanner.Scan() {
+				output := scanner.Text()
+				out := fmt.Sprintf("%s\n", output)
+				fmt.Printf("%s", out)
+				_, err := c.Write([]byte(out))
+				if err != nil {
+					glog.Errorf("Write error:", err)
+					goto connect
+				}
+			}
+			done <- struct{}{}
+		}()
+	}
 
 	err = p.cmd.Start()
 	if err != nil {

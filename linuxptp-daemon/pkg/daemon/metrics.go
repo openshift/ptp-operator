@@ -186,15 +186,18 @@ func extractRegularMetrics(processName, output string) (offsetFromMaster, maxOff
 	return
 }
 
-func addFlagsForMonitor(nodeProfile *ptpv1.PtpProfile) {
+func addFlagsForMonitor(nodeProfile *ptpv1.PtpProfile, stdoutToSocket bool) {
 	// If output doesn't exist we add it for the prometheus exporter
 	if nodeProfile.Phc2sysOpts != nil {
 		if !strings.Contains(*nodeProfile.Phc2sysOpts, "-m") {
 			glog.Info("adding -m to print messages to stdout for phc2sys to use prometheus exporter")
 			*nodeProfile.Phc2sysOpts = fmt.Sprintf("%s -m", *nodeProfile.Phc2sysOpts)
 		}
-
-		if !strings.Contains(*nodeProfile.Phc2sysOpts, "-u") {
+		// stdoutToSocket is for sidecar to consume events, -u  will not generate logs with offset and clock state.
+		// disable -u for  events
+		if stdoutToSocket && strings.Contains(*nodeProfile.Phc2sysOpts, "-u") {
+			glog.Error("-u option will not generate clock state events,  remove -u option")
+		} else if !stdoutToSocket && !strings.Contains(*nodeProfile.Phc2sysOpts, "-u") {
 			glog.Info("adding -u 1 to print summary messages to stdout for phc2sys to use prometheus exporter")
 			*nodeProfile.Phc2sysOpts = fmt.Sprintf("%s -u 1", *nodeProfile.Phc2sysOpts)
 		}
