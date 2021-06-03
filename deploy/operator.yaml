@@ -27,6 +27,10 @@ spec:
           command: [ "/bin/bash", "-c", "--" ]
           args: [ "ptp-operator --alsologtostderr -v 10" ]
           imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: 50m
+              memory: 100Mi
           env:
             - name: WATCH_NAMESPACE
               valueFrom:
