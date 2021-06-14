@@ -62,7 +62,7 @@ type PtpConfigList struct {
 
 type PtpProfile struct {
 	Name        *string `json:"name"`
-	Interface   *string `json:"interface"`
+	Interface   *string `json:"interface,omitempty"`
 	Ptp4lOpts   *string `json:"ptp4lOpts,omitempty"`
 	Phc2sysOpts *string `json:"phc2sysOpts,omitempty"`
 	Ptp4lConf   *string `json:"ptp4lConf,omitempty"`
