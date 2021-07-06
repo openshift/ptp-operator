@@ -10,6 +10,7 @@ rules:
   - pods
   - services
   - configmaps
+  - services/finalizers
   verbs:
   - '*'
 - apiGroups:
@@ -18,6 +19,7 @@ rules:
   - deployments
   - daemonsets
   - replicasets
+  - deployments/finalizers
   verbs:
   - '*'
 - apiGroups:
