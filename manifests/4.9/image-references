@@ -15,3 +15,8 @@ spec:
     from:
       kind: DockerImage
       name: quay.io/openshift/origin-kube-rbac-proxy:4.9
+  - name: cloud-event-proxy
+      from:
+        kind: DockerImage
+        name: quay.io/openshift/origin-cloud-event-proxy:4.9
+

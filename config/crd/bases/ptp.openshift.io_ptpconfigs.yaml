@@ -49,6 +49,24 @@ spec:
                       type: string
                     ptp4lOpts:
                       type: string
+                    ptpClockThreshold:
+                      properties:
+                        holdOverTimeout:
+                          default: 5
+                          description: clock state to stay in holdover state in secs
+                          format: int64
+                          type: integer
+                        maxOffsetThreshold:
+                          default: 100
+                          description: max offset in nano secs
+                          format: int64
+                          type: integer
+                        minOffsetThreshold:
+                          default: -100
+                          description: min offset in nano secs
+                          format: int64
+                          type: integer
+                      type: object
                   required:
                   - name
                   type: object

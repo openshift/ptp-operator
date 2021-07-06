@@ -66,6 +66,19 @@ type PtpProfile struct {
 	Ptp4lOpts   *string `json:"ptp4lOpts,omitempty"`
 	Phc2sysOpts *string `json:"phc2sysOpts,omitempty"`
 	Ptp4lConf   *string `json:"ptp4lConf,omitempty"`
+	PtpClockThreshold *PtpClockThreshold `json:"ptpClockThreshold,omitempty"`
+}
+
+type PtpClockThreshold struct {
+	// +kubebuilder:default=5
+	// clock state to stay in holdover state in secs
+	HoldOverTimeout int64 `json:"holdOverTimeout,omitempty"`
+	// +kubebuilder:default=100
+	// max offset in nano secs
+	MaxOffsetThreshold int64 `json:"maxOffsetThreshold,omitempty"`
+	// +kubebuilder:default=-100
+	// min offset in nano secs
+	MinOffsetThreshold int64 `json:"minOffsetThreshold,omitempty"`
 }
 
 type PtpRecommend struct {
