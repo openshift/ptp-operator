@@ -175,23 +175,19 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 		glog.Infof("applyNodePtpProfile: not starting phc2sys, phc2sysOpts is empty")
 	}
 
-	if nodeProfile.Ptp4lOpts != nil && nodeProfile.Interface != nil {
-		configPath := fmt.Sprintf("/var/run/ptp4l.%d.config", runID)
-		err := ioutil.WriteFile(configPath, []byte(*nodeProfile.Ptp4lConf), 0644)
-		if err != nil {
-			return fmt.Errorf("failed to write the configuration file named %s: %v", configPath, err)
-		}
-
-		dn.processManager.process = append(dn.processManager.process, &ptpProcess{
-			name:            "ptp4l",
-			iface:           *nodeProfile.Interface,
-			ptp4lConfigPath: configPath,
-			ptp4lSocketPath: socketPath,
-			exitCh:          make(chan bool),
-			cmd:             ptp4lCreateCmd(nodeProfile, configPath)})
-	} else {
-		glog.Infof("applyNodePtpProfile: not starting ptp4l, ptp4lOpts or interface is empty")
+	configPath := fmt.Sprintf("/var/run/ptp4l.%d.config", runID)
+	err := ioutil.WriteFile(configPath, []byte(*nodeProfile.Ptp4lConf), 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write the configuration file named %s: %v", configPath, err)
 	}
+
+	dn.processManager.process = append(dn.processManager.process, &ptpProcess{
+		name:            "ptp4l",
+		iface:           *nodeProfile.Interface,
+		ptp4lConfigPath: configPath,
+		ptp4lSocketPath: socketPath,
+		exitCh:          make(chan bool),
+		cmd:             ptp4lCreateCmd(nodeProfile, configPath)})
 
 	return nil
 }
@@ -202,6 +198,18 @@ func (dn *Daemon) addProfileConfig(socketPath string, nodeProfile *ptpv1.PtpProf
 		// We need to copy this to another variable because is a pointer
 		config := string(dn.ptpUpdate.defaultPTP4lConfig)
 		nodeProfile.Ptp4lConf = &config
+	}
+
+	if nodeProfile.Ptp4lOpts == nil || *nodeProfile.Ptp4lOpts == "" {
+		// We need to copy this to another variable because is a pointer
+		opts := string("")
+		nodeProfile.Ptp4lOpts = &opts
+	}
+
+	if nodeProfile.Interface == nil || *nodeProfile.Interface == "" {
+		// We need to copy this to another variable because is a pointer
+		iface := string("")
+		nodeProfile.Interface = &iface
 	}
 
 	config := fmt.Sprintf("%s\nuds_address %s\nmessage_tag [%s]",
@@ -226,9 +234,13 @@ func phc2sysCreateCmd(nodeProfile *ptpv1.PtpProfile) *exec.Cmd {
 
 // ptp4lCreateCmd generate ptp4l command
 func ptp4lCreateCmd(nodeProfile *ptpv1.PtpProfile, confFilePath string) *exec.Cmd {
-	cmdLine := fmt.Sprintf("/usr/sbin/ptp4l -f %s -i %s %s",
+	var ifaceString string;
+	if *nodeProfile.Interface != "" {
+		ifaceString = fmt.Sprintf("-i %s", *nodeProfile.Interface)
+	}
+	cmdLine := fmt.Sprintf("/usr/sbin/ptp4l -f %s %s %s",
 		confFilePath,
-		*nodeProfile.Interface,
+		ifaceString,
 		*nodeProfile.Ptp4lOpts)
 
 	args := strings.Split(cmdLine, " ")
