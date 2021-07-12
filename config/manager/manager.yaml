@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ptp-operator
+  namespace: openshift-ptp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: ptp-operator
+  template:
+    metadata:
+      labels:
+        name: ptp-operator
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/master: ""
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
+        operator: Exists
+      serviceAccountName: ptp-operator
+      containers:
+        - name: ptp-operator
+          # Replace this with the built image name
+          image: $PTP_OPERATOR_IMAGE
+          command: [ "/bin/bash", "-c", "--" ]
+          args: [ "ptp-operator --alsologtostderr -v 10" ]
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: OPERATOR_NAME
+              value: $OPERATOR_NAME
+            - name: RELEASE_VERSION
+              value: $RELEASE_VERSION
+            - name: LINUXPTP_DAEMON_IMAGE
+              value: $LINUXPTP_DAEMON_IMAGE
+            - name: KUBE_RBAC_PROXY_IMAGE
+              value: $KUBE_RBAC_PROXY_IMAGE
