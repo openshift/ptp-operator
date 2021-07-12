@@ -13,7 +13,7 @@ const (
 	PtpLinuxDaemonNamespace         = "openshift-ptp"
 	PtpOperatorDeploymentName       = "ptp-operator"
 	PtpDaemonsetName                = "linuxptp-daemon"
-	PtpSlaveNodeLabel               = "ptp/test-slave"
+	PtpClientNodeLabel              = "ptp/test-client"
 	PtpGrandmasterNodeLabel         = "ptp/test-grandmaster"
 	PtpResourcesGroupVersionPrefix  = "ptp.openshift.io/v"
 	PtpResourcesNameOperatorConfigs = "ptpoperatorconfigs"
@@ -24,5 +24,5 @@ const (
 
 var (
 	PtpGrandMasterPolicyName = "test-grandmaster"
-	PtpSlavePolicyName       = "test-slave"
+	PtpClientPolicyName      = "test-client"
 )
