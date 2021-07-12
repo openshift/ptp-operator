@@ -14,6 +14,7 @@ type PtpOperatorConfigSpec struct {
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
 	DaemonNodeSelector map[string]string `json:"daemonNodeSelector"`
+	EventConfig PtpEventConfig `json:"ptpEventConfig,omitempty"`
 }
 
 // PtpOperatorConfigStatus defines the observed state of PtpOperatorConfig
@@ -22,6 +23,21 @@ type PtpOperatorConfigStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
+}
+
+// PtpEventConfig defines the desired state of event framework
+// +k8s:openapi-gen=true
+type PtpEventConfig struct {
+	//EnableEventPublisher will deploy event proxy as a sidecar
+	EnableEventPublisher  bool `json:"enableEventPublisher,omitempty"`
+	//clock state to stay in holdover state in secs
+	HoldOverTimeout int64 `json:"holdOverTimeout,omitempty"`
+	//max offset in nano secs
+	MaxOffsetThreshold int64 `json:"maxOffsetThreshold,omitempty"`
+	//min offset in nano secs
+	MinOffsetThreshold int64 `json:"minOffsetThreshold,omitempty"`
+    // transportHost address for event messages
+	TransportHost string `json:"transportHost,omitempty"`
 }
 
 // +genclient

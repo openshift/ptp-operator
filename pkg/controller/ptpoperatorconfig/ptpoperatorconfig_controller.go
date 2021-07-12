@@ -102,6 +102,7 @@ func (r *ReconcilePtpOperatorConfig) Reconcile(request reconcile.Request) (recon
 			defaultCfg.SetName(names.DefaultOperatorConfigName)
 			defaultCfg.Spec = ptpv1.PtpOperatorConfigSpec{
 				DaemonNodeSelector: map[string]string{},
+				EventConfig: ptpv1.PtpEventConfig{},
 			}
 			if err = r.client.Create(context.TODO(), defaultCfg); err != nil {
 				reqLogger.Error(err, "failed to create default ptp config",
@@ -201,6 +202,26 @@ func (r *ReconcilePtpOperatorConfig) syncLinuxptpDaemon(defaultCfg *ptpv1.PtpOpe
 	data.Data["Namespace"] = names.Namespace
 	data.Data["ReleaseVersion"] = os.Getenv("RELEASEVERSION")
 	data.Data["KubeRbacProxy"] = os.Getenv("KUBE_RBAC_PROXY_IMAGE")
+	data.Data["SideCar"] = os.Getenv("SIDECAR_EVENT_IMAGE")
+	// configure EventConfig
+	data.Data["EnableEventPublisher"] = "false"
+	data.Data["EventTransportHost"] = defaultCfg.Spec.EventConfig.TransportHost
+	data.Data["HoldOverTimeout"] = defaultCfg.Spec.EventConfig.HoldOverTimeout
+	data.Data["MaxOffsetThreshold"] = defaultCfg.Spec.EventConfig.MaxOffsetThreshold
+	data.Data["MinOffsetThreshold"] = defaultCfg.Spec.EventConfig.MinOffsetThreshold
+	if defaultCfg.Spec.EventConfig.EnableEventPublisher {
+		data.Data["EnableEventPublisher"] = "true"
+		if defaultCfg.Spec.EventConfig.HoldOverTimeout == 0 {
+			data.Data["HoldOverTimeout"] = 5 //min 5 secs
+		}
+		if defaultCfg.Spec.EventConfig.MaxOffsetThreshold == 0 {
+			data.Data["MaxOffsetThreshold"] = 100 //min 100 nano secs
+		}
+		if defaultCfg.Spec.EventConfig.TransportHost==""{
+			return fmt.Errorf("ptp operator config spec, transport host is required for event to publish: %v", err)
+		}
+	}
+
 	objs, err = render.RenderDir(filepath.Join(names.ManifestDir, "linuxptp"), &data)
 	if err != nil {
 		return fmt.Errorf("failed to render linuxptp daemon manifest: %v", err)

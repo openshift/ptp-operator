@@ -6,3 +6,9 @@ spec:
   daemonNodeSelector:
     feature.node.kubernetes.io/ptp-capable: "yes"
     node-role.kubernetes.io/worker: ""
+  ptpEventConfig:
+    enableEventPublisher: true
+    holdOverTimeout: 10
+    maxOffsetThreshold: 100
+    minOffsetThreshold: -100
+    transportHost: "amqp://amq-interconnect.amqp-interconnect.svc.cluster.local"

@@ -39,6 +39,29 @@ spec:
                   modifying this file Add custom validation using kubebuilder tags:
                   https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html'
                 type: object
+              ptpEventConfig:
+                description: PtpEventConfig defines the desired state of event framework
+                properties:
+                  enableEventPublisher:
+                    description: EnableEventPublisher will deploy event proxy as a
+                      sidecar
+                    type: boolean
+                  holdOverTimeout:
+                    description: clock state to stay in holdover state in secs
+                    format: int64
+                    type: integer
+                  maxOffsetThreshold:
+                    description: max offset in nano secs
+                    format: int64
+                    type: integer
+                  minOffsetThreshold:
+                    description: min offset in nano secs
+                    format: int64
+                    type: integer
+                  transportHost:
+                    description: transportHost address for event messages
+                    type: string
+                type: object
             required:
             - daemonNodeSelector
             type: object
