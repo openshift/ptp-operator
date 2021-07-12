@@ -73,6 +73,8 @@ spec:
           mountPath: /etc/linuxptp
         - name: socket-dir
           mountPath: /var/run
+        - name: host
+          mountPath: /host
       volumes:
         - name: config-volume
           configMap:
@@ -84,6 +86,9 @@ spec:
           hostPath:
             path: /var/run/ptp
             type: DirectoryOrCreate
+        - name: host
+          hostPath:
+            path: /
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
