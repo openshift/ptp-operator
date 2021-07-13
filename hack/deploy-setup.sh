@@ -5,9 +5,9 @@ pushd ${REPO_DIR}/deploy
 		envsubst< namespace.yaml | ${OPERATOR_EXEC} apply -f -
 	fi
 
-	FILES="crds/ptp.openshift.io_nodeptpdevices_crd.yaml
-		crds/ptp.openshift.io_ptpoperatorconfigs_crd.yaml
-		crds/ptp.openshift.io_ptpconfigs_crd.yaml
+	FILES="../config/crd/bases/ptp.openshift.io_nodeptpdevices.yaml
+		../config/crd/bases/ptp.openshift.io_ptpoperatorconfigs.yaml
+		../config/crd/bases/ptp.openshift.io_ptpconfigs.yaml
 		service_account.yaml
 		clusterrole.yaml
 		clusterrolebinding.yaml

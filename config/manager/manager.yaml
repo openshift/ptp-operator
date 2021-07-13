@@ -1,8 +1,16 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-ptp
+  labels:
+    name: openshift-ptp
+    openshift.io/cluster-monitoring: "true"
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ptp-operator
-  namespace: openshift-ptp
+  name: controller-manager
+  namespace: system
 spec:
   replicas: 1
   selector:
@@ -22,10 +30,10 @@ spec:
       serviceAccountName: ptp-operator
       containers:
         - name: ptp-operator
-          # Replace this with the built image name
-          image: $PTP_OPERATOR_IMAGE
-          command: [ "/bin/bash", "-c", "--" ]
-          args: [ "ptp-operator --alsologtostderr -v 10" ]
+          # Replaces this with the image name
+          image: controller
+          command:
+          - ptp-operator
           imagePullPolicy: IfNotPresent
           env:
             - name: WATCH_NAMESPACE
