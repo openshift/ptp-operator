@@ -195,6 +195,39 @@ spec:
           - "create"
         serviceAccountName: linuxptp-daemon
       permissions:
+        - serviceAccountName: ptp-operator
+          rules:
+            - apiGroups:
+              - coordination.k8s.io
+              resources:
+              - leases
+              verbs:
+              - get
+              - list
+              - watch
+              - create
+              - update
+              - patch
+              - delete
+            - apiGroups:
+              - ""
+              resources:
+              - events
+              verbs:
+              - create
+              - patch
+            - apiGroups:
+              - ""
+              resources:
+              - configmaps
+              verbs:
+              - get
+              - list
+              - watch
+              - create
+              - update
+              - patch
+              - delete
         - serviceAccountName: linuxptp-daemon
           rules:
             - apiGroups:
@@ -234,6 +267,8 @@ spec:
                   requests:
                     cpu: 50m
                     memory: 100Mi
+                args:
+                - --enable-leader-election
                 command:
                 - ptp-operator
                 env:

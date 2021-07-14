@@ -1,0 +1,125 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: linuxptp-daemon
+  namespace: openshift-ptp
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ptp-operator
+  namespace: openshift-ptp
+rules:
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["*"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["*"]
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["*"]
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["*"]
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["*"]
+- apiGroups: [""]
+  resources: ["serviceaccounts"]
+  verbs: ["*"]
+- apiGroups: ["apps"]
+  resources: ["daemonsets"]
+  verbs: ["*"]
+- apiGroups: ["apps"]
+  resources: ["replicasets"]
+  verbs: ["*"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["*"]
+- apiGroups: ["ptp.openshift.io"]
+  resources: ["*"]
+  verbs: ["*"]
+- apiGroups: ["monitoring.coreos.com"]
+  resources: ["servicemonitors"]
+  verbs: ["*"]
+- apiGroups: ["monitoring.coreos.com"]
+  resources: ["prometheusrules"]
+  verbs: ["*"]
+- apiGroups: ["rbac.authorization.k8s.io"]
+  resources: ["roles"]
+  verbs: ["*"]
+- apiGroups: ["rbac.authorization.k8s.io"]
+  resources: ["rolebindings"]
+  verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: linuxptp-daemon
+rules:
+- apiGroups: ["ptp.openshift.io"]
+  resources: ["*"]
+  verbs: ["*"]
+- apiGroups: ["authentication.k8s.io"]
+  resources: ["tokenreviews"]
+  verbs: ["create"]
+- apiGroups: ["authorization.k8s.io"]
+  resources: ["subjectaccessreviews"]
+  verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ptp-operator
+  namespace: openshift-ptp
+roleRef:
+  kind: ClusterRole
+  name: ptp-operator
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: ptp-operator
+  namespace: openshift-ptp
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: linuxptp-daemon
+  namespace: openshift-ptp
+roleRef:
+  kind: ClusterRole
+  name: linuxptp-daemon
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: linuxptp-daemon
+  namespace: openshift-ptp
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: linuxptp-daemon
+  namespace: openshift-ptp
+rules:
+  - apiGroups:
+      - security.openshift.io
+    resourceNames:
+      - privileged
+    resources:
+      - securitycontextconstraints
+    verbs:
+      - use
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: linuxptp-daemon
+  namespace: openshift-ptp
+subjects:
+- kind: ServiceAccount
+  name: linuxptp-daemon
+roleRef:
+  kind: Role
+  name: linuxptp-daemon
+  apiGroup: rbac.authorization.k8s.io
