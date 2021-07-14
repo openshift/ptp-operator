@@ -1,0 +1,6 @@
+## Append samples you want in your CSV to this file as resources ##
+resources:
+- ptp_v1_ptpconfig.yaml
+- ptp_v1_nodeptpdevice.yaml
+- ptp_v1_ptpoperatorconfig.yaml
+#+kubebuilder:scaffold:manifestskustomizesamples

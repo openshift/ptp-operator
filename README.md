@@ -95,7 +95,7 @@ In above example, `profile1` will be applied by `linuxptp-daemon` to nodes label
 
 To install PTP Operator:
 ```
-$ make deploy-setup
+$ make deploy
 ```
 
 To un-install:
