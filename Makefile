@@ -217,7 +217,10 @@ clean:
 	rm -rf build/_output/bin/ptp-operator
 
 functests:
-	hack/run-functests.sh
+	SUITE=./test/conformance hack/run-functests.sh
+
+test-validation-only:
+	SUITE=./test/validation hack/run-functests.sh
 
 # find or download controller-gen
 # download controller-gen if necessary

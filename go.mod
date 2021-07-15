@@ -14,6 +14,7 @@ require (
 	github.com/onsi/gomega v1.13.0
 	github.com/pkg/errors v0.9.1
 	k8s.io/api v0.21.2
+	k8s.io/apiextensions-apiserver v0.21.2
 	k8s.io/apimachinery v0.21.2
 	k8s.io/client-go v1.5.2
 	k8s.io/utils v0.0.0-20210527160623-6fdb442a123b
