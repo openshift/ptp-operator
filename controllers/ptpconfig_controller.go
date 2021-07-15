@@ -50,7 +50,7 @@ func (r *PtpConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	reqLogger.Info("Reconciling PtpConfig")
 
 	instances := &ptpv1.PtpConfigList{}
-	err := r.List(context.TODO(), instances, &client.ListOptions{})
+	err := r.List(ctx, instances, &client.ListOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
@@ -59,13 +59,13 @@ func (r *PtpConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	nodeList := &corev1.NodeList{}
-	err = r.List(context.TODO(), nodeList, &client.ListOptions{})
+	err = r.List(ctx, nodeList, &client.ListOptions{})
 	if err != nil {
 		glog.Errorf("failed to list nodes")
 		return reconcile.Result{}, err
 	}
 
-	if err = r.syncPtpConfig(instances, nodeList); err != nil {
+	if err = r.syncPtpConfig(ctx, instances, nodeList); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -73,7 +73,7 @@ func (r *PtpConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 }
 
 // syncPtpConfig synchronizes PtpConfig CR
-func (r *PtpConfigReconciler) syncPtpConfig(ptpConfigList *ptpv1.PtpConfigList, nodeList *corev1.NodeList) error {
+func (r *PtpConfigReconciler) syncPtpConfig(ctx context.Context, ptpConfigList *ptpv1.PtpConfigList, nodeList *corev1.NodeList) error {
 	var err error
 
 	nodePtpConfigMap := &corev1.ConfigMap{}
@@ -95,14 +95,14 @@ func (r *PtpConfigReconciler) syncPtpConfig(ptpConfigList *ptpv1.PtpConfigList, 
 	}
 
 	cm := &corev1.ConfigMap{}
-	err = r.Get(context.TODO(), types.NamespacedName{
+	err = r.Get(ctx, types.NamespacedName{
 		Namespace: names.Namespace, Name: names.DefaultPTPConfigMapName}, cm)
 	if err != nil {
 		return fmt.Errorf("failed to get ptp config map: %v", err)
 	} else {
 		glog.Infof("ptp config map already exists, updating")
 		cm.Data = nodePtpConfigMap.Data
-		err = r.Update(context.TODO(), cm)
+		err = r.Update(ctx, cm)
 		if err != nil {
 			return fmt.Errorf("failed to update ptp config map: %v", err)
 		}

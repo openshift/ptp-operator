@@ -63,7 +63,7 @@ func (r *PtpOperatorConfigReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	// Fetch the PtpOperatorConfig instance
 	defaultCfg := &ptpv1.PtpOperatorConfig{}
-	err := r.Get(context.TODO(), types.NamespacedName{
+	err := r.Get(ctx, types.NamespacedName{
 		Name: names.DefaultOperatorConfigName, Namespace: names.Namespace}, defaultCfg)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -74,7 +74,7 @@ func (r *PtpOperatorConfigReconciler) Reconcile(ctx context.Context, req ctrl.Re
 			defaultCfg.Spec = ptpv1.PtpOperatorConfigSpec{
 				DaemonNodeSelector: map[string]string{},
 			}
-			if err = r.Create(context.TODO(), defaultCfg); err != nil {
+			if err = r.Create(ctx, defaultCfg); err != nil {
 				reqLogger.Error(err, "failed to create default ptp config",
 					"Namespace", names.Namespace, "Name", names.DefaultOperatorConfigName)
 				return reconcile.Result{}, err
@@ -87,23 +87,23 @@ func (r *PtpOperatorConfigReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	}
 
 	nodeList := &corev1.NodeList{}
-	err = r.List(context.TODO(), nodeList, &client.ListOptions{})
+	err = r.List(ctx, nodeList, &client.ListOptions{})
 	if err != nil {
 		glog.Errorf("failed to list nodes")
 		return reconcile.Result{}, err
 	}
 
-	if err = r.syncNodePtpDevice(nodeList); err != nil {
+	if err = r.syncNodePtpDevice(ctx, nodeList); err != nil {
 		glog.Errorf("failed to sync node ptp device: %v", err)
 		return reconcile.Result{}, err
 	}
 
-	if err = r.createPTPConfigMap(defaultCfg); err != nil {
+	if err = r.createPTPConfigMap(ctx, defaultCfg); err != nil {
 		glog.Errorf("failed to create ptp config map node: %v", err)
 		return reconcile.Result{}, err
 	}
 
-	if err = r.syncLinuxptpDaemon(defaultCfg); err != nil {
+	if err = r.syncLinuxptpDaemon(ctx, defaultCfg); err != nil {
 		glog.Errorf("failed to sync linux ptp daemon: %v", err)
 		return reconcile.Result{}, err
 	}
@@ -112,11 +112,11 @@ func (r *PtpOperatorConfigReconciler) Reconcile(ctx context.Context, req ctrl.Re
 }
 
 // createPTPConfigMap creates PTP config map
-func (r *PtpOperatorConfigReconciler) createPTPConfigMap(defaultCfg *ptpv1.PtpOperatorConfig) error {
+func (r *PtpOperatorConfigReconciler) createPTPConfigMap(ctx context.Context, defaultCfg *ptpv1.PtpOperatorConfig) error {
 	var err error
 
 	cm := &corev1.ConfigMap{}
-	err = r.Get(context.TODO(), types.NamespacedName{
+	err = r.Get(ctx, types.NamespacedName{
 		Namespace: names.Namespace, Name: names.DefaultPTPConfigMapName}, cm)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -128,7 +128,7 @@ func (r *PtpOperatorConfigReconciler) createPTPConfigMap(defaultCfg *ptpv1.PtpOp
 				return fmt.Errorf("failed to set owner reference: %v", err)
 			}
 
-			err = r.Create(context.TODO(), cm)
+			err = r.Create(ctx, cm)
 			if err != nil {
 				return fmt.Errorf("failed to create ptp config map: %v", err)
 			}
@@ -163,7 +163,7 @@ func (r *PtpOperatorConfigReconciler) setDaemonNodeSelector(
 }
 
 // syncLinuxptpDaemon synchronizes Linuxptp DaemonSet
-func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(defaultCfg *ptpv1.PtpOperatorConfig) error {
+func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, defaultCfg *ptpv1.PtpOperatorConfig) error {
 	var err error
 	objs := []*uns.Unstructured{}
 
@@ -185,7 +185,7 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(defaultCfg *ptpv1.PtpOp
 		if err = controllerutil.SetControllerReference(defaultCfg, obj, r.Scheme); err != nil {
 			return fmt.Errorf("failed to set owner reference: %v", err)
 		}
-		if err = apply.ApplyObject(context.TODO(), r.Client, obj); err != nil {
+		if err = apply.ApplyObject(ctx, r.Client, obj); err != nil {
 			return fmt.Errorf("failed to apply object %v with err: %v", obj, err)
 		}
 	}
@@ -193,17 +193,17 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(defaultCfg *ptpv1.PtpOp
 }
 
 // syncNodePtpDevice synchronizes NodePtpDevice CR for each node
-func (r *PtpOperatorConfigReconciler) syncNodePtpDevice(nodeList *corev1.NodeList) error {
+func (r *PtpOperatorConfigReconciler) syncNodePtpDevice(ctx context.Context, nodeList *corev1.NodeList) error {
 	for _, node := range nodeList.Items {
 		found := &ptpv1.NodePtpDevice{}
-		err := r.Get(context.TODO(), types.NamespacedName{
+		err := r.Get(ctx, types.NamespacedName{
 			Namespace: names.Namespace, Name: node.Name}, found)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				ptpDev := &ptpv1.NodePtpDevice{}
 				ptpDev.Name = node.Name
 				ptpDev.Namespace = names.Namespace
-				err = r.Create(context.TODO(), ptpDev)
+				err = r.Create(ctx, ptpDev)
 				if err != nil {
 					return fmt.Errorf("failed to create NodePtpDevice for node: %v", node.Name)
 				}
