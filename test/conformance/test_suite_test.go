@@ -14,7 +14,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	_ "github.com/openshift/ptp-operator/test/ptp"
+	_ "github.com/openshift/ptp-operator/test/conformance/ptp"
 	testutils "github.com/openshift/ptp-operator/test/utils"
 	testclient "github.com/openshift/ptp-operator/test/utils/client"
 	"github.com/openshift/ptp-operator/test/utils/namespaces"
