@@ -50,7 +50,6 @@ spec:
                     ptp4lOpts:
                       type: string
                   required:
-                  - interface
                   - name
                   type: object
                 type: array
