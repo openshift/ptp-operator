@@ -286,6 +286,8 @@ spec:
                   value: quay.io/openshift/origin-ptp:4.9
                 - name: KUBE_RBAC_PROXY_IMAGE
                   value: quay.io/openshift/origin-kube-rbac-proxy:4.9
+                - name: SIDECAR_EVENT_IMAGE
+                  value: quay.io/openshift/origin-cloud-event-proxy:4.9
     strategy: deployment
   installModes:
   - supported: true

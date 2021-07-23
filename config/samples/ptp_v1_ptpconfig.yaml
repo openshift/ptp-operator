@@ -8,6 +8,7 @@ spec:
     interface: "ens787f1"
     ptp4lOpts: "-s -2"
     phc2sysOpts: "-a -r"
+    ptpClockThreshold: {}
   recommend:
   - profile: "profile1"
     priority: 4

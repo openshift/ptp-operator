@@ -172,6 +172,19 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 	data.Data["Namespace"] = names.Namespace
 	data.Data["ReleaseVersion"] = os.Getenv("RELEASEVERSION")
 	data.Data["KubeRbacProxy"] = os.Getenv("KUBE_RBAC_PROXY_IMAGE")
+	data.Data["SideCar"] = os.Getenv("SIDECAR_EVENT_IMAGE")
+	// configure EventConfig
+	if defaultCfg.Spec.EventConfig == nil {
+		data.Data["EnableEventPublisher"] = false
+	} else {
+		data.Data["EnableEventPublisher"] = defaultCfg.Spec.EventConfig.EnableEventPublisher
+		data.Data["EventTransportHost"] = defaultCfg.Spec.EventConfig.TransportHost
+		if defaultCfg.Spec.EventConfig.EnableEventPublisher {
+			if defaultCfg.Spec.EventConfig.TransportHost == "" {
+				return fmt.Errorf("ptp operator config spec, transportHost under ptpEventConfig is required for events to publish: %#v", defaultCfg.Spec.EventConfig)
+			}
+		}
+	}
 	objs, err = render.RenderDir(filepath.Join(names.ManifestDir, "linuxptp"), &data)
 	if err != nil {
 		return fmt.Errorf("failed to render linuxptp daemon manifest: %v", err)

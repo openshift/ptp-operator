@@ -24,7 +24,8 @@ metadata:
                 "interface": "ens787f1",
                 "name": "profile1",
                 "phc2sysOpts": "-a -r",
-                "ptp4lOpts": "-s -2"
+                "ptp4lOpts": "-s -2",
+                "ptpClockThreshold": {}
               }
             ],
             "recommend": [
@@ -51,7 +52,8 @@ metadata:
             "daemonNodeSelector": {
               "feature.node.kubernetes.io/ptp-capable": "yes",
               "node-role.kubernetes.io/worker": ""
-            }
+            },
+            "ptpEventConfig": {}
           }
         }
       ]
@@ -312,6 +314,8 @@ spec:
                   value: quay.io/openshift/origin-ptp:4.9
                 - name: KUBE_RBAC_PROXY_IMAGE
                   value: quay.io/openshift/origin-kube-rbac-proxy:4.9
+                - name: SIDECAR_EVENT_IMAGE
+                  value: quay.io/openshift/origin-cloud-event-proxy:4.9
                 - name: WATCH_NAMESPACE
                   valueFrom:
                     fieldRef:
