@@ -35,7 +35,7 @@ type ProcessManager struct {
 
 type ptpProcess struct {
 	name            string
-	iface           string
+	ifaces          []string
 	ptp4lSocketPath string
 	ptp4lConfigPath string
 	exitCh          chan bool
@@ -162,8 +162,12 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 	addFlagsForMonitor(nodeProfile, dn.stdoutToSocket)
 
 	socketPath := fmt.Sprintf("/var/run/ptp4l.%d.socket", runID)
+	configFile := fmt.Sprintf("ptp4l.%d.config", runID)
 	// This will create the configuration needed to run the ptp4l and phc2sys
-	dn.addProfileConfig(socketPath, nodeProfile)
+	err := dn.addProfileConfig(socketPath, configFile, nodeProfile)
+	if err != nil {
+		return fmt.Errorf("failed to add profile config %s: %v", configFile, err)
+	}
 
 	glog.Infof("------------------------------------")
 	printWhenNotNil(nodeProfile.Name, "Profile Name")
@@ -176,22 +180,22 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 	if nodeProfile.Phc2sysOpts != nil {
 		dn.processManager.process = append(dn.processManager.process, &ptpProcess{
 			name:   "phc2sys",
-			iface:  *nodeProfile.Interface,
+			ifaces: strings.Split(*nodeProfile.Interface, ","),
 			exitCh: make(chan bool),
 			cmd:    phc2sysCreateCmd(nodeProfile)})
 	} else {
 		glog.Infof("applyNodePtpProfile: not starting phc2sys, phc2sysOpts is empty")
 	}
 
-	configPath := fmt.Sprintf("/var/run/ptp4l.%d.config", runID)
-	err := ioutil.WriteFile(configPath, []byte(*nodeProfile.Ptp4lConf), 0644)
+	configPath := fmt.Sprintf("/var/run/%s", configFile)
+	err = ioutil.WriteFile(configPath, []byte(*nodeProfile.Ptp4lConf), 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write the configuration file named %s: %v", configPath, err)
 	}
 
 	dn.processManager.process = append(dn.processManager.process, &ptpProcess{
 		name:            "ptp4l",
-		iface:           *nodeProfile.Interface,
+		ifaces:          strings.Split(*nodeProfile.Interface, ","),
 		ptp4lConfigPath: configPath,
 		ptp4lSocketPath: socketPath,
 		exitCh:          make(chan bool),
@@ -200,7 +204,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 	return nil
 }
 
-func (dn *Daemon) addProfileConfig(socketPath string, nodeProfile *ptpv1.PtpProfile) {
+func (dn *Daemon) addProfileConfig(socketPath string, configFile string, nodeProfile *ptpv1.PtpProfile) error {
 	// TODO: later implement a merge capability
 	if nodeProfile.Ptp4lConf == nil || *nodeProfile.Ptp4lConf == "" {
 		// We need to copy this to another variable because is a pointer
@@ -214,23 +218,34 @@ func (dn *Daemon) addProfileConfig(socketPath string, nodeProfile *ptpv1.PtpProf
 		nodeProfile.Ptp4lOpts = &opts
 	}
 
-	if nodeProfile.Interface == nil || *nodeProfile.Interface == "" {
-		// We need to copy this to another variable because is a pointer
+	output := &ptp4lConf{}
+	err := output.populatePtp4lConf(nodeProfile.Ptp4lConf)
+	if err != nil {
+		return err
+	}
+
+	if nodeProfile.Interface != nil && *nodeProfile.Interface != "" {
+		ifaceSection := fmt.Sprintf("[%s]", *nodeProfile.Interface)
+		output.sections[ifaceSection] = ptp4lConfSection{options: map[string]string{}}
+	} else {
 		iface := string("")
 		nodeProfile.Interface = &iface
 	}
 
-	config := fmt.Sprintf("%s\nuds_address %s\nmessage_tag [%s]",
-		*nodeProfile.Ptp4lConf,
-		socketPath,
-		*nodeProfile.Interface)
-	nodeProfile.Ptp4lConf = &config
+	section := output.sections["[global]"]
+	section.options["message_tag"] = fmt.Sprintf("[%s]", configFile)
+	section.options["uds_address"] = socketPath
+	output.sections["[global]"] = section
+
+	*nodeProfile.Ptp4lConf, *nodeProfile.Interface = output.renderPtp4lConf()
 
 	commandLine := fmt.Sprintf("%s -z %s -t [%s]",
 		*nodeProfile.Phc2sysOpts,
 		socketPath,
-		*nodeProfile.Interface)
+		configFile)
 	nodeProfile.Phc2sysOpts = &commandLine
+
+	return nil
 }
 
 // phc2sysCreateCmd generate phc2sys command
@@ -242,13 +257,8 @@ func phc2sysCreateCmd(nodeProfile *ptpv1.PtpProfile) *exec.Cmd {
 
 // ptp4lCreateCmd generate ptp4l command
 func ptp4lCreateCmd(nodeProfile *ptpv1.PtpProfile, confFilePath string) *exec.Cmd {
-	var ifaceString string
-	if *nodeProfile.Interface != "" {
-		ifaceString = fmt.Sprintf("-i %s", *nodeProfile.Interface)
-	}
-	cmdLine := fmt.Sprintf("/usr/sbin/ptp4l -f %s %s %s",
+	cmdLine := fmt.Sprintf("/usr/sbin/ptp4l -f %s %s",
 		confFilePath,
-		ifaceString,
 		*nodeProfile.Ptp4lOpts)
 
 	args := strings.Split(cmdLine, " ")
@@ -288,7 +298,8 @@ func cmdRun(p *ptpProcess, stdoutToSocket bool) {
 			for scanner.Scan() {
 				output := scanner.Text()
 				fmt.Printf("%s\n", output)
-				extractMetrics(p.name, p.iface, output)
+				// TODO Update extractMetrics to take list of interfaces.
+				extractMetrics(p.name, p.ifaces[0], output)
 			}
 			done <- struct{}{}
 		}()
