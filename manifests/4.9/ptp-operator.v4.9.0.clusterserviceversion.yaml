@@ -3,6 +3,8 @@ kind: ClusterServiceVersion
 metadata:
   name: ptp-operator.v4.9.0
   namespace: openshift-ptp
+  labels:
+    operatorframework.io/arch.amd64: supported
   annotations:
     capabilities: Basic Install
     categories: Networking
