@@ -242,7 +242,7 @@ func phc2sysCreateCmd(nodeProfile *ptpv1.PtpProfile) *exec.Cmd {
 
 // ptp4lCreateCmd generate ptp4l command
 func ptp4lCreateCmd(nodeProfile *ptpv1.PtpProfile, confFilePath string) *exec.Cmd {
-	var ifaceString string;
+	var ifaceString string
 	if *nodeProfile.Interface != "" {
 		ifaceString = fmt.Sprintf("-i %s", *nodeProfile.Interface)
 	}
