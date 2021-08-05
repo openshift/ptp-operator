@@ -135,7 +135,7 @@ func nodeMatches(node *corev1.Node, matchRuleList []ptpv1.MatchRule) bool {
 
 		// return immediately when label matches
 		// this makes sure priority field is respected
-		for k, _ := range node.Labels {
+		for k := range node.Labels {
 			// make sure m.NodeLabel pointer is not nil before
 			// comparing values
 			if m.NodeLabel != nil && *m.NodeLabel == k {
