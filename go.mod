@@ -27,3 +27,5 @@ replace (
 	k8s.io/apimachinery => k8s.io/apimachinery v0.21.2
 	k8s.io/client-go => k8s.io/client-go v0.21.2
 )
+
+replace github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
