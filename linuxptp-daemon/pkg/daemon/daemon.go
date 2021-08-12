@@ -38,6 +38,7 @@ type ptpProcess struct {
 	ifaces          []string
 	ptp4lSocketPath string
 	ptp4lConfigPath string
+	configName      string
 	exitCh          chan bool
 	cmd             *exec.Cmd
 }
@@ -179,10 +180,11 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 
 	if nodeProfile.Phc2sysOpts != nil {
 		dn.processManager.process = append(dn.processManager.process, &ptpProcess{
-			name:   "phc2sys",
-			ifaces: strings.Split(*nodeProfile.Interface, ","),
-			exitCh: make(chan bool),
-			cmd:    phc2sysCreateCmd(nodeProfile)})
+			name:       "phc2sys",
+			ifaces:     strings.Split(*nodeProfile.Interface, ","),
+			configName: configFile,
+			exitCh:     make(chan bool),
+			cmd:        phc2sysCreateCmd(nodeProfile)})
 	} else {
 		glog.Infof("applyNodePtpProfile: not starting phc2sys, phc2sysOpts is empty")
 	}
@@ -198,6 +200,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 		ifaces:          strings.Split(*nodeProfile.Interface, ","),
 		ptp4lConfigPath: configPath,
 		ptp4lSocketPath: socketPath,
+		configName:      configFile,
 		exitCh:          make(chan bool),
 		cmd:             ptp4lCreateCmd(nodeProfile, configPath)})
 
@@ -298,8 +301,7 @@ func cmdRun(p *ptpProcess, stdoutToSocket bool) {
 			for scanner.Scan() {
 				output := scanner.Text()
 				fmt.Printf("%s\n", output)
-				// TODO Update extractMetrics to take list of interfaces.
-				extractMetrics(p.name, p.ifaces[0], output)
+				extractMetrics(p.configName, p.name, p.ifaces, output)
 			}
 			done <- struct{}{}
 		}()
