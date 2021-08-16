@@ -199,8 +199,9 @@ func extractMetrics(configName, processName string, ifaces []string, output stri
 }
 
 func extractSummaryMetrics(configName, processName, output string) (iface string, offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster float64) {
-	// remove everything before the rms string
-	// This makes the out to equals
+
+	// phc2sys[5196755.139]: [ptp4l.0.config] ens5f0 rms 3152778 max 3152778 freq -6083928 +/-   0 delay  2791 +/-   0
+	// phc2sys[3560354.300]: [ptp4l.0.config] CLOCK_REALTIME rms    4 max    4 freq -76829 +/-   0 delay  1085 +/-   0
 
 	indx := strings.Index(output, "rms")
 	if indx < 0 {
@@ -211,9 +212,13 @@ func extractSummaryMetrics(configName, processName, output string) (iface string
 	output = replacer.Replace(output)
 
 	indx = strings.Index(output, configName)
+	if indx == -1 {
+		return
+	}
 	output = output[indx:]
 	fields := strings.Fields(output)
 
+	// 0                1            2     3 4      5  6    7      8    9  10     11
 	//ptp4l.0.config CLOCK_REALTIME rms   31 max   31 freq -77331 +/-   0 delay  1233 +/-   0
 	if len(fields) < 8 {
 		glog.Errorf("%s failed to parse output %s: unexpected number of fields", processName, output)
@@ -251,8 +256,6 @@ func extractSummaryMetrics(configName, processName, output string) (iface string
 }
 
 func extractRegularMetrics(configName, processName, output string) (iface, clockState string, offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster float64) {
-	// remove everything before the rms string
-	// This makes the out to equals
 	indx := strings.Index(output, "offset")
 	if indx < 0 {
 		return
@@ -266,9 +269,12 @@ func extractRegularMetrics(configName, processName, output string) (iface, clock
 	if index == -1 {
 		return
 	}
+
 	output = output[index:]
 	fields := strings.Fields(output)
 
+	//       0         1      2          3    4   5    6          7     8
+	//ptp4l.0.config master offset   -2162130 s2 freq +22451884  delay 374976
 	if len(fields) < 7 {
 		glog.Errorf("%s failed to parse output %s: unexpected number of fields", processName, output)
 		return
@@ -276,7 +282,6 @@ func extractRegularMetrics(configName, processName, output string) (iface, clock
 
 	iface = fields[1]
 
-	//ptp4l.0.config master offset   -2162130 s2 freq +22451884 path delay    374976
 	offsetFromMaster, err := strconv.ParseFloat(fields[3], 64)
 	if err != nil {
 		glog.Errorf("%s failed to parse offset from master output %s error %v", processName, fields[1], err)
@@ -336,14 +341,25 @@ func extractPTP4lEventState(output string) (portId int, role ptpPortRole) {
 	replacer := strings.NewReplacer("[", " ", "]", " ", ":", " ")
 	output = replacer.Replace(output)
 
+	//ptp4l 4268779.809 ptp4l.o.config port 2: LISTENING to PASSIVE on RS_PASSIVE
+	//ptp4l 4268779.809 ptp4l.o.config port 1: delay timeout
 	index := strings.Index(output, " port ")
 	if index == -1 {
 		return
 	}
+
 	output = output[index:]
 	fields := strings.Fields(output)
+
+	//port 1: delay timeout
+	if len(fields) < 2 {
+		glog.Errorf("failed to parse output %s: unexpected number of fields", output)
+		return
+	}
+
 	portIndex := fields[1]
 	role = UNKNOWN
+
 	var e error
 	portId, e = strconv.Atoi(portIndex)
 	if e != nil {
