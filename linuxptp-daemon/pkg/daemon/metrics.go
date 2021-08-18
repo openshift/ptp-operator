@@ -84,7 +84,7 @@ var (
 		prometheus.GaugeOpts{
 			Namespace: PTPNamespace,
 			Subsystem: PTPSubsystem,
-			Name:      "frequency_adjustment",
+			Name:      "frequency_adjustment_from_master",
 			Help:      "",
 		}, []string{"process", "node", "iface"})
 
@@ -93,6 +93,22 @@ var (
 			Namespace: PTPNamespace,
 			Subsystem: PTPSubsystem,
 			Name:      "delay_from_master",
+			Help:      "",
+		}, []string{"process", "node", "iface"})
+
+	DelayFromSystem = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: PTPNamespace,
+			Subsystem: PTPSubsystem,
+			Name:      "delay_from_system",
+			Help:      "",
+		}, []string{"process", "node", "iface"})
+
+	FrequencyAdjustmentFromSystem = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: PTPNamespace,
+			Subsystem: PTPSubsystem,
+			Name:      "frequency_adjustment_from_system",
 			Help:      "",
 		}, []string{"process", "node", "iface"})
 
@@ -123,6 +139,8 @@ func RegisterMetrics(nodeName string) {
 		prometheus.MustRegister(MaxOffsetFromMaster)
 		prometheus.MustRegister(FrequencyAdjustment)
 		prometheus.MustRegister(DelayFromMaster)
+		prometheus.MustRegister(FrequencyAdjustmentFromSystem)
+		prometheus.MustRegister(DelayFromSystem)
 		prometheus.MustRegister(OffsetFromSystem)
 		prometheus.MustRegister(MaxOffsetFromSystem)
 		prometheus.MustRegister(InterfaceRole)
@@ -159,10 +177,10 @@ func updatePTPSystemMetrics(process, iface string, offsetFromMaster, maxOffsetFr
 	MaxOffsetFromSystem.With(prometheus.Labels{
 		"process": process, "node": NodeName, "iface": iface}).Set(maxOffsetFromMaster)
 
-	FrequencyAdjustment.With(prometheus.Labels{
+	FrequencyAdjustmentFromSystem.With(prometheus.Labels{
 		"process": process, "node": NodeName, "iface": iface}).Set(frequencyAdjustment)
 
-	DelayFromMaster.With(prometheus.Labels{
+	DelayFromSystem.With(prometheus.Labels{
 		"process": process, "node": NodeName, "iface": iface}).Set(delayFromMaster)
 }
 
