@@ -46,6 +46,8 @@ spec:
               mountPath: /store
             - name: event-bus-socket
               mountPath: /cloud-native
+            - name: socket-dir
+              mountPath: /var/run
           ports:
             - name: metrics-port
               containerPort: 9091
