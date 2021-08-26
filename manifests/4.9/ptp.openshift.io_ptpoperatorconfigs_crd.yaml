@@ -11,7 +11,12 @@ spec:
     singular: ptpoperatorconfig
   scope: Namespaced
   versions:
-    - name: v1
+    - additionalPrinterColumns:
+        - description: Event Enabled
+          jsonPath: .spec.ptpEventConfig.enableEventPublisher
+          name: Event Enabled
+          type: boolean
+      name: v1
       schema:
         openAPIV3Schema:
           description: PtpOperatorConfig is the Schema for the ptpoperatorconfigs API
@@ -41,6 +46,19 @@ spec:
                     Important: Run "operator-sdk generate k8s" to regenerate code after
                     modifying this file Add custom validation using kubebuilder tags:
                     https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html'
+                  type: object
+                ptpEventConfig:
+                  description: EventConfig to configure event sidecar
+                  properties:
+                    enableEventPublisher:
+                      default: false
+                      description: EnableEventPublisher will deploy event proxy as a
+                        sidecar
+                      type: boolean
+                    transportHost:
+                      description: transportHost address for event messages.Example
+                        amqp://<service-name>.<namespace>.svc.cluster.local
+                      type: string
                   type: object
               required:
                 - daemonNodeSelector
