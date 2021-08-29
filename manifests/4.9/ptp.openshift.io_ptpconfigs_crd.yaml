@@ -1,6 +1,9 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.4.1
+  creationTimestamp: null
   name: ptpconfigs.ptp.openshift.io
 spec:
   group: ptp.openshift.io
@@ -17,16 +20,14 @@ spec:
           description: PtpConfig is the Schema for the ptpconfigs API
           properties:
             apiVersion:
-              description:
-                "APIVersion defines the versioned schema of this representation
-                of an object. Servers should convert recognized schemas to the latest
-                internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources"
+              description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
               type: string
             kind:
-              description:
-                "Kind is a string value representing the REST resource this
-                object represents. Servers may infer this from the endpoint the client
-                submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds"
+              description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
               type: string
             metadata:
               type: object
@@ -34,11 +35,6 @@ spec:
               description: PtpConfigSpec defines the desired state of PtpConfig
               properties:
                 profile:
-                  description:
-                    'INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-                    Important: Run "operator-sdk generate k8s" to regenerate code after
-                    modifying this file Add custom validation using kubebuilder tags:
-                    https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html'
                   items:
                     properties:
                       interface:
@@ -51,6 +47,24 @@ spec:
                         type: string
                       ptp4lOpts:
                         type: string
+                      ptpClockThreshold:
+                        properties:
+                          holdOverTimeout:
+                            default: 5
+                            description: clock state to stay in holdover state in secs
+                            format: int64
+                            type: integer
+                          maxOffsetThreshold:
+                            default: 100
+                            description: max offset in nano secs
+                            format: int64
+                            type: integer
+                          minOffsetThreshold:
+                            default: -100
+                            description: min offset in nano secs
+                            format: int64
+                            type: integer
+                        type: object
                     required:
                       - name
                     type: object
@@ -85,11 +99,9 @@ spec:
               description: PtpConfigStatus defines the observed state of PtpConfig
               properties:
                 matchList:
-                  description:
-                    'INSERT ADDITIONAL STATUS FIELD - define observed state
-                    of cluster Important: Run "operator-sdk generate k8s" to regenerate
-                    code after modifying this file Add custom validation using kubebuilder
-                    tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html'
+                  description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
+                  of cluster Important: Run "make" to regenerate code after modifying
+                  this file'
                   items:
                     properties:
                       nodeName:
@@ -107,3 +119,9 @@ spec:
       storage: true
       subresources:
         status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
