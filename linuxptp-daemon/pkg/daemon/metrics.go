@@ -220,6 +220,7 @@ func extractSummaryMetrics(configName, processName, output string) (iface string
 
 	// phc2sys[5196755.139]: [ptp4l.0.config] ens5f0 rms 3152778 max 3152778 freq -6083928 +/-   0 delay  2791 +/-   0
 	// phc2sys[3560354.300]: [ptp4l.0.config] CLOCK_REALTIME rms    4 max    4 freq -76829 +/-   0 delay  1085 +/-   0
+	// ptp4l[74737.942]: [ptp4l.0.config] rms   53 max   74 freq -16642 +/-  40 delay  1089 +/-  20
 
 	indx := strings.Index(output, "rms")
 	if indx < 0 {
@@ -243,6 +244,16 @@ func extractSummaryMetrics(configName, processName, output string) (iface string
 		return
 	}
 
+	// when ptp4l log is missing interface name
+	if fields[1] == "rms" {
+		fields = append(fields, "") // Making space for the new element
+		//  0             1     2
+		//ptp4l.0.config rms   53 max   74 freq -16642 +/-  40 delay  1089 +/-  20
+		copy(fields[2:], fields[1:]) // Shifting elements
+		fields[1] = "master"         // Copying/inserting the value
+		//  0             0       1   2
+		//ptp4l.0.config master rms   53 max   74 freq -16642 +/-  40 delay  1089 +/-  20
+	}
 	iface = fields[1]
 
 	offsetFromMaster, err := strconv.ParseFloat(fields[3], 64)
