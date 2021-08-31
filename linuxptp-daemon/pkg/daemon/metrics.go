@@ -294,7 +294,7 @@ func extractRegularMetrics(configName, processName, output string) (iface, clock
 	}
 
 	output = strings.Replace(output, "path", "", 1)
-	replacer := strings.NewReplacer("[", " ", "]", " ", ":", " ", "phc", "")
+	replacer := strings.NewReplacer("[", " ", "]", " ", ":", " ", "phc", "", "sys", "")
 	output = replacer.Replace(output)
 
 	index := strings.Index(output, configName)
@@ -310,14 +310,6 @@ func extractRegularMetrics(configName, processName, output string) (iface, clock
 	if len(fields) < 7 {
 		glog.Errorf("%s failed to parse output %s: unexpected number of fields", processName, output)
 		return
-	}
-
-	//    0           1      2      3            4      5   6            7     8
-	//ptp4l.0.config master offset -2162130      s2    freq +22451884  delay 374976
-	//ptp4l.0.config eno1   sys    offset        13     s2   freq      +6010 delay    468
-	//offset generally seen at index 2, if it is at index 3 then move it to index 2
-	if fields[3] == offset {
-		fields = append(fields[:3], fields[4:]...)
 	}
 
 	if fields[2] != offset {
