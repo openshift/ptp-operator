@@ -313,7 +313,7 @@ func extractRegularMetrics(configName, processName, output string) (iface, clock
 	}
 
 	if fields[2] != offset {
-		glog.Errorf("%s failed to parse offset from master output %s error %", processName, fields[1], "offset is not in right order")
+		glog.Errorf("%s failed to parse offset from master output %s error %s", processName, fields[1], "offset is not in right order")
 		return
 	}
 
