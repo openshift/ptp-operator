@@ -58,6 +58,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
         {{ end }}
         - name: kube-rbac-proxy
           image: {{.KubeRbacProxy}}
