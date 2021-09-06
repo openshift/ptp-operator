@@ -135,7 +135,7 @@ metadata:
   namespace: openshift-ptp
 spec:
   endpoints:
-    - interval: 10s
+    - interval: 30s
       port: metrics
       bearerTokenFile: "/var/run/secrets/kubernetes.io/serviceaccount/token"
       scheme: "https"
