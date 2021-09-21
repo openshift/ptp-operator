@@ -242,11 +242,13 @@ func (dn *Daemon) addProfileConfig(socketPath string, configFile string, nodePro
 
 	*nodeProfile.Ptp4lConf, *nodeProfile.Interface = output.renderPtp4lConf()
 
-	commandLine := fmt.Sprintf("%s -z %s -t [%s]",
-		*nodeProfile.Phc2sysOpts,
-		socketPath,
-		configFile)
-	nodeProfile.Phc2sysOpts = &commandLine
+	if nodeProfile.Phc2sysOpts != nil {
+		commandLine := fmt.Sprintf("%s -z %s -t [%s]",
+			*nodeProfile.Phc2sysOpts,
+			socketPath,
+			configFile)
+		nodeProfile.Phc2sysOpts = &commandLine
+	}
 
 	return nil
 }
