@@ -38,7 +38,7 @@ spec:
             - "--metrics-addr=127.0.0.1:9091"
             - "--store-path=/store"
             - "--transport-host={{ .EventTransportHost }}"
-            - "--api-port=8089"
+            - "--api-port=9085"
           volumeMounts:
             - name: config-volume
               mountPath: /etc/linuxptp
@@ -51,6 +51,8 @@ spec:
           ports:
             - name: metrics-port
               containerPort: 9091
+            - name: api-port
+              containerPort: 9085
           env:
             - name: PTP_PLUGIN
               value: "true"
