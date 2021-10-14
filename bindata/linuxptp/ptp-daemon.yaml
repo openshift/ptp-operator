@@ -220,7 +220,7 @@ spec:
         - alert: NodeOutOfPtpSync
             annotations:
               message: |
-                {{ $labels.iface }} is not in sync
+                {{ "{{" }} $labels.iface }} is not in sync
             expr: |
               openshift_ptp_clock_state != 1
             for: 2m
