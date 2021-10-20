@@ -228,7 +228,7 @@ spec:
               severity: warning
         {{ end }}
         {{ if (eq .EnableEventPublisher false) }}
-        - alert: NodeOutOfPtpSync
+        - alert: HighPtpSyncOffset
           annotations:
             message: |
               All nodes should have ptp sync offset lower then 100
