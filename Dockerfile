@@ -1,10 +1,10 @@
-FROM golang:1.15 AS builder
+FROM golang:1.16 AS builder
 WORKDIR /go/src/github.com/openshift/ptp-operator
 COPY . .
 ENV GO111MODULE=off
 RUN make
 
-FROM quay.io/openshift/origin-base:4.7
+FROM quay.io/openshift/origin-base:4.10
 COPY --from=builder /go/src/github.com/openshift/ptp-operator/build/_output/bin/ptp-operator /usr/local/bin/
 COPY --from=builder /go/src/github.com/openshift/ptp-operator/manifests /manifests
 COPY bindata /bindata
