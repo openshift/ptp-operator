@@ -60,19 +60,19 @@ metadata:
     capabilities: Basic Install
     categories: Networking
     certified: "false"
-    containerImage: quay.io/openshift/origin-ptp-operator:4.9
+    containerImage: quay.io/openshift/origin-ptp-operator:4.10
     createdAt: "2019-10-14"
     description: This software enables configuration of Precision Time Protocol(PTP)
       on Kubernetes. It detects hardware capable PTP devices on each node, and configures
       linuxptp processes such as ptp4l, phc2sys and timemaster.
-    olm.skipRange: '>=4.3.0-0 <4.9.0'
+    olm.skipRange: '>=4.3.0-0 <4.10.0'
     operators.openshift.io/infrastructure-features: '["disconnected"]'
-    operators.operatorframework.io/builder: operator-sdk-v1.8.0+git
+    operators.operatorframework.io/builder: operator-sdk-v1.9.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     provider: Red Hat
     repository: https://github.com/openshift/ptp-operator
     support: Red Hat
-  name: ptp-operator.v4.9.0
+  name: ptp-operator.v4.10.0
   namespace: openshift-ptp
 spec:
   apiservicedefinitions: {}
@@ -310,13 +310,13 @@ spec:
                 - name: OPERATOR_NAME
                   value: ptp-operator
                 - name: RELEASE_VERSION
-                  value: v4.9.0
+                  value: v4.10.0
                 - name: LINUXPTP_DAEMON_IMAGE
-                  value: quay.io/openshift/origin-ptp:4.9
+                  value: quay.io/openshift/origin-ptp:4.10
                 - name: KUBE_RBAC_PROXY_IMAGE
-                  value: quay.io/openshift/origin-kube-rbac-proxy:4.9
+                  value: quay.io/openshift/origin-kube-rbac-proxy:4.10
                 - name: SIDECAR_EVENT_IMAGE
-                  value: quay.io/openshift/origin-cloud-event-proxy:4.9
+                  value: quay.io/openshift/origin-cloud-event-proxy:4.10
                 - name: WATCH_NAMESPACE
                   valueFrom:
                     fieldRef:
@@ -325,7 +325,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.name
-                image: quay.io/openshift/origin-ptp-operator:4.9.0
+                image: quay.io/openshift/origin-ptp-operator:4.10.0
                 imagePullPolicy: Always
                 name: ptp-operator
                 resources:
@@ -406,4 +406,4 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat
-  version: 4.9.0
+  version: 4.10.0
