@@ -218,14 +218,14 @@ spec:
       rules:
         {{ if (eq .EnableEventPublisher true) }}
         - alert: NodeOutOfPtpSync
-            annotations:
-              message: |
-                {{ "{{" }} $labels.iface }} is not in sync
-            expr: |
-              openshift_ptp_clock_state != 1
-            for: 2m
-            labels:
-              severity: warning
+          annotations:
+            message: |
+              {{ "{{" }} $labels.iface }} is not in sync
+          expr: |
+            openshift_ptp_clock_state != 1
+          for: 2m
+          labels:
+            severity: warning
         {{ end }}
         {{ if (eq .EnableEventPublisher false) }}
         - alert: HighPtpSyncOffset
