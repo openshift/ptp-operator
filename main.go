@@ -94,6 +94,10 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "PtpConfig")
 		os.Exit(1)
 	}
+	if err = (&ptpv1.PtpConfig{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "PtpConfig")
+		os.Exit(1)
+	}
 	// +kubebuilder:scaffold:builder
 
 	err = createDefaultOperatorConfig(ctrl.GetConfigOrDie())
