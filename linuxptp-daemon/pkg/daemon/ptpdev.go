@@ -1,12 +1,13 @@
 package daemon
 
 import (
+	"context"
 	"time"
 
 	"github.com/golang/glog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	ptpv1 "github.com/openshift/ptp-operator/pkg/apis/ptp/v1"
+	ptpv1 "github.com/openshift/ptp-operator/api/v1"
 	ptpclient "github.com/openshift/ptp-operator/pkg/client/clientset/versioned"
 
 	ptpnetwork "github.com/openshift/linuxptp-daemon/pkg/network"
@@ -39,7 +40,7 @@ func runDeviceStatusUpdate(ptpClient *ptpclient.Clientset, nodeName string) {
 
 	// Assume NodePtpDevice CR for this particular node
 	// is already created manually or by PTP-Operator.
-	ptpDev, err := ptpClient.PtpV1().NodePtpDevices(PtpNamespace).Get(nodeName, metav1.GetOptions{})
+	ptpDev, err := ptpClient.PtpV1().NodePtpDevices(PtpNamespace).Get(context.TODO(), nodeName, metav1.GetOptions{})
 	if err != nil {
 		glog.Errorf("failed to get NodePtpDevice CR for node %s: %v", nodeName, err)
 	}
@@ -51,7 +52,7 @@ func runDeviceStatusUpdate(ptpClient *ptpclient.Clientset, nodeName string) {
 	}
 
 	// Update NodePtpDevice CR
-	_, err = ptpClient.PtpV1().NodePtpDevices(PtpNamespace).UpdateStatus(ptpDev)
+	_, err = ptpClient.PtpV1().NodePtpDevices(PtpNamespace).UpdateStatus(context.TODO(), ptpDev, metav1.UpdateOptions{})
 	if err != nil {
 		glog.Errorf("failed to update Node PTP device CR: %v", err)
 	}
