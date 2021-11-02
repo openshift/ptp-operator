@@ -109,9 +109,18 @@ func (dn *Daemon) Run() {
 	}
 }
 
-func printWhenNotNil(p *string, description string) {
-	if p != nil {
-		glog.Info(description, ": ", *p)
+func printWhenNotNil(p interface{}, description string) {
+	switch v := p.(type) {
+	case *string:
+		if v != nil {
+			glog.Info(description, ": ", *v)
+		}
+	case *int64:
+		if v != nil {
+			glog.Info(description, ": ", *v)
+		}
+	default:
+		glog.Info(description, ": ", v)
 	}
 }
 
@@ -176,6 +185,8 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 	printWhenNotNil(nodeProfile.Ptp4lOpts, "Ptp4lOpts")
 	printWhenNotNil(nodeProfile.Ptp4lConf, "Ptp4lConf")
 	printWhenNotNil(nodeProfile.Phc2sysOpts, "Phc2sysOpts")
+	printWhenNotNil(nodeProfile.PtpSchedulingPolicy, "PtpSchedulingPolicy")
+	printWhenNotNil(nodeProfile.PtpSchedulingPriority, "PtpSchedulingPriority")
 	glog.Infof("------------------------------------")
 
 	if nodeProfile.Phc2sysOpts != nil {
@@ -253,9 +264,30 @@ func (dn *Daemon) addProfileConfig(socketPath string, configFile string, nodePro
 	return nil
 }
 
+// Add fifo scheduling if specified in nodeProfile
+func addScheduling(nodeProfile *ptpv1.PtpProfile, cmdLine string) string {
+	if nodeProfile.PtpSchedulingPolicy != nil && *nodeProfile.PtpSchedulingPolicy == "SCHED_FIFO" {
+		if nodeProfile.PtpSchedulingPriority == nil {
+			glog.Errorf("Priority must be set for SCHED_FIFO; using default scheduling.")
+			return cmdLine
+		}
+		priority := *nodeProfile.PtpSchedulingPriority
+		if priority < 1 || priority > 65 {
+			glog.Errorf("Invalid priority %d; using default scheduling.", priority)
+			return cmdLine
+		}
+		cmdLine = fmt.Sprintf("/bin/chrt -f %d %s", priority, cmdLine)
+		glog.Infof(cmdLine)
+		return cmdLine
+	}
+	return cmdLine
+}
+
 // phc2sysCreateCmd generate phc2sys command
 func phc2sysCreateCmd(nodeProfile *ptpv1.PtpProfile) *exec.Cmd {
 	cmdLine := fmt.Sprintf("/usr/sbin/phc2sys %s", *nodeProfile.Phc2sysOpts)
+	cmdLine = addScheduling(nodeProfile, cmdLine)
+
 	args := strings.Split(cmdLine, " ")
 	return exec.Command(args[0], args[1:]...)
 }
@@ -265,6 +297,7 @@ func ptp4lCreateCmd(nodeProfile *ptpv1.PtpProfile, confFilePath string) *exec.Cm
 	cmdLine := fmt.Sprintf("/usr/sbin/ptp4l -f %s %s",
 		confFilePath,
 		*nodeProfile.Ptp4lOpts)
+	cmdLine = addScheduling(nodeProfile, cmdLine)
 
 	args := strings.Split(cmdLine, " ")
 	return exec.Command(args[0], args[1:]...)
