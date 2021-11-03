@@ -29,6 +29,10 @@ const (
 
 	offset = "offset"
 	rms    = "rms"
+
+	// offset source
+	phc = "phc"
+	sys = "sys"
 )
 
 const (
@@ -51,69 +55,37 @@ const (
 var (
 	NodeName = ""
 
-	OffsetFromMaster = prometheus.NewGaugeVec(
+	Offset = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: PTPNamespace,
 			Subsystem: PTPSubsystem,
-			Name:      "offset_from_master",
+			Name:      "offset_ns",
 			Help:      "",
-		}, []string{"process", "node", "iface"})
+		}, []string{"from", "process", "node", "iface"})
 
-	MaxOffsetFromMaster = prometheus.NewGaugeVec(
+	MaxOffset = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: PTPNamespace,
 			Subsystem: PTPSubsystem,
-			Name:      "max_offset_from_master",
+			Name:      "max_offset_ns",
 			Help:      "",
-		}, []string{"process", "node", "iface"})
-
-	OffsetFromSystem = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Namespace: PTPNamespace,
-			Subsystem: PTPSubsystem,
-			Name:      "offset_from_system",
-			Help:      "",
-		}, []string{"process", "node", "iface"})
-
-	MaxOffsetFromSystem = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Namespace: PTPNamespace,
-			Subsystem: PTPSubsystem,
-			Name:      "max_offset_from_system",
-			Help:      "",
-		}, []string{"process", "node", "iface"})
+		}, []string{"from", "process", "node", "iface"})
 
 	FrequencyAdjustment = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: PTPNamespace,
 			Subsystem: PTPSubsystem,
-			Name:      "frequency_adjustment_from_master",
+			Name:      "frequency_adjustment_ns",
 			Help:      "",
-		}, []string{"process", "node", "iface"})
+		}, []string{"from", "process", "node", "iface"})
 
-	DelayFromMaster = prometheus.NewGaugeVec(
+	Delay = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: PTPNamespace,
 			Subsystem: PTPSubsystem,
-			Name:      "delay_from_master",
+			Name:      "delay_ns",
 			Help:      "",
-		}, []string{"process", "node", "iface"})
-
-	DelayFromSystem = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Namespace: PTPNamespace,
-			Subsystem: PTPSubsystem,
-			Name:      "delay_from_system",
-			Help:      "",
-		}, []string{"process", "node", "iface"})
-
-	FrequencyAdjustmentFromSystem = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Namespace: PTPNamespace,
-			Subsystem: PTPSubsystem,
-			Name:      "frequency_adjustment_from_system",
-			Help:      "",
-		}, []string{"process", "node", "iface"})
+		}, []string{"from", "process", "node", "iface"})
 
 	// ClockState metrics to show current clock state
 	ClockState = prometheus.NewGaugeVec(
@@ -129,8 +101,8 @@ var (
 		prometheus.GaugeOpts{
 			Namespace: PTPNamespace,
 			Subsystem: PTPSubsystem,
-			Name:      "ptp_interface_role",
-			Help:      "0 = PASSIVE 1 = SLAVE 2 = MASTER 3 = FAULTY",
+			Name:      "interface_role",
+			Help:      "0 = PASSIVE, 1 = SLAVE, 2 = MASTER, 3 = FAULTY, 4 = UNKNOWN",
 		}, []string{"process", "node", "iface"})
 )
 
@@ -138,14 +110,10 @@ var registerMetrics sync.Once
 
 func RegisterMetrics(nodeName string) {
 	registerMetrics.Do(func() {
-		prometheus.MustRegister(OffsetFromMaster)
-		prometheus.MustRegister(MaxOffsetFromMaster)
+		prometheus.MustRegister(Offset)
+		prometheus.MustRegister(MaxOffset)
 		prometheus.MustRegister(FrequencyAdjustment)
-		prometheus.MustRegister(DelayFromMaster)
-		prometheus.MustRegister(FrequencyAdjustmentFromSystem)
-		prometheus.MustRegister(DelayFromSystem)
-		prometheus.MustRegister(OffsetFromSystem)
-		prometheus.MustRegister(MaxOffsetFromSystem)
+		prometheus.MustRegister(Delay)
 		prometheus.MustRegister(InterfaceRole)
 		prometheus.MustRegister(ClockState)
 
@@ -158,55 +126,43 @@ func RegisterMetrics(nodeName string) {
 }
 
 // updatePTPMetrics ...
-func updatePTPMetrics(process, iface string, offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster float64) {
-	OffsetFromMaster.With(prometheus.Labels{
-		"process": process, "node": NodeName, "iface": iface}).Set(offsetFromMaster)
+func updatePTPMetrics(from, process, iface string, ptpOffset, maxPtpOffset, frequencyAdjustment, delay float64) {
+	Offset.With(prometheus.Labels{"from": from,
+		"process": process, "node": NodeName, "iface": iface}).Set(ptpOffset)
 
-	MaxOffsetFromMaster.With(prometheus.Labels{
-		"process": process, "node": NodeName, "iface": iface}).Set(maxOffsetFromMaster)
+	MaxOffset.With(prometheus.Labels{"from": from,
+		"process": process, "node": NodeName, "iface": iface}).Set(maxPtpOffset)
 
-	FrequencyAdjustment.With(prometheus.Labels{
+	FrequencyAdjustment.With(prometheus.Labels{"from": from,
 		"process": process, "node": NodeName, "iface": iface}).Set(frequencyAdjustment)
 
-	DelayFromMaster.With(prometheus.Labels{
-		"process": process, "node": NodeName, "iface": iface}).Set(delayFromMaster)
-}
-
-// updatePTPSystemMetrics ...
-func updatePTPSystemMetrics(process, iface string, offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster float64) {
-	OffsetFromSystem.With(prometheus.Labels{
-		"process": process, "node": NodeName, "iface": iface}).Set(offsetFromMaster)
-
-	MaxOffsetFromSystem.With(prometheus.Labels{
-		"process": process, "node": NodeName, "iface": iface}).Set(maxOffsetFromMaster)
-
-	FrequencyAdjustmentFromSystem.With(prometheus.Labels{
-		"process": process, "node": NodeName, "iface": iface}).Set(frequencyAdjustment)
-
-	DelayFromSystem.With(prometheus.Labels{
-		"process": process, "node": NodeName, "iface": iface}).Set(delayFromMaster)
+	Delay.With(prometheus.Labels{"from": from,
+		"process": process, "node": NodeName, "iface": iface}).Set(delay)
 }
 
 // extractMetrics ...
 func extractMetrics(configName, processName string, ifaces []string, output string) {
 	if strings.Contains(output, " max ") {
-		ifaceName, offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster := extractSummaryMetrics(configName, processName, output)
+		ifaceName, ptpOffset, maxPtpOffset, frequencyAdjustment, delay := extractSummaryMetrics(configName, processName, output)
 		if ifaceName != "" {
-			if ifaceName == clockRealTime || ifaceName == master {
-				updatePTPMetrics(processName, ifaceName, offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster)
+			if ifaceName == master {
+				updatePTPMetrics(master, processName, ifaceName, ptpOffset, maxPtpOffset, frequencyAdjustment, delay)
 			} else {
-				updatePTPSystemMetrics(processName, ifaceName, offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster)
+				updatePTPMetrics(phc, processName, ifaceName, ptpOffset, maxPtpOffset, frequencyAdjustment, delay)
 			}
 		}
 
 	} else if strings.Contains(output, " offset ") {
-		ifaceName, clockstate, offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster := extractRegularMetrics(configName, processName, output)
+		ifaceName, clockstate, ptpOffset, maxPtpOffset, frequencyAdjustment, delay := extractRegularMetrics(configName, processName, output)
+
 		if ifaceName != "" {
-			if ifaceName == clockRealTime || ifaceName == master {
-				updatePTPMetrics(processName, ifaceName, offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster)
-			} else {
-				updatePTPSystemMetrics(processName, ifaceName, offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster)
+			offsetSource := master
+			if strings.Contains(output, "sys offset") {
+				offsetSource = sys
+			} else if strings.Contains(output, "phc offset") {
+				offsetSource = phc
 			}
+			updatePTPMetrics(offsetSource, processName, ifaceName, ptpOffset, maxPtpOffset, frequencyAdjustment, delay)
 			updateClockStateMetrics(processName, ifaceName, clockstate)
 		}
 	}
@@ -219,11 +175,11 @@ func extractMetrics(configName, processName string, ifaces []string, output stri
 	}
 }
 
-func extractSummaryMetrics(configName, processName, output string) (iface string, offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster float64) {
+func extractSummaryMetrics(configName, processName, output string) (iface string, ptpOffset, maxPtpOffset, frequencyAdjustment, delay float64) {
 
 	// phc2sys[5196755.139]: [ptp4l.0.config] ens5f0 rms 3152778 max 3152778 freq -6083928 +/-   0 delay  2791 +/-   0
 	// phc2sys[3560354.300]: [ptp4l.0.config] CLOCK_REALTIME rms    4 max    4 freq -76829 +/-   0 delay  1085 +/-   0
-	// ptp4l[74737.942]: [ptp4l.0.config] rms   53 max   74 freq -16642 +/-  40 delay  1089 +/-  20
+	// ptp4l[74737.942]: [ptp4l.0.config] rms  53 max   74 freq -16642 +/-  40 delay  1089 +/-  20
 
 	indx := strings.Index(output, rms)
 	if indx < 0 {
@@ -259,14 +215,14 @@ func extractSummaryMetrics(configName, processName, output string) (iface string
 	}
 	iface = fields[1]
 
-	offsetFromMaster, err := strconv.ParseFloat(fields[3], 64)
+	ptpOffset, err := strconv.ParseFloat(fields[3], 64)
 	if err != nil {
-		glog.Errorf("%s failed to parse offset from master output %s error %v", processName, fields[3], err)
+		glog.Errorf("%s failed to parse offset from the output %s error %v", processName, fields[3], err)
 	}
 
-	maxOffsetFromMaster, err = strconv.ParseFloat(fields[5], 64)
+	maxPtpOffset, err = strconv.ParseFloat(fields[5], 64)
 	if err != nil {
-		glog.Errorf("%s failed to parse max offset from master output %s error %v", processName, fields[5], err)
+		glog.Errorf("%s failed to parse max offset from the output %s error %v", processName, fields[5], err)
 	}
 
 	frequencyAdjustment, err = strconv.ParseFloat(fields[7], 64)
@@ -275,9 +231,9 @@ func extractSummaryMetrics(configName, processName, output string) (iface string
 	}
 
 	if len(fields) >= 11 {
-		delayFromMaster, err = strconv.ParseFloat(fields[11], 64)
+		delay, err = strconv.ParseFloat(fields[11], 64)
 		if err != nil {
-			glog.Errorf("%s failed to parse delay from master output %s error %v", processName, fields[11], err)
+			glog.Errorf("%s failed to parse delay from the output %s error %v", processName, fields[11], err)
 		}
 	} else {
 		// If there is no delay from master this mean we are out of sync
@@ -287,7 +243,7 @@ func extractSummaryMetrics(configName, processName, output string) (iface string
 	return
 }
 
-func extractRegularMetrics(configName, processName, output string) (iface, clockState string, offsetFromMaster, maxOffsetFromMaster, frequencyAdjustment, delayFromMaster float64) {
+func extractRegularMetrics(configName, processName, output string) (iface, clockState string, ptpOffset, maxPtpOffset, frequencyAdjustment, delay float64) {
 	indx := strings.Index(output, offset)
 	if indx < 0 {
 		return
@@ -313,20 +269,20 @@ func extractRegularMetrics(configName, processName, output string) (iface, clock
 	}
 
 	if fields[2] != offset {
-		glog.Errorf("%s failed to parse offset from master output %s error %s", processName, fields[1], "offset is not in right order")
+		glog.Errorf("%s failed to parse offset from the output %s error %s", processName, fields[1], "offset is not in right order")
 		return
 	}
 
 	iface = fields[1]
 
-	offsetFromMaster, err := strconv.ParseFloat(fields[3], 64)
+	ptpOffset, err := strconv.ParseFloat(fields[3], 64)
 	if err != nil {
-		glog.Errorf("%s failed to parse offset from master output %s error %v", processName, fields[1], err)
+		glog.Errorf("%s failed to parse offset from the output %s error %v", processName, fields[1], err)
 	}
 
-	maxOffsetFromMaster, err = strconv.ParseFloat(fields[3], 64)
+	maxPtpOffset, err = strconv.ParseFloat(fields[3], 64)
 	if err != nil {
-		glog.Errorf("%s failed to parse max offset from master output %s error %v", processName, fields[1], err)
+		glog.Errorf("%s failed to parse max offset from the output %s error %v", processName, fields[1], err)
 	}
 
 	switch fields[4] {
@@ -346,13 +302,13 @@ func extractRegularMetrics(configName, processName, output string) (iface, clock
 	}
 
 	if len(fields) > 8 {
-		delayFromMaster, err = strconv.ParseFloat(fields[8], 64)
+		delay, err = strconv.ParseFloat(fields[8], 64)
 		if err != nil {
-			glog.Errorf("%s failed to parse delay from master output %s error %v", processName, fields[8], err)
+			glog.Errorf("%s failed to parse delay from the output %s error %v", processName, fields[8], err)
 		}
 	} else {
-		// If there is no delay from master this mean we are out of sync
-		glog.Warningf("no delay from master process %s out of sync", processName)
+		// If there is no delay this mean we are out of sync
+		glog.Warningf("no delay from the process %s out of sync", processName)
 	}
 
 	return
