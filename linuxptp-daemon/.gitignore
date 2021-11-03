@@ -1,3 +1,7 @@
+# linuxptp-daemon build output
+.gopath/
+bin/
+
 # Binaries for programs and plugins
 *.exe
 *.exe~
