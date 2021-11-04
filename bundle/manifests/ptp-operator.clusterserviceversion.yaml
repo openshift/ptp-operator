@@ -67,7 +67,7 @@ metadata:
       linuxptp processes such as ptp4l, phc2sys and timemaster.
     olm.skipRange: '>=4.3.0-0 <4.10.0'
     operators.openshift.io/infrastructure-features: '["disconnected"]'
-    operators.operatorframework.io/builder: operator-sdk-v1.9.0+git
+    operators.operatorframework.io/builder: operator-sdk-v1.11.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     provider: Red Hat
     repository: https://github.com/openshift/ptp-operator
@@ -297,6 +297,7 @@ spec:
           template:
             metadata:
               annotations:
+                service.beta.openshift.io/serving-cert-secret-name: webhook-server-cert
                 target.workload.openshift.io/management: '{"effect": "PreferredDuringScheduling"}'
               labels:
                 name: ptp-operator
@@ -328,10 +329,18 @@ spec:
                 image: quay.io/openshift/origin-ptp-operator:4.10.0
                 imagePullPolicy: Always
                 name: ptp-operator
+                ports:
+                - containerPort: 9443
+                  name: webhook-server
+                  protocol: TCP
                 resources:
                   requests:
                     cpu: 50m
                     memory: 100Mi
+                volumeMounts:
+                - mountPath: /tmp/k8s-webhook-server/serving-certs
+                  name: cert
+                  readOnly: true
               nodeSelector:
                 node-role.kubernetes.io/master: ""
               serviceAccountName: ptp-operator
@@ -339,6 +348,11 @@ spec:
               - effect: NoSchedule
                 key: node-role.kubernetes.io/master
                 operator: Exists
+              volumes:
+              - name: cert
+                secret:
+                  defaultMode: 420
+                  secretName: webhook-server-cert
       permissions:
       - rules:
         - apiGroups:
@@ -407,3 +421,25 @@ spec:
   provider:
     name: Red Hat
   version: 4.10.0
+  webhookdefinitions:
+  - admissionReviewVersions:
+    - v1
+    - v1beta1
+    containerPort: 443
+    deploymentName: ptp-operator
+    failurePolicy: Ignore
+    generateName: vptpconfig.kb.io
+    rules:
+    - apiGroups:
+      - ptp.openshift.io
+      apiVersions:
+      - v1
+      operations:
+      - CREATE
+      - UPDATE
+      resources:
+      - ptpconfigs
+    sideEffects: None
+    targetPort: 9443
+    type: ValidatingAdmissionWebhook
+    webhookPath: /validate-ptp-openshift-io-v1-ptpconfig
