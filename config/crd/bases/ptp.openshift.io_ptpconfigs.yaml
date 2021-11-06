@@ -67,6 +67,11 @@ spec:
                           format: int64
                           type: integer
                       type: object
+                    ptpSchedulingPolicy:
+                      type: string
+                    ptpSchedulingPriority:
+                      format: int64
+                      type: integer
                   required:
                   - name
                   type: object

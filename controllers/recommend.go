@@ -10,9 +10,18 @@ import (
 	ptpv1 "github.com/openshift/ptp-operator/api/v1"
 )
 
-func printWhenNotNil(p *string, description string) {
-	if p != nil {
-		glog.Info(description, ": ", *p)
+func printWhenNotNil(p interface{}, description string) {
+	switch v := p.(type) {
+	case *string:
+		if v != nil {
+			glog.Info(description, ": ", *v)
+		}
+	case *int64:
+		if v != nil {
+			glog.Info(description, ": ", *v)
+		}
+	default:
+		glog.Info(description, ": ", v)
 	}
 }
 
@@ -33,6 +42,8 @@ func getRecommendNodePtpProfiles(ptpConfigList *ptpv1.PtpConfigList, node corev1
 		printWhenNotNil(profile.Ptp4lOpts, "Ptp4lOpts")
 		printWhenNotNil(profile.Phc2sysOpts, "Phc2sysOpts")
 		printWhenNotNil(profile.Ptp4lConf, "Ptp4lConf")
+		printWhenNotNil(profile.PtpSchedulingPolicy, "PtpSchedulingPolicy")
+		printWhenNotNil(profile.PtpSchedulingPriority, "PtpSchedulingPriority")
 		glog.Infof("------------------------------------")
 	}
 
