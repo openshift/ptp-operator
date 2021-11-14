@@ -157,7 +157,7 @@ kind: Service
 metadata:
   annotations:
     prometheus.io/scrape: "true"
-    service.beta.openshift.io/serving-cert-secret-name: linuxptp-daemon-secret
+    service.alpha.openshift.io/serving-cert-secret-name: linuxptp-daemon-secret
   labels:
     name: ptp-monitor-service
   name:  ptp-monitor-service

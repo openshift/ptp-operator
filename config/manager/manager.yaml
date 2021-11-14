@@ -20,7 +20,6 @@ spec:
     metadata:
       annotations:
         target.workload.openshift.io/management: '{"effect": "PreferredDuringScheduling"}'
-        service.beta.openshift.io/serving-cert-secret-name: webhook-server-cert
       labels:
         name: ptp-operator
     spec:

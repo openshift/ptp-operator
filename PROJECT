@@ -1,6 +1,5 @@
 domain: openshift.io
-layout:
-- go.kubebuilder.io/v3
+layout: go.kubebuilder.io/v3
 plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
@@ -16,9 +15,6 @@ resources:
   kind: PtpConfig
   path: github.com/openshift/ptp-operator/api/v1
   version: v1
-  webhooks:
-    validation: true
-    webhookVersion: v1
 - api:
     crdVersion: v1
     namespaced: true
