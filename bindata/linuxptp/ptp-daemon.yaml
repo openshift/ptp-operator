@@ -233,7 +233,7 @@ spec:
             message: |
               All nodes should have ptp sync offset lower then 100
           expr: |
-            openshift_ptp_max_offset_from_master > 100 or openshift_ptp_max_offset_from_master < -100
+            openshift_ptp_offset_ns > 100 or openshift_ptp_offset_ns < -100
           for: 2m
           labels:
             severity: warning
