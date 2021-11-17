@@ -326,7 +326,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.name
-                image: quay.io/openshift/origin-ptp-operator:4.10.0
+                image: quay.io/openshift/origin-ptp-operator:4.10
                 imagePullPolicy: Always
                 name: ptp-operator
                 ports:
