@@ -6,6 +6,7 @@ REPO=github.com/openshift/ptp-operator
 WHAT=${WHAT:-manager}
 GOFLAGS=${GOFLAGS:-}
 GLDFLAGS=${GLDFLAGS:-}
+CGO_ENABLED=${CGO_ENABLED:-1}
 
 GOOS=$(go env GOOS)
 GOARCH=$(go env GOARCH)
@@ -24,7 +25,5 @@ export BIN_PATH=build/_output/bin/
 export BIN_NAME=ptp-operator
 mkdir -p ${BIN_PATH}
 
-CGO_ENABLED=1
-
 echo "Building ${REPO}/cmd/${WHAT} (${VERSION_OVERRIDE})"
-CGO_ENABLED=${CGO_ENABLED} GOOS=${GOOS} GOARCH=${GOARCH} go build ${GOFLAGS} -ldflags "${GLDFLAGS} -s -w" -o ${BIN_PATH}/${BIN_NAME} ${REPO}/cmd/${WHAT}
+CGO_ENABLED=${CGO_ENABLED} GOOS=${GOOS} GOARCH=${GOARCH} go build ${GOFLAGS} -ldflags "${GLDFLAGS} -s -w" -o ${BIN_PATH}/${BIN_NAME} ${REPO}

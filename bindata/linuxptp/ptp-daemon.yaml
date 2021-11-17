@@ -23,6 +23,7 @@ spec:
     spec:
       hostNetwork: true
       hostPID: true
+      dnsPolicy: ClusterFirstWithHostNet
       nodeSelector:
         kubernetes.io/os: linux
       tolerations:
@@ -30,49 +31,85 @@ spec:
       serviceAccountName: linuxptp-daemon
       priorityClassName: "system-node-critical"
       containers:
-      - name: kube-rbac-proxy
-        image: {{.KubeRbacProxy}}
-        imagePullPolicy: IfNotPresent
-        args:
-          - --logtostderr
-          - --secure-listen-address=:8443
-          - --tls-cipher-suites=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_RSA_WITH_AES_128_CBC_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
-          - --upstream=http://127.0.0.1:9091/
-          - --tls-private-key-file=/etc/metrics/tls.key
-          - --tls-cert-file=/etc/metrics/tls.crt
-        ports:
-          - containerPort: 8443
-            name: https
-        resources:
-          requests:
-            cpu: 10m
-            memory: 20Mi
-        terminationMessagePolicy: FallbackToLogsOnError
-        volumeMounts:
-          - name: linuxptp-certs
-            mountPath: /etc/metrics
-            readOnly: True
-      - name: linuxptp-daemon-container
-        securityContext:
-          privileged: true
-        image: {{.Image}}
-        command: [ "/bin/bash", "-c", "--" ]
-        args: [ "/usr/local/bin/ptp --alsologtostderr -v 10" ]
-        imagePullPolicy: IfNotPresent
-        resources:
-          requests:
-            cpu: 20m
-            memory: 50Mi
-        env:
-        - name: NODE_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
-        volumeMounts:
-        - name: config-volume
-          mountPath: /etc/linuxptp
-        - name: socket-dir
-          mountPath: /var/run
+       {{ if (eq .EnableEventPublisher true) }}
+        - name: cloud-event-proxy
+          image: {{ .SideCar }}
+          args:
+            - "--metrics-addr=127.0.0.1:9091"
+            - "--store-path=/store"
+            - "--transport-host={{ .EventTransportHost }}"
+            - "--api-port=9085"
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/linuxptp
+            - name: pubsubstore
+              mountPath: /store
+            - name: event-bus-socket
+              mountPath: /cloud-native
+            - name: socket-dir
+              mountPath: /var/run
+          ports:
+            - name: metrics-port
+              containerPort: 9091
+            - name: api-port
+              containerPort: 9085
+          env:
+            - name: PTP_PLUGIN
+              value: "true"
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+        {{ end }}
+        - name: kube-rbac-proxy
+          image: {{.KubeRbacProxy}}
+          imagePullPolicy: Always
+          args:
+            - --logtostderr
+            - --secure-listen-address=:8443
+            - --tls-cipher-suites=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_RSA_WITH_AES_128_CBC_SHA256,TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
+            - --upstream=http://127.0.0.1:9091/
+            - --tls-private-key-file=/etc/metrics/tls.key
+            - --tls-cert-file=/etc/metrics/tls.crt
+          ports:
+            - containerPort: 8443
+              name: https
+          resources:
+            requests:
+              cpu: 10m
+              memory: 20Mi
+          terminationMessagePolicy: FallbackToLogsOnError
+          volumeMounts:
+            - name: linuxptp-certs
+              mountPath: /etc/metrics
+              readOnly: True
+        - name: linuxptp-daemon-container
+          securityContext:
+            privileged: true
+          image: {{.Image}}
+          command: [ "/bin/bash", "-c", "--" ]
+          args: [ "/usr/local/bin/ptp --alsologtostderr -v 10" ]
+          imagePullPolicy: IfNotPresent
+          resources:
+            requests:
+              cpu: 20m
+              memory: 50Mi
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: LOGS_TO_SOCKET
+              value: "{{ .EnableEventPublisher }}"
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/linuxptp
+            - name: socket-dir
+              mountPath: /var/run
+            {{ if (eq .EnableEventPublisher true) }}
+            - name: event-bus-socket
+              mountPath: /cloud-native
+            {{ end }}
       volumes:
         - name: config-volume
           configMap:
@@ -80,6 +117,12 @@ spec:
         - name: linuxptp-certs
           secret:
             secretName: linuxptp-daemon-secret
+        {{ if (eq .EnableEventPublisher true) }}
+        - name: pubsubstore
+          emptyDir: {}
+        - name: event-bus-socket
+          emptyDir: {}
+        {{ end }}
         - name: socket-dir
           hostPath:
             path: /var/run/ptp
@@ -94,7 +137,7 @@ metadata:
   namespace: openshift-ptp
 spec:
   endpoints:
-    - interval: 10s
+    - interval: 30s
       port: metrics
       bearerTokenFile: "/var/run/secrets/kubernetes.io/serviceaccount/token"
       scheme: "https"

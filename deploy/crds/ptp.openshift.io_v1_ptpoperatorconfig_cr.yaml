@@ -1,8 +1,0 @@
-apiVersion: ptp.openshift.io/v1
-kind: PtpOperatorConfig
-metadata:
-  name: default
-spec:
-  daemonNodeSelector:
-    feature.node.kubernetes.io/ptp-capable: "yes"
-    node-role.kubernetes.io/worker: ""
