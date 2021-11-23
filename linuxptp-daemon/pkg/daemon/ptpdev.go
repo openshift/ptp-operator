@@ -2,8 +2,6 @@ package daemon
 
 import (
 	"context"
-	"time"
-
 	"github.com/golang/glog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -59,10 +57,6 @@ func runDeviceStatusUpdate(ptpClient *ptpclient.Clientset, nodeName string) {
 }
 
 func RunDeviceStatusUpdate(ptpClient *ptpclient.Clientset, nodeName string) {
-	t := time.Tick(1 * time.Minute)
-	for {
-		glog.Info("run device status update function")
-		runDeviceStatusUpdate(ptpClient, nodeName)
-		<-t
-	}
+	glog.Info("run device status update function")
+	runDeviceStatusUpdate(ptpClient, nodeName)
 }
