@@ -90,11 +90,19 @@ func (output *ptp4lConf) populatePtp4lConf(config *string, ptp4lopts *string) er
 func (r *PtpConfig) validate() error {
 	profiles := r.Spec.Profile
 	for _, profile := range profiles {
+		if profile.Ptp4lConf == nil {
+			// skip if there is no ptp4lConf
+			continue
+		}
+
 		conf := &ptp4lConf{}
-		conf.populatePtp4lConf(profile.Ptp4lConf, profile.Ptp4lOpts)
+		err := conf.populatePtp4lConf(profile.Ptp4lConf, profile.Ptp4lOpts)
+		if err != nil {
+			return err
+		}
 
 		// Validate that interface field only set in ordinary clock
-		if *profile.Interface != "" {
+		if profile.Interface != nil && *profile.Interface != "" {
 			for section := range conf.sections {
 				if section != "[global]" {
 					if section != ("[" + *profile.Interface + "]") {
