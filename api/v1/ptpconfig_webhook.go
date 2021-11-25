@@ -45,7 +45,11 @@ type ptp4lConf struct {
 }
 
 func (output *ptp4lConf) populatePtp4lConf(config *string, ptp4lopts *string) error {
-	lines := strings.Split(*config, "\n")
+	var string_config string
+	if config != nil {
+		string_config = *config
+	}
+	lines := strings.Split(string_config, "\n")
 	var currentSection string
 	output.sections = make(map[string]ptp4lConfSection)
 
@@ -94,7 +98,7 @@ func (r *PtpConfig) validate() error {
 		conf.populatePtp4lConf(profile.Ptp4lConf, profile.Ptp4lOpts)
 
 		// Validate that interface field only set in ordinary clock
-		if *profile.Interface != "" {
+		if profile.Interface != nil && *profile.Interface != "" {
 			for section := range conf.sections {
 				if section != "[global]" {
 					if section != ("[" + *profile.Interface + "]") {
