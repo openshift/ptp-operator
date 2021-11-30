@@ -122,6 +122,12 @@ func (r *PtpConfig) validate() error {
 		if summary_interval != logSyncInterval {
 			return errors.New("summary_interval " + summary_interval + " must match logSyncInterval " + logSyncInterval)
 		}
+
+		if profile.PtpSchedulingPolicy != nil && *profile.PtpSchedulingPolicy == "SCHED_FIFO" {
+			if profile.PtpSchedulingPriority == nil {
+				return errors.New("PtpSchedulingPriority must be set for SCHED_FIFO PtpSchedulingPolicy")
+			}
+		}
 	}
 	return nil
 }

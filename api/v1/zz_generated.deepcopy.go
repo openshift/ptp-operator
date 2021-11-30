@@ -453,6 +453,16 @@ func (in *PtpProfile) DeepCopyInto(out *PtpProfile) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.PtpSchedulingPolicy != nil {
+		in, out := &in.PtpSchedulingPolicy, &out.PtpSchedulingPolicy
+		*out = new(string)
+		**out = **in
+	}
+	if in.PtpSchedulingPriority != nil {
+		in, out := &in.PtpSchedulingPriority, &out.PtpSchedulingPriority
+		*out = new(int64)
+		**out = **in
+	}
 	if in.PtpClockThreshold != nil {
 		in, out := &in.PtpClockThreshold, &out.PtpClockThreshold
 		*out = new(PtpClockThreshold)
