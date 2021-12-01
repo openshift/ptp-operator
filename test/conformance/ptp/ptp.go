@@ -355,7 +355,7 @@ var _ = Describe("[ptp]", func() {
 						Eventually(func() string {
 							buf, _ := pods.ExecCommand(client.Client, pod, PtpContainerName, []string{"curl", "127.0.0.1:9091/metrics"})
 							return buf.String()
-						}, 5*time.Minute, 5*time.Second).Should(ContainSubstring("openshift_ptp_max_offset_from_master"),
+						}, 5*time.Minute, 5*time.Second).Should(ContainSubstring("openshift_ptp_offset_ns"),
 							fmt.Sprint("Time metrics are not detected"))
 						slavePodDetected = true
 						break
