@@ -7,6 +7,8 @@ reviewers:
   - fepan
   - s1061123
   - SchSeba
+  - josephdrichard
+  - aneeshkp
 approvers:
   - zshi-redhat
   - pliurh
@@ -16,5 +18,7 @@ approvers:
   - fepan
   - s1061123
   - SchSeba
+  - josephdrichard
+  - aneeshkp
 component: "Networking"
 subcomponent: "ptp"
