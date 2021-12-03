@@ -6,6 +6,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -108,6 +110,7 @@ var _ = Describe("[ptp]", func() {
 		var masterNodeLabel, slaveNodeLabel string
 		discoveryFailed := false
 		var masterProfile, slaveProfile string
+		var fifoPriorities map[string]int64
 
 		execute.BeforeAll(func() {
 			if isSingleNode {
@@ -365,6 +368,50 @@ var _ = Describe("[ptp]", func() {
 				Expect(slavePodDetected).ToNot(BeFalse(), "No slave pods detected")
 			})
 		})
+
+		Context("Running with fifo scheduling", func() {
+			BeforeEach(func() {
+				if discoveryFailed {
+					Skip("Failed to find a valid ptp slave configuration")
+				}
+
+				masterConfigs, slaveConfigs := discoveryPTPConfiguration(PtpLinuxDaemonNamespace)
+				ptpConfigs := append(masterConfigs, slaveConfigs...)
+
+				fifoPriorities = make(map[string]int64)
+				for _, config := range ptpConfigs {
+					for _, profile := range config.Spec.Profile {
+						if profile.PtpSchedulingPolicy != nil && *profile.PtpSchedulingPolicy == "SCHED_FIFO" {
+							if profile.PtpSchedulingPriority != nil {
+								fifoPriorities[*profile.Name] = *profile.PtpSchedulingPriority
+							}
+						}
+					}
+				}
+				if len(fifoPriorities) == 0 {
+					Skip("No SCHED_FIFO policies configured")
+				}
+			})
+			It("Should check whether using fifo scheduling", func() {
+				By("checking for chrt logs")
+				ptpPods, err := client.Client.Pods(PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
+				Expect(err).NotTo(HaveOccurred())
+				Expect(len(ptpPods.Items)).To(BeNumerically(">", 0), fmt.Sprint("linuxptp-daemon is not deployed on cluster"))
+				for name, priority := range fifoPriorities {
+					ptp4lLog := fmt.Sprintf("/bin/chrt -f %d /usr/sbin/ptp4l", priority)
+					for _, pod := range ptpPods.Items {
+						logs, err := pods.GetLog(&pod, PtpContainerName)
+						Expect(err).NotTo(HaveOccurred())
+						profileName := fmt.Sprintf("Profile Name: %s", name)
+						if strings.Contains(logs, profileName) {
+							Expect(logs).Should(ContainSubstring(ptp4lLog))
+							delete(fifoPriorities, name)
+						}
+					}
+				}
+				Expect(fifoPriorities).To(HaveLen(0))
+			})
+		})
 	})
 })
 
@@ -386,6 +433,12 @@ func configurePTP() {
 	ptpSlaveNode.NodeObject, err = nodes.LabelNode(ptpSlaveNode.NodeName, PtpSlaveNodeLabel, "")
 	Expect(err).ToNot(HaveOccurred())
 
+	ptpSchedulingPolicy := "SCHED_OTHER"
+	configureFifo, err := strconv.ParseBool(os.Getenv("CONFIGURE_FIFO"))
+	if err == nil && configureFifo {
+		ptpSchedulingPolicy = "SCHED_FIFO"
+	}
+
 	for _, gmInterface := range ptpGrandMasterNode.InterfaceList {
 		for _, slaveInterface := range ptpSlaveNode.InterfaceList {
 			clean.Configs()
@@ -396,7 +449,9 @@ func configurePTP() {
 				"-2",
 				"-a -r -r",
 				PtpGrandmasterNodeLabel,
-				pointer.Int64Ptr(5))
+				pointer.Int64Ptr(5),
+				ptpSchedulingPolicy,
+				pointer.Int64Ptr(65))
 			Expect(err).ToNot(HaveOccurred())
 
 			By("Creating the policy for the slave node")
@@ -405,7 +460,9 @@ func configurePTP() {
 				"-s -2",
 				"-a -r",
 				PtpSlaveNodeLabel,
-				pointer.Int64Ptr(5))
+				pointer.Int64Ptr(5),
+				ptpSchedulingPolicy,
+				pointer.Int64Ptr(65))
 			Expect(err).ToNot(HaveOccurred())
 
 			By("Restart the linuxptp-daemon pods")
@@ -756,8 +813,8 @@ func getNonPtpMasterSlaveAttachedInterfaces(pod v1core.Pod) []string {
 	return ptpSupportedInterfaces
 }
 
-func createConfig(profileName, ifaceName, ptp4lOpts, phc2sysOpts, nodeLabel string, priority *int64) error {
-	ptpProfile := ptpv1.PtpProfile{Name: &profileName, Interface: &ifaceName, Phc2sysOpts: &phc2sysOpts, Ptp4lOpts: &ptp4lOpts}
+func createConfig(profileName, ifaceName, ptp4lOpts, phc2sysOpts, nodeLabel string, priority *int64, ptpSchedulingPolicy string, ptpSchedulingPriority *int64) error {
+	ptpProfile := ptpv1.PtpProfile{Name: &profileName, Interface: &ifaceName, Phc2sysOpts: &phc2sysOpts, Ptp4lOpts: &ptp4lOpts, PtpSchedulingPolicy: &ptpSchedulingPolicy, PtpSchedulingPriority: ptpSchedulingPriority}
 	matchRule := ptpv1.MatchRule{NodeLabel: &nodeLabel}
 	ptpRecommend := ptpv1.PtpRecommend{Profile: &profileName, Priority: priority, Match: []ptpv1.MatchRule{matchRule}}
 	policy := ptpv1.PtpConfig{ObjectMeta: metav1.ObjectMeta{Name: profileName, Namespace: PtpLinuxDaemonNamespace},
