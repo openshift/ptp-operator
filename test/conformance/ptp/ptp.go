@@ -9,6 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/openshift/ptp-operator/test/utils/event"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -45,6 +47,16 @@ var _ = Describe("[ptp]", func() {
 
 	Context("PTP configuration verifications", func() {
 		// Setup verification
+		// if requested enabled  ptp events
+		It("Should check whether PTP operator needs to enable PTP events", func() {
+			By("Find if variable set to enable ptp events")
+			if event.Enable() {
+				Expect(enablePTPEvent()).NotTo(HaveOccurred())
+				ptpConfig, err := client.Client.PtpV1Interface.PtpOperatorConfigs(PtpLinuxDaemonNamespace).Get(context.Background(), "default", metav1.GetOptions{})
+				Expect(err).NotTo(HaveOccurred())
+				Expect(ptpConfig.Spec.EventConfig.EnableEventPublisher).Should(BeTrue(), "failed to enable ptp event")
+			}
+		})
 		It("Should check whether PTP operator appropriate resource exists", func() {
 			By("Getting list of available resources")
 			rl, err := client.Client.ServerPreferredResources()
@@ -101,6 +113,7 @@ var _ = Describe("[ptp]", func() {
 				}
 			}
 		})
+
 	})
 
 	Describe("PTP e2e tests", func() {
@@ -149,6 +162,7 @@ var _ = Describe("[ptp]", func() {
 				Expect(err).ToNot(HaveOccurred())
 				return len(ptpPods.Items)
 			}, 2*time.Minute, 2*time.Second).Should(Equal(int(expectedNumber)))
+
 		})
 
 		Context("PTP Interfaces discovery", func() {
@@ -161,7 +175,7 @@ var _ = Describe("[ptp]", func() {
 				}
 				ptpPods, err := client.Client.Pods(PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
 				Expect(err).NotTo(HaveOccurred())
-				Expect(len(ptpPods.Items)).To(BeNumerically(">", 0), fmt.Sprint("linuxptp-daemon is not deployed on cluster"))
+				Expect(len(ptpPods.Items)).To(BeNumerically(">", 0), "linuxptp-daemon is not deployed on cluster")
 
 				ptpSlaveRunningPods := []v1core.Pod{}
 				ptpMasterRunningPods := []v1core.Pod{}
@@ -176,10 +190,10 @@ var _ = Describe("[ptp]", func() {
 					}
 				}
 				if discovery.Enabled() {
-					Expect(len(ptpSlaveRunningPods)).To(BeNumerically(">=", 1), fmt.Sprint("Fail to detect PTP slave pods on Cluster"))
+					Expect(len(ptpSlaveRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP slave pods on Cluster")
 				} else {
-					Expect(len(ptpMasterRunningPods)).To(BeNumerically(">=", 1), fmt.Sprint("Fail to detect PTP master pods on Cluster"))
-					Expect(len(ptpSlaveRunningPods)).To(BeNumerically(">=", 1), fmt.Sprint("Fail to detect PTP slave pods on Cluster"))
+					Expect(len(ptpMasterRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP master pods on Cluster")
+					Expect(len(ptpSlaveRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP slave pods on Cluster")
 				}
 				ptpRunningPods = append(ptpMasterRunningPods, ptpSlaveRunningPods...)
 			})
@@ -188,7 +202,7 @@ var _ = Describe("[ptp]", func() {
 			It("The interfaces support ptp can be discovered correctly", func() {
 				for _, pod := range ptpRunningPods {
 					ptpSupportedInt := getPtpMasterSlaveAttachedInterfaces(pod)
-					Expect(len(ptpSupportedInt)).To(BeNumerically(">", 0), fmt.Sprint("Fail to detect PTP Supported interfaces on slave/master pods"))
+					Expect(len(ptpSupportedInt)).To(BeNumerically(">", 0), "Fail to detect PTP Supported interfaces on slave/master pods")
 					ptpDiscoveredInterfaces := ptpDiscoveredInterfaceList(NodePtpDeviceAPIPath + pod.Spec.NodeName)
 					for _, intfc := range ptpSupportedInt {
 						Expect(ptpDiscoveredInterfaces).To(ContainElement(intfc))
@@ -202,7 +216,7 @@ var _ = Describe("[ptp]", func() {
 					ptpNotSupportedInt := getNonPtpMasterSlaveAttachedInterfaces(pod)
 					ptpDiscoveredInterfaces := ptpDiscoveredInterfaceList(NodePtpDeviceAPIPath + pod.Spec.NodeName)
 					for _, inter := range ptpNotSupportedInt {
-						Expect(ptpDiscoveredInterfaces).ToNot(ContainElement(inter), fmt.Sprint("The interfaces discovered incorrectly. PTP non supported Interfaces in list"))
+						Expect(ptpDiscoveredInterfaces).ToNot(ContainElement(inter), "The interfaces discovered incorrectly. PTP non supported Interfaces in list")
 					}
 				}
 			})
@@ -324,7 +338,7 @@ var _ = Describe("[ptp]", func() {
 				}
 				ptpPods, err := client.Client.Pods(PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
 				Expect(err).NotTo(HaveOccurred())
-				Expect(len(ptpPods.Items)).To(BeNumerically(">", 0), fmt.Sprint("linuxptp-daemon is not deployed on cluster"))
+				Expect(len(ptpPods.Items)).To(BeNumerically(">", 0), "linuxptp-daemon is not deployed on cluster")
 
 				ptpSlaveRunningPods := []v1core.Pod{}
 				ptpMasterRunningPods := []v1core.Pod{}
@@ -339,10 +353,10 @@ var _ = Describe("[ptp]", func() {
 					}
 				}
 				if discovery.Enabled() {
-					Expect(len(ptpSlaveRunningPods)).To(BeNumerically(">=", 1), fmt.Sprint("Fail to detect PTP slave pods on Cluster"))
+					Expect(len(ptpSlaveRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP slave pods on Cluster")
 				} else {
-					Expect(len(ptpMasterRunningPods)).To(BeNumerically(">=", 1), fmt.Sprint("Fail to detect PTP master pods on Cluster"))
-					Expect(len(ptpSlaveRunningPods)).To(BeNumerically(">=", 1), fmt.Sprint("Fail to detect PTP slave pods on Cluster"))
+					Expect(len(ptpMasterRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP master pods on Cluster")
+					Expect(len(ptpSlaveRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP slave pods on Cluster")
 				}
 				ptpRunningPods = append(ptpMasterRunningPods, ptpSlaveRunningPods...)
 			})
@@ -356,12 +370,100 @@ var _ = Describe("[ptp]", func() {
 							buf, _ := pods.ExecCommand(client.Client, pod, PtpContainerName, []string{"curl", "127.0.0.1:9091/metrics"})
 							return buf.String()
 						}, 5*time.Minute, 5*time.Second).Should(ContainSubstring("openshift_ptp_offset_ns"),
-							fmt.Sprint("Time metrics are not detected"))
+							"Time metrics are not detected")
 						slavePodDetected = true
 						break
 					}
 				}
 				Expect(slavePodDetected).ToNot(BeFalse(), "No slave pods detected")
+			})
+		})
+
+		Context("Running with event enabled", func() {
+			ptpSlaveRunningPods := []v1core.Pod{}
+			BeforeEach(func() {
+				if !ptpEventEnabled() {
+					Skip("Skipping, PTP events not enabled")
+				}
+				if isSingleNode {
+					Skip("Running in single node mode")
+				}
+				if discoveryFailed {
+					Skip("Failed to find a valid ptp slave configuration")
+				}
+				ptpPods, err := client.Client.Pods(PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
+				Expect(err).NotTo(HaveOccurred())
+				Expect(len(ptpPods.Items)).To(BeNumerically(">", 0), "linuxptp-daemon is not deployed on cluster")
+
+				for _, pod := range ptpPods.Items {
+					if podRole(pod, slaveNodeLabel) {
+						waitUntilLogIsDetected(pod, 3*time.Minute, "Profile Name:")
+						ptpSlaveRunningPods = append(ptpSlaveRunningPods, pod)
+					}
+				}
+				if discovery.Enabled() {
+					Expect(len(ptpSlaveRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP slave pods on Cluster")
+				} else {
+					Expect(len(ptpSlaveRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP slave pods on Cluster")
+				}
+			})
+
+			It("Should check for ptp events ", func() {
+				By("Checking event side car is present")
+
+				for _, pod := range ptpSlaveRunningPods {
+					cloudProxyFound := false
+					Expect(len(pod.Spec.Containers)).To(BeNumerically("==", 3), "linuxptp-daemon is not deployed on cluster with cloud event proxy")
+					for _, c := range pod.Spec.Containers {
+						if c.Name == EventProxyContainerName {
+							cloudProxyFound = true
+						}
+					}
+					Expect(cloudProxyFound).ToNot(BeFalse(), "No event pods detected")
+				}
+
+				By("Checking event metrics are present")
+				for _, pod := range ptpSlaveRunningPods {
+					Eventually(func() string {
+						buf, _ := pods.ExecCommand(client.Client, pod, EventProxyContainerName, []string{"curl", "127.0.0.1:9091/metrics"})
+						return buf.String()
+					}, 5*time.Minute, 5*time.Second).Should(ContainSubstring("openshift_ptp_interface_role"),
+						"Interface role metrics are not detected")
+
+					Eventually(func() string {
+						buf, _ := pods.ExecCommand(client.Client, pod, EventProxyContainerName, []string{"curl", "127.0.0.1:9091/metrics"})
+						return buf.String()
+					}, 5*time.Minute, 5*time.Second).Should(ContainSubstring("openshift_ptp_threshold"),
+						"Threshold metrics are not detected")
+				}
+
+				By("Checking event api is healthy")
+				for _, pod := range ptpSlaveRunningPods {
+					Eventually(func() string {
+						buf, _ := pods.ExecCommand(client.Client, pod, EventProxyContainerName, []string{"curl", "127.0.0.1:9085/api/cloudNotifications/v1/health"})
+						return buf.String()
+					}, 5*time.Minute, 5*time.Second).Should(ContainSubstring("OK"),
+						"Event API is not in healthy state")
+				}
+
+				By("Checking ptp publisher is created")
+				for _, pod := range ptpSlaveRunningPods {
+					Eventually(func() string {
+						buf, _ := pods.ExecCommand(client.Client, pod, EventProxyContainerName, []string{"curl", "127.0.0.1:9085/api/cloudNotifications/v1/publishers"})
+						return buf.String()
+					}, 5*time.Minute, 5*time.Second).Should(ContainSubstring("endpointUri"),
+						"Event API  did not return publishers")
+				}
+
+				By("Checking events are generated")
+				for _, pod := range ptpSlaveRunningPods {
+					podLogs, err := pods.GetLog(&pod, EventProxyContainerName)
+					Expect(err).NotTo(HaveOccurred(), "Error to find needed log due to %s", err)
+					Expect(podLogs).Should(ContainSubstring("Created publisher"),
+						fmt.Sprintf("PTP event publisher was not created in pod %s", pod.Name))
+					Expect(podLogs).Should(ContainSubstring("event sent"),
+						fmt.Sprintf("PTP event was not generated in the pod %s", pod.Name))
+				}
 			})
 		})
 	})
@@ -579,8 +681,8 @@ func waitUntilLogIsDetected(pod v1core.Pod, timeout time.Duration, neededLog str
 
 func getPtpPodOnNode(nodeName string) (v1core.Pod, error) {
 	runningPod, err := client.Client.Pods(PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
-	Expect(err).NotTo(HaveOccurred(), fmt.Sprint("Error to get list of pods by label: app=linuxptp-daemon"))
-	Expect(len(runningPod.Items)).To(BeNumerically(">", 0), fmt.Sprint("PTP pods are  not deployed on cluster"))
+	Expect(err).NotTo(HaveOccurred(), "Error to get list of pods by label: app=linuxptp-daemon")
+	Expect(len(runningPod.Items)).To(BeNumerically(">", 0), "PTP pods are  not deployed on cluster")
 	for _, pod := range runningPod.Items {
 
 		if pod.Spec.NodeName == nodeName {
@@ -764,4 +866,31 @@ func createConfig(profileName, ifaceName, ptp4lOpts, phc2sysOpts, nodeLabel stri
 
 	_, err := client.Client.PtpConfigs(PtpLinuxDaemonNamespace).Create(context.Background(), &policy, metav1.CreateOptions{})
 	return err
+}
+
+func enablePTPEvent() error {
+	ptpConfig, err := client.Client.PtpV1Interface.PtpOperatorConfigs(PtpLinuxDaemonNamespace).Get(context.Background(), "default", metav1.GetOptions{})
+	Expect(err).NotTo(HaveOccurred())
+	if ptpConfig.Spec.EventConfig == nil {
+		ptpConfig.Spec.EventConfig = &ptpv1.PtpEventConfig{
+			EnableEventPublisher: true,
+			TransportHost:        "amqp://mock",
+		}
+	}
+	if ptpConfig.Spec.EventConfig.TransportHost == "" {
+		ptpConfig.Spec.EventConfig.TransportHost = "amqp://mock"
+	}
+
+	ptpConfig.Spec.EventConfig.EnableEventPublisher = true
+	_, err = client.Client.PtpOperatorConfigs(PtpLinuxDaemonNamespace).Update(context.Background(), ptpConfig, metav1.UpdateOptions{})
+	return err
+}
+
+func ptpEventEnabled() bool {
+	ptpConfig, err := client.Client.PtpV1Interface.PtpOperatorConfigs(PtpLinuxDaemonNamespace).Get(context.Background(), "default", metav1.GetOptions{})
+	Expect(err).NotTo(HaveOccurred())
+	if ptpConfig.Spec.EventConfig == nil {
+		return false
+	}
+	return ptpConfig.Spec.EventConfig.EnableEventPublisher
 }
