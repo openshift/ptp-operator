@@ -38,6 +38,7 @@ import (
 
 	ptpv1 "github.com/openshift/ptp-operator/api/v1"
 	"github.com/openshift/ptp-operator/controllers"
+	"github.com/openshift/ptp-operator/pkg/leaderelection"
 	"github.com/openshift/ptp-operator/pkg/names"
 	//+kubebuilder:scaffold:imports
 )
@@ -61,14 +62,19 @@ func main() {
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.Parse()
-
+	restConfig := ctrl.GetConfigOrDie()
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	le := leaderelection.GetLeaderElectionConfig(restConfig, enableLeaderElection)
+
 	namespace := os.Getenv("WATCH_NAMESPACE")
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 		Scheme:             scheme,
 		MetricsBindAddress: metricsAddr,
 		Port:               9443,
 		LeaderElection:     enableLeaderElection,
+		LeaseDuration:      &le.LeaseDuration.Duration,
+		RenewDeadline:      &le.RenewDeadline.Duration,
+		RetryPeriod:        &le.RetryPeriod.Duration,
 		LeaderElectionID:   "ptp.openshift.io",
 		Namespace:          namespace,
 	})
