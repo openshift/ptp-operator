@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -22,6 +23,7 @@ const (
 	PTP4L_CONF_FILE_PATH    = "/etc/ptp4l.conf"
 	PTP4L_CONF_DIR          = "/ptp4l-conf"
 	connectionRetryInterval = 1 * time.Second
+	processRestartInterval  = 1 * time.Second
 	eventSocket             = "/cloud-native/events.sock"
 )
 
@@ -40,6 +42,8 @@ type ptpProcess struct {
 	ptp4lConfigPath string
 	configName      string
 	exitCh          chan bool
+	execMutex       sync.Mutex
+	stopped         bool
 	cmd             *exec.Cmd
 }
 
@@ -195,6 +199,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 			ifaces:     strings.Split(*nodeProfile.Interface, ","),
 			configName: configFile,
 			exitCh:     make(chan bool),
+			stopped:    false,
 			cmd:        phc2sysCreateCmd(nodeProfile)})
 	} else {
 		glog.Infof("applyNodePtpProfile: not starting phc2sys, phc2sysOpts is empty")
@@ -213,6 +218,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 		ptp4lSocketPath: socketPath,
 		configName:      configFile,
 		exitCh:          make(chan bool),
+		stopped:         false,
 		cmd:             ptp4lCreateCmd(nodeProfile, configPath)})
 
 	return nil
@@ -303,86 +309,98 @@ func ptp4lCreateCmd(nodeProfile *ptpv1.PtpProfile, confFilePath string) *exec.Cm
 	return exec.Command(args[0], args[1:]...)
 }
 
-// cmdRun runs given ptpProcess and wait for errors
+// cmdRun runs given ptpProcess and restarts on errors
 func cmdRun(p *ptpProcess, stdoutToSocket bool) {
-	glog.Infof("Starting %s...", p.name)
-	glog.Infof("%s cmd: %+v", p.name, p.cmd)
 	var c net.Conn
-	var err error
-	defer func() {
+	done := make(chan struct{}) // Done setting up logging.  Go ahead and wait for process
+	for {
+		glog.Infof("Starting %s...", p.name)
+		glog.Infof("%s cmd: %+v", p.name, p.cmd)
+
+		//
+		// don't discard process stderr output
+		//
+		p.cmd.Stderr = os.Stderr
+		cmdReader, err := p.cmd.StdoutPipe()
+		if err != nil {
+			glog.Errorf("cmdRun() error creating StdoutPipe for %s: %v", p.name, err)
+			break
+		}
+		if !stdoutToSocket {
+			scanner := bufio.NewScanner(cmdReader)
+			go func() {
+				for scanner.Scan() {
+					output := scanner.Text()
+					fmt.Printf("%s\n", output)
+					extractMetrics(p.configName, p.name, p.ifaces, output)
+				}
+				done <- struct{}{}
+			}()
+		} else {
+			go func() {
+			connect:
+				select {
+				case <-p.exitCh:
+					done <- struct{}{}
+				default:
+					c, err = net.Dial("unix", eventSocket)
+					if err != nil {
+						glog.Errorf("error trying to connect to event socket")
+						time.Sleep(connectionRetryInterval)
+						goto connect
+					}
+				}
+				scanner := bufio.NewScanner(cmdReader)
+				for scanner.Scan() {
+					output := scanner.Text()
+					out := fmt.Sprintf("%s\n", output)
+					fmt.Printf("%s", out)
+					_, err := c.Write([]byte(out))
+					if err != nil {
+						glog.Errorf("Write error:", err)
+						goto connect
+					}
+				}
+				done <- struct{}{}
+			}()
+		}
+		p.execMutex.Lock() // Don't restart after termination
+		stopped := p.stopped
+		if !stopped {
+			err = p.cmd.Start()
+			if err != nil {
+				glog.Errorf("cmdRun() error starting %s: %v", p.name, err)
+			}
+		}
+		p.execMutex.Unlock()
+
+		<-done // goroutine is done
+
+		err = p.cmd.Wait()
+		if err != nil {
+			glog.Errorf("cmdRun() error waiting for %s: %v", p.name, err)
+		}
+
+		time.Sleep(connectionRetryInterval) // Delay to prevent flooding restarts if startup fails
+		p.execMutex.Lock()                  // Don't restart after termination
+		if p.stopped {
+			glog.Infof("Not recreating %s...", p.name)
+			p.execMutex.Unlock()
+			break
+		} else {
+			glog.Infof("Recreating %s...", p.name)
+			newCmd := exec.Command(p.cmd.Args[0], p.cmd.Args[1:]...)
+			p.cmd = newCmd
+		}
+		p.execMutex.Unlock()
 		if stdoutToSocket && c != nil {
 			if err := c.Close(); err != nil {
 				glog.Errorf("closing connection returned error %s", err)
 			}
 		}
-		p.exitCh <- true
-	}()
-
-	//
-	// don't discard process stderr output
-	//
-	p.cmd.Stderr = os.Stderr
-	cmdReader, err := p.cmd.StdoutPipe()
-	if err != nil {
-		glog.Errorf("cmdRun() error creating StdoutPipe for %s: %v", p.name, err)
-		return
 	}
 
-	done := make(chan struct{})
-
-	if !stdoutToSocket {
-		scanner := bufio.NewScanner(cmdReader)
-		go func() {
-			for scanner.Scan() {
-				output := scanner.Text()
-				fmt.Printf("%s\n", output)
-				extractMetrics(p.configName, p.name, p.ifaces, output)
-			}
-			done <- struct{}{}
-		}()
-	} else {
-		go func() {
-		connect:
-			select {
-			case <-p.exitCh:
-				done <- struct{}{}
-			default:
-				c, err = net.Dial("unix", eventSocket)
-				if err != nil {
-					glog.Errorf("error trying to connect to event socket")
-					time.Sleep(connectionRetryInterval)
-					goto connect
-				}
-			}
-			scanner := bufio.NewScanner(cmdReader)
-			for scanner.Scan() {
-				output := scanner.Text()
-				out := fmt.Sprintf("%s\n", output)
-				fmt.Printf("%s", out)
-				_, err := c.Write([]byte(out))
-				if err != nil {
-					glog.Errorf("Write error:", err)
-					goto connect
-				}
-			}
-			done <- struct{}{}
-		}()
-	}
-
-	err = p.cmd.Start()
-	if err != nil {
-		glog.Errorf("cmdRun() error starting %s: %v", p.name, err)
-		return
-	}
-
-	<-done
-
-	err = p.cmd.Wait()
-	if err != nil {
-		glog.Errorf("cmdRun() error waiting for %s: %v", p.name, err)
-		return
-	}
-	return
+	p.exitCh <- true
 }
 
 // cmdStop stops ptpProcess launched by cmdRun
@@ -392,10 +410,15 @@ func cmdStop(p *ptpProcess) {
 		return
 	}
 
+	p.execMutex.Lock()
+	p.stopped = true
+
 	if p.cmd.Process != nil {
 		glog.Infof("Sending TERM to PID: %d", p.cmd.Process.Pid)
 		p.cmd.Process.Signal(syscall.SIGTERM)
 	}
+
+	p.execMutex.Unlock()
 
 	if p.ptp4lSocketPath != "" {
 		err := os.Remove(p.ptp4lSocketPath)
