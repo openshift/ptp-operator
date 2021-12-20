@@ -13,7 +13,7 @@ require (
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.17.0
 	github.com/openshift/api v0.0.0-20211209135129-c58d9f695577
-	github.com/openshift/library-go v0.0.0-20211214183058-58531ccbde67
+	github.com/openshift/library-go v0.0.0-20211220195323-eca2c467c492
 	github.com/pkg/errors v0.9.1
 	k8s.io/api v0.23.0
 	k8s.io/apiextensions-apiserver v0.23.0
