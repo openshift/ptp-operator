@@ -69,7 +69,7 @@ func (output *ptp4lConf) populatePtp4lConf(config *string, ptp4lopts *string) er
 			split := strings.IndexByte(line, ' ')
 			if split > 0 {
 				section := output.sections[currentSection]
-				section.options[line[:split]] = line[split+1:]
+				section.options[line[:split]] = strings.TrimSpace(line[split+1:])
 				output.sections[currentSection] = section
 			}
 		} else {
@@ -82,7 +82,7 @@ func (output *ptp4lConf) populatePtp4lConf(config *string, ptp4lopts *string) er
 	}
 
 	// When validating, add ptp4lopts to conf for fields we check
-	opts := strings.Split(*ptp4lopts, " ")
+	opts := strings.Fields(*ptp4lopts)
 	for index, opt := range opts {
 		if opt == "--summary_interval" && index < len(opts)-1 {
 			output.sections["[global]"].options["summary_interval"] = opts[index+1]
