@@ -67,6 +67,16 @@ spec:
                           format: int64
                           type: integer
                       type: object
+                    ptpSchedulingPolicy:
+                      enum:
+                      - SCHED_OTHER
+                      - SCHED_FIFO
+                      type: string
+                    ptpSchedulingPriority:
+                      format: int64
+                      maximum: 65
+                      minimum: 1
+                      type: integer
                   required:
                   - name
                   type: object
