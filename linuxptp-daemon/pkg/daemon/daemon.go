@@ -23,7 +23,6 @@ const (
 	PTP4L_CONF_FILE_PATH    = "/etc/ptp4l.conf"
 	PTP4L_CONF_DIR          = "/ptp4l-conf"
 	connectionRetryInterval = 1 * time.Second
-	processRestartInterval  = 1 * time.Second
 	eventSocket             = "/cloud-native/events.sock"
 )
 
@@ -357,7 +356,7 @@ func cmdRun(p *ptpProcess, stdoutToSocket bool) {
 					fmt.Printf("%s", out)
 					_, err := c.Write([]byte(out))
 					if err != nil {
-						glog.Errorf("Write error:", err)
+						glog.Errorf("Write error %s:", err)
 						goto connect
 					}
 				}

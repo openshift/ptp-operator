@@ -3,7 +3,9 @@ package daemon
 import (
 	"fmt"
 	"github.com/golang/glog"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -22,10 +24,12 @@ const (
 	PTPNamespace = "openshift"
 	PTPSubsystem = "ptp"
 
-	ptp4lProcessName   = "ptp4l"
-	phc2sysProcessName = "phc2sys"
-	clockRealTime      = "CLOCK_REALTIME"
-	master             = "master"
+	ptp4lProcessName = "ptp4l"
+	phcProcessName   = "phc2sys"
+	clockRealTime    = "CLOCK_REALTIME"
+	master           = "master"
+
+	faultyOffset = 999999
 
 	offset = "offset"
 	rms    = "rms"
@@ -53,7 +57,10 @@ const (
 )
 
 var (
-	NodeName = ""
+	masterOffsetIfaceName map[string]string // by slave iface with masked index
+	slaveIfaceName        map[string]string // current slave iface name
+	NodeName              = ""
+	ptp4lConfigIndex      = regexp.MustCompile("[0-9]+")
 
 	Offset = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -118,11 +125,14 @@ func RegisterMetrics(nodeName string) {
 		prometheus.MustRegister(ClockState)
 
 		// Including these stats kills performance when Prometheus polls with multiple targets
-		prometheus.Unregister(prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
-		prometheus.Unregister(prometheus.NewGoCollector())
+		prometheus.Unregister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+		prometheus.Unregister(collectors.NewGoCollector())
 
 		NodeName = nodeName
 	})
+
+	masterOffsetIfaceName = map[string]string{}
+	slaveIfaceName = map[string]string{}
 }
 
 // updatePTPMetrics ...
@@ -145,17 +155,18 @@ func extractMetrics(configName, processName string, ifaces []string, output stri
 	if strings.Contains(output, " max ") {
 		ifaceName, ptpOffset, maxPtpOffset, frequencyAdjustment, delay := extractSummaryMetrics(configName, processName, output)
 		if ifaceName != "" {
-			if ifaceName == master {
-				updatePTPMetrics(master, processName, ifaceName, ptpOffset, maxPtpOffset, frequencyAdjustment, delay)
-			} else {
+			if ifaceName == clockRealTime {
 				updatePTPMetrics(phc, processName, ifaceName, ptpOffset, maxPtpOffset, frequencyAdjustment, delay)
+			} else {
+				updatePTPMetrics(master, processName, ifaceName, ptpOffset, maxPtpOffset, frequencyAdjustment, delay)
 			}
 		}
-
 	} else if strings.Contains(output, " offset ") {
-		ifaceName, clockstate, ptpOffset, maxPtpOffset, frequencyAdjustment, delay := extractRegularMetrics(configName, processName, output)
+		err, ifaceName, clockstate, ptpOffset, maxPtpOffset, frequencyAdjustment, delay := extractRegularMetrics(configName, processName, output)
+		if err != nil {
+			glog.Error(err.Error())
 
-		if ifaceName != "" {
+		} else if ifaceName != "" {
 			offsetSource := master
 			if strings.Contains(output, "sys offset") {
 				offsetSource = sys
@@ -170,6 +181,18 @@ func extractMetrics(configName, processName string, ifaces []string, output stri
 		if portId, role := extractPTP4lEventState(output); portId > 0 {
 			if len(ifaces) >= portId-1 {
 				UpdateInterfaceRoleMetrics(processName, ifaces[portId-1], role)
+				if role == SLAVE {
+					r := []rune(ifaces[portId-1])
+					masterOffsetIfaceName[configName] = string(r[:len(r)-1]) + "x"
+					slaveIfaceName[configName] = ifaces[portId-1]
+				} else if role == FAULTY {
+					if isSlaveFaulty(configName, ifaces[portId-1]) {
+						updatePTPMetrics(master, processName, getMasterOffsetIfaceName(configName), faultyOffset, faultyOffset, 0, 0)
+						updatePTPMetrics(phc, phcProcessName, clockRealTime, faultyOffset, faultyOffset, 0, 0)
+						masterOffsetIfaceName[configName] = ""
+						slaveIfaceName[configName] = ""
+					}
+				}
 			}
 		}
 	}
@@ -180,16 +203,18 @@ func extractSummaryMetrics(configName, processName, output string) (iface string
 	// phc2sys[5196755.139]: [ptp4l.0.config] ens5f0 rms 3152778 max 3152778 freq -6083928 +/-   0 delay  2791 +/-   0
 	// phc2sys[3560354.300]: [ptp4l.0.config] CLOCK_REALTIME rms    4 max    4 freq -76829 +/-   0 delay  1085 +/-   0
 	// ptp4l[74737.942]: [ptp4l.0.config] rms  53 max   74 freq -16642 +/-  40 delay  1089 +/-  20
+	// or
+	// ptp4l[365195.391]: [ptp4l.0.config] master offset         -1 s2 freq   -3972 path delay        89
 
-	indx := strings.Index(output, rms)
-	if indx < 0 {
+	rmsIndex := strings.Index(output, rms)
+	if rmsIndex < 0 {
 		return
 	}
 
 	replacer := strings.NewReplacer("[", " ", "]", " ", ":", " ")
 	output = replacer.Replace(output)
 
-	indx = strings.Index(output, configName)
+	indx := strings.Index(output, configName)
 	if indx == -1 {
 		return
 	}
@@ -203,16 +228,20 @@ func extractSummaryMetrics(configName, processName, output string) (iface string
 		return
 	}
 
-	// when ptp4l log is missing interface name
-	if fields[1] == rms {
+	// when ptp4l log for master offset
+	if fields[1] == rms { // if first field is rms , then add master
 		fields = append(fields, "") // Making space for the new element
 		//  0             1     2
 		//ptp4l.0.config rms   53 max   74 freq -16642 +/-  40 delay  1089 +/-  20
-		copy(fields[2:], fields[1:]) // Shifting elements
-		fields[1] = "master"         // Copying/inserting the value
+		copy(fields[2:], fields[1:])                     // Shifting elements
+		fields[1] = getMasterOffsetIfaceName(configName) // Copying/inserting the value
 		//  0             0       1   2
 		//ptp4l.0.config master rms   53 max   74 freq -16642 +/-  40 delay  1089 +/-  20
+	} else if fields[1] != "CLOCK_REALTIME" {
+		// phc2sys[5196755.139]: [ptp4l.0.config] ens5f0 rms 3152778 max 3152778 freq -6083928 +/-   0 delay  2791 +/-   0
+		return // do not register offset value for master port reported by phc2sys
 	}
+
 	iface = fields[1]
 
 	ptpOffset, err := strconv.ParseFloat(fields[3], 64)
@@ -243,7 +272,7 @@ func extractSummaryMetrics(configName, processName, output string) (iface string
 	return
 }
 
-func extractRegularMetrics(configName, processName, output string) (iface, clockState string, ptpOffset, maxPtpOffset, frequencyAdjustment, delay float64) {
+func extractRegularMetrics(configName, processName, output string) (err error, iface, clockState string, ptpOffset, maxPtpOffset, frequencyAdjustment, delay float64) {
 	indx := strings.Index(output, offset)
 	if indx < 0 {
 		return
@@ -262,27 +291,37 @@ func extractRegularMetrics(configName, processName, output string) (iface, clock
 	fields := strings.Fields(output)
 
 	//       0         1      2          3    4   5    6          7     8
-	//ptp4l.0.config master offset   -2162130 s2 freq +22451884  delay 374976
+	//ptp4l.0.config master offset          4 s2 freq   -3964 path delay        91
 	if len(fields) < 7 {
-		glog.Errorf("%s failed to parse output %s: unexpected number of fields", processName, output)
+		err = fmt.Errorf("%s failed to parse output %s: unexpected number of fields", processName, output)
 		return
 	}
 
 	if fields[2] != offset {
-		glog.Errorf("%s failed to parse offset from the output %s error %s", processName, fields[1], "offset is not in right order")
+		err = fmt.Errorf("%s failed to parse offset from the output %s error %s", processName, fields[1], "offset is not in right order")
 		return
 	}
 
 	iface = fields[1]
+	if iface != clockRealTime && iface != master {
+		return // ignore master port offsets
+	}
 
-	ptpOffset, err := strconv.ParseFloat(fields[3], 64)
-	if err != nil {
-		glog.Errorf("%s failed to parse offset from the output %s error %v", processName, fields[1], err)
+	// replace master offset from master to slaveInterface - index + x ens01== ens0X
+	if iface == master {
+		iface = getMasterOffsetIfaceName(configName)
+	}
+
+	ptpOffset, e := strconv.ParseFloat(fields[3], 64)
+	if e != nil {
+		err = fmt.Errorf("%s failed to parse offset from the output %s error %v", processName, fields[1], err)
+		return
 	}
 
 	maxPtpOffset, err = strconv.ParseFloat(fields[3], 64)
 	if err != nil {
-		glog.Errorf("%s failed to parse max offset from the output %s error %v", processName, fields[1], err)
+		err = fmt.Errorf("%s failed to parse max offset from the output %s error %v", processName, fields[1], err)
+		return
 	}
 
 	switch fields[4] {
@@ -298,13 +337,14 @@ func extractRegularMetrics(configName, processName, output string) (iface, clock
 
 	frequencyAdjustment, err = strconv.ParseFloat(fields[6], 64)
 	if err != nil {
-		glog.Errorf("%s failed to parse frequency adjustment output %s error %v", processName, fields[6], err)
+		err = fmt.Errorf("%s failed to parse frequency adjustment output %s error %v", processName, fields[6], err)
+		return
 	}
 
 	if len(fields) > 8 {
 		delay, err = strconv.ParseFloat(fields[8], 64)
 		if err != nil {
-			glog.Errorf("%s failed to parse delay from the output %s error %v", processName, fields[8], err)
+			err = fmt.Errorf("%s failed to parse delay from the output %s error %v", processName, fields[8], err)
 		}
 	} else {
 		// If there is no delay this mean we are out of sync
@@ -418,4 +458,20 @@ func StartMetricsServer(bindAddress string) {
 			utilruntime.HandleError(fmt.Errorf("starting metrics server failed: %v", err))
 		}
 	}, 5*time.Second, utilwait.NeverStop)
+}
+
+func getMasterOffsetIfaceName(configName string) string {
+	if s, found := masterOffsetIfaceName[configName]; found {
+		return s
+	}
+	return ""
+}
+
+func isSlaveFaulty(configName string, iface string) bool {
+	if s, found := slaveIfaceName[configName]; found {
+		if s == iface {
+			return true
+		}
+	}
+	return false
 }
