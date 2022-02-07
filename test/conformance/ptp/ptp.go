@@ -193,7 +193,6 @@ var _ = Describe("[ptp]", func() {
 					ptpSupportedInt := getPtpMasterSlaveAttachedInterfaces(pod)
 					Expect(len(ptpSupportedInt)).To(BeNumerically(">", 0), fmt.Sprint("Fail to detect PTP Supported interfaces on slave/master pods"))
 					ptpDiscoveredInterfaces := ptpDiscoveredInterfaceList(NodePtpDeviceAPIPath + pod.Spec.NodeName)
-					Expect(len(ptpSupportedInt)).To(Equal(len(ptpDiscoveredInterfaces)), fmt.Sprint("The interfaces discovered incorrectly"))
 					for _, intfc := range ptpSupportedInt {
 						Expect(ptpDiscoveredInterfaces).To(ContainElement(intfc))
 					}
