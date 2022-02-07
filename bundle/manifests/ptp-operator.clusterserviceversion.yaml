@@ -67,12 +67,12 @@ metadata:
       linuxptp processes such as ptp4l, phc2sys and timemaster.
     olm.skipRange: '>=4.3.0-0 <4.10.0'
     operators.openshift.io/infrastructure-features: '["disconnected"]'
-    operators.operatorframework.io/builder: operator-sdk-v1.13.0+git
+    operators.operatorframework.io/builder: operator-sdk-v1.14.0+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     provider: Red Hat
     repository: https://github.com/openshift/ptp-operator
     support: Red Hat
-  name: ptp-operator.v4.10.0
+  name: ptp-operator.v4.11.0
   namespace: openshift-ptp
 spec:
   apiservicedefinitions: {}
@@ -334,7 +334,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.name
-                image: quay.io/openshift/origin-ptp-operator:4.10
+                image: quay.io/openshift/origin-ptp-operator:4.11
                 imagePullPolicy: IfNotPresent
                 name: ptp-operator
                 ports:
@@ -428,7 +428,7 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat
-  version: 4.10.0
+  version: 4.11.0
   webhookdefinitions:
   - admissionReviewVersions:
     - v1
