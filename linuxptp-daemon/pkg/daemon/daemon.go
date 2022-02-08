@@ -46,6 +46,19 @@ type ptpProcess struct {
 	cmd             *exec.Cmd
 }
 
+func (p ptpProcess) Stopped() bool {
+	p.execMutex.Lock()
+	me := p.stopped
+	p.execMutex.Unlock()
+	return me
+}
+
+func (p *ptpProcess) setStopped(val bool) {
+	p.execMutex.Lock()
+	p.stopped = val
+	p.execMutex.Unlock()
+}
+
 // Daemon is the main structure for linuxptp instance.
 // It contains all the necessary data to run linuxptp instance.
 type Daemon struct {
@@ -67,7 +80,7 @@ type Daemon struct {
 	stopCh <-chan struct{}
 }
 
-// NewLinuxPTP is called by daemon to generate new linuxptp instance
+// New LinuxPTP is called by daemon to generate new linuxptp instance
 func New(
 	nodeName string,
 	namespace string,
@@ -312,6 +325,14 @@ func ptp4lCreateCmd(nodeProfile *ptpv1.PtpProfile, confFilePath string) *exec.Cm
 func cmdRun(p *ptpProcess, stdoutToSocket bool) {
 	var c net.Conn
 	done := make(chan struct{}) // Done setting up logging.  Go ahead and wait for process
+	defer func() {
+		if stdoutToSocket && c != nil {
+			if err := c.Close(); err != nil {
+				glog.Errorf("closing connection returned error %s", err)
+			}
+		}
+		p.exitCh <- true
+	}()
 	for {
 		glog.Infof("Starting %s...", p.name)
 		glog.Infof("%s cmd: %+v", p.name, p.cmd)
@@ -363,43 +384,35 @@ func cmdRun(p *ptpProcess, stdoutToSocket bool) {
 				done <- struct{}{}
 			}()
 		}
-		p.execMutex.Lock() // Don't restart after termination
-		stopped := p.stopped
-		if !stopped {
-			err = p.cmd.Start()
+		// Don't restart after termination
+		if !p.Stopped() {
+			err = p.cmd.Start() // this is asynchronous call,
 			if err != nil {
 				glog.Errorf("cmdRun() error starting %s: %v", p.name, err)
 			}
 		}
-		p.execMutex.Unlock()
-
 		<-done // goroutine is done
-
 		err = p.cmd.Wait()
 		if err != nil {
 			glog.Errorf("cmdRun() error waiting for %s: %v", p.name, err)
 		}
 
 		time.Sleep(connectionRetryInterval) // Delay to prevent flooding restarts if startup fails
-		p.execMutex.Lock()                  // Don't restart after termination
-		if p.stopped {
+		// Don't restart after termination
+		if p.Stopped() {
 			glog.Infof("Not recreating %s...", p.name)
-			p.execMutex.Unlock()
 			break
 		} else {
 			glog.Infof("Recreating %s...", p.name)
 			newCmd := exec.Command(p.cmd.Args[0], p.cmd.Args[1:]...)
 			p.cmd = newCmd
 		}
-		p.execMutex.Unlock()
 		if stdoutToSocket && c != nil {
 			if err := c.Close(); err != nil {
 				glog.Errorf("closing connection returned error %s", err)
 			}
 		}
 	}
-
-	p.exitCh <- true
 }
 
 // cmdStop stops ptpProcess launched by cmdRun
@@ -409,15 +422,12 @@ func cmdStop(p *ptpProcess) {
 		return
 	}
 
-	p.execMutex.Lock()
-	p.stopped = true
+	p.setStopped(true)
 
 	if p.cmd.Process != nil {
 		glog.Infof("Sending TERM to PID: %d", p.cmd.Process.Pid)
 		p.cmd.Process.Signal(syscall.SIGTERM)
 	}
-
-	p.execMutex.Unlock()
 
 	if p.ptp4lSocketPath != "" {
 		err := os.Remove(p.ptp4lSocketPath)
