@@ -81,13 +81,6 @@ func (output *ptp4lConf) populatePtp4lConf(config *string, ptp4lopts *string) er
 		output.sections["[global]"] = ptp4lConfSection{options: map[string]string{}}
 	}
 
-	// When validating, add ptp4lopts to conf for fields we check
-	opts := strings.Fields(*ptp4lopts)
-	for index, opt := range opts {
-		if opt == "--summary_interval" && index < len(opts)-1 {
-			output.sections["[global]"].options["summary_interval"] = opts[index+1]
-		}
-	}
 	return nil
 }
 
@@ -106,21 +99,6 @@ func (r *PtpConfig) validate() error {
 					}
 				}
 			}
-		}
-
-		// Validate that summary_interval matches logSyncInterval
-		summary_interval := "0"
-		logSyncInterval := "0"
-		for option, value := range conf.sections["[global]"].options {
-			if option == "summary_interval" {
-				summary_interval = value
-			}
-			if option == "logSyncInterval" {
-				logSyncInterval = value
-			}
-		}
-		if summary_interval != logSyncInterval {
-			return errors.New("summary_interval " + summary_interval + " must match logSyncInterval " + logSyncInterval)
 		}
 
 		if profile.PtpSchedulingPolicy != nil && *profile.PtpSchedulingPolicy == "SCHED_FIFO" {
