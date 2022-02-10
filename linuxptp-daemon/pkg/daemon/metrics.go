@@ -416,7 +416,7 @@ func extractPTP4lEventState(output string) (portId int, role ptpPortRole) {
 	return
 }
 
-func addFlagsForMonitor(nodeProfile *ptpv1.PtpProfile, stdoutToSocket bool) {
+func addFlagsForMonitor(nodeProfile *ptpv1.PtpProfile, conf *ptp4lConf, stdoutToSocket bool) {
 	// If output doesn't exist we add it for the prometheus exporter
 	if nodeProfile.Phc2sysOpts != nil {
 		if !strings.Contains(*nodeProfile.Phc2sysOpts, "-m") {
@@ -441,8 +441,11 @@ func addFlagsForMonitor(nodeProfile *ptpv1.PtpProfile, stdoutToSocket bool) {
 		}
 
 		if !strings.Contains(*nodeProfile.Ptp4lOpts, "--summary_interval") {
-			glog.Info("adding --summary_interval 1 to print summary messages to stdout for ptp4l to use prometheus exporter")
-			*nodeProfile.Ptp4lOpts = fmt.Sprintf("%s --summary_interval 1", *nodeProfile.Ptp4lOpts)
+			_, exist := conf.sections["[global]"].options["summary_interval"]
+			if !exist {
+				glog.Info("adding summary_interval 1 to print summary messages to stdout for ptp4l to use prometheus exporter")
+				conf.sections["[global]"].options["summary_interval"] = "1"
+			}
 		}
 	}
 }

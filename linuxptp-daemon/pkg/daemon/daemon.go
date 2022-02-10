@@ -184,9 +184,6 @@ func (dn *Daemon) applyNodePTPProfiles() error {
 }
 
 func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) error {
-	// This add the flags needed for monitor
-	addFlagsForMonitor(nodeProfile, dn.stdoutToSocket)
-
 	socketPath := fmt.Sprintf("/var/run/ptp4l.%d.socket", runID)
 	configFile := fmt.Sprintf("ptp4l.%d.config", runID)
 	// This will create the configuration needed to run the ptp4l and phc2sys
@@ -268,6 +265,9 @@ func (dn *Daemon) addProfileConfig(socketPath string, configFile string, nodePro
 	section.options["message_tag"] = fmt.Sprintf("[%s]", configFile)
 	section.options["uds_address"] = socketPath
 	output.sections["[global]"] = section
+
+	// This add the flags needed for monitor
+	addFlagsForMonitor(nodeProfile, output, dn.stdoutToSocket)
 
 	*nodeProfile.Ptp4lConf, *nodeProfile.Interface = output.renderPtp4lConf()
 
