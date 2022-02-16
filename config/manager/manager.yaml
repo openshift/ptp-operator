@@ -39,7 +39,7 @@ spec:
           - ptp-operator
           args:
           - --enable-leader-election
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           resources:
             requests:
               cpu: 50m
