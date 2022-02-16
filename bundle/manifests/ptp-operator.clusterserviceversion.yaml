@@ -327,7 +327,7 @@ spec:
                     fieldRef:
                       fieldPath: metadata.name
                 image: quay.io/openshift/origin-ptp-operator:4.9.0
-                imagePullPolicy: Always
+                imagePullPolicy: IfNotPresent
                 name: ptp-operator
                 ports:
                 - containerPort: 9443

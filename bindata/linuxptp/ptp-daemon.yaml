@@ -34,6 +34,7 @@ spec:
        {{ if (eq .EnableEventPublisher true) }}
         - name: cloud-event-proxy
           image: {{ .SideCar }}
+          imagePullPolicy: IfNotPresent
           args:
             - "--metrics-addr=127.0.0.1:9091"
             - "--store-path=/store"
@@ -63,7 +64,7 @@ spec:
         {{ end }}
         - name: kube-rbac-proxy
           image: {{.KubeRbacProxy}}
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           args:
             - --logtostderr
             - --secure-listen-address=:8443

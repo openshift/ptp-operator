@@ -269,7 +269,7 @@ spec:
               containers:
               - name: ptp-operator
                 image: quay.io/openshift/origin-ptp-operator:4.9
-                imagePullPolicy: Always
+                imagePullPolicy: IfNotPresent
                 ports:
                 - containerPort: 9443
                   name: webhook-server
