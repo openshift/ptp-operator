@@ -5,7 +5,6 @@ import (
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -14,10 +13,9 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	utilwait "k8s.io/apimachinery/pkg/util/wait"
 
+	ptpv1 "github.com/openshift/ptp-operator/api/v1"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-
-	ptpv1 "github.com/openshift/ptp-operator/api/v1"
 )
 
 const (
@@ -60,7 +58,6 @@ var (
 	masterOffsetIfaceName map[string]string // by slave iface with masked index
 	slaveIfaceName        map[string]string // current slave iface name
 	NodeName              = ""
-	ptp4lConfigIndex      = regexp.MustCompile("[0-9]+")
 
 	Offset = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{

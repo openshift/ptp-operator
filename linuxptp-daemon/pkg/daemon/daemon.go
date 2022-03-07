@@ -3,10 +3,12 @@ package daemon
 import (
 	"bufio"
 	"fmt"
+	"github.com/openshift/linuxptp-daemon/pkg/pmc"
 	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -19,11 +21,12 @@ import (
 )
 
 const (
-	PtpNamespace            = "openshift-ptp"
-	PTP4L_CONF_FILE_PATH    = "/etc/ptp4l.conf"
-	PTP4L_CONF_DIR          = "/ptp4l-conf"
-	connectionRetryInterval = 1 * time.Second
-	eventSocket             = "/cloud-native/events.sock"
+	PtpNamespace              = "openshift-ptp"
+	PTP4L_CONF_FILE_PATH      = "/etc/ptp4l.conf"
+	PTP4L_CONF_DIR            = "/ptp4l-conf"
+	connectionRetryInterval   = 1 * time.Second
+	eventSocket               = "/cloud-native/events.sock"
+	ClockClassChangeIndicator = "selected best master clock"
 )
 
 // ProcessManager manages a set of ptpProcess
@@ -46,7 +49,7 @@ type ptpProcess struct {
 	cmd             *exec.Cmd
 }
 
-func (p ptpProcess) Stopped() bool {
+func (p *ptpProcess) Stopped() bool {
 	p.execMutex.Lock()
 	me := p.stopped
 	p.execMutex.Unlock()
@@ -375,6 +378,32 @@ func cmdRun(p *ptpProcess, stdoutToSocket bool) {
 					output := scanner.Text()
 					out := fmt.Sprintf("%s\n", output)
 					fmt.Printf("%s", out)
+					if p.name == ptp4lProcessName {
+						if strings.Contains(output, ClockClassChangeIndicator) {
+							go func(c *net.Conn, cfgName string) {
+								if _, matches, e := pmc.RunPMCExp(cfgName, pmc.CmdParentDataSet, pmc.ClockClassChangeRegEx); e == nil {
+									var parseError error
+									var clockClass float64
+									for _, v := range matches {
+										if clockClass, parseError = strconv.ParseFloat(v, 64); parseError == nil {
+											glog.Infof("clock change event identified")
+											//ptp4l[5196819.100]: [ptp4l.0.config] CLOCK_CLASS_CHANGE:248
+											clockClassOut := fmt.Sprintf("%s[%d]:[%s] CLOCK_CLASS_CHANGE %f\n", p.name, time.Now().Unix(), p.configName, clockClass)
+											fmt.Printf("%s", clockClassOut)
+											_, err := (*c).Write([]byte(clockClassOut))
+											if err != nil {
+												glog.Errorf("failed to write class change event %s", err.Error())
+											}
+										} else {
+											glog.Errorf("parse error in clock class value %s", parseError)
+										}
+									}
+								} else {
+									glog.Error("error parsing PMC util for clock class change event")
+								}
+							}(&c, p.configName)
+						}
+					}
 					_, err := c.Write([]byte(out))
 					if err != nil {
 						glog.Errorf("Write error %s:", err)
