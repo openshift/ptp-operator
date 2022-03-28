@@ -28,8 +28,9 @@ type ptp4lConfSection struct {
 }
 
 type ptp4lConf struct {
-	sections map[string]ptp4lConfSection
-	mapping  []string
+	sections     map[string]ptp4lConfSection
+	mapping      []string
+	profile_name string
 }
 
 func NewLinuxPTPConfUpdate() (*LinuxPTPConfUpdate, error) {
@@ -140,7 +141,7 @@ func (output *ptp4lConf) populatePtp4lConf(config *string) error {
 }
 
 func (conf *ptp4lConf) renderPtp4lConf() (string, string) {
-	var configOut string
+	configOut := fmt.Sprintf("#profile: %s\n", conf.profile_name)
 	conf.mapping = nil
 
 	for name, section := range conf.sections {
