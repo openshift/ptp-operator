@@ -3,7 +3,6 @@ package daemon
 import (
 	"bufio"
 	"fmt"
-	"github.com/openshift/linuxptp-daemon/pkg/pmc"
 	"io/ioutil"
 	"net"
 	"os"
@@ -13,6 +12,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/openshift/linuxptp-daemon/pkg/pmc"
 
 	"github.com/golang/glog"
 	"k8s.io/client-go/kubernetes"
@@ -326,6 +327,20 @@ func ptp4lCreateCmd(nodeProfile *ptpv1.PtpProfile, confFilePath string) *exec.Cm
 	return exec.Command(args[0], args[1:]...)
 }
 
+func processStatus(c *net.Conn, processName, cfgName string, status int64) {
+	// ptp4l[5196819.100]: [ptp4l.0.config] PTP_PROCESS_STOPPED:0/1
+	deadProcessMsg := fmt.Sprintf("%s[%d]:[%s] PTP_PROCESS_STATUS:%d\n", processName, time.Now().Unix(), cfgName, status)
+	UpdateProcessStatusMetrics(processName, cfgName, status)
+	glog.Infof("%s\n", deadProcessMsg)
+	if c == nil {
+		return
+	}
+	_, err := (*c).Write([]byte(deadProcessMsg))
+	if err != nil {
+		glog.Errorf("Write error sending ptp4l/phc2sys process healths status%s:", err)
+	}
+}
+
 // cmdRun runs given ptpProcess and restarts on errors
 func cmdRun(p *ptpProcess, stdoutToSocket bool) {
 	var c net.Conn
@@ -353,6 +368,7 @@ func cmdRun(p *ptpProcess, stdoutToSocket bool) {
 		}
 		if !stdoutToSocket {
 			scanner := bufio.NewScanner(cmdReader)
+			processStatus(nil, p.name, p.configName, PtpProcessUp)
 			go func() {
 				for scanner.Scan() {
 					output := scanner.Text()
@@ -376,6 +392,7 @@ func cmdRun(p *ptpProcess, stdoutToSocket bool) {
 					}
 				}
 				scanner := bufio.NewScanner(cmdReader)
+				processStatus(&c, p.name, p.configName, PtpProcessUp)
 				for scanner.Scan() {
 					output := scanner.Text()
 					out := fmt.Sprintf("%s\n", output)
@@ -426,6 +443,11 @@ func cmdRun(p *ptpProcess, stdoutToSocket bool) {
 		err = p.cmd.Wait()
 		if err != nil {
 			glog.Errorf("cmdRun() error waiting for %s: %v", p.name, err)
+		}
+		if stdoutToSocket && c != nil {
+			processStatus(&c, p.name, p.configName, PtpProcessDown)
+		} else {
+			processStatus(nil, p.name, p.configName, PtpProcessDown)
 		}
 
 		time.Sleep(connectionRetryInterval) // Delay to prevent flooding restarts if startup fails

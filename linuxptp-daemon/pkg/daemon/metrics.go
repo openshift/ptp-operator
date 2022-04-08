@@ -2,13 +2,14 @@ package daemon
 
 import (
 	"fmt"
-	"github.com/golang/glog"
-	"github.com/prometheus/client_golang/prometheus/collectors"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/golang/glog"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	utilwait "k8s.io/apimachinery/pkg/util/wait"
@@ -42,6 +43,11 @@ const (
 	LOCKED string = "LOCKED"
 	//FREERUN ...
 	FREERUN = "FREERUN"
+)
+
+const (
+	PtpProcessDown int64 = 0
+	PtpProcessUp   int64 = 1
 )
 
 type ptpPortRole int
@@ -108,6 +114,22 @@ var (
 			Name:      "interface_role",
 			Help:      "0 = PASSIVE, 1 = SLAVE, 2 = MASTER, 3 = FAULTY, 4 = UNKNOWN",
 		}, []string{"process", "node", "iface"})
+
+	ProcessStatus = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: PTPNamespace,
+			Subsystem: PTPSubsystem,
+			Name:      "process_status",
+			Help:      "0 = DOWN, 1 = UP",
+		}, []string{"process", "node", "config"})
+
+	ProcessRestartCount = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: PTPNamespace,
+			Subsystem: PTPSubsystem,
+			Name:      "process_restart_count",
+			Help:      "",
+		}, []string{"process", "node", "config"})
 )
 
 var registerMetrics sync.Once
@@ -120,6 +142,8 @@ func RegisterMetrics(nodeName string) {
 		prometheus.MustRegister(Delay)
 		prometheus.MustRegister(InterfaceRole)
 		prometheus.MustRegister(ClockState)
+		prometheus.MustRegister(ProcessStatus)
+		prometheus.MustRegister(ProcessRestartCount)
 
 		// Including these stats kills performance when Prometheus polls with multiple targets
 		prometheus.Unregister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
@@ -365,6 +389,15 @@ func updateClockStateMetrics(process, iface string, state string) {
 func UpdateInterfaceRoleMetrics(process string, iface string, role ptpPortRole) {
 	InterfaceRole.With(prometheus.Labels{
 		"process": process, "node": NodeName, "iface": iface}).Set(float64(role))
+}
+
+func UpdateProcessStatusMetrics(process, cfgName string, status int64) {
+	ProcessStatus.With(prometheus.Labels{
+		"process": process, "node": NodeName, "config": cfgName}).Set(float64(status))
+	if status == PtpProcessUp {
+		ProcessRestartCount.With(prometheus.Labels{
+			"process": process, "node": NodeName, "config": cfgName}).Inc()
+	}
 }
 
 func extractPTP4lEventState(output string) (portId int, role ptpPortRole) {
