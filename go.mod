@@ -15,6 +15,7 @@ require (
 	github.com/openshift/api v0.0.0-20211209135129-c58d9f695577
 	github.com/openshift/library-go v0.0.0-20211220195323-eca2c467c492
 	github.com/pkg/errors v0.9.1
+	github.com/prometheus/client_golang v1.11.1 // indirect
 	k8s.io/api v0.23.0
 	k8s.io/apiextensions-apiserver v0.23.0
 	k8s.io/apimachinery v0.23.0
@@ -26,6 +27,7 @@ require (
 
 // Manually pinned to kubernetes-1.23.0
 replace (
+	github.com/prometheus/client_golang => github.com/prometheus/client_golang v1.11.1
 	k8s.io/api => k8s.io/api v0.23.0
 	k8s.io/apimachinery => k8s.io/apimachinery v0.23.0
 	k8s.io/client-go => k8s.io/client-go v0.23.0
