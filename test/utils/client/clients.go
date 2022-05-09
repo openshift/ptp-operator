@@ -10,17 +10,21 @@ import (
 	discovery "k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes/scheme"
 	appsv1client "k8s.io/client-go/kubernetes/typed/apps/v1"
-	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	networkv1client "k8s.io/client-go/kubernetes/typed/networking/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	ptpv1api "github.com/openshift/ptp-operator/api/v1"
+	ptpv1fake "github.com/openshift/ptp-operator/pkg/client/clientset/versioned/fake"
 	ptpv1 "github.com/openshift/ptp-operator/pkg/client/clientset/versioned/typed/ptp/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
+	k8sFakeClient "k8s.io/client-go/kubernetes/fake"
 )
 
 // Client defines the client set that will be used for testing
-var Client *ClientSet
+var Client = &ClientSet{}
 
 func init() {
 	Client = New("")
@@ -29,7 +33,7 @@ func init() {
 // ClientSet provides the struct to talk with relevant API
 type ClientSet struct {
 	client.Client
-	corev1client.CoreV1Interface
+	kubernetes.Interface
 	networkv1client.NetworkingV1Client
 	appsv1client.AppsV1Interface
 	discovery.DiscoveryInterface
@@ -55,11 +59,11 @@ func New(kubeconfig string) *ClientSet {
 	}
 	if err != nil {
 		glog.Infof("Failed to create a valid client")
-		return nil
+		return Client
 	}
 
 	clientSet := &ClientSet{}
-	clientSet.CoreV1Interface = corev1client.NewForConfigOrDie(config)
+	clientSet.Interface = kubernetes.NewForConfigOrDie(config)
 	clientSet.AppsV1Interface = appsv1client.NewForConfigOrDie(config)
 	clientSet.DiscoveryInterface = discovery.NewDiscoveryClientForConfigOrDie(config)
 	clientSet.NetworkingV1Client = *networkv1client.NewForConfigOrDie(config)
@@ -84,4 +88,39 @@ func New(kubeconfig string) *ClientSet {
 	}
 
 	return clientSet
+}
+
+// GetTestClientSet Overwrites the existing clientholders with a mocked version for unit testing.
+func GetTestClientSet(k8sMockObjects []runtime.Object) *ClientSet {
+	// Build slices of different objects depending on what client
+	// is supposed to expect them.
+	var ptpClientObjects []runtime.Object
+	var k8sClientObjects []runtime.Object
+
+	for _, v := range k8sMockObjects {
+		// Based on what type of object is, populate certain object slices
+		// with what is supported by a certain client.
+		// Add more items below if/when needed.
+		switch v.(type) {
+		// K8s Client Objects
+		case *ptpv1api.PtpConfig:
+			ptpClientObjects = append(ptpClientObjects, v)
+		case *corev1.Node:
+			k8sClientObjects = append(k8sClientObjects, v)
+		}
+
+	}
+
+	// Add the objects to their corresponding API Clients
+	Client.Interface = k8sFakeClient.NewSimpleClientset(k8sClientObjects...)
+	Client.PtpV1Interface = ptpv1fake.NewSimpleClientset(ptpClientObjects...).PtpV1()
+
+	return Client
+}
+
+func ClearTestClientsHolder() {
+	if Client != nil {
+		Client.Interface = nil
+		Client.PtpV1Interface = nil
+	}
 }

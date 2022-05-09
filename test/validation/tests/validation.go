@@ -19,7 +19,7 @@ import (
 var _ = Describe("validation", func() {
 	Context("ptp", func() {
 		It("should have the ptp namespace", func() {
-			_, err := testclient.Client.Namespaces().Get(context.Background(), testutils.PtpNamespace, metav1.GetOptions{})
+			_, err := testclient.Client.CoreV1().Namespaces().Get(context.Background(), testutils.PtpNamespace, metav1.GetOptions{})
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -28,7 +28,7 @@ var _ = Describe("validation", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(deploy.Status.Replicas).To(Equal(deploy.Status.ReadyReplicas))
 
-			pods, err := testclient.Client.Pods(testutils.PtpNamespace).List(context.Background(), metav1.ListOptions{
+			pods, err := testclient.Client.CoreV1().Pods(testutils.PtpNamespace).List(context.Background(), metav1.ListOptions{
 				LabelSelector: fmt.Sprintf("name=%s", testutils.PtpOperatorDeploymentName)})
 			Expect(err).ToNot(HaveOccurred())
 

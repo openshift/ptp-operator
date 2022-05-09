@@ -15,7 +15,7 @@ import (
 
 // GetLog connects to a pod and fetches log
 func GetLog(p *corev1.Pod, containerName string) (string, error) {
-	req := testclient.Client.Pods(p.Namespace).GetLogs(p.Name, &corev1.PodLogOptions{Container: containerName})
+	req := testclient.Client.CoreV1().Pods(p.Namespace).GetLogs(p.Name, &corev1.PodLogOptions{Container: containerName})
 	log, err := req.Stream(context.Background())
 	if err != nil {
 		return "", err
@@ -35,7 +35,7 @@ func GetLog(p *corev1.Pod, containerName string) (string, error) {
 // ExecCommand runs command in the pod and returns buffer output
 func ExecCommand(cs *testclient.ClientSet, pod corev1.Pod, containerName string, command []string) (bytes.Buffer, error) {
 	var buf bytes.Buffer
-	req := testclient.Client.CoreV1Interface.RESTClient().
+	req := testclient.Client.CoreV1().RESTClient().
 		Post().
 		Namespace(pod.Namespace).
 		Resource("pods").
