@@ -1,4 +1,6 @@
-REPO_DIR="$(dirname $0)/.."
+#!/usr/bin/env bash
+
+REPO_DIR="$(dirname "$0")/.."
 NAMESPACE=openshift-ptp
 OPERATOR_EXEC=oc
 

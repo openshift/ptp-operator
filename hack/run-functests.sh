@@ -6,16 +6,16 @@ if [ $? -ne 0 ]; then
 # resolved if we are not using google's GOPROXY. That is not the case when building as
 # we are using vendored dependencies
 	GINKGO_TMP_DIR=$(mktemp -d)
-	cd $GINKGO_TMP_DIR
+	cd "$GINKGO_TMP_DIR" || exit
 	go mod init tmp
 	GOFLAGS=-mod=mod go install github.com/onsi/ginkgo/ginkgo@v1.12.0
-	rm -rf $GINKGO_TMP_DIR
+	rm -rf "$GINKGO_TMP_DIR"
 	echo "Downloading ginkgo tool"
-	cd -
+	cd - || exit
 fi
 
 GOPATH="${GOPATH:-~/go}"
 JUNIT_OUTPUT="${JUNIT_OUTPUT:-/tmp/artifacts/unit_report.xml}"
 export PATH=$PATH:$GOPATH/bin
 
-GOFLAGS=-mod=vendor ginkgo "$SUITE" -- -junit $JUNIT_OUTPUT
+GOFLAGS=-mod=vendor ginkgo "$SUITE" -- -junit "$JUNIT_OUTPUT"
