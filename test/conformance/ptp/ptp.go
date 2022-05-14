@@ -516,6 +516,18 @@ var _ = Describe("[ptp]", func() {
 })
 
 func configurePTP() {
+	/*
+		The test takes significant amount of time checking
+		for the right interfaces to test
+		By setting the following variable environment for test purposes
+		The suite will check use them directly
+	*/
+
+	ptpGrandMasterNodeName := os.Getenv("PTP_CONFIG_MASTER_NODE")
+	masterInterfaceName := os.Getenv("PTP_CONFIG_MASTER_INTERFACE")
+	ptpSlaveNodeName := os.Getenv("PTP_CONFIG_SLAVE_NODE")
+	slaveInterfaceName := os.Getenv("PTP_CONFIG_SLAVE_INTERFACE")
+
 	err := clean.All()
 	Expect(err).ToNot(HaveOccurred())
 
@@ -525,11 +537,29 @@ func configurePTP() {
 
 	By("Labeling the grandmaster node")
 	ptpGrandMasterNode := ptpNodes[0]
+	if ptpGrandMasterNodeName != "" {
+		for i := 0; i < len(ptpNodes); i++ {
+			if ptpNodes[i].NodeName == ptpGrandMasterNodeName {
+				ptpGrandMasterNode = ptpNodes[i]
+				break
+			}
+		}
+	}
+	fmt.Printf("use %s as master node \n", ptpGrandMasterNode.NodeName)
 	ptpGrandMasterNode.NodeObject, err = nodes.LabelNode(ptpGrandMasterNode.NodeName, PtpGrandmasterNodeLabel, "")
 	Expect(err).ToNot(HaveOccurred())
 
 	By("Labeling the slave node")
 	ptpSlaveNode := ptpNodes[1]
+	if ptpGrandMasterNodeName != "" {
+		for i := 0; i < len(ptpNodes); i++ {
+			if ptpNodes[i].NodeName == ptpSlaveNodeName {
+				ptpSlaveNode = ptpNodes[i]
+				break
+			}
+		}
+	}
+	fmt.Printf("use %s as slave node \n", ptpSlaveNode.NodeName)
 	ptpSlaveNode.NodeObject, err = nodes.LabelNode(ptpSlaveNode.NodeName, PtpSlaveNodeLabel, "")
 	Expect(err).ToNot(HaveOccurred())
 
@@ -538,9 +568,14 @@ func configurePTP() {
 	if err == nil && configureFifo {
 		ptpSchedulingPolicy = "SCHED_FIFO"
 	}
-
 	for _, gmInterface := range ptpGrandMasterNode.InterfaceList {
+		if gmInterface != masterInterfaceName && masterInterfaceName != "" {
+			continue
+		}
 		for _, slaveInterface := range ptpSlaveNode.InterfaceList {
+			if slaveInterface != slaveInterfaceName && slaveInterfaceName != "" {
+				continue
+			}
 			clean.Configs()
 			fmt.Printf("Validating interface %s for grandmaster, %s for slave\n", gmInterface, slaveInterface)
 			By("Creating the policy for the grandmaster node")
