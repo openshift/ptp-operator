@@ -535,8 +535,9 @@ func configurePTP() {
 	Expect(err).ToNot(HaveOccurred())
 	Expect(len(ptpNodes)).To(BeNumerically(">", 1), "need at least two nodes with ptp capable nics")
 
+	var ptpGrandMasterNode, ptpSlaveNode nodes.NodeTopology
+
 	By("Labeling the grandmaster node")
-	ptpGrandMasterNode := ptpNodes[0]
 	if ptpGrandMasterNodeName != "" {
 		for i := 0; i < len(ptpNodes); i++ {
 			if ptpNodes[i].NodeName == ptpGrandMasterNodeName {
@@ -550,7 +551,6 @@ func configurePTP() {
 	Expect(err).ToNot(HaveOccurred())
 
 	By("Labeling the slave node")
-	ptpSlaveNode := ptpNodes[1]
 	if ptpGrandMasterNodeName != "" {
 		for i := 0; i < len(ptpNodes); i++ {
 			if ptpNodes[i].NodeName == ptpSlaveNodeName {
@@ -567,6 +567,23 @@ func configurePTP() {
 	configureFifo, err := strconv.ParseBool(os.Getenv("CONFIGURE_FIFO"))
 	if err == nil && configureFifo {
 		ptpSchedulingPolicy = "SCHED_FIFO"
+	}
+	// TODO- will be replaced by slices.Contains[string] once go is migrated to 1.18
+	contains := func(interfacesName []string, interfaceName string) bool {
+		for i := 0; i < len(interfacesName); i++ {
+			if interfacesName[i] == interfaceName {
+				return true
+			}
+		}
+		return false
+	}
+	// validate if masterInterfaceName exist in  ptpGrandMasterNode
+	if masterInterfaceName != "" && !contains(ptpGrandMasterNode.InterfaceList, masterInterfaceName) {
+		masterInterfaceName = ""
+	}
+	// validate if slaveInterfaceName exist in  ptpSlaveNode
+	if slaveInterfaceName != "" && !contains(ptpSlaveNode.InterfaceList, slaveInterfaceName) {
+		slaveInterfaceName = ""
 	}
 	for _, gmInterface := range ptpGrandMasterNode.InterfaceList {
 		if gmInterface != masterInterfaceName && masterInterfaceName != "" {
