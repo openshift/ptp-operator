@@ -130,7 +130,7 @@ func createDefaultOperatorConfig(cfg *rest.Config) error {
 			DaemonNodeSelector: map[string]string{},
 		},
 	}
-	err = c.Get(context.TODO(), types.NamespacedName{
+	err = c.Get(context.Background(), types.NamespacedName{
 		Name: names.DefaultOperatorConfigName, Namespace: names.Namespace}, config)
 
 	if err != nil {
@@ -138,7 +138,7 @@ func createDefaultOperatorConfig(cfg *rest.Config) error {
 			logger.Info("Create default OperatorConfig")
 			config.Namespace = names.Namespace
 			config.Name = names.DefaultOperatorConfigName
-			err = c.Create(context.TODO(), config)
+			err = c.Create(context.Background(), config)
 			if err != nil {
 				return err
 			}

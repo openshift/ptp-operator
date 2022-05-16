@@ -44,13 +44,13 @@ var _ = Describe("validation", func() {
 
 		It("should have the ptp CRDs available in the cluster", func() {
 			crd := &apiext.CustomResourceDefinition{}
-			err := testclient.Client.Get(context.TODO(), goclient.ObjectKey{Name: testutils.NodePtpDevicesCRD}, crd)
+			err := testclient.Client.Get(context.Background(), goclient.ObjectKey{Name: testutils.NodePtpDevicesCRD}, crd)
 			Expect(err).ToNot(HaveOccurred())
 
-			err = testclient.Client.Get(context.TODO(), goclient.ObjectKey{Name: testutils.PtpConfigsCRD}, crd)
+			err = testclient.Client.Get(context.Background(), goclient.ObjectKey{Name: testutils.PtpConfigsCRD}, crd)
 			Expect(err).ToNot(HaveOccurred())
 
-			err = testclient.Client.Get(context.TODO(), goclient.ObjectKey{Name: testutils.PtpOperatorConfigsCRD}, crd)
+			err = testclient.Client.Get(context.Background(), goclient.ObjectKey{Name: testutils.PtpOperatorConfigsCRD}, crd)
 			Expect(err).ToNot(HaveOccurred())
 		})
 	})
