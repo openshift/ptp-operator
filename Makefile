@@ -229,3 +229,6 @@ test-validation-only:
 # download controller-gen if necessary
 operator-sdk:
 	go install ./vendor/github.com/operator-framework/operator-sdk/cmd/operator-sdk
+
+create-test-files:
+	./hack/create-missing-test-files.sh
