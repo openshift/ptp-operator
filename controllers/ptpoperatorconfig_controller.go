@@ -23,7 +23,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/go-logr/logr"
 	"github.com/golang/glog"
 	ptpv1 "github.com/openshift/ptp-operator/api/v1"
 	"github.com/openshift/ptp-operator/pkg/apply"
@@ -45,7 +44,6 @@ import (
 // PtpOperatorConfigReconciler reconciles a PtpOperatorConfig object
 type PtpOperatorConfigReconciler struct {
 	client.Client
-	Log    logr.Logger
 	Scheme *runtime.Scheme
 }
 
@@ -59,8 +57,7 @@ const (
 //+kubebuilder:rbac:groups=config.openshift.io,resources=infrastructures,verbs=get;list;watch
 
 func (r *PtpOperatorConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (reconcile.Result, error) {
-	reqLogger := r.Log.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
-	reqLogger.Info("Reconciling PtpOperatorConfig")
+	glog.Infof("Request.Namespace %s Request.Name %s - Reconciling PtpOperatorConfig", req.Namespace, req.Name)
 
 	// Fetch the PtpOperatorConfig instance
 	defaultCfg := &ptpv1.PtpOperatorConfig{}
@@ -76,8 +73,8 @@ func (r *PtpOperatorConfigReconciler) Reconcile(ctx context.Context, req ctrl.Re
 				DaemonNodeSelector: map[string]string{},
 			}
 			if err = r.Create(ctx, defaultCfg); err != nil {
-				reqLogger.Error(err, "failed to create default ptp config",
-					"Namespace", names.Namespace, "Name", names.DefaultOperatorConfigName)
+				glog.Errorf("failed to create default ptp config - Namespace %s Name %s, Error %s",
+					names.Namespace, names.DefaultOperatorConfigName, err.Error())
 				return reconcile.Result{}, err
 			}
 			// Return and don't requeue

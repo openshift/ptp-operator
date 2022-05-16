@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/go-logr/logr"
 	"github.com/golang/glog"
 	ptpv1 "github.com/openshift/ptp-operator/api/v1"
 	"github.com/openshift/ptp-operator/pkg/names"
@@ -37,7 +36,6 @@ import (
 // PtpConfigReconciler reconciles a PtpConfig object
 type PtpConfigReconciler struct {
 	client.Client
-	Log    logr.Logger
 	Scheme *runtime.Scheme
 }
 
@@ -47,8 +45,7 @@ type PtpConfigReconciler struct {
 //+kubebuilder:rbac:groups=config.openshift.io,resources=infrastructures,verbs=get;list;watch
 
 func (r *PtpConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (reconcile.Result, error) {
-	reqLogger := r.Log.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
-	reqLogger.Info("Reconciling PtpConfig")
+	glog.Infof("Request.Namespace %s Request.Name %s - Reconciling PtpConfig", req.Namespace, req.Name)
 
 	instances := &ptpv1.PtpConfigList{}
 	err := r.List(ctx, instances, &client.ListOptions{})
