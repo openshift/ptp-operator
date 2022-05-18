@@ -16,9 +16,11 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
+	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/apps/v1"
 	v1core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
@@ -44,7 +46,10 @@ var _ = Describe("[ptp]", func() {
 	})
 
 	BeforeEach(func() {
+
+		collectPTPInfo()
 		Expect(testclient.Client).NotTo(BeNil())
+
 	})
 
 	Context("PTP configuration verifications", func() {
@@ -949,4 +954,77 @@ func ptpEventEnabled() bool {
 		return false
 	}
 	return ptpConfig.Spec.EventConfig.EnableEventPublisher
+}
+
+func collectPTPInfo() {
+	getOCPVersion()
+	getPtpOperatorVersion()
+	getPtpPorts()
+}
+
+func getPtpPorts() map[string][]string {
+
+	var devices []string
+
+	nodePtpDeviceList, err := client.Client.PtpV1Interface.NodePtpDevices(PtpLinuxDaemonNamespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		logrus.Infof("Error occurred while retrieving ptp device list: %v", err)
+	}
+
+	devicesMap := make(map[string]bool)
+	for _, item := range nodePtpDeviceList.Items {
+
+		for _, device := range item.Status.Devices {
+			deviceName := device.Name
+			if _, ok := devicesMap[deviceName]; !ok {
+				devicesMap[device.Name] = true
+				devices = append(devices, deviceName)
+			}
+		}
+	}
+
+	fmt.Println(devices)
+	return nil
+}
+
+func getPtpOperatorVersion() {
+
+	var ptpOperatorVersion string
+
+	deploy, err := client.Client.AppsV1Interface.Deployments(PtpLinuxDaemonNamespace).Get(context.TODO(), PtpOperatorDeploymentName, metav1.GetOptions{})
+
+	if err != nil {
+		logrus.Infof("PTP Operator version is not found: %v", err)
+	}
+
+	for k, v := range deploy.Labels {
+		if k == "olm.owner" {
+			ptpOperatorVersion = strings.ReplaceAll(v, PtpOperatorDeploymentName+".", "")
+		}
+	}
+
+	fmt.Printf("PTP operator version is %v\n", ptpOperatorVersion)
+}
+
+func getOCPVersion() {
+	ocpClient := client.Client.OcpClient
+	clusterOperator, err := ocpClient.ClusterOperators().Get(context.TODO(), "openshift-apiserver", metav1.GetOptions{})
+
+	var ocpVersion string
+	if err != nil {
+		switch {
+		case kerrors.IsForbidden(err), kerrors.IsNotFound(err):
+			logrus.Infof("OpenShift Version not found (must be logged in to cluster as admin): %v", err)
+			err = nil
+		}
+	}
+	if clusterOperator != nil {
+		for _, ver := range clusterOperator.Status.Versions {
+			if ver.Name == "openshift-apiserver" {
+				ocpVersion = ver.Version
+				break
+			}
+		}
+	}
+	fmt.Printf("OCP Version is %v\n", ocpVersion)
 }

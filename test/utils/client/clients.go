@@ -5,6 +5,7 @@ import (
 
 	"github.com/golang/glog"
 
+	clientconfigv1 "github.com/openshift/client-go/config/clientset/versioned/typed/config/v1"
 	apiext "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	discovery "k8s.io/client-go/discovery"
@@ -12,6 +13,7 @@ import (
 	appsv1client "k8s.io/client-go/kubernetes/typed/apps/v1"
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	networkv1client "k8s.io/client-go/kubernetes/typed/networking/v1"
+
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -34,7 +36,8 @@ type ClientSet struct {
 	appsv1client.AppsV1Interface
 	discovery.DiscoveryInterface
 	ptpv1.PtpV1Interface
-	Config *rest.Config
+	Config    *rest.Config
+	OcpClient clientconfigv1.ConfigV1Interface
 }
 
 // New returns a *ClientBuilder with the given kubeconfig.
@@ -64,6 +67,13 @@ func New(kubeconfig string) *ClientSet {
 	clientSet.DiscoveryInterface = discovery.NewDiscoveryClientForConfigOrDie(config)
 	clientSet.NetworkingV1Client = *networkv1client.NewForConfigOrDie(config)
 	clientSet.PtpV1Interface = ptpv1.NewForConfigOrDie(config)
+	//clientSet.OcpClient = clientconfigv1.NewForConfigOrDie(config) // ocp client
+	// ocp client
+	clientSet.OcpClient, err = clientconfigv1.NewForConfig(config)
+	if err != nil {
+		panic(err)
+	}
+
 	clientSet.Config = config
 
 	myScheme := runtime.NewScheme()
