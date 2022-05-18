@@ -67,13 +67,7 @@ func New(kubeconfig string) *ClientSet {
 	clientSet.DiscoveryInterface = discovery.NewDiscoveryClientForConfigOrDie(config)
 	clientSet.NetworkingV1Client = *networkv1client.NewForConfigOrDie(config)
 	clientSet.PtpV1Interface = ptpv1.NewForConfigOrDie(config)
-	//clientSet.OcpClient = clientconfigv1.NewForConfigOrDie(config) // ocp client
-	// ocp client
-	clientSet.OcpClient, err = clientconfigv1.NewForConfig(config)
-	if err != nil {
-		panic(err)
-	}
-
+	clientSet.OcpClient = clientconfigv1.NewForConfigOrDie(config)
 	clientSet.Config = config
 
 	myScheme := runtime.NewScheme()
