@@ -8,7 +8,7 @@ if [ $? -ne 0 ]; then
 	GINKGO_TMP_DIR=$(mktemp -d)
 	cd $GINKGO_TMP_DIR
 	go mod init tmp
-	go get github.com/onsi/ginkgo/ginkgo@v1.12.0
+	GOFLAGS=-mod=mod go install github.com/onsi/ginkgo/ginkgo@v1.12.0
 	rm -rf $GINKGO_TMP_DIR
 	echo "Downloading ginkgo tool"
 	cd -
