@@ -567,8 +567,8 @@ func configurePTP() {
 		ptpSchedulingPolicy = "SCHED_FIFO"
 	}
 
-	ptpGrandMasterNode.InterfaceList = []string{"ens3f0", "ens3f1"}
-	ptpSlaveNode.InterfaceList = []string{"ens3f0", "ens3f1"}
+	/*ptpGrandMasterNode.InterfaceList = []string{"ens3f0", "ens3f1"}
+	ptpSlaveNode.InterfaceList = []string{"ens3f0", "ens3f1"}*/
 
 	for _, gmInterface := range ptpGrandMasterNode.InterfaceList {
 		for _, slaveInterface := range ptpSlaveNode.InterfaceList {
@@ -1003,7 +1003,6 @@ func getNICInfo(pod v1core.Pod) map[string]string {
 				return fmt.Errorf("empty response from pod retrying")
 			}
 
-			// sysfs address looks like: /sys/devices/pci0000:17/0000:17:02.0/0000:19:00.5/net/eno1
 			pathSegments := strings.Split(stdout.String(), "/")
 			PCIAddr = pathSegments[5] // 0000:19:00.5
 			return nil
