@@ -46,10 +46,7 @@ var _ = Describe("[ptp]", func() {
 	})
 
 	BeforeEach(func() {
-
-		collectPTPInfo()
 		Expect(testclient.Client).NotTo(BeNil())
-
 	})
 
 	Context("PTP configuration verifications", func() {
@@ -334,6 +331,32 @@ var _ = Describe("[ptp]", func() {
 					waitUntilLogIsDetected(testPtpPod, 3*time.Minute, "Profile Name: test-slave")
 				})
 			})
+
+			It("Should retrieve the details of hardwares for the Ptp", func() {
+				By("Getting the version of the OCP cluster")
+
+				ocpVersion, err := getOCPVersion()
+				Expect(err).ToNot(HaveOccurred())
+				Expect(ocpVersion).ShouldNot(BeEmpty())
+
+				By("Getting the version of the PTP operator")
+
+				ptpOperatorVersion, err := getPtpOperatorVersion()
+				Expect(err).ToNot(HaveOccurred())
+				Expect(ptpOperatorVersion).ShouldNot(BeEmpty())
+
+				By("Getting the NIC details of the PTP enabled interfaces")
+
+				for _, pod := range ptpRunningPods {
+					ptpDiscoveredInterfaces := ptpDiscoveredInterfaceList(NodePtpDeviceAPIPath + pod.Spec.NodeName)
+					fmt.Println(ptpDiscoveredInterfaces)
+
+					var mapping = getNICInfo(pod)
+
+					fmt.Println(mapping)
+					Expect(mapping).ShouldNot(BeEmpty())
+				}
+			})
 		})
 
 		Context("PTP metric is present", func() {
@@ -543,6 +566,9 @@ func configurePTP() {
 	if err == nil && configureFifo {
 		ptpSchedulingPolicy = "SCHED_FIFO"
 	}
+
+	ptpGrandMasterNode.InterfaceList = []string{"ens3f0", "ens3f1"}
+	ptpSlaveNode.InterfaceList = []string{"ens3f0", "ens3f1"}
 
 	for _, gmInterface := range ptpGrandMasterNode.InterfaceList {
 		for _, slaveInterface := range ptpSlaveNode.InterfaceList {
@@ -956,38 +982,44 @@ func ptpEventEnabled() bool {
 	return ptpConfig.Spec.EventConfig.EnableEventPublisher
 }
 
-func collectPTPInfo() {
-	getOCPVersion()
-	getPtpOperatorVersion()
-	getPtpPorts()
-}
+func getNICInfo(pod v1core.Pod) map[string]string {
 
-func getPtpPorts() map[string][]string {
+	var ptpSupportedInterfaces []string = getPtpMasterSlaveAttachedInterfaces(pod)
+	var stdout bytes.Buffer
 
-	var devices []string
+	var ptpInterfaceNicMapping = make(map[string]string)
 
-	nodePtpDeviceList, err := client.Client.PtpV1Interface.NodePtpDevices(PtpLinuxDaemonNamespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		logrus.Infof("Error occurred while retrieving ptp device list: %v", err)
-	}
+	for _, interf := range ptpSupportedInterfaces {
+		PCIAddr := ""
+		var err error
 
-	devicesMap := make(map[string]bool)
-	for _, item := range nodePtpDeviceList.Items {
-
-		for _, device := range item.Status.Devices {
-			deviceName := device.Name
-			if _, ok := devicesMap[deviceName]; !ok {
-				devicesMap[device.Name] = true
-				devices = append(devices, deviceName)
+		Eventually(func() error {
+			stdout, err = pods.ExecCommand(client.Client, pod, PtpContainerName, []string{"readlink", "-f", fmt.Sprintf("/sys/class/net/%s", interf)})
+			if err != nil {
+				return err
 			}
+
+			if stdout.String() == "" {
+				return fmt.Errorf("empty response from pod retrying")
+			}
+
+			// sysfs address looks like: /sys/devices/pci0000:17/0000:17:02.0/0000:19:00.5/net/eno1
+			pathSegments := strings.Split(stdout.String(), "/")
+			PCIAddr = pathSegments[5] // 0000:19:00.5
+			return nil
+		}, 3*time.Minute, 5*time.Second).Should(BeNil())
+
+		if PCIAddr == "" {
+			continue
 		}
+
+		ptpInterfaceNicMapping[interf] = PCIAddr
 	}
 
-	fmt.Println(devices)
-	return nil
+	return ptpInterfaceNicMapping
 }
 
-func getPtpOperatorVersion() {
+func getPtpOperatorVersion() (string, error) {
 
 	var ptpOperatorVersion string
 
@@ -995,6 +1027,7 @@ func getPtpOperatorVersion() {
 
 	if err != nil {
 		logrus.Infof("PTP Operator version is not found: %v", err)
+		return "", err
 	}
 
 	for k, v := range deploy.Labels {
@@ -1004,9 +1037,11 @@ func getPtpOperatorVersion() {
 	}
 
 	fmt.Printf("PTP operator version is %v\n", ptpOperatorVersion)
+
+	return ptpOperatorVersion, err
 }
 
-func getOCPVersion() {
+func getOCPVersion() (string, error) {
 	ocpClient := client.Client.OcpClient
 	clusterOperator, err := ocpClient.ClusterOperators().Get(context.TODO(), "openshift-apiserver", metav1.GetOptions{})
 
@@ -1027,4 +1062,6 @@ func getOCPVersion() {
 		}
 	}
 	fmt.Printf("OCP Version is %v\n", ocpVersion)
+
+	return ocpVersion, err
 }
