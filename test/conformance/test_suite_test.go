@@ -49,12 +49,12 @@ var _ = BeforeSuite(func() {
 			Name: testutils.NamespaceTesting,
 		},
 	}
-	_, err := testclient.Client.Namespaces().Create(context.Background(), ns, metav1.CreateOptions{})
+	_, err := testclient.Client.CoreV1().Namespaces().Create(context.Background(), ns, metav1.CreateOptions{})
 	Expect(err).ToNot(HaveOccurred())
 })
 
 var _ = AfterSuite(func() {
-	err := testclient.Client.Namespaces().Delete(context.Background(), testutils.NamespaceTesting, metav1.DeleteOptions{})
+	err := testclient.Client.CoreV1().Namespaces().Delete(context.Background(), testutils.NamespaceTesting, metav1.DeleteOptions{})
 	Expect(err).ToNot(HaveOccurred())
 	err = namespaces.WaitForDeletion(testclient.Client, testutils.NamespaceTesting, 5*time.Minute)
 })
