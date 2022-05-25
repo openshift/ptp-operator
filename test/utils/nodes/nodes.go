@@ -27,7 +27,7 @@ type NodeTopology struct {
 }
 
 // PtpEnabled returns the topology of a given node, filtering using the given selector.
-func PtpEnabled(client *client.ClientSet) ([]NodeTopology, error) {
+func PtpEnabled(client *client.ClientSet) ([]*NodeTopology, error) {
 	nodeDevicesList, err := client.NodePtpDevices(utils.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		return nil, err
@@ -37,7 +37,7 @@ func PtpEnabled(client *client.ClientSet) ([]NodeTopology, error) {
 		return nil, fmt.Errorf("Zero nodes found")
 	}
 
-	nodeTopologyList := []NodeTopology{}
+	nodeTopologyList := []*NodeTopology{}
 
 	nodesList, err := MatchingOptionalSelectorPTP(nodeDevicesList.Items)
 	for _, node := range nodesList {
@@ -47,7 +47,7 @@ func PtpEnabled(client *client.ClientSet) ([]NodeTopology, error) {
 				interfaceList = append(interfaceList, iface.Name)
 			}
 			nodeTopology := NodeTopology{NodeName: node.Name, InterfaceList: interfaceList}
-			nodeTopologyList = append(nodeTopologyList, nodeTopology)
+			nodeTopologyList = append(nodeTopologyList, &nodeTopology)
 		}
 	}
 
@@ -55,13 +55,13 @@ func PtpEnabled(client *client.ClientSet) ([]NodeTopology, error) {
 }
 
 func LabelNode(nodeName, key, value string) (*corev1.Node, error) {
-	NodeObject, err := client.Client.Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+	NodeObject, err := client.Client.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 
 	NodeObject.Labels[key] = value
-	NodeObject, err = client.Client.Nodes().Update(context.Background(), NodeObject, metav1.UpdateOptions{})
+	NodeObject, err = client.Client.CoreV1().Nodes().Update(context.Background(), NodeObject, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func MatchingOptionalSelectorPTP(toFilter []ptpv1.NodePtpDevice) ([]ptpv1.NodePt
 	if NodesSelector == "" {
 		return toFilter, nil
 	}
-	toMatch, err := client.Client.Nodes().List(context.Background(), metav1.ListOptions{
+	toMatch, err := client.Client.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{
 		LabelSelector: NodesSelector,
 	})
 	if err != nil {
@@ -103,7 +103,7 @@ func MatchingOptionalSelectorPTP(toFilter []ptpv1.NodePtpDevice) ([]ptpv1.NodePt
 }
 
 func IsSingleNodeCluster() (bool, error) {
-	nodes, err := client.Client.Nodes().List(context.Background(), metav1.ListOptions{})
+	nodes, err := client.Client.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		return false, err
 	}

@@ -19,12 +19,21 @@ package v1
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
+	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+)
+
+type PtpRole int
+
+const (
+	Master PtpRole = 1
+	Slave  PtpRole = 0
 )
 
 // log is for logging in this package.
@@ -128,4 +137,46 @@ func (r *PtpConfig) ValidateUpdate(old runtime.Object) error {
 func (r *PtpConfig) ValidateDelete() error {
 	ptpconfiglog.Info("validate delete", "name", r.Name)
 	return nil
+}
+
+func getInterfaces(input *ptp4lConf, mode PtpRole) (interfaces []string) {
+
+	for index, section := range input.sections {
+		sectionName := strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(index, "[", ""), "]", ""))
+		if strings.TrimSpace(section.options["masterOnly"]) == strconv.Itoa(int(mode)) {
+			interfaces = append(interfaces, strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(sectionName, "[", ""), "]", "")))
+		}
+	}
+	return interfaces
+}
+
+func GetInterfaces(config PtpConfig, mode PtpRole) (interfaces []string) {
+
+	if len(config.Spec.Profile) > 1 {
+		logrus.Warnf("More than one profile detected for ptpconfig %s", &config.ObjectMeta.Name)
+	}
+	if len(config.Spec.Profile) == 0 {
+		logrus.Warnf("No profile detected for ptpconfig %s", &config.ObjectMeta.Name)
+		return interfaces
+	}
+	conf := &ptp4lConf{}
+	var dummy *string
+	err := conf.populatePtp4lConf(config.Spec.Profile[0].Ptp4lConf, dummy)
+	if err != nil {
+		logrus.Warnf("ptp4l conf parsing failed, err=%s", err)
+	}
+
+	interfaces = getInterfaces(conf, mode)
+	var finalInterfaces []string
+	for _, aIf := range interfaces {
+		if aIf == "global" {
+			finalInterfaces = append(finalInterfaces, *config.Spec.Profile[0].Interface)
+		} else {
+			finalInterfaces = append(finalInterfaces, aIf)
+		}
+	}
+	if len(interfaces) == 0 && mode == Slave {
+		finalInterfaces = append(finalInterfaces, *config.Spec.Profile[0].Interface)
+	}
+	return finalInterfaces
 }
