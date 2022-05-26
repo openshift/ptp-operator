@@ -401,10 +401,13 @@ func cmdRun(p *ptpProcess, stdoutToSocket bool) {
 						if strings.Contains(output, ClockClassChangeIndicator) {
 							go func(c *net.Conn, cfgName string) {
 								if _, matches, e := pmc.RunPMCExp(cfgName, pmc.CmdParentDataSet, pmc.ClockClassChangeRegEx); e == nil {
-									var parseError error
-									var clockClass float64
-									for _, v := range matches {
-										if clockClass, parseError = strconv.ParseFloat(v, 64); parseError == nil {
+									//regex: 'gm.ClockClass[[:space:]]+(\d+)'
+									//match  1: 'gm.ClockClass                         135'
+									//match  2: '135'
+									if len(matches) > 1 {
+										var parseError error
+										var clockClass float64
+										if clockClass, parseError = strconv.ParseFloat(matches[1], 64); parseError == nil {
 											glog.Infof("clock change event identified")
 											//ptp4l[5196819.100]: [ptp4l.0.config] CLOCK_CLASS_CHANGE:248
 											clockClassOut := fmt.Sprintf("%s[%d]:[%s] CLOCK_CLASS_CHANGE %f\n", p.name, time.Now().Unix(), p.configName, clockClass)
@@ -416,6 +419,8 @@ func cmdRun(p *ptpProcess, stdoutToSocket bool) {
 										} else {
 											glog.Errorf("parse error in clock class value %s", parseError)
 										}
+									} else {
+										glog.Infof("clock class change value not found via PMC")
 									}
 								} else {
 									glog.Error("error parsing PMC util for clock class change event")
