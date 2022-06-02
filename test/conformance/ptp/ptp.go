@@ -306,6 +306,13 @@ var _ = Describe("[ptp]", func() {
 					fmt.Println(mapping)
 					Expect(mapping).ShouldNot(BeEmpty())
 				}
+
+				By("Getting ptp config details")
+
+				ptpConfig := testconfig.GlobalConfig
+
+				Expect(ptpConfig.DiscoveredMasterPtpConfig).ShouldNot(BeEmpty())
+				Expect(ptpConfig.DiscoveredSlavePtpConfig).ShouldNot(BeEmpty())
 			})
 		})
 
@@ -524,7 +531,10 @@ func configurePTPMasterSlave(ptpNodes []*nodes.NodeTopology) {
 	if err == nil && configureFifo {
 		ptpSchedulingPolicy = "SCHED_FIFO"
 	}
-  
+
+	/*ptpGrandMasterNode.InterfaceList = []string{"ens3f0", "ens3f1"}
+	ptpSlaveNode.InterfaceList = []string{"ens3f0", "ens3f1"}*/
+
 	for _, gmInterface := range ptpGrandMasterNode.InterfaceList {
 		for _, slaveInterface := range ptpSlaveNode.InterfaceList {
 			clean.Configs()
@@ -652,13 +662,13 @@ func waitForPtpDaemonToBeReady() {
 		daemonset, err = client.Client.DaemonSets(PtpLinuxDaemonNamespace).Get(context.Background(), PtpDaemonsetName, metav1.GetOptions{})
 		Expect(err).ToNot(HaveOccurred())
 		return daemonset.Status.NumberReady
-	}, 2*time.Minute, 2*time.Second).Should(Equal(expectedNumber))
+	}, 5*time.Minute, 2*time.Second).Should(Equal(expectedNumber))
 
 	Eventually(func() int {
 		ptpPods, err := client.Client.CoreV1().Pods(PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
 		Expect(err).ToNot(HaveOccurred())
 		return len(ptpPods.Items)
-	}, 2*time.Minute, 2*time.Second).Should(Equal(int(expectedNumber)))
+	}, 5*time.Minute, 2*time.Second).Should(Equal(int(expectedNumber)))
 }
 
 // Returns the slave node label to be used in the test
@@ -973,6 +983,7 @@ func ptpEventEnabled() bool {
 	return ptpConfig.Spec.EventConfig.EnableEventPublisher
 }
 
+// TODO : Take a look into output
 func getNICInfo(pod v1core.Pod) map[string]string {
 
 	var ptpSupportedInterfaces []string = getPtpMasterSlaveAttachedInterfaces(pod)
@@ -1020,9 +1031,12 @@ func getPtpOperatorVersion() (string, error) {
 		return "", err
 	}
 
-	for k, v := range deploy.Labels {
-		if k == "olm.owner" {
-			ptpOperatorVersion = strings.ReplaceAll(v, PtpOperatorDeploymentName+".", "")
+	envs := deploy.Spec.Template.Spec.Containers[0].Env
+	for _, env := range envs {
+
+		if env.Name == "RELEASE_VERSION" {
+			ptpOperatorVersion = env.Value
+			ptpOperatorVersion = ptpOperatorVersion[1:]
 		}
 	}
 
