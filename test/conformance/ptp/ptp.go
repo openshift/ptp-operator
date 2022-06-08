@@ -650,7 +650,6 @@ func restartPtpDaemon() {
 		err = client.Client.CoreV1().Pods(PtpLinuxDaemonNamespace).Delete(context.Background(), pod.Name, metav1.DeleteOptions{GracePeriodSeconds: pointer.Int64Ptr(0)})
 		Expect(err).ToNot(HaveOccurred())
 	}
-
 	waitForPtpDaemonToBeReady()
 }
 
@@ -662,13 +661,13 @@ func waitForPtpDaemonToBeReady() {
 		daemonset, err = client.Client.DaemonSets(PtpLinuxDaemonNamespace).Get(context.Background(), PtpDaemonsetName, metav1.GetOptions{})
 		Expect(err).ToNot(HaveOccurred())
 		return daemonset.Status.NumberReady
-	}, 5*time.Minute, 2*time.Second).Should(Equal(expectedNumber))
+	}, 2*time.Minute, 2*time.Second).Should(Equal(expectedNumber))
 
 	Eventually(func() int {
 		ptpPods, err := client.Client.CoreV1().Pods(PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
 		Expect(err).ToNot(HaveOccurred())
 		return len(ptpPods.Items)
-	}, 5*time.Minute, 2*time.Second).Should(Equal(int(expectedNumber)))
+	}, 2*time.Minute, 2*time.Second).Should(Equal(int(expectedNumber)))
 }
 
 // Returns the slave node label to be used in the test
