@@ -302,8 +302,6 @@ var _ = Describe("[ptp]", func() {
 					fmt.Println(ptpDiscoveredInterfaces)
 
 					var mapping = getNICInfo(pod)
-
-					fmt.Println(mapping)
 					Expect(mapping).ShouldNot(BeEmpty())
 				}
 
@@ -313,6 +311,12 @@ var _ = Describe("[ptp]", func() {
 
 				Expect(ptpConfig.DiscoveredMasterPtpConfig.String()).ShouldNot(BeEmpty())
 				Expect(ptpConfig.DiscoveredSlavePtpConfig.String()).ShouldNot(BeEmpty())
+
+				By("Getting the interface details of the PTP config")
+
+				verifyInterfaces(ptpConfig.DiscoveredMasterPtpConfig.Config)
+				verifyInterfaces(ptpConfig.DiscoveredSlavePtpConfig.Config)
+				verifyInterfaces(ptpConfig.DiscoveredSlavePtpConfigSecondary.Config)
 			})
 		})
 
@@ -650,6 +654,7 @@ func restartPtpDaemon() {
 		err = client.Client.CoreV1().Pods(PtpLinuxDaemonNamespace).Delete(context.Background(), pod.Name, metav1.DeleteOptions{GracePeriodSeconds: pointer.Int64Ptr(0)})
 		Expect(err).ToNot(HaveOccurred())
 	}
+
 	waitForPtpDaemonToBeReady()
 }
 
@@ -661,13 +666,13 @@ func waitForPtpDaemonToBeReady() {
 		daemonset, err = client.Client.DaemonSets(PtpLinuxDaemonNamespace).Get(context.Background(), PtpDaemonsetName, metav1.GetOptions{})
 		Expect(err).ToNot(HaveOccurred())
 		return daemonset.Status.NumberReady
-	}, 2*time.Minute, 2*time.Second).Should(Equal(expectedNumber))
+	}, 5*time.Minute, 2*time.Second).Should(Equal(expectedNumber))
 
 	Eventually(func() int {
 		ptpPods, err := client.Client.CoreV1().Pods(PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
 		Expect(err).ToNot(HaveOccurred())
 		return len(ptpPods.Items)
-	}, 2*time.Minute, 2*time.Second).Should(Equal(int(expectedNumber)))
+	}, 5*time.Minute, 2*time.Second).Should(Equal(int(expectedNumber)))
 }
 
 // Returns the slave node label to be used in the test
@@ -1067,4 +1072,15 @@ func getOCPVersion() (string, error) {
 	fmt.Printf("OCP Version is %v\n", ocpVersion)
 
 	return ocpVersion, err
+}
+
+func verifyInterfaces(config ptpv1.PtpConfig) {
+	profiles := config.Spec.Profile
+
+	Expect(len(profiles)).To(BeNumerically(">", 0))
+
+	for _, profile := range profiles {
+		fmt.Println("Profile is" + *profile.Interface)
+		Expect(*profile.Interface).ShouldNot(BeEmpty())
+	}
 }
