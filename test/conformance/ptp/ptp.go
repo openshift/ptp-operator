@@ -311,8 +311,8 @@ var _ = Describe("[ptp]", func() {
 
 				ptpConfig := testconfig.GlobalConfig
 
-				Expect(ptpConfig.DiscoveredMasterPtpConfig).ShouldNot(BeEmpty())
-				Expect(ptpConfig.DiscoveredSlavePtpConfig).ShouldNot(BeEmpty())
+				Expect(ptpConfig.DiscoveredMasterPtpConfig.String()).ShouldNot(BeEmpty())
+				Expect(ptpConfig.DiscoveredSlavePtpConfig.String()).ShouldNot(BeEmpty())
 			})
 		})
 
@@ -532,8 +532,8 @@ func configurePTPMasterSlave(ptpNodes []*nodes.NodeTopology) {
 		ptpSchedulingPolicy = "SCHED_FIFO"
 	}
 
-	/*ptpGrandMasterNode.InterfaceList = []string{"ens3f0", "ens3f1"}
-	ptpSlaveNode.InterfaceList = []string{"ens3f0", "ens3f1"}*/
+	ptpGrandMasterNode.InterfaceList = []string{"ens3f0", "ens3f1"}
+	ptpSlaveNode.InterfaceList = []string{"ens3f0", "ens3f1"}
 
 	for _, gmInterface := range ptpGrandMasterNode.InterfaceList {
 		for _, slaveInterface := range ptpSlaveNode.InterfaceList {
