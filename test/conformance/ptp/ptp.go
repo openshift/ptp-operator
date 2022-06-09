@@ -295,12 +295,10 @@ var _ = Describe("[ptp]", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(ptpOperatorVersion).ShouldNot(BeEmpty())
 
+				// No longer used?
 				By("Getting the NIC details of the PTP enabled interfaces")
 
 				for _, pod := range ptpRunningPods {
-					ptpDiscoveredInterfaces := ptpDiscoveredInterfaceList(NodePtpDeviceAPIPath + pod.Spec.NodeName)
-					fmt.Println(ptpDiscoveredInterfaces)
-
 					var mapping = getNICInfo(pod)
 					Expect(mapping).ShouldNot(BeEmpty())
 				}
@@ -534,9 +532,6 @@ func configurePTPMasterSlave(ptpNodes []*nodes.NodeTopology) {
 	if err == nil && configureFifo {
 		ptpSchedulingPolicy = "SCHED_FIFO"
 	}
-
-	ptpGrandMasterNode.InterfaceList = []string{"ens3f0", "ens3f1"}
-	ptpSlaveNode.InterfaceList = []string{"ens3f0", "ens3f1"}
 
 	for _, gmInterface := range ptpGrandMasterNode.InterfaceList {
 		for _, slaveInterface := range ptpSlaveNode.InterfaceList {
@@ -986,7 +981,6 @@ func ptpEventEnabled() bool {
 	return ptpConfig.Spec.EventConfig.EnableEventPublisher
 }
 
-// TODO : Take a look into output
 func getNICInfo(pod v1core.Pod) map[string]string {
 
 	var ptpSupportedInterfaces []string = getPtpMasterSlaveAttachedInterfaces(pod)
@@ -1074,12 +1068,12 @@ func getOCPVersion() (string, error) {
 }
 
 func verifyInterfaces(config ptpv1.PtpConfig) {
+
 	profiles := config.Spec.Profile
 
-	Expect(len(profiles)).To(BeNumerically(">", 0))
+	// Expect(len(profiles)).To(BeNumerically(">", 0))
 
 	for _, profile := range profiles {
-		fmt.Println("Profile is" + *profile.Interface)
 		Expect(*profile.Interface).ShouldNot(BeEmpty())
 	}
 }
