@@ -308,18 +308,14 @@ var _ = Describe("[ptp]", func() {
 				By("Getting ptp config details")
 
 				ptpConfig := testconfig.GlobalConfig
-
 				Expect(ptpConfig.DiscoveredMasterPtpConfig.String()).ShouldNot(BeEmpty())
 				Expect(ptpConfig.DiscoveredSlavePtpConfig.String()).ShouldNot(BeEmpty())
-<<<<<<< HEAD
 
 				By("Getting the interface details of the PTP config")
 
 				verifyInterfaces(ptpConfig.DiscoveredMasterPtpConfig.Config)
 				verifyInterfaces(ptpConfig.DiscoveredSlavePtpConfig.Config)
 				verifyInterfaces(ptpConfig.DiscoveredSlavePtpConfigSecondary.Config)
-=======
->>>>>>> 248f99e5 (TODO: test)
 			})
 		})
 
