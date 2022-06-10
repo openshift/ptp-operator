@@ -295,25 +295,25 @@ var _ = Describe("[ptp]", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(ptpOperatorVersion).ShouldNot(BeEmpty())
 
-				// No longer used?
-				By("Getting the NIC details of the PTP enabled interfaces")
+				By("Getting the NIC details of all the PTP enabled interfaces")
 
+				var mapping = make(map[string]string)
 				for _, pod := range ptpRunningPods {
-					var mapping = getNICInfo(pod)
+					mapping = getNICInfo(pod)
 					Expect(mapping).ShouldNot(BeEmpty())
 				}
 
-				By("Getting ptp config details")
-
-				ptpConfig := testconfig.GlobalConfig
-				Expect(ptpConfig.DiscoveredMasterPtpConfig.String()).ShouldNot(BeEmpty())
-				Expect(ptpConfig.DiscoveredSlavePtpConfig.String()).ShouldNot(BeEmpty())
-
 				By("Getting the interface details of the PTP config")
 
-				verifyInterfaces(ptpConfig.DiscoveredMasterPtpConfig.Config)
-				verifyInterfaces(ptpConfig.DiscoveredSlavePtpConfig.Config)
-				verifyInterfaces(ptpConfig.DiscoveredSlavePtpConfigSecondary.Config)
+				ptpConfig := testconfig.GlobalConfig
+				printInterface(ptpConfig.DiscoveredMasterPtpConfig.Config, mapping)
+				printInterface(ptpConfig.DiscoveredSlavePtpConfig.Config, mapping)
+				printInterface(ptpConfig.DiscoveredSlavePtpConfigSecondary.Config, mapping)
+
+				By("Getting ptp config details")
+
+				fmt.Printf("Discovered master ptp config %s\n", ptpConfig.DiscoveredMasterPtpConfig.String())
+				fmt.Printf("Discovered slave ptp config %s\n", ptpConfig.DiscoveredSlavePtpConfig.String())
 			})
 		})
 
@@ -1067,13 +1067,9 @@ func getOCPVersion() (string, error) {
 	return ocpVersion, err
 }
 
-func verifyInterfaces(config ptpv1.PtpConfig) {
-
-	profiles := config.Spec.Profile
-
-	// Expect(len(profiles)).To(BeNumerically(">", 0))
-
-	for _, profile := range profiles {
+func printInterface(config ptpv1.PtpConfig, interfaceDetailsMap map[string]string) {
+	for _, profile := range config.Spec.Profile {
+		fmt.Printf("profile name = %s, interface name = %s, interface details = %s\n", *profile.Name, *profile.Interface, interfaceDetailsMap[*profile.Interface])
 		Expect(*profile.Interface).ShouldNot(BeEmpty())
 	}
 }
