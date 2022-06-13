@@ -12,6 +12,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	"github.com/onsi/ginkgo/reporters"
 	. "github.com/onsi/gomega"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -57,4 +58,5 @@ var _ = AfterSuite(func() {
 	err := testclient.Client.CoreV1().Namespaces().Delete(context.Background(), testutils.NamespaceTesting, metav1.DeleteOptions{})
 	Expect(err).ToNot(HaveOccurred())
 	err = namespaces.WaitForDeletion(testclient.Client, testutils.NamespaceTesting, 5*time.Minute)
+	logrus.Debug("cleaning up resources")
 })

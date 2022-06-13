@@ -1,0 +1,2260 @@
+ptp4l[7815.876]: [ptp4l.0.config] config item /var/run/ptp4lro.path_trace_enabled is 0
+ptp4l[7815.876]: [ptp4l.0.config] config item /var/run/ptp4lro.tc_spanning_tree is 0
+ptp4l[7815.876]: [ptp4l.0.config] config item /var/run/ptp4lro.ingressLatency is 0
+ptp4l[7815.876]: [ptp4l.0.config] config item /var/run/ptp4lro.egressLatency is 0
+ptp4l[7815.876]: [ptp4l.0.config] config item /var/run/ptp4lro.delay_mechanism is 0
+ptp4l[7815.876]: [ptp4l.0.config] config item /var/run/ptp4lro.hybrid_e2e is 0
+ptp4l[7815.876]: [ptp4l.0.config] config item /var/run/ptp4lro.fault_badpeernet_interval is 16
+ptp4l[7815.876]: [ptp4l.0.config] config item /var/run/ptp4lro.fault_reset_interval is 4
+ptp4l[7815.876]: [ptp4l.0.config] config item /var/run/ptp4lro.delay_filter_length is 1
+ptp4l[7815.876]: [ptp4l.0.config] config item /var/run/ptp4lro.delay_filter is 1
+ptp4l[7815.876]: [ptp4l.0.config] config item /var/run/ptp4lro.tsproc_mode is 0
+ptp4l[7815.876]: [ptp4l.0.config] config item (null).slave_event_monitor is ''
+ptp4l[7815.876]: [ptp4l.0.config] config item eno1.boundary_clock_jbod is 0
+ptp4l[7815.876]: [ptp4l.0.config] config item eno1.network_transport is 3
+ptp4l[7815.876]: [ptp4l.0.config] config item eno1.masterOnly is 0
+ptp4l[7815.876]: [ptp4l.0.config] config item eno1.BMCA is 0
+ptp4l[7815.876]: [ptp4l.0.config] config item eno1.delayAsymmetry is 0
+ptp4l[7815.876]: [ptp4l.0.config] config item eno1.follow_up_info is 0
+ptp4l[7815.876]: [ptp4l.0.config] config item eno1.freq_est_interval is 1
+ptp4l[7815.876]: [ptp4l.0.config] config item eno1.msg_interval_request is 0
+ptp4l[7815.876]: [ptp4l.0.config] config item eno1.net_sync_monitor is 0
+ptp4l[7815.876]: [ptp4l.0.config] config item eno1.path_trace_enabled is 0
+ptp4l[7815.876]: [ptp4l.0.config] config item eno1.tc_spanning_tree is 0
+ptp4l[7815.876]: [ptp4l.0.config] config item eno1.ingressLatency is 0
+ptp4l[7815.876]: [ptp4l.0.config] config item eno1.egressLatency is 0
+ptp4l[7815.876]: [ptp4l.0.config] config item eno1.delay_mechanism is 1
+ptp4l[7815.876]: [ptp4l.0.config] config item eno1.unicast_master_table is 0
+ptp4l[7815.876]: [ptp4l.0.config] config item eno1.unicast_listen is 0
+ptp4l[7815.876]: [ptp4l.0.config] config item eno1.hybrid_e2e is 0
+ptp4l[7815.876]: [ptp4l.0.config] config item eno1.fault_badpeernet_interval is 16
+ptp4l[7815.876]: [ptp4l.0.config] config item eno1.fault_reset_interval is 4
+ptp4l[7815.876]: [ptp4l.0.config] config item eno1.delay_filter_length is 10
+ptp4l[7815.876]: [ptp4l.0.config] config item eno1.delay_filter is 1
+ptp4l[7815.876]: [ptp4l.0.config] config item eno1.tsproc_mode is 0
+ptp4l[7815.876]: [ptp4l.0.config] config item eno1.logMinDelayReqInterval is 0
+ptp4l[7815.876]: [ptp4l.0.config] config item eno1.logAnnounceInterval is 1
+ptp4l[7815.876]: [ptp4l.0.config] config item eno1.inhibit_announce is 0
+ptp4l[7815.876]: [ptp4l.0.config] config item eno1.ignore_source_id is 0
+ptp4l[7815.876]: [ptp4l.0.config] config item eno1.announceReceiptTimeout is 3
+ptp4l[7815.876]: [ptp4l.0.config] config item eno1.syncReceiptTimeout is 0
+ptp4l[7815.877]: [ptp4l.0.config] config item eno1.transportSpecific is 0
+ptp4l[7815.877]: [ptp4l.0.config] config item eno1.ignore_transport_specific is 0
+ptp4l[7815.877]: [ptp4l.0.config] config item eno1.G.8275.portDS.localPriority is 128
+ptp4l[7815.877]: [ptp4l.0.config] config item eno1.logSyncInterval is 0
+ptp4l[7815.877]: [ptp4l.0.config] config item eno1.operLogSyncInterval is 0
+ptp4l[7815.877]: [ptp4l.0.config] config item eno1.logMinPdelayReqInterval is 0
+ptp4l[7815.877]: [ptp4l.0.config] config item eno1.operLogPdelayReqInterval is 0
+ptp4l[7815.877]: [ptp4l.0.config] config item eno1.neighborPropDelayThresh is 20000000
+ptp4l[7815.877]: [ptp4l.0.config] config item eno1.min_neighbor_prop_delay is -20000000
+ptp4l[7815.877]: [ptp4l.0.config] config item eno1.asCapable is 1
+ptp4l[7815.877]: [ptp4l.0.config] config item eno1.inhibit_delay_req is 0
+ptp4l[7815.877]: [ptp4l.0.config] config item eno1.ptp_dst_mac is '01:1B:19:00:00:00'
+ptp4l[7815.877]: [ptp4l.0.config] config item eno1.p2p_dst_mac is '01:80:C2:00:00:0E'
+ptp4l[7815.877]: [ptp4l.0.config] config item global.socket_priority is 0
+ptp4l[7815.897]: [ptp4l.0.config] port 1: INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[7815.897]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.logMinDelayReqInterval is 0
+ptp4l[7815.897]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.logAnnounceInterval is 1
+ptp4l[7815.897]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.inhibit_announce is 0
+ptp4l[7815.897]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.ignore_source_id is 0
+ptp4l[7815.897]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.announceReceiptTimeout is 0
+ptp4l[7815.897]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.syncReceiptTimeout is 0
+ptp4l[7815.897]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.transportSpecific is 0
+ptp4l[7815.897]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.ignore_transport_specific is 0
+ptp4l[7815.897]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.G.8275.portDS.localPriority is 128
+ptp4l[7815.897]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.logSyncInterval is 0
+ptp4l[7815.897]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.operLogSyncInterval is 0
+ptp4l[7815.897]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.logMinPdelayReqInterval is 0
+ptp4l[7815.897]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.operLogPdelayReqInterval is 0
+ptp4l[7815.897]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.neighborPropDelayThresh is 20000000
+ptp4l[7815.897]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.min_neighbor_prop_delay is -20000000
+ptp4l[7815.897]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.asCapable is 1
+ptp4l[7815.897]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.inhibit_delay_req is 0
+ptp4l[7815.897]: [ptp4l.0.config] config item (null).uds_address is '/var/run/ptp4l.0.socket'
+ptp4l[7815.898]: [ptp4l.0.config] port 0: INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[7815.898]: [ptp4l.0.config] config item /var/run/ptp4lro.logMinDelayReqInterval is 0
+ptp4l[7815.898]: [ptp4l.0.config] config item /var/run/ptp4lro.logAnnounceInterval is 1
+ptp4l[7815.898]: [ptp4l.0.config] config item /var/run/ptp4lro.inhibit_announce is 0
+ptp4l[7815.898]: [ptp4l.0.config] config item /var/run/ptp4lro.ignore_source_id is 0
+ptp4l[7815.898]: [ptp4l.0.config] config item /var/run/ptp4lro.announceReceiptTimeout is 0
+ptp4l[7815.898]: [ptp4l.0.config] config item /var/run/ptp4lro.syncReceiptTimeout is 0
+ptp4l[7815.898]: [ptp4l.0.config] config item /var/run/ptp4lro.transportSpecific is 0
+ptp4l[7815.898]: [ptp4l.0.config] config item /var/run/ptp4lro.ignore_transport_specific is 0
+ptp4l[7815.898]: [ptp4l.0.config] config item /var/run/ptp4lro.G.8275.portDS.localPriority is 128
+ptp4l[7815.898]: [ptp4l.0.config] config item /var/run/ptp4lro.logSyncInterval is 0
+ptp4l[7815.898]: [ptp4l.0.config] config item /var/run/ptp4lro.operLogSyncInterval is 0
+ptp4l[7815.898]: [ptp4l.0.config] config item /var/run/ptp4lro.logMinPdelayReqInterval is 0
+ptp4l[7815.898]: [ptp4l.0.config] config item /var/run/ptp4lro.operLogPdelayReqInterval is 0
+ptp4l[7815.898]: [ptp4l.0.config] config item /var/run/ptp4lro.neighborPropDelayThresh is 20000000
+ptp4l[7815.898]: [ptp4l.0.config] config item /var/run/ptp4lro.min_neighbor_prop_delay is -20000000
+ptp4l[7815.898]: [ptp4l.0.config] config item /var/run/ptp4lro.asCapable is 1
+ptp4l[7815.898]: [ptp4l.0.config] config item /var/run/ptp4lro.inhibit_delay_req is 0
+ptp4l[7815.898]: [ptp4l.0.config] config item (null).uds_address is '/var/run/ptp4l.0.socket'
+ptp4l[7815.898]: [ptp4l.0.config] port 0: INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[7815.898]: [ptp4l.0.config] port 1: received link status notification
+ptp4l[7815.898]: [ptp4l.0.config] interface index 6 is up
+ptp4l[7816.010]: [ptp4l.0.config] port 1: setting asCapable
+ptp4l[7816.010]: [ptp4l.0.config] port 1: new foreign master 0c42a1.fffe.757fc0-1
+phc2sys[7816.875]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7816.876]: [ptp4l.0.config] port 0: setting asCapable
+phc2sys[7817.877]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[7818.878]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[7819.879]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7820.010]: [ptp4l.0.config] selected best master clock 0c42a1.fffe.757fc0
+ptp4l[7820.010]: [ptp4l.0.config] port 1: LISTENING to UNCALIBRATED on RS_SLAVE
+ptp4l[7820.776]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7820.777]: [ptp4l.0.config] delay   filtered       1074   raw       1074
+phc2sys[7820.880]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[7821.882]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7822.031]: [ptp4l.0.config] rms  786 max  825 freq  -2802 +/-  40 delay  1074 +/-   0
+ptp4l[7822.031]: [ptp4l.0.config] port 1: UNCALIBRATED to SLAVE on MASTER_CLOCK_SELECTED
+ptp4l[7822.330]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7822.331]: [ptp4l.0.config] delay   filtered       1056   raw       1039
+ptp4l[7822.645]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7822.645]: [ptp4l.0.config] delay   filtered       1066   raw       1066
+phc2sys[7822.883]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7823.883]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7823.883]: [ptp4l.0.config] delay   filtered       1070   raw       1396
+phc2sys[7823.884]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7824.031]: [ptp4l.0.config] rms  555 max  783 freq  -2279 +/- 301 delay  1064 +/-   6
+phc2sys[7824.885]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7825.107]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7825.107]: [ptp4l.0.config] delay   filtered       1066   raw       1025
+phc2sys[7825.887]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7826.032]: [ptp4l.0.config] rms  295 max  329 freq  -2885 +/-  13 delay  1066 +/-   0
+ptp4l[7826.381]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7826.381]: [ptp4l.0.config] delay   filtered       1052   raw        986
+phc2sys[7826.888]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[7827.889]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7828.032]: [ptp4l.0.config] rms  134 max  182 freq  -2862 +/-  38 delay  1052 +/-   0
+ptp4l[7828.110]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7828.110]: [ptp4l.0.config] delay   filtered       1039   raw       1018
+phc2sys[7828.890]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7829.191]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7829.191]: [ptp4l.0.config] delay   filtered       1033   raw       1028
+phc2sys[7829.892]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7830.033]: [ptp4l.0.config] rms   34 max   45 freq  -2809 +/-  24 delay  1036 +/-   3
+ptp4l[7830.692]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7830.693]: [ptp4l.0.config] delay   filtered       1028   raw       1022
+phc2sys[7830.893]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7831.228]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7831.229]: [ptp4l.0.config] delay   filtered       1033   raw       1047
+phc2sys[7831.894]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7832.033]: [ptp4l.0.config] rms   57 max   78 freq  -2821 +/-  47 delay  1030 +/-   2
+phc2sys[7832.896]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7833.089]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7833.089]: [ptp4l.0.config] delay   filtered       1026   raw       1021
+ptp4l[7833.801]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7833.802]: [ptp4l.0.config] delay   filtered       1023   raw       1003
+phc2sys[7833.897]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7834.034]: [ptp4l.0.config] rms   20 max   23 freq  -2820 +/-  17 delay  1024 +/-   2
+phc2sys[7834.898]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7835.169]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7835.170]: [ptp4l.0.config] delay   filtered       1023   raw       1026
+ptp4l[7835.446]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7835.446]: [ptp4l.0.config] delay   filtered       1021   raw       1020
+phc2sys[7835.899]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7836.034]: [ptp4l.0.config] rms   23 max   24 freq  -2817 +/-  20 delay  1022 +/-   1
+ptp4l[7836.463]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7836.464]: [ptp4l.0.config] delay   filtered       1021   raw       1051
+phc2sys[7836.901]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7837.478]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7837.478]: [ptp4l.0.config] delay   filtered       1021   raw       1013
+phc2sys[7837.902]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7838.035]: [ptp4l.0.config] rms   39 max   54 freq  -2797 +/-  32 delay  1021 +/-   0
+ptp4l[7838.088]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7838.088]: [ptp4l.0.config] delay   filtered       1024   raw       1033
+phc2sys[7838.903]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[7839.904]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7839.916]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7839.916]: [ptp4l.0.config] delay   filtered       1021   raw        999
+ptp4l[7840.035]: [ptp4l.0.config] rms   37 max   44 freq  -2818 +/-  29 delay  1022 +/-   2
+phc2sys[7840.906]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7841.681]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7841.681]: [ptp4l.0.config] delay   filtered       1021   raw       1021
+phc2sys[7841.907]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7842.035]: [ptp4l.0.config] rms   62 max   84 freq  -2781 +/-  50 delay  1021 +/-   0
+ptp4l[7842.275]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7842.275]: [ptp4l.0.config] delay   filtered       1021   raw       1074
+phc2sys[7842.908]: [ptp4l.0.config] Waiting for ptp4l...
+I0627 15:35:26.203399  265725 main.go:111] ticker pull
+phc2sys[7843.909]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7844.036]: [ptp4l.0.config] rms   61 max   80 freq  -2858 +/-  12 delay  1021 +/-   0
+ptp4l[7844.221]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7844.222]: [ptp4l.0.config] delay   filtered       1020   raw        996
+phc2sys[7844.911]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7845.552]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7845.553]: [ptp4l.0.config] delay   filtered       1023   raw       1054
+ptp4l[7845.814]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7845.814]: [ptp4l.0.config] delay   filtered       1027   raw       1054
+phc2sys[7845.912]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7846.036]: [ptp4l.0.config] rms   32 max   37 freq  -2788 +/-   9 delay  1023 +/-   3
+phc2sys[7846.913]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7847.556]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7847.556]: [ptp4l.0.config] delay   filtered       1027   raw       1005
+phc2sys[7847.914]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7848.036]: [ptp4l.0.config] rms   47 max   53 freq  -2818 +/-  39 delay  1027 +/-   0
+ptp4l[7848.811]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7848.811]: [ptp4l.0.config] delay   filtered       1027   raw       1085
+phc2sys[7848.915]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[7849.916]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7850.037]: [ptp4l.0.config] rms   29 max   41 freq  -2831 +/-  18 delay  1027 +/-   0
+ptp4l[7850.525]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7850.526]: [ptp4l.0.config] delay   filtered       1039   raw       1045
+phc2sys[7850.917]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7851.807]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7851.808]: [ptp4l.0.config] delay   filtered       1049   raw       1061
+phc2sys[7851.918]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7852.037]: [ptp4l.0.config] rms   21 max   29 freq  -2827 +/-  17 delay  1044 +/-   5
+ptp4l[7852.603]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7852.603]: [ptp4l.0.config] delay   filtered       1049   raw       1018
+phc2sys[7852.920]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[7853.921]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7854.037]: [ptp4l.0.config] rms   13 max   17 freq  -2838 +/-   3 delay  1049 +/-   0
+ptp4l[7854.586]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7854.586]: [ptp4l.0.config] delay   filtered       1049   raw       1007
+phc2sys[7854.922]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7854.930]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7854.930]: [ptp4l.0.config] delay   filtered       1031   raw        990
+ptp4l[7854.992]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7854.992]: [ptp4l.0.config] delay   filtered       1031   raw       1009
+ptp4l[7855.036]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7855.036]: [ptp4l.0.config] delay   filtered       1013   raw        989
+phc2sys[7855.923]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7856.038]: [ptp4l.0.config] rms   71 max   98 freq  -2779 +/-  45 delay  1031 +/-  13
+ptp4l[7856.748]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7856.748]: [ptp4l.0.config] delay   filtered       1013   raw       1018
+phc2sys[7856.925]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7857.068]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7857.068]: [ptp4l.0.config] delay   filtered       1013   raw        991
+ptp4l[7857.797]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7857.797]: [ptp4l.0.config] delay   filtered       1008   raw        977
+phc2sys[7857.926]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7858.038]: [ptp4l.0.config] rms   62 max   77 freq  -2797 +/-  53 delay  1011 +/-   2
+ptp4l[7858.544]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7858.545]: [ptp4l.0.config] delay   filtered       1008   raw       1086
+phc2sys[7858.927]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7859.883]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7859.883]: [ptp4l.0.config] delay   filtered       1008   raw       1026
+phc2sys[7859.928]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7860.039]: [ptp4l.0.config] rms   14 max   20 freq  -2787 +/-  10 delay  1008 +/-   0
+ptp4l[7860.039]: [ptp4l.0.config] port 1: received link status notification
+ptp4l[7860.041]: [ptp4l.0.config] port 1: received link status notification
+ptp4l[7860.043]: [ptp4l.0.config] port 1: received link status notification
+ptp4l[7860.046]: [ptp4l.0.config] port 1: received link status notification
+phc2sys[7860.930]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7861.793]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7861.794]: [ptp4l.0.config] delay   filtered       1008   raw       1059
+phc2sys[7861.931]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7862.039]: [ptp4l.0.config] rms   16 max   19 freq  -2810 +/-   0 delay  1008 +/-   0
+ptp4l[7862.896]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7862.896]: [ptp4l.0.config] delay   filtered       1013   raw       1075
+phc2sys[7862.932]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[7863.934]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7864.040]: [ptp4l.0.config] rms   22 max   31 freq  -2825 +/-   7 delay  1013 +/-   0
+ptp4l[7864.652]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7864.653]: [ptp4l.0.config] delay   filtered       1022   raw       1028
+phc2sys[7864.935]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[7865.936]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7866.040]: [ptp4l.0.config] rms   35 max   36 freq  -2820 +/-  29 delay  1022 +/-   0
+ptp4l[7866.240]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7866.240]: [ptp4l.0.config] delay   filtered       1027   raw       1073
+phc2sys[7866.937]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7867.705]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7867.706]: [ptp4l.0.config] delay   filtered       1040   raw       1053
+phc2sys[7867.939]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7868.040]: [ptp4l.0.config] rms   63 max   89 freq  -2865 +/-  41 delay  1034 +/-   6
+phc2sys[7868.940]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7869.554]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7869.554]: [ptp4l.0.config] delay   filtered       1047   raw       1041
+ptp4l[7869.573]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7869.574]: [ptp4l.0.config] delay   filtered       1047   raw       1025
+phc2sys[7869.941]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7870.041]: [ptp4l.0.config] rms   42 max   55 freq  -2819 +/-  30 delay  1047 +/-   0
+ptp4l[7870.676]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7870.677]: [ptp4l.0.config] delay   filtered       1047   raw       1011
+phc2sys[7870.942]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[7871.944]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7872.041]: [ptp4l.0.config] rms   26 max   34 freq  -2805 +/-   5 delay  1047 +/-   0
+ptp4l[7872.410]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7872.411]: [ptp4l.0.config] delay   filtered       1034   raw       1014
+ptp4l[7872.711]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7872.711]: [ptp4l.0.config] delay   filtered       1034   raw       1023
+phc2sys[7872.945]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7873.241]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7873.241]: [ptp4l.0.config] delay   filtered       1026   raw       1024
+ptp4l[7873.810]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7873.810]: [ptp4l.0.config] delay   filtered       1026   raw       1028
+I0627 15:35:56.203376  265725 main.go:111] ticker pull
+phc2sys[7873.946]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7874.041]: [ptp4l.0.config] rms   40 max   53 freq  -2780 +/-  20 delay  1030 +/-   4
+ptp4l[7874.093]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7874.093]: [ptp4l.0.config] delay   filtered       1026   raw       1035
+phc2sys[7874.947]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7875.005]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7875.006]: [ptp4l.0.config] delay   filtered       1026   raw       1069
+ptp4l[7875.350]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7875.351]: [ptp4l.0.config] delay   filtered       1024   raw       1018
+phc2sys[7875.949]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7876.042]: [ptp4l.0.config] rms   26 max   29 freq  -2805 +/-  22 delay  1025 +/-   1
+phc2sys[7876.950]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7877.255]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7877.255]: [ptp4l.0.config] delay   filtered       1024   raw       1038
+phc2sys[7877.951]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7878.042]: [ptp4l.0.config] rms   21 max   28 freq  -2822 +/-   5 delay  1024 +/-   0
+ptp4l[7878.492]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7878.493]: [ptp4l.0.config] delay   filtered       1025   raw       1026
+phc2sys[7878.952]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7879.845]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7879.845]: [ptp4l.0.config] delay   filtered       1027   raw       1062
+phc2sys[7879.953]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7880.043]: [ptp4l.0.config] rms    8 max    8 freq  -2809 +/-   7 delay  1026 +/-   1
+phc2sys[7880.954]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7881.830]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7881.830]: [ptp4l.0.config] delay   filtered       1027   raw        992
+phc2sys[7881.955]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7882.043]: [ptp4l.0.config] rms   39 max   54 freq  -2841 +/-  23 delay  1027 +/-   0
+ptp4l[7882.521]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7882.521]: [ptp4l.0.config] delay   filtered       1027   raw       1027
+phc2sys[7882.957]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7883.243]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7883.243]: [ptp4l.0.config] delay   filtered       1027   raw       1008
+phc2sys[7883.958]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7884.043]: [ptp4l.0.config] rms   64 max   88 freq  -2792 +/-  50 delay  1027 +/-   0
+phc2sys[7884.959]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7885.036]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7885.036]: [ptp4l.0.config] delay   filtered       1031   raw       1046
+ptp4l[7885.514]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7885.514]: [ptp4l.0.config] delay   filtered       1026   raw        994
+phc2sys[7885.960]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7886.044]: [ptp4l.0.config] rms   40 max   42 freq  -2811 +/-  34 delay  1028 +/-   2
+phc2sys[7886.962]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7887.441]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7887.442]: [ptp4l.0.config] delay   filtered       1022   raw       1014
+phc2sys[7887.963]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7888.044]: [ptp4l.0.config] rms   22 max   28 freq  -2799 +/-  19 delay  1022 +/-   0
+ptp4l[7888.180]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7888.180]: [ptp4l.0.config] delay   filtered       1026   raw       1042
+phc2sys[7888.964]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7889.151]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7889.152]: [ptp4l.0.config] delay   filtered       1025   raw       1025
+ptp4l[7889.892]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7889.893]: [ptp4l.0.config] delay   filtered       1026   raw       1029
+phc2sys[7889.965]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7890.045]: [ptp4l.0.config] rms   15 max   20 freq  -2817 +/-   3 delay  1026 +/-   0
+phc2sys[7890.967]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7891.304]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7891.304]: [ptp4l.0.config] delay   filtered       1026   raw       1051
+phc2sys[7891.968]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7892.045]: [ptp4l.0.config] rms   48 max   61 freq  -2820 +/-  41 delay  1026 +/-   0
+phc2sys[7892.969]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7893.064]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7893.064]: [ptp4l.0.config] delay   filtered       1026   raw       1018
+ptp4l[7893.223]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7893.223]: [ptp4l.0.config] delay   filtered       1026   raw       1028
+ptp4l[7893.283]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7893.283]: [ptp4l.0.config] delay   filtered       1026   raw       1013
+phc2sys[7893.970]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7894.045]: [ptp4l.0.config] rms   14 max   14 freq  -2802 +/-   2 delay  1026 +/-   0
+ptp4l[7894.958]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7894.958]: [ptp4l.0.config] delay   filtered       1026   raw       1063
+phc2sys[7894.972]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7895.300]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7895.300]: [ptp4l.0.config] delay   filtered       1026   raw       1006
+phc2sys[7895.973]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7896.046]: [ptp4l.0.config] rms   41 max   44 freq  -2812 +/-  35 delay  1026 +/-   0
+ptp4l[7896.836]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7896.836]: [ptp4l.0.config] delay   filtered       1028   raw       1047
+phc2sys[7896.974]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7897.523]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7897.523]: [ptp4l.0.config] delay   filtered       1028   raw       1038
+phc2sys[7897.976]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7898.046]: [ptp4l.0.config] rms   20 max   27 freq  -2800 +/-  17 delay  1028 +/-   0
+ptp4l[7898.963]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7898.963]: [ptp4l.0.config] delay   filtered       1033   raw       1062
+phc2sys[7898.977]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[7899.978]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7900.047]: [ptp4l.0.config] rms    7 max    9 freq  -2807 +/-   5 delay  1033 +/-   0
+ptp4l[7900.887]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7900.887]: [ptp4l.0.config] delay   filtered       1035   raw       1032
+phc2sys[7900.979]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[7901.981]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7902.047]: [ptp4l.0.config] rms   28 max   38 freq  -2823 +/-  19 delay  1035 +/-   0
+ptp4l[7902.504]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7902.505]: [ptp4l.0.config] delay   filtered       1033   raw       1035
+phc2sys[7902.982]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7903.727]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7903.728]: [ptp4l.0.config] delay   filtered       1033   raw       1027
+I0627 15:36:26.203386  265725 main.go:111] ticker pull
+phc2sys[7903.983]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7904.036]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7904.036]: [ptp4l.0.config] delay   filtered       1033   raw       1026
+ptp4l[7904.047]: [ptp4l.0.config] rms   47 max   62 freq  -2797 +/-  40 delay  1033 +/-   0
+phc2sys[7904.984]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7905.980]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7905.981]: [ptp4l.0.config] delay   filtered       1036   raw       1069
+phc2sys[7905.986]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7906.048]: [ptp4l.0.config] rms   13 max   17 freq  -2806 +/-  11 delay  1036 +/-   0
+ptp4l[7906.081]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7906.082]: [ptp4l.0.config] delay   filtered       1033   raw       1021
+ptp4l[7906.504]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7906.504]: [ptp4l.0.config] delay   filtered       1036   raw       1042
+ptp4l[7906.532]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7906.532]: [ptp4l.0.config] delay   filtered       1035   raw       1036
+phc2sys[7906.987]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7906.993]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7906.994]: [ptp4l.0.config] delay   filtered       1035   raw       1044
+phc2sys[7907.988]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7908.048]: [ptp4l.0.config] rms   57 max   74 freq  -2836 +/-  42 delay  1035 +/-   1
+ptp4l[7908.154]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7908.154]: [ptp4l.0.config] delay   filtered       1035   raw       1041
+phc2sys[7908.990]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7909.586]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7909.587]: [ptp4l.0.config] delay   filtered       1035   raw       1024
+phc2sys[7909.991]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7910.049]: [ptp4l.0.config] rms   15 max   15 freq  -2833 +/-   3 delay  1035 +/-   0
+phc2sys[7910.992]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7911.488]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7911.488]: [ptp4l.0.config] delay   filtered       1031   raw       1012
+phc2sys[7911.993]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7912.049]: [ptp4l.0.config] rms   77 max  108 freq  -2782 +/-  60 delay  1031 +/-   0
+ptp4l[7912.994]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7912.994]: [ptp4l.0.config] delay   filtered       1038   raw       1108
+phc2sys[7912.995]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[7913.996]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7914.049]: [ptp4l.0.config] rms   23 max   27 freq  -2824 +/-   7 delay  1038 +/-   0
+ptp4l[7914.971]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7914.971]: [ptp4l.0.config] delay   filtered       1038   raw       1025
+phc2sys[7914.997]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[7915.998]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7916.050]: [ptp4l.0.config] rms   58 max   74 freq  -2871 +/-  25 delay  1038 +/-   0
+ptp4l[7916.692]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7916.692]: [ptp4l.0.config] delay   filtered       1030   raw        996
+phc2sys[7917.000]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7917.084]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7917.084]: [ptp4l.0.config] delay   filtered       1030   raw        991
+ptp4l[7917.147]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7917.147]: [ptp4l.0.config] delay   filtered       1024   raw        990
+phc2sys[7918.001]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7918.050]: [ptp4l.0.config] rms   63 max   88 freq  -2808 +/-  48 delay  1028 +/-   3
+ptp4l[7918.334]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7918.335]: [ptp4l.0.config] delay   filtered       1024   raw       1039
+phc2sys[7919.002]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7919.084]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7919.085]: [ptp4l.0.config] delay   filtered       1020   raw       1017
+ptp4l[7919.711]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7919.712]: [ptp4l.0.config] delay   filtered       1014   raw        999
+phc2sys[7920.004]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7920.008]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7920.008]: [ptp4l.0.config] delay   filtered       1014   raw       1037
+ptp4l[7920.050]: [ptp4l.0.config] rms   46 max   64 freq  -2798 +/-  37 delay  1018 +/-   4
+ptp4l[7920.682]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7920.682]: [ptp4l.0.config] delay   filtered       1021   raw       1034
+phc2sys[7921.005]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[7922.006]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7922.051]: [ptp4l.0.config] rms   39 max   51 freq  -2819 +/-  32 delay  1021 +/-   0
+ptp4l[7922.595]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7922.596]: [ptp4l.0.config] delay   filtered       1021   raw       1038
+phc2sys[7923.007]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[7924.009]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7924.051]: [ptp4l.0.config] rms   34 max   47 freq  -2842 +/-  20 delay  1021 +/-   0
+ptp4l[7924.109]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7924.110]: [ptp4l.0.config] delay   filtered       1023   raw       1030
+ptp4l[7924.494]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7924.495]: [ptp4l.0.config] delay   filtered       1032   raw       1041
+phc2sys[7925.010]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7925.953]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7925.953]: [ptp4l.0.config] delay   filtered       1035   raw       1092
+phc2sys[7926.011]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7926.051]: [ptp4l.0.config] rms   49 max   64 freq  -2841 +/-  42 delay  1030 +/-   5
+ptp4l[7926.275]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7926.276]: [ptp4l.0.config] delay   filtered       1035   raw       1015
+phc2sys[7927.012]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[7928.014]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7928.052]: [ptp4l.0.config] rms   23 max   33 freq  -2824 +/-  18 delay  1035 +/-   0
+ptp4l[7928.156]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7928.156]: [ptp4l.0.config] delay   filtered       1035   raw       1039
+ptp4l[7928.340]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7928.341]: [ptp4l.0.config] delay   filtered       1037   raw       1063
+phc2sys[7929.015]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7929.381]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7929.382]: [ptp4l.0.config] delay   filtered       1038   raw       1051
+phc2sys[7930.016]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7930.052]: [ptp4l.0.config] rms   34 max   48 freq  -2849 +/-  26 delay  1037 +/-   1
+phc2sys[7931.018]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7931.152]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7931.152]: [ptp4l.0.config] delay   filtered       1040   raw       1041
+phc2sys[7932.019]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7932.052]: [ptp4l.0.config] rms   30 max   39 freq  -2808 +/-   5 delay  1040 +/-   0
+ptp4l[7932.094]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7932.094]: [ptp4l.0.config] delay   filtered       1040   raw       1010
+phc2sys[7933.020]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7933.216]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7933.216]: [ptp4l.0.config] delay   filtered       1040   raw       1004
+ptp4l[7933.819]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7933.820]: [ptp4l.0.config] delay   filtered       1041   raw       1041
+I0627 15:36:56.203073  265725 main.go:111] ticker pull
+phc2sys[7934.021]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7934.053]: [ptp4l.0.config] rms   26 max   29 freq  -2818 +/-  22 delay  1040 +/-   0
+ptp4l[7934.398]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7934.399]: [ptp4l.0.config] delay   filtered       1040   raw       1008
+ptp4l[7934.722]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7934.723]: [ptp4l.0.config] delay   filtered       1037   raw       1035
+ptp4l[7934.952]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7934.953]: [ptp4l.0.config] delay   filtered       1037   raw       1011
+phc2sys[7935.023]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[7936.024]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7936.053]: [ptp4l.0.config] rms    8 max   11 freq  -2817 +/-   5 delay  1038 +/-   1
+ptp4l[7936.130]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7936.131]: [ptp4l.0.config] delay   filtered       1038   raw       1043
+phc2sys[7937.025]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7937.548]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7937.548]: [ptp4l.0.config] delay   filtered       1027   raw       1020
+phc2sys[7938.026]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7938.054]: [ptp4l.0.config] rms   42 max   55 freq  -2845 +/-  30 delay  1032 +/-   6
+ptp4l[7938.758]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7938.758]: [ptp4l.0.config] delay   filtered       1024   raw       1029
+ptp4l[7938.802]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7938.802]: [ptp4l.0.config] delay   filtered       1024   raw       1063
+phc2sys[7939.028]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[7940.029]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7940.054]: [ptp4l.0.config] rms   35 max   36 freq  -2834 +/-  30 delay  1024 +/-   0
+ptp4l[7940.308]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7940.309]: [ptp4l.0.config] delay   filtered       1024   raw       1011
+ptp4l[7940.643]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7940.643]: [ptp4l.0.config] delay   filtered       1030   raw       1031
+phc2sys[7941.030]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[7942.031]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7942.054]: [ptp4l.0.config] rms   23 max   29 freq  -2842 +/-  17 delay  1027 +/-   3
+ptp4l[7942.063]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7942.063]: [ptp4l.0.config] delay   filtered       1026   raw       1024
+phc2sys[7943.033]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7943.911]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7943.911]: [ptp4l.0.config] delay   filtered       1030   raw       1059
+phc2sys[7944.034]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7944.055]: [ptp4l.0.config] rms   32 max   39 freq  -2839 +/-  28 delay  1028 +/-   2
+phc2sys[7945.035]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7945.552]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7945.552]: [ptp4l.0.config] delay   filtered       1030   raw       1037
+phc2sys[7946.037]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7946.055]: [ptp4l.0.config] rms   24 max   29 freq  -2812 +/-   2 delay  1030 +/-   0
+ptp4l[7946.858]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7946.859]: [ptp4l.0.config] delay   filtered       1034   raw       1076
+phc2sys[7947.038]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7947.359]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7947.359]: [ptp4l.0.config] delay   filtered       1030   raw       1013
+phc2sys[7948.039]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7948.056]: [ptp4l.0.config] rms   40 max   47 freq  -2840 +/-  32 delay  1032 +/-   2
+ptp4l[7948.545]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7948.546]: [ptp4l.0.config] delay   filtered       1034   raw       1051
+phc2sys[7949.040]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7949.230]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7949.230]: [ptp4l.0.config] delay   filtered       1037   raw       1037
+ptp4l[7949.457]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7949.458]: [ptp4l.0.config] delay   filtered       1036   raw       1035
+ptp4l[7949.541]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7949.541]: [ptp4l.0.config] delay   filtered       1036   raw       1035
+ptp4l[7949.841]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7949.842]: [ptp4l.0.config] delay   filtered       1036   raw       1010
+ptp4l[7950.008]: [ptp4l.0.config] port 1: received link status notification
+ptp4l[7950.040]: [ptp4l.0.config] port 1: received link status notification
+phc2sys[7950.042]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7950.056]: [ptp4l.0.config] rms   23 max   31 freq  -2845 +/-  15 delay  1036 +/-   1
+ptp4l[7950.070]: [ptp4l.0.config] port 1: received link status notification
+ptp4l[7950.101]: [ptp4l.0.config] port 1: received link status notification
+ptp4l[7950.140]: [ptp4l.0.config] port 1: received link status notification
+ptp4l[7950.141]: [ptp4l.0.config] port 1: received link status notification
+ptp4l[7950.142]: [ptp4l.0.config] port 1: received link status notification
+ptp4l[7950.143]: [ptp4l.0.config] port 1: received link status notification
+ptp4l[7951.011]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7951.011]: [ptp4l.0.config] delay   filtered       1037   raw       1068
+phc2sys[7951.043]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[7952.044]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7952.056]: [ptp4l.0.config] rms   26 max   26 freq  -2866 +/-   4 delay  1037 +/-   0
+ptp4l[7952.433]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7952.433]: [ptp4l.0.config] delay   filtered       1036   raw       1028
+phc2sys[7953.045]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7953.697]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7953.697]: [ptp4l.0.config] delay   filtered       1036   raw       1054
+ptp4l[7953.904]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7953.905]: [ptp4l.0.config] delay   filtered       1036   raw       1050
+ptp4l[7954.001]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7954.001]: [ptp4l.0.config] delay   filtered       1043   raw       1070
+phc2sys[7954.047]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7954.057]: [ptp4l.0.config] rms   56 max   74 freq  -2818 +/-  40 delay  1038 +/-   3
+phc2sys[7955.048]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7955.494]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7955.495]: [ptp4l.0.config] delay   filtered       1041   raw       1046
+ptp4l[7955.977]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7955.978]: [ptp4l.0.config] delay   filtered       1048   raw       1066
+phc2sys[7956.049]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7956.057]: [ptp4l.0.config] rms   61 max   68 freq  -2838 +/-  52 delay  1044 +/-   4
+ptp4l[7956.888]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7956.888]: [ptp4l.0.config] delay   filtered       1048   raw        981
+phc2sys[7957.050]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[7958.052]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7958.057]: [ptp4l.0.config] rms   73 max  102 freq  -2782 +/-  42 delay  1048 +/-   0
+ptp4l[7958.507]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7958.508]: [ptp4l.0.config] delay   filtered       1048   raw       1042
+ptp4l[7958.609]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7958.609]: [ptp4l.0.config] delay   filtered       1048   raw       1013
+phc2sys[7959.053]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7960.038]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7960.038]: [ptp4l.0.config] delay   filtered       1044   raw        959
+phc2sys[7960.054]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7960.058]: [ptp4l.0.config] rms   87 max   97 freq  -2841 +/-  72 delay  1047 +/-   2
+phc2sys[7961.055]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7961.559]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7961.559]: [ptp4l.0.config] delay   filtered       1048   raw       1059
+phc2sys[7962.056]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7962.058]: [ptp4l.0.config] rms   22 max   31 freq  -2841 +/-  13 delay  1048 +/-   0
+phc2sys[7963.057]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7963.380]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7963.380]: [ptp4l.0.config] delay   filtered       1048   raw       1059
+I0627 15:37:26.203625  265725 main.go:111] ticker pull
+ptp4l[7964.058]: [ptp4l.0.config] rms   58 max   78 freq  -2856 +/-  48 delay  1048 +/-   0
+phc2sys[7964.058]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7964.542]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7964.542]: [ptp4l.0.config] delay   filtered       1044   raw       1000
+ptp4l[7964.985]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7964.985]: [ptp4l.0.config] delay   filtered       1027   raw        958
+phc2sys[7965.060]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7966.059]: [ptp4l.0.config] rms   24 max   33 freq  -2838 +/-  20 delay  1036 +/-   8
+phc2sys[7966.061]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7966.109]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7966.110]: [ptp4l.0.config] delay   filtered       1012   raw       1012
+phc2sys[7967.062]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7967.739]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7967.739]: [ptp4l.0.config] delay   filtered       1012   raw       1047
+ptp4l[7968.059]: [ptp4l.0.config] rms   48 max   54 freq  -2786 +/-   2 delay  1012 +/-   0
+phc2sys[7968.064]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[7969.065]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7969.177]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7969.177]: [ptp4l.0.config] delay   filtered       1025   raw       1037
+ptp4l[7970.060]: [ptp4l.0.config] rms   34 max   48 freq  -2847 +/-  14 delay  1025 +/-   0
+phc2sys[7970.066]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7971.033]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7971.034]: [ptp4l.0.config] delay   filtered       1014   raw       1016
+phc2sys[7971.067]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7971.116]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7971.116]: [ptp4l.0.config] delay   filtered       1025   raw       1035
+ptp4l[7972.060]: [ptp4l.0.config] rms   32 max   35 freq  -2838 +/-  26 delay  1020 +/-   6
+phc2sys[7972.069]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7972.142]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7972.142]: [ptp4l.0.config] delay   filtered       1036   raw       1047
+phc2sys[7973.070]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7973.646]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7973.647]: [ptp4l.0.config] delay   filtered       1036   raw       1062
+ptp4l[7974.060]: [ptp4l.0.config] rms   11 max   15 freq  -2843 +/-   3 delay  1036 +/-   0
+phc2sys[7974.071]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7974.445]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7974.445]: [ptp4l.0.config] delay   filtered       1036   raw       1042
+phc2sys[7975.072]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7976.061]: [ptp4l.0.config] rms   49 max   69 freq  -2880 +/-  26 delay  1036 +/-   0
+phc2sys[7976.074]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7976.157]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7976.157]: [ptp4l.0.config] delay   filtered       1036   raw       1007
+phc2sys[7977.075]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7977.119]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7977.119]: [ptp4l.0.config] delay   filtered       1036   raw        997
+ptp4l[7978.061]: [ptp4l.0.config] rms   60 max   84 freq  -2807 +/-  34 delay  1036 +/-   0
+phc2sys[7978.076]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7978.216]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7978.216]: [ptp4l.0.config] delay   filtered       1036   raw       1027
+phc2sys[7979.077]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7980.062]: [ptp4l.0.config] rms   73 max   75 freq  -2826 +/-  62 delay  1036 +/-   0
+phc2sys[7980.078]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7980.088]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7980.088]: [ptp4l.0.config] delay   filtered       1031   raw       1006
+phc2sys[7981.080]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7981.084]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7981.085]: [ptp4l.0.config] delay   filtered       1031   raw       1052
+ptp4l[7981.911]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7981.912]: [ptp4l.0.config] delay   filtered       1038   raw       1078
+ptp4l[7982.062]: [ptp4l.0.config] rms   45 max   49 freq  -2824 +/-  38 delay  1033 +/-   3
+phc2sys[7982.081]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[7983.082]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7983.705]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7983.705]: [ptp4l.0.config] delay   filtered       1034   raw       1017
+ptp4l[7983.820]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7983.820]: [ptp4l.0.config] delay   filtered       1022   raw       1017
+ptp4l[7984.063]: [ptp4l.0.config] rms   29 max   38 freq  -2851 +/-  20 delay  1028 +/-   6
+phc2sys[7984.083]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[7985.085]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7985.134]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7985.135]: [ptp4l.0.config] delay   filtered       1022   raw       1039
+ptp4l[7986.063]: [ptp4l.0.config] rms   19 max   19 freq  -2819 +/-   3 delay  1022 +/-   0
+phc2sys[7986.086]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7986.386]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7986.387]: [ptp4l.0.config] delay   filtered       1022   raw       1057
+phc2sys[7987.087]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7987.230]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7987.230]: [ptp4l.0.config] delay   filtered       1031   raw       1036
+ptp4l[7988.064]: [ptp4l.0.config] rms   13 max   18 freq  -2835 +/-  11 delay  1026 +/-   4
+phc2sys[7988.088]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7988.925]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7988.925]: [ptp4l.0.config] delay   filtered       1031   raw       1026
+phc2sys[7989.090]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7990.064]: [ptp4l.0.config] rms   36 max   50 freq  -2804 +/-  23 delay  1031 +/-   0
+phc2sys[7990.091]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7990.867]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7990.867]: [ptp4l.0.config] delay   filtered       1037   raw       1063
+phc2sys[7991.092]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7991.904]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7991.904]: [ptp4l.0.config] delay   filtered       1037   raw       1012
+ptp4l[7992.064]: [ptp4l.0.config] rms   71 max   96 freq  -2894 +/-  19 delay  1037 +/-   0
+phc2sys[7992.093]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[7993.095]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7993.628]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7993.628]: [ptp4l.0.config] delay   filtered       1037   raw       1047
+I0627 15:37:56.203785  265725 main.go:111] ticker pull
+ptp4l[7994.065]: [ptp4l.0.config] rms   29 max   38 freq  -2837 +/-  21 delay  1037 +/-   0
+phc2sys[7994.096]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7994.185]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7994.186]: [ptp4l.0.config] delay   filtered       1031   raw       1009
+ptp4l[7994.392]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7994.393]: [ptp4l.0.config] delay   filtered       1031   raw       1016
+phc2sys[7995.097]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7995.155]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7995.155]: [ptp4l.0.config] delay   filtered       1031   raw       1021
+ptp4l[7996.065]: [ptp4l.0.config] rms   34 max   34 freq  -2809 +/-   5 delay  1031 +/-   0
+phc2sys[7996.099]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7996.465]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7996.465]: [ptp4l.0.config] delay   filtered       1031   raw       1043
+ptp4l[7996.696]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7996.696]: [ptp4l.0.config] delay   filtered       1026   raw       1026
+phc2sys[7997.100]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7997.718]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7997.718]: [ptp4l.0.config] delay   filtered       1026   raw       1028
+ptp4l[7998.066]: [ptp4l.0.config] rms   50 max   55 freq  -2829 +/-  43 delay  1028 +/-   2
+phc2sys[7998.101]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[7999.102]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[7999.617]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7999.618]: [ptp4l.0.config] delay   filtered       1027   raw       1036
+ptp4l[7999.736]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[7999.736]: [ptp4l.0.config] delay   filtered       1027   raw       1052
+ptp4l[8000.066]: [ptp4l.0.config] rms   13 max   18 freq  -2831 +/-  10 delay  1027 +/-   0
+phc2sys[8000.104]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8001.013]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8001.013]: [ptp4l.0.config] delay   filtered       1032   raw       1037
+phc2sys[8001.105]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8002.067]: [ptp4l.0.config] rms   58 max   82 freq  -2883 +/-  28 delay  1032 +/-   0
+phc2sys[8002.106]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8002.823]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8002.824]: [ptp4l.0.config] delay   filtered       1027   raw       1009
+phc2sys[8003.107]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8004.067]: [ptp4l.0.config] rms   80 max  113 freq  -2797 +/-  56 delay  1027 +/-   0
+phc2sys[8004.109]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8004.714]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8004.715]: [ptp4l.0.config] delay   filtered       1032   raw       1100
+phc2sys[8005.110]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8005.412]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8005.412]: [ptp4l.0.config] delay   filtered       1032   raw       1002
+ptp4l[8005.418]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8005.418]: [ptp4l.0.config] delay   filtered       1032   raw        997
+ptp4l[8006.068]: [ptp4l.0.config] rms   72 max   89 freq  -2853 +/-  55 delay  1032 +/-   0
+phc2sys[8006.111]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8006.336]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8006.336]: [ptp4l.0.config] delay   filtered       1032   raw       1041
+phc2sys[8007.112]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8007.593]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8007.594]: [ptp4l.0.config] delay   filtered       1032   raw       1006
+ptp4l[8008.068]: [ptp4l.0.config] rms   18 max   23 freq  -2853 +/-   2 delay  1032 +/-   0
+phc2sys[8008.114]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8008.987]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8008.987]: [ptp4l.0.config] delay   filtered       1024   raw       1012
+phc2sys[8009.115]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8009.939]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8009.940]: [ptp4l.0.config] delay   filtered       1024   raw       1059
+ptp4l[8010.068]: [ptp4l.0.config] rms   45 max   51 freq  -2792 +/-  12 delay  1024 +/-   0
+phc2sys[8010.116]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8010.933]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8010.933]: [ptp4l.0.config] delay   filtered       1024   raw       1088
+phc2sys[8011.117]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8011.209]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8011.209]: [ptp4l.0.config] delay   filtered       1026   raw       1040
+ptp4l[8011.239]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8011.240]: [ptp4l.0.config] delay   filtered       1036   raw       1033
+ptp4l[8012.069]: [ptp4l.0.config] rms   58 max   65 freq  -2881 +/-  15 delay  1029 +/-   5
+phc2sys[8012.118]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8012.691]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8012.692]: [ptp4l.0.config] delay   filtered       1029   raw       1026
+phc2sys[8013.119]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8013.279]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8013.279]: [ptp4l.0.config] delay   filtered       1029   raw        990
+ptp4l[8014.069]: [ptp4l.0.config] rms   42 max   58 freq  -2828 +/-  32 delay  1029 +/-   0
+phc2sys[8014.121]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8014.537]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8014.537]: [ptp4l.0.config] delay   filtered       1036   raw       1068
+phc2sys[8015.122]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8015.887]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8015.888]: [ptp4l.0.config] delay   filtered       1036   raw       1046
+ptp4l[8016.070]: [ptp4l.0.config] rms   16 max   19 freq  -2843 +/-  12 delay  1036 +/-   0
+phc2sys[8016.123]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8016.454]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8016.455]: [ptp4l.0.config] delay   filtered       1043   raw       1046
+phc2sys[8017.124]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8018.035]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8018.036]: [ptp4l.0.config] delay   filtered       1043   raw        981
+ptp4l[8018.070]: [ptp4l.0.config] rms   44 max   49 freq  -2851 +/-  37 delay  1043 +/-   0
+phc2sys[8018.126]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8018.603]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8018.603]: [ptp4l.0.config] delay   filtered       1043   raw       1064
+phc2sys[8019.127]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8019.376]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8019.377]: [ptp4l.0.config] delay   filtered       1036   raw       1019
+ptp4l[8020.071]: [ptp4l.0.config] rms   16 max   20 freq  -2849 +/-  12 delay  1040 +/-   4
+phc2sys[8020.128]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8021.083]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8021.084]: [ptp4l.0.config] delay   filtered       1039   raw       1066
+phc2sys[8021.129]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8022.071]: [ptp4l.0.config] rms   51 max   66 freq  -2859 +/-  43 delay  1039 +/-   0
+phc2sys[8022.130]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8022.921]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8022.922]: [ptp4l.0.config] delay   filtered       1036   raw        984
+ptp4l[8023.038]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8023.038]: [ptp4l.0.config] delay   filtered       1032   raw        980
+phc2sys[8023.132]: [ptp4l.0.config] Waiting for ptp4l...
+I0627 15:38:26.203801  265725 main.go:111] ticker pull
+ptp4l[8024.072]: [ptp4l.0.config] rms   70 max   95 freq  -2828 +/-  58 delay  1034 +/-   2
+phc2sys[8024.133]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8024.766]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8024.767]: [ptp4l.0.config] delay   filtered       1043   raw       1041
+phc2sys[8025.134]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8025.580]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8025.581]: [ptp4l.0.config] delay   filtered       1031   raw       1022
+ptp4l[8026.072]: [ptp4l.0.config] rms   18 max   24 freq  -2855 +/-   5 delay  1037 +/-   6
+phc2sys[8026.135]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8027.137]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8027.314]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8027.315]: [ptp4l.0.config] delay   filtered       1028   raw       1035
+ptp4l[8028.072]: [ptp4l.0.config] rms   30 max   42 freq  -2819 +/-  15 delay  1028 +/-   0
+phc2sys[8028.138]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8029.072]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8029.072]: [ptp4l.0.config] delay   filtered       1028   raw       1048
+phc2sys[8029.139]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8030.073]: [ptp4l.0.config] rms   48 max   61 freq  -2844 +/-  41 delay  1028 +/-   0
+phc2sys[8030.140]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8030.504]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8030.504]: [ptp4l.0.config] delay   filtered       1028   raw        991
+phc2sys[8031.142]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8032.073]: [ptp4l.0.config] rms   38 max   52 freq  -2860 +/-  31 delay  1028 +/-   0
+phc2sys[8032.143]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8032.447]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8032.448]: [ptp4l.0.config] delay   filtered       1022   raw       1022
+phc2sys[8033.144]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8033.719]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8033.720]: [ptp4l.0.config] delay   filtered       1022   raw        996
+ptp4l[8033.939]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8033.940]: [ptp4l.0.config] delay   filtered       1022   raw       1022
+ptp4l[8034.074]: [ptp4l.0.config] rms   64 max   90 freq  -2807 +/-  44 delay  1022 +/-   0
+phc2sys[8034.146]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8034.394]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8034.394]: [ptp4l.0.config] delay   filtered       1022   raw       1054
+phc2sys[8035.147]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8036.070]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8036.071]: [ptp4l.0.config] delay   filtered       1022   raw       1014
+ptp4l[8036.074]: [ptp4l.0.config] rms   39 max   40 freq  -2871 +/-   7 delay  1022 +/-   0
+phc2sys[8036.148]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8037.149]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8038.051]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8038.052]: [ptp4l.0.config] delay   filtered       1022   raw       1024
+ptp4l[8038.075]: [ptp4l.0.config] rms   18 max   20 freq  -2829 +/-   4 delay  1022 +/-   0
+phc2sys[8038.151]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8038.444]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8038.444]: [ptp4l.0.config] delay   filtered       1023   raw       1075
+ptp4l[8038.991]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8038.992]: [ptp4l.0.config] delay   filtered       1023   raw       1038
+ptp4l[8038.999]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8038.999]: [ptp4l.0.config] delay   filtered       1023   raw       1047
+phc2sys[8039.152]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8040.009]: [ptp4l.0.config] port 1: received link status notification
+ptp4l[8040.044]: [ptp4l.0.config] port 1: received link status notification
+ptp4l[8040.069]: [ptp4l.0.config] port 1: received link status notification
+ptp4l[8040.075]: [ptp4l.0.config] rms   21 max   27 freq  -2844 +/-  18 delay  1023 +/-   0
+ptp4l[8040.098]: [ptp4l.0.config] port 1: received link status notification
+phc2sys[8040.153]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8040.972]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8040.973]: [ptp4l.0.config] delay   filtered       1023   raw       1006
+phc2sys[8041.154]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8041.547]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8041.547]: [ptp4l.0.config] delay   filtered       1023   raw       1006
+ptp4l[8042.075]: [ptp4l.0.config] rms   54 max   64 freq  -2839 +/-  47 delay  1023 +/-   0
+phc2sys[8042.156]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8042.294]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8042.294]: [ptp4l.0.config] delay   filtered       1031   raw       1072
+ptp4l[8042.712]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8042.712]: [ptp4l.0.config] delay   filtered       1042   raw       1101
+phc2sys[8043.157]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8043.296]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8043.297]: [ptp4l.0.config] delay   filtered       1039   raw       1041
+ptp4l[8044.076]: [ptp4l.0.config] rms   51 max   70 freq  -2892 +/-  14 delay  1037 +/-   5
+phc2sys[8044.158]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8044.656]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8044.656]: [ptp4l.0.config] delay   filtered       1041   raw       1041
+ptp4l[8044.969]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8044.969]: [ptp4l.0.config] delay   filtered       1043   raw       1046
+phc2sys[8045.159]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8045.449]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8045.449]: [ptp4l.0.config] delay   filtered       1043   raw       1059
+ptp4l[8046.076]: [ptp4l.0.config] rms   13 max   16 freq  -2861 +/-  11 delay  1042 +/-   1
+phc2sys[8046.161]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8046.797]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8046.798]: [ptp4l.0.config] delay   filtered       1043   raw       1034
+phc2sys[8047.162]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8047.316]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8047.316]: [ptp4l.0.config] delay   filtered       1041   raw       1037
+ptp4l[8048.077]: [ptp4l.0.config] rms   32 max   40 freq  -2828 +/-  13 delay  1042 +/-   1
+phc2sys[8048.163]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8048.421]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8048.422]: [ptp4l.0.config] delay   filtered       1043   raw       1079
+phc2sys[8049.164]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8050.077]: [ptp4l.0.config] rms   34 max   48 freq  -2869 +/-  23 delay  1043 +/-   0
+phc2sys[8050.165]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8050.372]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8050.372]: [ptp4l.0.config] delay   filtered       1043   raw       1037
+phc2sys[8051.166]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8051.352]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8051.353]: [ptp4l.0.config] delay   filtered       1041   raw       1019
+ptp4l[8051.727]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8051.728]: [ptp4l.0.config] delay   filtered       1039   raw        965
+ptp4l[8052.078]: [ptp4l.0.config] rms   33 max   45 freq  -2881 +/-  22 delay  1041 +/-   2
+phc2sys[8052.168]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8053.169]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8053.648]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8053.648]: [ptp4l.0.config] delay   filtered       1037   raw       1014
+I0627 15:38:56.202870  265725 main.go:111] ticker pull
+ptp4l[8054.078]: [ptp4l.0.config] rms   27 max   37 freq  -2841 +/-  10 delay  1037 +/-   0
+phc2sys[8054.170]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8054.477]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8054.478]: [ptp4l.0.config] delay   filtered       1037   raw       1042
+phc2sys[8055.171]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8055.354]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8055.354]: [ptp4l.0.config] delay   filtered       1035   raw       1031
+ptp4l[8056.078]: [ptp4l.0.config] rms   35 max   42 freq  -2841 +/-  28 delay  1036 +/-   1
+phc2sys[8056.172]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8057.173]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8057.225]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8057.226]: [ptp4l.0.config] delay   filtered       1035   raw       1049
+ptp4l[8057.441]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8057.441]: [ptp4l.0.config] delay   filtered       1034   raw       1002
+ptp4l[8057.705]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8057.705]: [ptp4l.0.config] delay   filtered       1028   raw       1026
+ptp4l[8058.079]: [ptp4l.0.config] rms   28 max   33 freq  -2849 +/-  25 delay  1032 +/-   3
+phc2sys[8058.175]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8058.877]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8058.877]: [ptp4l.0.config] delay   filtered       1028   raw       1077
+ptp4l[8059.114]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8059.115]: [ptp4l.0.config] delay   filtered       1028   raw       1032
+phc2sys[8059.176]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8060.079]: [ptp4l.0.config] rms   45 max   55 freq  -2841 +/-  39 delay  1028 +/-   0
+phc2sys[8060.177]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8060.422]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8060.422]: [ptp4l.0.config] delay   filtered       1031   raw       1032
+phc2sys[8061.178]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8061.406]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8061.406]: [ptp4l.0.config] delay   filtered       1032   raw       1078
+ptp4l[8062.080]: [ptp4l.0.config] rms    3 max    4 freq  -2839 +/-   2 delay  1032 +/-   0
+phc2sys[8062.179]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8062.556]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8062.556]: [ptp4l.0.config] delay   filtered       1037   raw       1060
+phc2sys[8063.181]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8064.080]: [ptp4l.0.config] rms   39 max   54 freq  -2880 +/-  13 delay  1037 +/-   0
+ptp4l[8064.124]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8064.124]: [ptp4l.0.config] delay   filtered       1032   raw       1032
+phc2sys[8064.182]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8065.183]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8065.873]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8065.873]: [ptp4l.0.config] delay   filtered       1032   raw       1016
+ptp4l[8066.081]: [ptp4l.0.config] rms   51 max   72 freq  -2825 +/-  37 delay  1032 +/-   0
+phc2sys[8066.184]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8067.186]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8067.753]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8067.753]: [ptp4l.0.config] delay   filtered       1032   raw       1055
+ptp4l[8068.081]: [ptp4l.0.config] rms   15 max   20 freq  -2852 +/-   8 delay  1032 +/-   0
+phc2sys[8068.187]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8068.850]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8068.850]: [ptp4l.0.config] delay   filtered       1038   raw       1044
+phc2sys[8069.188]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8070.082]: [ptp4l.0.config] rms   42 max   59 freq  -2884 +/-  21 delay  1038 +/-   0
+phc2sys[8070.189]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8070.358]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8070.358]: [ptp4l.0.config] delay   filtered       1038   raw       1031
+phc2sys[8071.191]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8071.321]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8071.322]: [ptp4l.0.config] delay   filtered       1032   raw       1017
+ptp4l[8072.082]: [ptp4l.0.config] rms   37 max   43 freq  -2820 +/-   0 delay  1035 +/-   3
+phc2sys[8072.192]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8072.779]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8072.779]: [ptp4l.0.config] delay   filtered       1038   raw       1060
+phc2sys[8073.193]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8074.082]: [ptp4l.0.config] rms   11 max   16 freq  -2851 +/-   7 delay  1038 +/-   0
+phc2sys[8074.195]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8074.723]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8074.724]: [ptp4l.0.config] delay   filtered       1047   raw       1051
+phc2sys[8075.196]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8075.495]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8075.495]: [ptp4l.0.config] delay   filtered       1038   raw       1031
+ptp4l[8076.083]: [ptp4l.0.config] rms   32 max   35 freq  -2854 +/-  27 delay  1042 +/-   4
+phc2sys[8076.197]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8076.639]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8076.640]: [ptp4l.0.config] delay   filtered       1038   raw       1057
+phc2sys[8077.198]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8078.055]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8078.055]: [ptp4l.0.config] delay   filtered       1047   raw       1050
+ptp4l[8078.083]: [ptp4l.0.config] rms    2 max    3 freq  -2846 +/-   2 delay  1042 +/-   4
+phc2sys[8078.200]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8078.588]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8078.588]: [ptp4l.0.config] delay   filtered       1050   raw       1066
+ptp4l[8078.628]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8078.628]: [ptp4l.0.config] delay   filtered       1050   raw       1064
+ptp4l[8078.863]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8078.864]: [ptp4l.0.config] delay   filtered       1050   raw       1046
+phc2sys[8079.201]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8079.659]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8079.660]: [ptp4l.0.config] delay   filtered       1050   raw        974
+ptp4l[8080.084]: [ptp4l.0.config] rms   71 max   96 freq  -2895 +/-  48 delay  1050 +/-   0
+phc2sys[8080.202]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8080.871]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8080.872]: [ptp4l.0.config] delay   filtered       1050   raw       1047
+phc2sys[8081.203]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8081.904]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8081.905]: [ptp4l.0.config] delay   filtered       1048   raw       1032
+ptp4l[8082.084]: [ptp4l.0.config] rms   33 max   45 freq  -2836 +/-  18 delay  1049 +/-   1
+phc2sys[8082.205]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8082.424]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8082.424]: [ptp4l.0.config] delay   filtered       1046   raw       1042
+ptp4l[8082.441]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8082.441]: [ptp4l.0.config] delay   filtered       1048   raw       1068
+phc2sys[8083.206]: [ptp4l.0.config] Waiting for ptp4l...
+I0627 15:39:26.202876  265725 main.go:111] ticker pull
+ptp4l[8084.085]: [ptp4l.0.config] rms   15 max   17 freq  -2833 +/-   4 delay  1047 +/-   1
+ptp4l[8084.110]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8084.110]: [ptp4l.0.config] delay   filtered       1046   raw       1021
+phc2sys[8084.207]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8085.209]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8085.694]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8085.695]: [ptp4l.0.config] delay   filtered       1044   raw       1025
+ptp4l[8085.873]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8085.873]: [ptp4l.0.config] delay   filtered       1037   raw       1028
+ptp4l[8086.085]: [ptp4l.0.config] rms   29 max   33 freq  -2849 +/-  24 delay  1042 +/-   4
+ptp4l[8086.089]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8086.090]: [ptp4l.0.config] delay   filtered       1035   raw       1039
+phc2sys[8086.210]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8087.211]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8087.256]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8087.257]: [ptp4l.0.config] delay   filtered       1035   raw       1080
+ptp4l[8088.086]: [ptp4l.0.config] rms   65 max   76 freq  -2848 +/-  56 delay  1035 +/-   0
+phc2sys[8088.212]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8088.570]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8088.571]: [ptp4l.0.config] delay   filtered       1035   raw       1017
+phc2sys[8089.214]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8089.245]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8089.245]: [ptp4l.0.config] delay   filtered       1035   raw       1054
+ptp4l[8090.086]: [ptp4l.0.config] rms    6 max    8 freq  -2848 +/-   5 delay  1035 +/-   0
+phc2sys[8090.215]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8090.760]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8090.761]: [ptp4l.0.config] delay   filtered       1040   raw       1045
+ptp4l[8090.892]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8090.893]: [ptp4l.0.config] delay   filtered       1042   raw       1045
+phc2sys[8091.216]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8091.258]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8091.259]: [ptp4l.0.config] delay   filtered       1033   raw        965
+ptp4l[8091.557]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8091.557]: [ptp4l.0.config] delay   filtered       1033   raw        970
+ptp4l[8092.086]: [ptp4l.0.config] rms   60 max   62 freq  -2855 +/-  51 delay  1037 +/-   4
+phc2sys[8092.217]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8093.219]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8093.520]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8093.521]: [ptp4l.0.config] delay   filtered       1036   raw       1033
+ptp4l[8094.087]: [ptp4l.0.config] rms   13 max   18 freq  -2840 +/-  10 delay  1036 +/-   0
+phc2sys[8094.220]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8094.963]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8094.963]: [ptp4l.0.config] delay   filtered       1042   raw       1057
+phc2sys[8095.221]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8095.516]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8095.516]: [ptp4l.0.config] delay   filtered       1045   raw       1049
+ptp4l[8096.087]: [ptp4l.0.config] rms   10 max   13 freq  -2848 +/-   8 delay  1044 +/-   2
+phc2sys[8096.222]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8096.978]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8096.979]: [ptp4l.0.config] delay   filtered       1040   raw       1036
+phc2sys[8097.224]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8097.572]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8097.572]: [ptp4l.0.config] delay   filtered       1040   raw       1032
+ptp4l[8098.088]: [ptp4l.0.config] rms    3 max    3 freq  -2844 +/-   2 delay  1040 +/-   0
+phc2sys[8098.225]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8099.226]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8099.269]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8099.270]: [ptp4l.0.config] delay   filtered       1034   raw       1027
+ptp4l[8100.088]: [ptp4l.0.config] rms   13 max   13 freq  -2829 +/-   2 delay  1034 +/-   0
+phc2sys[8100.227]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8101.074]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8101.075]: [ptp4l.0.config] delay   filtered       1034   raw       1064
+phc2sys[8101.229]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8102.059]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8102.060]: [ptp4l.0.config] delay   filtered       1032   raw       1020
+ptp4l[8102.089]: [ptp4l.0.config] rms   47 max   65 freq  -2878 +/-  28 delay  1033 +/-   1
+phc2sys[8102.230]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8103.231]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8103.468]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8103.469]: [ptp4l.0.config] delay   filtered       1032   raw       1025
+ptp4l[8104.089]: [ptp4l.0.config] rms   39 max   51 freq  -2821 +/-  18 delay  1032 +/-   0
+phc2sys[8104.232]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8104.470]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8104.470]: [ptp4l.0.config] delay   filtered       1034   raw       1058
+phc2sys[8105.234]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8106.090]: [ptp4l.0.config] rms   10 max   10 freq  -2827 +/-   2 delay  1034 +/-   0
+phc2sys[8106.235]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8106.347]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8106.347]: [ptp4l.0.config] delay   filtered       1036   raw       1036
+ptp4l[8106.518]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8106.518]: [ptp4l.0.config] delay   filtered       1034   raw       1029
+ptp4l[8106.611]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8106.611]: [ptp4l.0.config] delay   filtered       1034   raw       1048
+ptp4l[8106.662]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8106.662]: [ptp4l.0.config] delay   filtered       1034   raw       1063
+phc2sys[8107.236]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8107.999]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8108.000]: [ptp4l.0.config] delay   filtered       1032   raw        975
+ptp4l[8108.090]: [ptp4l.0.config] rms   82 max   87 freq  -2850 +/-  69 delay  1034 +/-   1
+phc2sys[8108.237]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8109.239]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8109.406]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8109.407]: [ptp4l.0.config] delay   filtered       1042   raw       1048
+ptp4l[8109.418]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8109.418]: [ptp4l.0.config] delay   filtered       1042   raw       1066
+ptp4l[8110.090]: [ptp4l.0.config] rms   42 max   54 freq  -2846 +/-  36 delay  1042 +/-   0
+phc2sys[8110.240]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8110.340]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8110.340]: [ptp4l.0.config] delay   filtered       1042   raw       1015
+ptp4l[8110.483]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8110.484]: [ptp4l.0.config] delay   filtered       1042   raw       1013
+phc2sys[8111.241]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8111.771]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8111.772]: [ptp4l.0.config] delay   filtered       1042   raw       1052
+ptp4l[8111.865]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8111.865]: [ptp4l.0.config] delay   filtered       1048   raw       1060
+ptp4l[8111.971]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8111.972]: [ptp4l.0.config] delay   filtered       1048   raw       1042
+ptp4l[8112.091]: [ptp4l.0.config] rms   42 max   59 freq  -2869 +/-  32 delay  1044 +/-   3
+phc2sys[8112.242]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8112.397]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8112.397]: [ptp4l.0.config] delay   filtered       1045   raw       1013
+ptp4l[8113.128]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8113.128]: [ptp4l.0.config] delay   filtered       1045   raw       1052
+phc2sys[8113.243]: [ptp4l.0.config] Waiting for ptp4l...
+I0627 15:39:56.203385  265725 main.go:111] ticker pull
+ptp4l[8114.091]: [ptp4l.0.config] rms   31 max   43 freq  -2827 +/-  10 delay  1045 +/-   0
+ptp4l[8114.106]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8114.106]: [ptp4l.0.config] delay   filtered       1045   raw       1036
+phc2sys[8114.245]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8115.246]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8115.993]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8115.994]: [ptp4l.0.config] delay   filtered       1039   raw       1027
+ptp4l[8116.092]: [ptp4l.0.config] rms   28 max   39 freq  -2818 +/-  16 delay  1042 +/-   3
+phc2sys[8116.247]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8117.248]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8117.564]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8117.565]: [ptp4l.0.config] delay   filtered       1037   raw       1039
+ptp4l[8118.092]: [ptp4l.0.config] rms   20 max   25 freq  -2850 +/-   8 delay  1037 +/-   0
+phc2sys[8118.250]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8119.251]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8119.404]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8119.404]: [ptp4l.0.config] delay   filtered       1037   raw        989
+ptp4l[8120.093]: [ptp4l.0.config] rms   39 max   48 freq  -2834 +/-  33 delay  1037 +/-   0
+phc2sys[8120.252]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8120.254]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8120.254]: [ptp4l.0.config] delay   filtered       1040   raw       1046
+phc2sys[8121.253]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8121.953]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8121.954]: [ptp4l.0.config] delay   filtered       1037   raw       1002
+ptp4l[8122.093]: [ptp4l.0.config] rms   18 max   25 freq  -2851 +/-  10 delay  1038 +/-   2
+ptp4l[8122.212]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8122.212]: [ptp4l.0.config] delay   filtered       1031   raw       1015
+phc2sys[8122.255]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8123.256]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8123.904]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8123.905]: [ptp4l.0.config] delay   filtered       1031   raw       1067
+ptp4l[8124.039]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8124.040]: [ptp4l.0.config] delay   filtered       1037   raw       1067
+ptp4l[8124.093]: [ptp4l.0.config] rms   78 max   90 freq  -2848 +/-  67 delay  1033 +/-   3
+phc2sys[8124.257]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8124.451]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8124.451]: [ptp4l.0.config] delay   filtered       1031   raw        983
+ptp4l[8124.679]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8124.680]: [ptp4l.0.config] delay   filtered       1021   raw       1006
+ptp4l[8125.141]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8125.142]: [ptp4l.0.config] delay   filtered       1010   raw       1002
+phc2sys[8125.258]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8126.094]: [ptp4l.0.config] rms   49 max   69 freq  -2806 +/-  23 delay  1021 +/-   9
+phc2sys[8126.260]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8126.342]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8126.342]: [ptp4l.0.config] delay   filtered       1010   raw       1065
+phc2sys[8127.261]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8128.095]: [ptp4l.0.config] rms   70 max   87 freq  -2843 +/-  60 delay  1010 +/-   0
+ptp4l[8128.245]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8128.246]: [ptp4l.0.config] delay   filtered       1021   raw       1028
+phc2sys[8128.262]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8128.802]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8128.802]: [ptp4l.0.config] delay   filtered       1010   raw       1003
+phc2sys[8129.264]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8130.095]: [ptp4l.0.config] rms   31 max   41 freq  -2872 +/-  16 delay  1016 +/-   6
+phc2sys[8130.265]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8130.500]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8130.500]: [ptp4l.0.config] delay   filtered       1010   raw        998
+phc2sys[8131.266]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8132.095]: [ptp4l.0.config] rms   43 max   57 freq  -2816 +/-  21 delay  1010 +/-   0
+phc2sys[8132.267]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8132.344]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8132.344]: [ptp4l.0.config] delay   filtered       1017   raw       1057
+phc2sys[8133.268]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8133.806]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8133.806]: [ptp4l.0.config] delay   filtered       1017   raw       1047
+ptp4l[8134.075]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8134.075]: [ptp4l.0.config] delay   filtered       1017   raw       1033
+ptp4l[8134.096]: [ptp4l.0.config] rms    7 max   10 freq  -2841 +/-   5 delay  1017 +/-   0
+ptp4l[8134.267]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8134.268]: [ptp4l.0.config] delay   filtered       1030   raw       1033
+phc2sys[8134.269]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8135.271]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8135.515]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8135.515]: [ptp4l.0.config] delay   filtered       1031   raw       1030
+ptp4l[8135.839]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8135.840]: [ptp4l.0.config] delay   filtered       1031   raw       1023
+ptp4l[8135.918]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8135.919]: [ptp4l.0.config] delay   filtered       1029   raw        997
+ptp4l[8136.096]: [ptp4l.0.config] rms   15 max   17 freq  -2856 +/-   1 delay  1030 +/-   1
+phc2sys[8136.272]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8136.737]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8136.737]: [ptp4l.0.config] delay   filtered       1026   raw       1020
+phc2sys[8137.273]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8138.097]: [ptp4l.0.config] rms   53 max   65 freq  -2823 +/-  41 delay  1026 +/-   0
+phc2sys[8138.274]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8138.655]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8138.655]: [ptp4l.0.config] delay   filtered       1026   raw       1015
+phc2sys[8139.276]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8140.097]: [ptp4l.0.config] rms   31 max   32 freq  -2845 +/-  26 delay  1026 +/-   0
+phc2sys[8140.277]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8140.524]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8140.525]: [ptp4l.0.config] delay   filtered       1031   raw       1066
+phc2sys[8141.278]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8142.098]: [ptp4l.0.config] rms   38 max   48 freq  -2849 +/-  32 delay  1031 +/-   0
+phc2sys[8142.279]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8142.417]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8142.418]: [ptp4l.0.config] delay   filtered       1026   raw       1011
+ptp4l[8142.986]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8142.986]: [ptp4l.0.config] delay   filtered       1021   raw       1008
+phc2sys[8143.280]: [ptp4l.0.config] Waiting for ptp4l...
+I0627 15:40:26.203673  265725 main.go:111] ticker pull
+ptp4l[8144.098]: [ptp4l.0.config] rms   47 max   66 freq  -2816 +/-  34 delay  1024 +/-   2
+phc2sys[8144.281]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8144.571]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8144.571]: [ptp4l.0.config] delay   filtered       1021   raw       1058
+phc2sys[8145.282]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8145.551]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8145.551]: [ptp4l.0.config] delay   filtered       1021   raw       1023
+ptp4l[8146.098]: [ptp4l.0.config] rms   29 max   33 freq  -2860 +/-   8 delay  1021 +/-   0
+phc2sys[8146.283]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8146.999]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8146.999]: [ptp4l.0.config] delay   filtered       1020   raw       1020
+phc2sys[8147.285]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8148.099]: [ptp4l.0.config] rms   37 max   37 freq  -2803 +/-   5 delay  1020 +/-   0
+phc2sys[8148.286]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8148.440]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8148.441]: [ptp4l.0.config] delay   filtered       1020   raw       1058
+ptp4l[8148.565]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8148.566]: [ptp4l.0.config] delay   filtered       1021   raw       1082
+phc2sys[8149.287]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8149.910]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8149.910]: [ptp4l.0.config] delay   filtered       1040   raw       1067
+ptp4l[8150.099]: [ptp4l.0.config] rms   72 max  101 freq  -2880 +/-  47 delay  1027 +/-   9
+phc2sys[8150.288]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8151.290]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8151.770]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8151.771]: [ptp4l.0.config] delay   filtered       1040   raw       1000
+ptp4l[8152.100]: [ptp4l.0.config] rms   20 max   27 freq  -2849 +/-  17 delay  1040 +/-   0
+phc2sys[8152.291]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8152.813]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8152.813]: [ptp4l.0.config] delay   filtered       1026   raw       1029
+phc2sys[8153.292]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8153.337]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8153.338]: [ptp4l.0.config] delay   filtered       1026   raw       1014
+ptp4l[8154.100]: [ptp4l.0.config] rms   27 max   27 freq  -2847 +/-  22 delay  1026 +/-   0
+ptp4l[8154.171]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8154.171]: [ptp4l.0.config] delay   filtered       1028   raw       1028
+phc2sys[8154.294]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8154.965]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8154.965]: [ptp4l.0.config] delay   filtered       1025   raw        977
+ptp4l[8155.125]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8155.125]: [ptp4l.0.config] delay   filtered       1024   raw       1019
+phc2sys[8155.295]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8155.994]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8155.995]: [ptp4l.0.config] delay   filtered       1028   raw       1048
+ptp4l[8156.035]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8156.035]: [ptp4l.0.config] delay   filtered       1028   raw       1040
+ptp4l[8156.101]: [ptp4l.0.config] rms   32 max   43 freq  -2829 +/-  21 delay  1027 +/-   2
+phc2sys[8156.296]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8156.520]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8156.520]: [ptp4l.0.config] delay   filtered       1023   raw       1019
+phc2sys[8157.298]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8157.378]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8157.379]: [ptp4l.0.config] delay   filtered       1019   raw       1002
+ptp4l[8158.101]: [ptp4l.0.config] rms   55 max   65 freq  -2781 +/-  17 delay  1021 +/-   2
+phc2sys[8158.299]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8158.882]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8158.882]: [ptp4l.0.config] delay   filtered       1023   raw       1062
+phc2sys[8159.300]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8159.934]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8159.934]: [ptp4l.0.config] delay   filtered       1019   raw       1009
+ptp4l[8160.101]: [ptp4l.0.config] rms   70 max   98 freq  -2868 +/-  40 delay  1021 +/-   2
+phc2sys[8160.301]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8161.303]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8161.307]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8161.308]: [ptp4l.0.config] delay   filtered       1019   raw        984
+ptp4l[8162.102]: [ptp4l.0.config] rms   62 max   64 freq  -2842 +/-  53 delay  1019 +/-   0
+ptp4l[8162.252]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8162.252]: [ptp4l.0.config] delay   filtered       1019   raw       1057
+phc2sys[8162.304]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8162.428]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8162.429]: [ptp4l.0.config] delay   filtered       1027   raw       1035
+ptp4l[8162.958]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8162.958]: [ptp4l.0.config] delay   filtered       1037   raw       1042
+phc2sys[8163.305]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8164.102]: [ptp4l.0.config] rms   31 max   37 freq  -2846 +/-  25 delay  1028 +/-   7
+phc2sys[8164.307]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8164.721]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8164.721]: [ptp4l.0.config] delay   filtered       1037   raw       1055
+phc2sys[8165.308]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8166.103]: [ptp4l.0.config] rms   24 max   30 freq  -2826 +/-  18 delay  1037 +/-   0
+phc2sys[8166.309]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8166.698]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8166.698]: [ptp4l.0.config] delay   filtered       1032   raw       1029
+ptp4l[8167.296]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8167.296]: [ptp4l.0.config] delay   filtered       1032   raw       1006
+phc2sys[8167.310]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8167.921]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8167.922]: [ptp4l.0.config] delay   filtered       1032   raw        987
+ptp4l[8168.103]: [ptp4l.0.config] rms   49 max   63 freq  -2860 +/-  37 delay  1032 +/-   0
+ptp4l[8168.299]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8168.299]: [ptp4l.0.config] delay   filtered       1026   raw       1024
+phc2sys[8168.311]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8168.785]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8168.785]: [ptp4l.0.config] delay   filtered       1026   raw       1003
+phc2sys[8169.312]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8169.842]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8169.843]: [ptp4l.0.config] delay   filtered       1026   raw       1016
+ptp4l[8170.103]: [ptp4l.0.config] rms    8 max    9 freq  -2834 +/-   0 delay  1026 +/-   0
+phc2sys[8170.314]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8170.826]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8170.827]: [ptp4l.0.config] delay   filtered       1021   raw       1018
+phc2sys[8171.315]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8172.104]: [ptp4l.0.config] rms   32 max   42 freq  -2807 +/-  15 delay  1021 +/-   0
+phc2sys[8172.316]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8172.409]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8172.409]: [ptp4l.0.config] delay   filtered       1021   raw       1052
+ptp4l[8172.787]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8172.788]: [ptp4l.0.config] delay   filtered       1021   raw       1039
+ptp4l[8173.163]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8173.163]: [ptp4l.0.config] delay   filtered       1021   raw       1029
+phc2sys[8173.317]: [ptp4l.0.config] Waiting for ptp4l...
+I0627 15:40:56.203152  265725 main.go:111] ticker pull
+ptp4l[8174.104]: [ptp4l.0.config] rms   25 max   27 freq  -2822 +/-  21 delay  1021 +/-   0
+phc2sys[8174.318]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8175.140]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8175.140]: [ptp4l.0.config] delay   filtered       1017   raw       1015
+phc2sys[8175.320]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8175.556]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8175.556]: [ptp4l.0.config] delay   filtered       1021   raw       1024
+ptp4l[8176.018]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8176.018]: [ptp4l.0.config] delay   filtered       1021   raw        974
+ptp4l[8176.105]: [ptp4l.0.config] rms   64 max   71 freq  -2892 +/-  16 delay  1020 +/-   2
+ptp4l[8176.214]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8176.214]: [ptp4l.0.config] delay   filtered       1017   raw       1007
+phc2sys[8176.321]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8177.322]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8178.105]: [ptp4l.0.config] rms   70 max   82 freq  -2777 +/-   1 delay  1017 +/-   0
+ptp4l[8178.179]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8178.180]: [ptp4l.0.config] delay   filtered       1021   raw       1068
+phc2sys[8178.323]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8178.505]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8178.505]: [ptp4l.0.config] delay   filtered       1026   raw       1104
+phc2sys[8179.325]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8179.843]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8179.844]: [ptp4l.0.config] delay   filtered       1026   raw        997
+ptp4l[8180.105]: [ptp4l.0.config] rms   62 max   86 freq  -2882 +/-  21 delay  1024 +/-   2
+phc2sys[8180.326]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8180.514]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8180.515]: [ptp4l.0.config] delay   filtered       1026   raw       1041
+phc2sys[8181.327]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8181.353]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8181.353]: [ptp4l.0.config] delay   filtered       1026   raw       1030
+ptp4l[8182.106]: [ptp4l.0.config] rms   16 max   22 freq  -2838 +/-  12 delay  1026 +/-   0
+ptp4l[8182.200]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8182.201]: [ptp4l.0.config] delay   filtered       1023   raw       1022
+phc2sys[8182.328]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8182.802]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8182.802]: [ptp4l.0.config] delay   filtered       1027   raw       1036
+ptp4l[8182.805]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8182.805]: [ptp4l.0.config] delay   filtered       1026   raw       1009
+phc2sys[8183.330]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8184.106]: [ptp4l.0.config] rms   19 max   27 freq  -2824 +/-   9 delay  1025 +/-   2
+phc2sys[8184.331]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8184.581]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8184.582]: [ptp4l.0.config] delay   filtered       1026   raw       1016
+ptp4l[8185.182]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8185.182]: [ptp4l.0.config] delay   filtered       1033   raw       1053
+phc2sys[8185.332]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8185.583]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8185.584]: [ptp4l.0.config] delay   filtered       1033   raw       1086
+ptp4l[8186.107]: [ptp4l.0.config] rms   29 max   30 freq  -2828 +/-  24 delay  1031 +/-   3
+phc2sys[8186.334]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8186.815]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8186.815]: [ptp4l.0.config] delay   filtered       1033   raw       1069
+phc2sys[8187.335]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8187.702]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8187.702]: [ptp4l.0.config] delay   filtered       1033   raw        988
+ptp4l[8187.991]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8187.991]: [ptp4l.0.config] delay   filtered       1026   raw        970
+ptp4l[8188.107]: [ptp4l.0.config] rms   59 max   74 freq  -2862 +/-  45 delay  1031 +/-   3
+phc2sys[8188.336]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8189.337]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8189.516]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8189.517]: [ptp4l.0.config] delay   filtered       1029   raw       1056
+ptp4l[8190.108]: [ptp4l.0.config] rms   73 max   81 freq  -2844 +/-  63 delay  1029 +/-   0
+phc2sys[8190.339]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8191.340]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8191.387]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8191.387]: [ptp4l.0.config] delay   filtered       1034   raw       1033
+ptp4l[8192.108]: [ptp4l.0.config] rms   17 max   24 freq  -2831 +/-   6 delay  1034 +/-   0
+phc2sys[8192.341]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8192.354]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8192.355]: [ptp4l.0.config] delay   filtered       1024   raw        993
+phc2sys[8193.342]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8193.674]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8193.674]: [ptp4l.0.config] delay   filtered       1036   raw       1039
+ptp4l[8193.889]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8193.889]: [ptp4l.0.config] delay   filtered       1036   raw       1010
+ptp4l[8194.109]: [ptp4l.0.config] rms   41 max   57 freq  -2808 +/-  26 delay  1032 +/-   6
+phc2sys[8194.344]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8194.550]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8194.550]: [ptp4l.0.config] delay   filtered       1036   raw       1040
+ptp4l[8194.961]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8194.961]: [ptp4l.0.config] delay   filtered       1036   raw       1080
+phc2sys[8195.345]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8196.109]: [ptp4l.0.config] rms    4 max    6 freq  -2826 +/-   2 delay  1036 +/-   0
+phc2sys[8196.346]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8196.896]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8196.896]: [ptp4l.0.config] delay   filtered       1036   raw       1045
+phc2sys[8197.348]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8198.110]: [ptp4l.0.config] rms   32 max   37 freq  -2860 +/-   9 delay  1036 +/-   0
+phc2sys[8198.349]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8198.369]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8198.369]: [ptp4l.0.config] delay   filtered       1036   raw       1028
+phc2sys[8199.350]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8199.453]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8199.454]: [ptp4l.0.config] delay   filtered       1036   raw        979
+ptp4l[8199.597]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8199.597]: [ptp4l.0.config] delay   filtered       1030   raw        982
+ptp4l[8200.110]: [ptp4l.0.config] rms   80 max   98 freq  -2831 +/-  69 delay  1034 +/-   3
+phc2sys[8200.351]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8201.127]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8201.127]: [ptp4l.0.config] delay   filtered       1031   raw       1034
+phc2sys[8201.353]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8202.110]: [ptp4l.0.config] rms   32 max   44 freq  -2858 +/-  19 delay  1031 +/-   0
+ptp4l[8202.118]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8202.118]: [ptp4l.0.config] delay   filtered       1031   raw       1003
+phc2sys[8202.354]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8202.642]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8202.642]: [ptp4l.0.config] delay   filtered       1020   raw       1012
+phc2sys[8203.355]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8203.635]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8203.636]: [ptp4l.0.config] delay   filtered       1031   raw       1035
+I0627 15:41:26.203063  265725 main.go:111] ticker pull
+ptp4l[8204.111]: [ptp4l.0.config] rms   33 max   47 freq  -2817 +/-  17 delay  1027 +/-   5
+phc2sys[8204.356]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8204.740]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8204.741]: [ptp4l.0.config] delay   filtered       1027   raw       1026
+phc2sys[8205.358]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8206.111]: [ptp4l.0.config] rms   17 max   20 freq  -2835 +/-  15 delay  1027 +/-   0
+ptp4l[8206.334]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8206.334]: [ptp4l.0.config] delay   filtered       1027   raw       1046
+phc2sys[8206.359]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8206.943]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8206.944]: [ptp4l.0.config] delay   filtered       1020   raw       1015
+ptp4l[8207.079]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8207.079]: [ptp4l.0.config] delay   filtered       1020   raw       1060
+phc2sys[8207.360]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8207.472]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8207.473]: [ptp4l.0.config] delay   filtered       1020   raw       1013
+ptp4l[8208.112]: [ptp4l.0.config] rms   22 max   23 freq  -2860 +/-   4 delay  1022 +/-   3
+phc2sys[8208.361]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8208.370]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8208.370]: [ptp4l.0.config] delay   filtered       1026   raw       1026
+ptp4l[8209.352]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8209.353]: [ptp4l.0.config] delay   filtered       1026   raw       1038
+phc2sys[8209.363]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8210.112]: [ptp4l.0.config] rms   36 max   39 freq  -2807 +/-   8 delay  1026 +/-   0
+ptp4l[8210.120]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8210.121]: [ptp4l.0.config] delay   filtered       1030   raw       1037
+phc2sys[8210.364]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8211.365]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8212.069]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8212.070]: [ptp4l.0.config] delay   filtered       1036   raw       1078
+ptp4l[8212.113]: [ptp4l.0.config] rms   10 max   12 freq  -2828 +/-   9 delay  1033 +/-   3
+phc2sys[8212.366]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8212.392]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8212.392]: [ptp4l.0.config] delay   filtered       1037   raw       1046
+ptp4l[8212.555]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8212.556]: [ptp4l.0.config] delay   filtered       1042   raw       1067
+phc2sys[8213.368]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8214.113]: [ptp4l.0.config] rms   55 max   78 freq  -2867 +/-  39 delay  1040 +/-   2
+ptp4l[8214.230]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8214.231]: [ptp4l.0.config] delay   filtered       1037   raw       1011
+phc2sys[8214.369]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8214.804]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8214.805]: [ptp4l.0.config] delay   filtered       1037   raw       1013
+phc2sys[8215.370]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8216.113]: [ptp4l.0.config] rms   71 max   95 freq  -2824 +/-  58 delay  1037 +/-   0
+phc2sys[8216.371]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8216.414]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8216.415]: [ptp4l.0.config] delay   filtered       1037   raw       1051
+ptp4l[8216.461]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8216.461]: [ptp4l.0.config] delay   filtered       1042   raw       1063
+phc2sys[8217.373]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8218.114]: [ptp4l.0.config] rms   59 max   82 freq  -2877 +/-  37 delay  1040 +/-   2
+ptp4l[8218.331]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8218.332]: [ptp4l.0.config] delay   filtered       1042   raw       1026
+phc2sys[8218.374]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8218.521]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8218.521]: [ptp4l.0.config] delay   filtered       1041   raw       1009
+phc2sys[8219.375]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8219.922]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8219.922]: [ptp4l.0.config] delay   filtered       1036   raw        996
+ptp4l[8220.114]: [ptp4l.0.config] rms   21 max   29 freq  -2833 +/-  10 delay  1040 +/-   3
+phc2sys[8220.376]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8220.777]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8220.778]: [ptp4l.0.config] delay   filtered       1019   raw        999
+phc2sys[8221.378]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8221.507]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8221.508]: [ptp4l.0.config] delay   filtered       1019   raw       1028
+ptp4l[8222.115]: [ptp4l.0.config] rms   30 max   42 freq  -2818 +/-  17 delay  1019 +/-   0
+phc2sys[8222.379]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8222.887]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8222.887]: [ptp4l.0.config] delay   filtered       1019   raw       1031
+phc2sys[8223.380]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8224.115]: [ptp4l.0.config] rms   30 max   40 freq  -2799 +/-   7 delay  1019 +/-   0
+phc2sys[8224.382]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8224.722]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8224.722]: [ptp4l.0.config] delay   filtered       1027   raw       1037
+phc2sys[8225.383]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8226.116]: [ptp4l.0.config] rms   38 max   47 freq  -2856 +/-  14 delay  1027 +/-   0
+phc2sys[8226.384]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8226.488]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8226.488]: [ptp4l.0.config] delay   filtered       1027   raw       1006
+phc2sys[8227.385]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8227.854]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8227.855]: [ptp4l.0.config] delay   filtered       1027   raw       1043
+ptp4l[8228.116]: [ptp4l.0.config] rms   24 max   32 freq  -2860 +/-  12 delay  1027 +/-   0
+phc2sys[8228.387]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8229.388]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8229.756]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8229.756]: [ptp4l.0.config] delay   filtered       1017   raw       1006
+ptp4l[8230.020]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8230.020]: [ptp4l.0.config] delay   filtered       1007   raw        995
+ptp4l[8230.117]: [ptp4l.0.config] rms   76 max  104 freq  -2816 +/-  62 delay  1012 +/-   5
+phc2sys[8230.389]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8231.390]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8231.581]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8231.582]: [ptp4l.0.config] delay   filtered       1017   raw       1030
+ptp4l[8232.117]: [ptp4l.0.config] rms   38 max   53 freq  -2856 +/-  25 delay  1017 +/-   0
+phc2sys[8232.392]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8232.613]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8232.613]: [ptp4l.0.config] delay   filtered       1024   raw       1020
+ptp4l[8233.279]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8233.279]: [ptp4l.0.config] delay   filtered       1024   raw       1014
+ptp4l[8233.324]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8233.324]: [ptp4l.0.config] delay   filtered       1019   raw       1019
+phc2sys[8233.393]: [ptp4l.0.config] Waiting for ptp4l...
+I0627 15:41:56.203715  265725 main.go:111] ticker pull
+ptp4l[8234.117]: [ptp4l.0.config] rms   30 max   30 freq  -2849 +/-  25 delay  1022 +/-   2
+ptp4l[8234.210]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8234.210]: [ptp4l.0.config] delay   filtered       1019   raw       1034
+phc2sys[8234.394]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8235.396]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8235.930]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8235.930]: [ptp4l.0.config] delay   filtered       1016   raw        996
+ptp4l[8236.118]: [ptp4l.0.config] rms   30 max   36 freq  -2841 +/-  26 delay  1018 +/-   2
+phc2sys[8236.397]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8236.918]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8236.919]: [ptp4l.0.config] delay   filtered       1019   raw       1035
+phc2sys[8237.398]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8238.118]: [ptp4l.0.config] rms   41 max   49 freq  -2837 +/-  36 delay  1019 +/-   0
+ptp4l[8238.248]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8238.248]: [ptp4l.0.config] delay   filtered       1019   raw       1034
+phc2sys[8238.399]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8239.401]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8239.697]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8239.697]: [ptp4l.0.config] delay   filtered       1025   raw       1036
+ptp4l[8240.119]: [ptp4l.0.config] rms   25 max   28 freq  -2836 +/-  22 delay  1022 +/-   3
+phc2sys[8240.402]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8240.897]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8240.897]: [ptp4l.0.config] delay   filtered       1025   raw       1014
+phc2sys[8241.403]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8242.119]: [ptp4l.0.config] rms   37 max   52 freq  -2799 +/-  18 delay  1025 +/-   0
+phc2sys[8242.404]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8242.535]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8242.535]: [ptp4l.0.config] delay   filtered       1027   raw       1074
+ptp4l[8243.160]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8243.161]: [ptp4l.0.config] delay   filtered       1030   raw       1027
+phc2sys[8243.406]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8243.978]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8243.978]: [ptp4l.0.config] delay   filtered       1030   raw        991
+ptp4l[8244.120]: [ptp4l.0.config] rms   91 max  124 freq  -2916 +/-  26 delay  1029 +/-   1
+phc2sys[8244.407]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8245.308]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8245.308]: [ptp4l.0.config] delay   filtered       1030   raw       1016
+phc2sys[8245.408]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8246.120]: [ptp4l.0.config] rms   29 max   31 freq  -2833 +/-   6 delay  1030 +/-   0
+ptp4l[8246.298]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8246.299]: [ptp4l.0.config] delay   filtered       1021   raw       1012
+phc2sys[8246.409]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8247.060]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8247.061]: [ptp4l.0.config] delay   filtered       1030   raw       1039
+phc2sys[8247.410]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8247.817]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8247.817]: [ptp4l.0.config] delay   filtered       1030   raw       1042
+ptp4l[8248.121]: [ptp4l.0.config] rms   53 max   62 freq  -2789 +/-  16 delay  1027 +/-   4
+ptp4l[8248.322]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8248.323]: [ptp4l.0.config] delay   filtered       1031   raw       1070
+phc2sys[8248.412]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8248.980]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8248.980]: [ptp4l.0.config] delay   filtered       1033   raw       1069
+ptp4l[8249.219]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8249.219]: [ptp4l.0.config] delay   filtered       1040   raw       1063
+phc2sys[8249.413]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8249.611]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8249.612]: [ptp4l.0.config] delay   filtered       1033   raw       1025
+ptp4l[8249.830]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8249.830]: [ptp4l.0.config] delay   filtered       1032   raw       1026
+ptp4l[8250.031]: [ptp4l.0.config] port 1: received link status notification
+ptp4l[8250.032]: [ptp4l.0.config] port 1: received link status notification
+ptp4l[8250.033]: [ptp4l.0.config] port 1: received link status notification
+ptp4l[8250.035]: [ptp4l.0.config] port 1: received link status notification
+ptp4l[8250.121]: [ptp4l.0.config] rms   22 max   30 freq  -2839 +/-   8 delay  1034 +/-   3
+phc2sys[8250.414]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8250.786]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8250.786]: [ptp4l.0.config] delay   filtered       1040   raw       1066
+phc2sys[8251.416]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8251.568]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8251.569]: [ptp4l.0.config] delay   filtered       1048   raw       1055
+ptp4l[8252.122]: [ptp4l.0.config] rms   42 max   50 freq  -2873 +/-  14 delay  1044 +/-   4
+phc2sys[8252.417]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8253.189]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8253.190]: [ptp4l.0.config] delay   filtered       1048   raw       1037
+phc2sys[8253.418]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8254.122]: [ptp4l.0.config] rms   18 max   20 freq  -2857 +/-  15 delay  1048 +/-   0
+phc2sys[8254.419]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8254.857]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8254.858]: [ptp4l.0.config] delay   filtered       1053   raw       1051
+phc2sys[8255.420]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8256.046]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8256.047]: [ptp4l.0.config] delay   filtered       1053   raw       1025
+ptp4l[8256.123]: [ptp4l.0.config] rms   43 max   49 freq  -2855 +/-  37 delay  1053 +/-   0
+phc2sys[8256.422]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8256.702]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8256.703]: [ptp4l.0.config] delay   filtered       1044   raw       1011
+ptp4l[8257.221]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8257.221]: [ptp4l.0.config] delay   filtered       1044   raw       1057
+phc2sys[8257.423]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8258.123]: [ptp4l.0.config] rms   87 max   97 freq  -2832 +/-  71 delay  1044 +/-   0
+phc2sys[8258.424]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8258.714]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8258.714]: [ptp4l.0.config] delay   filtered       1031   raw        978
+phc2sys[8259.426]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8260.124]: [ptp4l.0.config] rms   62 max   70 freq  -2831 +/-  50 delay  1031 +/-   0
+phc2sys[8260.427]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8260.432]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8260.432]: [ptp4l.0.config] delay   filtered       1031   raw        984
+ptp4l[8261.370]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8261.371]: [ptp4l.0.config] delay   filtered       1041   raw       1045
+phc2sys[8261.428]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8261.688]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8261.689]: [ptp4l.0.config] delay   filtered       1031   raw       1009
+ptp4l[8262.124]: [ptp4l.0.config] rms   40 max   55 freq  -2863 +/-  33 delay  1034 +/-   5
+phc2sys[8262.429]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8263.431]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8263.576]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8263.576]: [ptp4l.0.config] delay   filtered       1021   raw       1017
+I0627 15:42:26.202823  265725 main.go:111] ticker pull
+ptp4l[8264.124]: [ptp4l.0.config] rms   48 max   52 freq  -2803 +/-  11 delay  1021 +/-   0
+phc2sys[8264.432]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8265.224]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8265.224]: [ptp4l.0.config] delay   filtered       1014   raw       1007
+phc2sys[8265.433]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8265.970]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8265.970]: [ptp4l.0.config] delay   filtered       1013   raw       1016
+ptp4l[8266.125]: [ptp4l.0.config] rms   19 max   20 freq  -2830 +/-  16 delay  1014 +/-   0
+phc2sys[8266.434]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8266.782]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8266.782]: [ptp4l.0.config] delay   filtered       1013   raw       1024
+phc2sys[8267.436]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8268.125]: [ptp4l.0.config] rms   55 max   64 freq  -2831 +/-  48 delay  1013 +/-   0
+ptp4l[8268.284]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8268.284]: [ptp4l.0.config] delay   filtered       1016   raw       1024
+phc2sys[8268.437]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8269.066]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8269.066]: [ptp4l.0.config] delay   filtered       1012   raw        983
+ptp4l[8269.225]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8269.226]: [ptp4l.0.config] delay   filtered       1016   raw       1043
+phc2sys[8269.438]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8270.126]: [ptp4l.0.config] rms   16 max   19 freq  -2835 +/-  14 delay  1015 +/-   2
+phc2sys[8270.439]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8270.781]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8270.782]: [ptp4l.0.config] delay   filtered       1020   raw       1026
+ptp4l[8271.159]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8271.159]: [ptp4l.0.config] delay   filtered       1017   raw       1018
+phc2sys[8271.441]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8271.671]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8271.671]: [ptp4l.0.config] delay   filtered       1021   raw       1043
+ptp4l[8272.126]: [ptp4l.0.config] rms   25 max   33 freq  -2860 +/-  12 delay  1019 +/-   2
+ptp4l[8272.269]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8272.269]: [ptp4l.0.config] delay   filtered       1024   raw       1058
+ptp4l[8272.401]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8272.401]: [ptp4l.0.config] delay   filtered       1024   raw       1015
+phc2sys[8272.442]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8272.467]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8272.468]: [ptp4l.0.config] delay   filtered       1024   raw       1011
+ptp4l[8273.295]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8273.295]: [ptp4l.0.config] delay   filtered       1025   raw       1041
+phc2sys[8273.443]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8273.877]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8273.877]: [ptp4l.0.config] delay   filtered       1029   raw       1033
+ptp4l[8274.127]: [ptp4l.0.config] rms   51 max   51 freq  -2842 +/-  43 delay  1025 +/-   2
+phc2sys[8274.444]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8275.132]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8275.132]: [ptp4l.0.config] delay   filtered       1032   raw       1032
+phc2sys[8275.446]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8275.565]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8275.565]: [ptp4l.0.config] delay   filtered       1032   raw       1041
+ptp4l[8276.127]: [ptp4l.0.config] rms   32 max   44 freq  -2833 +/-  25 delay  1032 +/-   0
+phc2sys[8276.447]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8277.338]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8277.338]: [ptp4l.0.config] delay   filtered       1037   raw       1045
+phc2sys[8277.448]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8278.128]: [ptp4l.0.config] rms   13 max   18 freq  -2828 +/-   7 delay  1037 +/-   0
+phc2sys[8278.449]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8279.072]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8279.072]: [ptp4l.0.config] delay   filtered       1041   raw       1059
+ptp4l[8279.310]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8279.310]: [ptp4l.0.config] delay   filtered       1037   raw       1032
+phc2sys[8279.451]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8279.982]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8279.982]: [ptp4l.0.config] delay   filtered       1032   raw       1010
+ptp4l[8280.128]: [ptp4l.0.config] rms   45 max   58 freq  -2859 +/-  33 delay  1037 +/-   4
+phc2sys[8280.452]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8281.453]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8281.791]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8281.791]: [ptp4l.0.config] delay   filtered       1032   raw        990
+ptp4l[8282.128]: [ptp4l.0.config] rms   43 max   60 freq  -2819 +/-  33 delay  1032 +/-   0
+ptp4l[8282.218]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8282.219]: [ptp4l.0.config] delay   filtered       1036   raw       1039
+ptp4l[8282.235]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8282.235]: [ptp4l.0.config] delay   filtered       1036   raw       1053
+phc2sys[8282.454]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8283.408]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8283.409]: [ptp4l.0.config] delay   filtered       1035   raw       1002
+phc2sys[8283.456]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8283.676]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8283.677]: [ptp4l.0.config] delay   filtered       1035   raw       1007
+ptp4l[8284.129]: [ptp4l.0.config] rms   37 max   52 freq  -2866 +/-  14 delay  1036 +/-   1
+ptp4l[8284.347]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8284.347]: [ptp4l.0.config] delay   filtered       1029   raw       1027
+phc2sys[8284.457]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8285.458]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8285.931]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8285.931]: [ptp4l.0.config] delay   filtered       1029   raw       1070
+ptp4l[8286.129]: [ptp4l.0.config] rms   54 max   77 freq  -2796 +/-  26 delay  1029 +/-   0
+phc2sys[8286.459]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8287.383]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8287.384]: [ptp4l.0.config] delay   filtered       1029   raw       1047
+phc2sys[8287.461]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8288.130]: [ptp4l.0.config] rms   19 max   26 freq  -2831 +/-  15 delay  1029 +/-   0
+phc2sys[8288.462]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8288.524]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8288.524]: [ptp4l.0.config] delay   filtered       1032   raw       1038
+phc2sys[8289.463]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8289.735]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8289.736]: [ptp4l.0.config] delay   filtered       1038   raw       1056
+ptp4l[8290.130]: [ptp4l.0.config] rms   29 max   31 freq  -2862 +/-   3 delay  1035 +/-   3
+phc2sys[8290.465]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8291.387]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8291.387]: [ptp4l.0.config] delay   filtered       1038   raw       1027
+phc2sys[8291.466]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8291.758]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8291.759]: [ptp4l.0.config] delay   filtered       1032   raw       1012
+ptp4l[8292.130]: [ptp4l.0.config] rms   19 max   27 freq  -2835 +/-  15 delay  1035 +/-   3
+phc2sys[8292.467]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8293.468]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8293.542]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8293.542]: [ptp4l.0.config] delay   filtered       1032   raw       1040
+I0627 15:42:56.202740  265725 main.go:111] ticker pull
+ptp4l[8294.130]: [ptp4l.0.config] rms   47 max   64 freq  -2807 +/-  32 delay  1032 +/-   0
+phc2sys[8294.470]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8294.741]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8294.741]: [ptp4l.0.config] delay   filtered       1032   raw       1004
+ptp4l[8295.285]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8295.285]: [ptp4l.0.config] delay   filtered       1032   raw       1024
+phc2sys[8295.471]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8295.967]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8295.967]: [ptp4l.0.config] delay   filtered       1039   raw       1051
+ptp4l[8296.131]: [ptp4l.0.config] rms   36 max   48 freq  -2838 +/-  30 delay  1034 +/-   3
+phc2sys[8296.472]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8296.765]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8296.766]: [ptp4l.0.config] delay   filtered       1032   raw        993
+phc2sys[8297.473]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8298.131]: [ptp4l.0.config] rms   17 max   22 freq  -2816 +/-   3 delay  1032 +/-   0
+ptp4l[8298.423]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8298.423]: [ptp4l.0.config] delay   filtered       1028   raw       1030
+phc2sys[8298.474]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8299.476]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8300.132]: [ptp4l.0.config] rms   19 max   27 freq  -2840 +/-  13 delay  1028 +/-   0
+ptp4l[8300.230]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8300.230]: [ptp4l.0.config] delay   filtered       1028   raw       1036
+phc2sys[8300.477]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8301.434]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8301.434]: [ptp4l.0.config] delay   filtered       1028   raw       1061
+phc2sys[8301.478]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8302.132]: [ptp4l.0.config] rms   89 max   93 freq  -2825 +/-  76 delay  1028 +/-   0
+phc2sys[8302.479]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8303.049]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8303.050]: [ptp4l.0.config] delay   filtered       1027   raw        984
+phc2sys[8303.480]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8304.133]: [ptp4l.0.config] rms   61 max   65 freq  -2822 +/-  51 delay  1027 +/-   0
+phc2sys[8304.481]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8304.681]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8304.681]: [ptp4l.0.config] delay   filtered       1027   raw       1016
+ptp4l[8304.718]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8304.718]: [ptp4l.0.config] delay   filtered       1020   raw        998
+phc2sys[8305.482]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8305.522]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8305.522]: [ptp4l.0.config] delay   filtered       1025   raw       1026
+ptp4l[8306.133]: [ptp4l.0.config] rms   32 max   37 freq  -2797 +/-   0 delay  1024 +/-   3
+phc2sys[8306.483]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8306.861]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8306.861]: [ptp4l.0.config] delay   filtered       1028   raw       1047
+phc2sys[8307.484]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8308.133]: [ptp4l.0.config] rms   39 max   43 freq  -2859 +/-   9 delay  1028 +/-   0
+ptp4l[8308.340]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8308.340]: [ptp4l.0.config] delay   filtered       1021   raw       1005
+phc2sys[8308.486]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8308.499]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8308.499]: [ptp4l.0.config] delay   filtered       1022   raw       1019
+ptp4l[8308.812]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8308.812]: [ptp4l.0.config] delay   filtered       1017   raw        998
+ptp4l[8308.875]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8308.876]: [ptp4l.0.config] delay   filtered       1010   raw        980
+phc2sys[8309.487]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8309.660]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8309.660]: [ptp4l.0.config] delay   filtered       1008   raw       1012
+ptp4l[8310.134]: [ptp4l.0.config] rms   22 max   26 freq  -2814 +/-   7 delay  1016 +/-   6
+phc2sys[8310.488]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8311.185]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8311.185]: [ptp4l.0.config] delay   filtered       1014   raw       1020
+ptp4l[8311.193]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8311.193]: [ptp4l.0.config] delay   filtered       1015   raw       1046
+phc2sys[8311.489]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8312.134]: [ptp4l.0.config] rms   18 max   25 freq  -2806 +/-   6 delay  1014 +/-   0
+phc2sys[8312.491]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8313.088]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8313.089]: [ptp4l.0.config] delay   filtered       1019   raw       1021
+phc2sys[8313.492]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8314.135]: [ptp4l.0.config] rms   18 max   26 freq  -2829 +/-  13 delay  1019 +/-   0
+ptp4l[8314.386]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8314.386]: [ptp4l.0.config] delay   filtered       1019   raw       1024
+phc2sys[8314.493]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8315.494]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8316.135]: [ptp4l.0.config] rms   38 max   41 freq  -2834 +/-  31 delay  1019 +/-   0
+ptp4l[8316.249]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8316.249]: [ptp4l.0.config] delay   filtered       1019   raw       1061
+phc2sys[8316.496]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8317.497]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8318.025]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8318.025]: [ptp4l.0.config] delay   filtered       1020   raw       1088
+ptp4l[8318.136]: [ptp4l.0.config] rms   58 max   65 freq  -2809 +/-  48 delay  1020 +/-   0
+phc2sys[8318.498]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8318.686]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8318.686]: [ptp4l.0.config] delay   filtered       1020   raw        985
+phc2sys[8319.499]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8320.119]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8320.120]: [ptp4l.0.config] delay   filtered       1020   raw        986
+ptp4l[8320.136]: [ptp4l.0.config] rms   80 max   92 freq  -2818 +/-  69 delay  1020 +/-   0
+phc2sys[8320.500]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8321.501]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8322.084]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8322.084]: [ptp4l.0.config] delay   filtered       1020   raw        988
+ptp4l[8322.136]: [ptp4l.0.config] rms   38 max   54 freq  -2851 +/-  16 delay  1020 +/-   0
+ptp4l[8322.481]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8322.481]: [ptp4l.0.config] delay   filtered       1022   raw       1029
+phc2sys[8322.503]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8323.504]: [ptp4l.0.config] Waiting for ptp4l...
+I0627 15:43:26.203597  265725 main.go:111] ticker pull
+ptp4l[8324.060]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8324.061]: [ptp4l.0.config] delay   filtered       1026   raw       1064
+ptp4l[8324.137]: [ptp4l.0.config] rms   30 max   42 freq  -2807 +/-  18 delay  1024 +/-   2
+phc2sys[8324.505]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8325.409]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8325.410]: [ptp4l.0.config] delay   filtered       1026   raw       1047
+phc2sys[8325.506]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8326.060]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8326.060]: [ptp4l.0.config] delay   filtered       1026   raw       1021
+ptp4l[8326.137]: [ptp4l.0.config] rms   26 max   33 freq  -2834 +/-  20 delay  1026 +/-   0
+phc2sys[8326.508]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8327.445]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8327.446]: [ptp4l.0.config] delay   filtered       1025   raw       1019
+phc2sys[8327.509]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8328.138]: [ptp4l.0.config] rms   20 max   23 freq  -2849 +/-   0 delay  1025 +/-   0
+phc2sys[8328.510]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8329.435]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8329.435]: [ptp4l.0.config] delay   filtered       1020   raw       1007
+phc2sys[8329.511]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8329.746]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8329.746]: [ptp4l.0.config] delay   filtered       1013   raw        996
+ptp4l[8330.138]: [ptp4l.0.config] rms   47 max   55 freq  -2835 +/-  41 delay  1016 +/-   4
+phc2sys[8330.513]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8330.658]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8330.659]: [ptp4l.0.config] delay   filtered       1020   raw       1046
+ptp4l[8331.282]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8331.282]: [ptp4l.0.config] delay   filtered       1021   raw       1021
+phc2sys[8331.514]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8332.138]: [ptp4l.0.config] rms   33 max   41 freq  -2795 +/-   3 delay  1020 +/-   0
+ptp4l[8332.258]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8332.258]: [ptp4l.0.config] delay   filtered       1025   raw       1050
+ptp4l[8332.406]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8332.406]: [ptp4l.0.config] delay   filtered       1033   raw       1056
+phc2sys[8332.515]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8333.096]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8333.096]: [ptp4l.0.config] delay   filtered       1033   raw       1081
+phc2sys[8333.516]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8334.138]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8334.139]: [ptp4l.0.config] rms   49 max   61 freq  -2869 +/-   5 delay  1030 +/-   4
+ptp4l[8334.139]: [ptp4l.0.config] delay   filtered       1021   raw       1011
+ptp4l[8334.326]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8334.326]: [ptp4l.0.config] delay   filtered       1020   raw       1015
+phc2sys[8334.517]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8334.666]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8334.666]: [ptp4l.0.config] delay   filtered       1025   raw       1030
+phc2sys[8335.519]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8335.803]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8335.804]: [ptp4l.0.config] delay   filtered       1038   raw       1076
+ptp4l[8335.854]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8335.854]: [ptp4l.0.config] delay   filtered       1042   raw       1038
+ptp4l[8336.034]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8336.035]: [ptp4l.0.config] delay   filtered       1044   raw       1068
+ptp4l[8336.139]: [ptp4l.0.config] rms   51 max   51 freq  -2834 +/-  43 delay  1032 +/-  10
+phc2sys[8336.520]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8336.948]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8336.948]: [ptp4l.0.config] delay   filtered       1044   raw       1033
+ptp4l[8337.286]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8337.286]: [ptp4l.0.config] delay   filtered       1035   raw        988
+phc2sys[8337.521]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8337.632]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8337.632]: [ptp4l.0.config] delay   filtered       1031   raw       1010
+ptp4l[8338.140]: [ptp4l.0.config] rms   83 max  110 freq  -2813 +/-  69 delay  1037 +/-   5
+phc2sys[8338.523]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8339.524]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8339.536]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8339.537]: [ptp4l.0.config] delay   filtered       1031   raw       1041
+ptp4l[8340.005]: [ptp4l.0.config] port 1: received link status notification
+ptp4l[8340.044]: [ptp4l.0.config] port 1: received link status notification
+ptp4l[8340.078]: [ptp4l.0.config] port 1: received link status notification
+ptp4l[8340.108]: [ptp4l.0.config] port 1: received link status notification
+ptp4l[8340.140]: [ptp4l.0.config] rms   18 max   25 freq  -2836 +/-  11 delay  1031 +/-   0
+ptp4l[8340.143]: [ptp4l.0.config] port 1: received link status notification
+ptp4l[8340.144]: [ptp4l.0.config] port 1: received link status notification
+ptp4l[8340.145]: [ptp4l.0.config] port 1: received link status notification
+ptp4l[8340.146]: [ptp4l.0.config] port 1: received link status notification
+phc2sys[8340.525]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8341.211]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8341.211]: [ptp4l.0.config] delay   filtered       1031   raw       1009
+phc2sys[8341.526]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8342.141]: [ptp4l.0.config] rms   24 max   34 freq  -2850 +/-  15 delay  1031 +/-   0
+phc2sys[8342.527]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8343.093]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8343.093]: [ptp4l.0.config] delay   filtered       1031   raw        997
+ptp4l[8343.422]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8343.422]: [ptp4l.0.config] delay   filtered       1021   raw       1002
+phc2sys[8343.528]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8343.955]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8343.955]: [ptp4l.0.config] delay   filtered       1011   raw       1013
+ptp4l[8344.141]: [ptp4l.0.config] rms   52 max   72 freq  -2816 +/-  42 delay  1021 +/-   8
+ptp4l[8344.362]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8344.362]: [ptp4l.0.config] delay   filtered       1011   raw       1025
+phc2sys[8344.529]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8344.884]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8344.885]: [ptp4l.0.config] delay   filtered       1011   raw       1051
+ptp4l[8345.383]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8345.384]: [ptp4l.0.config] delay   filtered       1011   raw       1032
+phc2sys[8345.530]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8346.141]: [ptp4l.0.config] rms   18 max   20 freq  -2805 +/-   5 delay  1011 +/-   0
+phc2sys[8346.531]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8346.854]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8346.855]: [ptp4l.0.config] delay   filtered       1019   raw       1072
+phc2sys[8347.533]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8347.604]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8347.604]: [ptp4l.0.config] delay   filtered       1025   raw       1026
+ptp4l[8347.698]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8347.698]: [ptp4l.0.config] delay   filtered       1025   raw       1026
+ptp4l[8348.108]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8348.108]: [ptp4l.0.config] delay   filtered       1025   raw       1023
+ptp4l[8348.142]: [ptp4l.0.config] rms   24 max   27 freq  -2842 +/-   1 delay  1024 +/-   3
+ptp4l[8348.350]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8348.350]: [ptp4l.0.config] delay   filtered       1026   raw       1040
+phc2sys[8348.534]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8349.450]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8349.450]: [ptp4l.0.config] delay   filtered       1029   raw       1032
+phc2sys[8349.535]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8350.142]: [ptp4l.0.config] rms   59 max   78 freq  -2850 +/-  49 delay  1028 +/-   2
+ptp4l[8350.276]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8350.276]: [ptp4l.0.config] delay   filtered       1029   raw       1002
+phc2sys[8350.536]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8351.538]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8351.563]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8351.563]: [ptp4l.0.config] delay   filtered       1029   raw       1017
+ptp4l[8352.143]: [ptp4l.0.config] rms   12 max   12 freq  -2845 +/-  10 delay  1029 +/-   0
+phc2sys[8352.539]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8352.729]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8352.730]: [ptp4l.0.config] delay   filtered       1026   raw       1007
+phc2sys[8353.540]: [ptp4l.0.config] Waiting for ptp4l...
+I0627 15:43:56.202796  265725 main.go:111] ticker pull
+ptp4l[8354.067]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8354.067]: [ptp4l.0.config] delay   filtered       1026   raw       1082
+ptp4l[8354.143]: [ptp4l.0.config] rms   69 max   97 freq  -2782 +/-  36 delay  1026 +/-   0
+phc2sys[8354.541]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8355.413]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8355.414]: [ptp4l.0.config] delay   filtered       1026   raw       1028
+ptp4l[8355.462]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8355.462]: [ptp4l.0.config] delay   filtered       1024   raw       1013
+phc2sys[8355.543]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8356.144]: [ptp4l.0.config] rms   17 max   24 freq  -2834 +/-   6 delay  1025 +/-   1
+phc2sys[8356.544]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8357.147]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8357.147]: [ptp4l.0.config] delay   filtered       1025   raw       1042
+phc2sys[8357.545]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8358.144]: [ptp4l.0.config] rms   56 max   78 freq  -2854 +/-  44 delay  1025 +/-   0
+phc2sys[8358.546]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8359.099]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8359.100]: [ptp4l.0.config] delay   filtered       1022   raw        955
+ptp4l[8359.454]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8359.455]: [ptp4l.0.config] delay   filtered       1015   raw       1001
+phc2sys[8359.548]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8359.708]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8359.709]: [ptp4l.0.config] delay   filtered       1015   raw       1039
+ptp4l[8360.144]: [ptp4l.0.config] rms   50 max   69 freq  -2792 +/-  17 delay  1017 +/-   3
+phc2sys[8360.549]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8361.550]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8361.577]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8361.578]: [ptp4l.0.config] delay   filtered       1015   raw       1009
+ptp4l[8362.145]: [ptp4l.0.config] rms   20 max   21 freq  -2841 +/-   4 delay  1015 +/-   0
+ptp4l[8362.160]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8362.160]: [ptp4l.0.config] delay   filtered       1011   raw       1007
+phc2sys[8362.551]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8363.552]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8363.944]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8363.944]: [ptp4l.0.config] delay   filtered       1020   raw       1056
+ptp4l[8364.145]: [ptp4l.0.config] rms   59 max   59 freq  -2822 +/-  50 delay  1016 +/-   4
+phc2sys[8364.553]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8365.554]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8365.687]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8365.687]: [ptp4l.0.config] delay   filtered       1011   raw       1002
+ptp4l[8365.969]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8365.970]: [ptp4l.0.config] delay   filtered       1011   raw       1041
+ptp4l[8366.146]: [ptp4l.0.config] rms   28 max   36 freq  -2803 +/-  13 delay  1011 +/-   0
+phc2sys[8366.555]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8367.183]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8367.183]: [ptp4l.0.config] delay   filtered       1022   raw       1036
+phc2sys[8367.556]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8368.146]: [ptp4l.0.config] rms   17 max   23 freq  -2804 +/-  11 delay  1022 +/-   0
+ptp4l[8368.215]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8368.215]: [ptp4l.0.config] delay   filtered       1022   raw       1047
+phc2sys[8368.557]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8368.982]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8368.983]: [ptp4l.0.config] delay   filtered       1037   raw       1062
+phc2sys[8369.558]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8369.798]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8369.798]: [ptp4l.0.config] delay   filtered       1040   raw       1043
+ptp4l[8370.146]: [ptp4l.0.config] rms   68 max   96 freq  -2857 +/-  49 delay  1033 +/-   8
+phc2sys[8370.559]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8371.347]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8371.348]: [ptp4l.0.config] delay   filtered       1038   raw       1012
+phc2sys[8371.560]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8372.147]: [ptp4l.0.config] rms   16 max   22 freq  -2848 +/-  12 delay  1038 +/-   0
+phc2sys[8372.561]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8372.989]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8372.990]: [ptp4l.0.config] delay   filtered       1038   raw        986
+phc2sys[8373.562]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8374.143]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8374.144]: [ptp4l.0.config] delay   filtered       1042   raw       1045
+ptp4l[8374.147]: [ptp4l.0.config] rms   62 max   74 freq  -2778 +/-  21 delay  1040 +/-   2
+phc2sys[8374.563]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8375.400]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8375.400]: [ptp4l.0.config] delay   filtered       1042   raw       1057
+phc2sys[8375.565]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8375.891]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8375.891]: [ptp4l.0.config] delay   filtered       1044   raw       1098
+ptp4l[8376.045]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8376.045]: [ptp4l.0.config] delay   filtered       1046   raw       1114
+ptp4l[8376.148]: [ptp4l.0.config] rms   65 max   82 freq  -2822 +/-  56 delay  1044 +/-   2
+phc2sys[8376.566]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8377.567]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8377.636]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8377.637]: [ptp4l.0.config] delay   filtered       1046   raw       1025
+ptp4l[8378.148]: [ptp4l.0.config] rms   33 max   41 freq  -2855 +/-  13 delay  1046 +/-   0
+phc2sys[8378.568]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8379.475]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8379.475]: [ptp4l.0.config] delay   filtered       1051   raw       1074
+phc2sys[8379.569]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8379.967]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8379.967]: [ptp4l.0.config] delay   filtered       1051   raw       1060
+ptp4l[8380.149]: [ptp4l.0.config] rms   52 max   65 freq  -2814 +/-  40 delay  1051 +/-   0
+phc2sys[8380.570]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8381.571]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8381.792]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8381.793]: [ptp4l.0.config] delay   filtered       1051   raw       1043
+ptp4l[8382.149]: [ptp4l.0.config] rms   28 max   33 freq  -2800 +/-   9 delay  1051 +/-   0
+ptp4l[8382.538]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8382.538]: [ptp4l.0.config] delay   filtered       1058   raw       1060
+ptp4l[8382.541]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8382.541]: [ptp4l.0.config] delay   filtered       1058   raw       1055
+phc2sys[8382.572]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8383.573]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8383.869]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8383.869]: [ptp4l.0.config] delay   filtered       1058   raw       1001
+I0627 15:44:26.203616  265725 main.go:111] ticker pull
+ptp4l[8383.965]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8383.965]: [ptp4l.0.config] delay   filtered       1057   raw       1024
+ptp4l[8384.150]: [ptp4l.0.config] rms   26 max   32 freq  -2844 +/-   2 delay  1058 +/-   0
+phc2sys[8384.574]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8385.576]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8385.752]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8385.752]: [ptp4l.0.config] delay   filtered       1049   raw       1018
+ptp4l[8386.150]: [ptp4l.0.config] rms   10 max   11 freq  -2826 +/-   8 delay  1049 +/-   0
+phc2sys[8386.577]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8386.772]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8386.772]: [ptp4l.0.config] delay   filtered       1034   raw       1009
+ptp4l[8387.054]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8387.055]: [ptp4l.0.config] delay   filtered       1033   raw       1020
+phc2sys[8387.578]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8388.150]: [ptp4l.0.config] rms   68 max   90 freq  -2752 +/-  14 delay  1034 +/-   0
+ptp4l[8388.432]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8388.432]: [ptp4l.0.config] delay   filtered       1033   raw       1066
+phc2sys[8388.579]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8389.581]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8390.022]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8390.022]: [ptp4l.0.config] delay   filtered       1022   raw        994
+ptp4l[8390.151]: [ptp4l.0.config] rms   57 max   68 freq  -2813 +/-  46 delay  1028 +/-   6
+ptp4l[8390.167]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8390.167]: [ptp4l.0.config] delay   filtered       1022   raw       1051
+phc2sys[8390.582]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8391.305]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8391.306]: [ptp4l.0.config] delay   filtered       1022   raw       1028
+ptp4l[8391.318]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8391.318]: [ptp4l.0.config] delay   filtered       1019   raw       1016
+phc2sys[8391.583]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8392.151]: [ptp4l.0.config] rms   51 max   71 freq  -2850 +/-  19 delay  1021 +/-   1
+phc2sys[8392.585]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8392.876]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8392.877]: [ptp4l.0.config] delay   filtered       1022   raw       1028
+phc2sys[8393.586]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8394.042]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8394.043]: [ptp4l.0.config] delay   filtered       1024   raw       1084
+ptp4l[8394.152]: [ptp4l.0.config] rms   24 max   29 freq  -2812 +/-  19 delay  1023 +/-   1
+ptp4l[8394.408]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8394.409]: [ptp4l.0.config] delay   filtered       1024   raw       1002
+phc2sys[8394.587]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8395.588]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8396.065]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8396.065]: [ptp4l.0.config] delay   filtered       1028   raw       1087
+ptp4l[8396.152]: [ptp4l.0.config] rms   19 max   26 freq  -2801 +/-   8 delay  1026 +/-   2
+ptp4l[8396.585]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8396.585]: [ptp4l.0.config] delay   filtered       1030   raw       1033
+phc2sys[8396.590]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8396.780]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8396.781]: [ptp4l.0.config] delay   filtered       1030   raw       1055
+ptp4l[8397.138]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8397.139]: [ptp4l.0.config] delay   filtered       1042   raw       1054
+ptp4l[8397.230]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8397.231]: [ptp4l.0.config] delay   filtered       1030   raw        976
+phc2sys[8397.591]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8397.918]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8397.918]: [ptp4l.0.config] delay   filtered       1030   raw        957
+ptp4l[8398.101]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8398.101]: [ptp4l.0.config] delay   filtered       1030   raw        948
+ptp4l[8398.152]: [ptp4l.0.config] rms   94 max  115 freq  -2852 +/-  73 delay  1032 +/-   4
+phc2sys[8398.592]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8399.534]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8399.534]: [ptp4l.0.config] delay   filtered       1017   raw        993
+phc2sys[8399.593]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8400.153]: [ptp4l.0.config] rms   37 max   46 freq  -2818 +/-  31 delay  1017 +/-   0
+phc2sys[8400.594]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8401.411]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8401.411]: [ptp4l.0.config] delay   filtered       1014   raw       1027
+phc2sys[8401.595]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8402.153]: [ptp4l.0.config] rms   64 max   87 freq  -2758 +/-  34 delay  1014 +/-   0
+ptp4l[8402.171]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8402.171]: [ptp4l.0.config] delay   filtered       1030   raw       1081
+phc2sys[8402.596]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8402.680]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8402.680]: [ptp4l.0.config] delay   filtered       1030   raw       1097
+phc2sys[8403.597]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8404.154]: [ptp4l.0.config] rms   59 max   74 freq  -2813 +/-  45 delay  1030 +/-   0
+ptp4l[8404.509]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8404.509]: [ptp4l.0.config] delay   filtered       1039   raw       1051
+phc2sys[8404.599]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8405.088]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8405.088]: [ptp4l.0.config] delay   filtered       1039   raw       1074
+ptp4l[8405.199]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8405.200]: [ptp4l.0.config] delay   filtered       1031   raw       1035
+ptp4l[8405.569]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8405.569]: [ptp4l.0.config] delay   filtered       1031   raw       1028
+phc2sys[8405.600]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8406.154]: [ptp4l.0.config] rms   43 max   59 freq  -2841 +/-  13 delay  1035 +/-   4
+phc2sys[8406.601]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8407.249]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8407.250]: [ptp4l.0.config] delay   filtered       1034   raw       1034
+phc2sys[8407.603]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8407.763]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8407.764]: [ptp4l.0.config] delay   filtered       1042   raw       1049
+ptp4l[8408.155]: [ptp4l.0.config] rms   47 max   65 freq  -2843 +/-  36 delay  1038 +/-   4
+phc2sys[8408.604]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8409.361]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8409.361]: [ptp4l.0.config] delay   filtered       1044   raw       1040
+phc2sys[8409.605]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8409.887]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8409.887]: [ptp4l.0.config] delay   filtered       1044   raw       1037
+ptp4l[8410.155]: [ptp4l.0.config] rms   20 max   28 freq  -2815 +/-  10 delay  1044 +/-   0
+phc2sys[8410.606]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8411.042]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8411.043]: [ptp4l.0.config] delay   filtered       1038   raw       1011
+phc2sys[8411.607]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8412.155]: [ptp4l.0.config] rms   47 max   50 freq  -2772 +/-  10 delay  1038 +/-   0
+phc2sys[8412.608]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8412.734]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8412.735]: [ptp4l.0.config] delay   filtered       1038   raw       1043
+ptp4l[8412.776]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8412.776]: [ptp4l.0.config] delay   filtered       1038   raw       1072
+phc2sys[8413.610]: [ptp4l.0.config] Waiting for ptp4l...
+I0627 15:44:56.202965  265725 main.go:111] ticker pull
+ptp4l[8414.124]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8414.125]: [ptp4l.0.config] delay   filtered       1036   raw       1012
+ptp4l[8414.156]: [ptp4l.0.config] rms   52 max   71 freq  -2846 +/-  28 delay  1037 +/-   1
+phc2sys[8414.611]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[8415.612]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8415.986]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8415.986]: [ptp4l.0.config] delay   filtered       1035   raw        991
+ptp4l[8416.156]: [ptp4l.0.config] rms   48 max   68 freq  -2788 +/-  33 delay  1035 +/-   0
+phc2sys[8416.613]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8417.530]: [ptp4l.0.config] port 1: delay timeout
+ptp4l[8417.531]: [ptp4l.0.config] delay   filtered       1035   raw        975
+phc2sys[8417.615]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[8418.157]: [ptp4l.0.config] rms   35 max   40 freq  -2814 +/-  29 delay  1035 +/-   0
+phc2sys[8418.616]: [ptp4l.0.config] Waiting for ptp4l...

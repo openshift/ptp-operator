@@ -6,16 +6,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/openshift/ptp-operator/test/utils/event"
+	"github.com/sirupsen/logrus"
 
-	v1 "k8s.io/api/apps/v1"
+	v1app "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
 	v1core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,6 +31,7 @@ import (
 	"github.com/openshift/ptp-operator/test/utils/clean"
 	"github.com/openshift/ptp-operator/test/utils/client"
 	testclient "github.com/openshift/ptp-operator/test/utils/client"
+	"github.com/openshift/ptp-operator/test/utils/event"
 	"github.com/openshift/ptp-operator/test/utils/execute"
 	"github.com/openshift/ptp-operator/test/utils/nodes"
 	"github.com/openshift/ptp-operator/test/utils/pods"
@@ -41,7 +46,8 @@ var _ = Describe("[ptp]", func() {
 	Context("PTP configuration verifications", func() {
 		// Setup verification
 		// if requested enabled  ptp events
-		It("Should check whether PTP operator needs to enable PTP events", func() {
+		//-f soak-testing -s soak-testing
+		It("soak-testing", func() {
 			By("Find if variable set to enable ptp events")
 			if event.Enable() {
 				Expect(enablePTPEvent()).NotTo(HaveOccurred())
@@ -101,7 +107,7 @@ var _ = Describe("[ptp]", func() {
 			Expect(err).ToNot(HaveOccurred())
 			By("Checking availability of the deployment")
 			for _, c := range dep.Status.Conditions {
-				if c.Type == v1.DeploymentAvailable {
+				if c.Type == v1app.DeploymentAvailable {
 					Expect(string(c.Status)).Should(Equal("True"), PtpOperatorDeploymentName+" deployment is not available")
 				}
 			}
@@ -113,11 +119,13 @@ var _ = Describe("[ptp]", func() {
 		var ptpRunningPods []v1core.Pod
 		var fifoPriorities map[string]int64
 		var fullConfig testconfig.TestConfig
+
+		var testParameters Configuration
 		execute.BeforeAll(func() {
 
 			configurePTP()
 			fullConfig = testconfig.GetFullDiscoveredConfig(PtpLinuxDaemonNamespace, false)
-
+			testParameters = getConfiguration()
 			//waitForPtpDaemonToBeReady()
 			restartPtpDaemon()
 
@@ -279,6 +287,7 @@ var _ = Describe("[ptp]", func() {
 					waitUntilLogIsDetected(testPtpPod, 3*time.Minute, "Profile Name: test-slave")
 				})
 			})
+			testContinuousMasterOffset(testParameters, fullConfig)
 		})
 
 		Context("PTP metric is present", func() {
@@ -453,10 +462,159 @@ var _ = Describe("[ptp]", func() {
 				}
 				Expect(fifoPriorities).To(HaveLen(0))
 			})
+
 		})
 	})
 })
 
+func testContinuousMasterOffset(testParamete Configuration, fullConfig testconfig.TestConfig) {
+	It("continuous-offset-testing", func() {
+		logrus.Debug("soak-testing started")
+		testParameters := getConfiguration()
+		logrus.Info("config=", testParameters)
+		//
+		if fullConfig.Status == testconfig.DiscoveryFailureStatus {
+			Fail("Failed to find a valid ptp slave configuration")
+		}
+		// Get All PTP pods
+		slaveNodes, err := client.Client.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{
+			LabelSelector: "ptp/test-slave",
+		})
+		if err != nil {
+			logrus.Error("Can't list slave nodes")
+			Fail("Can't list slave nodes")
+		}
+
+		var slavePods []v1.Pod
+
+		for _, s := range slaveNodes.Items {
+			ptpPods, err := client.Client.CoreV1().Pods(PtpLinuxDaemonNamespace).List(context.Background(),
+				metav1.ListOptions{LabelSelector: "app=linuxptp-daemon", FieldSelector: fmt.Sprintf("spec.nodeName=%s", s.Name)})
+			if err != nil {
+				logrus.Error("Error in getting ptp pods")
+				Fail("can't find ptp pods, test skipped")
+			}
+			slavePods = append(slavePods, ptpPods.Items...)
+		}
+
+		if len(slavePods) == 0 {
+			logrus.Error("No slave pod found")
+			Fail("no slave pods found")
+		}
+		messages := make(chan string)
+		duration := time.Duration(testParameters.MasterOffsetContinuousConfig.Duration) * time.Minute
+		ticker := time.NewTicker(duration)
+		var wg sync.WaitGroup
+		ctx, cancel := context.WithTimeout(context.Background(), duration)
+		for _, p := range slavePods {
+			logrus.Debug("node=", p.Spec.NodeName, ", pod=", p.Name, " label=", p.Labels)
+			wg.Add(1)
+			go func(namespace, pod, container string, min, max int, messages chan string, ctx context.Context) {
+				defer wg.Done()
+				GetPodLogs(namespace, pod, container, min, max, messages, ctx)
+			}(p.Namespace, p.Name, PtpContainerName,
+				testParameters.MasterOffsetContinuousConfig.MinOffset,
+				testParameters.MasterOffsetContinuousConfig.MaxOffset,
+				messages, ctx)
+		}
+		asyncCounter := 0
+	L1:
+		for {
+			select {
+			case msg := <-messages:
+				if testParameters.MasterOffsetContinuousConfig.FailFast {
+					cancel()
+					Fail(msg)
+					break L1
+				} else {
+					logrus.Error(msg)
+					asyncCounter++
+				}
+			case <-ticker.C:
+				logrus.Info("test duration ended")
+				cancel()
+				break L1
+			}
+		}
+		wg.Wait()
+		if asyncCounter != 0 {
+			Fail("Error found in master offset sync, please check the logs")
+		}
+	})
+}
+func GetPodLogs(namespace, podName, containerName string, min, max int, messages chan string, ctx context.Context) {
+	var re = regexp.MustCompile(`(?ms)master\soffset\s*\d*\ss2`)
+	count := int64(100)
+	podLogOptions := v1.PodLogOptions{
+		Container: containerName,
+		Follow:    true,
+		TailLines: &count,
+	}
+	id := fmt.Sprintf("%s/%s:%s", namespace, podName, containerName)
+	podLogRequest := testclient.Client.CoreV1().
+		Pods(namespace).
+		GetLogs(podName, &podLogOptions)
+	stream, err := podLogRequest.Stream(context.TODO())
+	if err != nil {
+		messages <- fmt.Sprintf("error streaming logs from %s", id)
+		return
+	}
+	file, _ := os.Create(podName)
+	ticker := time.NewTicker(time.Minute)
+	seen := false
+	defer stream.Close()
+	buf := make([]byte, 2000)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if !seen {
+				messages <- fmt.Sprintf("can't find master offset logs %s", id)
+			}
+			seen = false
+		default:
+			numBytes, err := stream.Read(buf)
+			if numBytes == 0 {
+				continue
+			}
+			file.Write(buf[:numBytes])
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				messages <- fmt.Sprintf("error streaming logs from %s", id)
+				return
+			}
+			message := string(buf[:numBytes])
+			match := re.FindAllString(message, -1)
+			if len(match) != 0 {
+				seen = true
+				expression := strings.Fields(match[0])
+				offset, err := strconv.Atoi(expression[2])
+				if err != nil {
+					messages <- fmt.Sprintf("can't parse log from %s %s", id, message)
+				}
+				if offset > max || offset < min {
+					messages <- fmt.Sprintf("bad offset found at  %s value=%d", id, offset)
+				}
+			}
+			logrus.Debug(id, message)
+		}
+	}
+}
+
+//// read from prometheus 'openshift-' read offset in the duration
+// of the test
+// find endpoint,
+// curl localhost:9091/metrics
+// look for Offset
+//ptp4l[65788.452]: [ptp4l.0.config] master offset         10 s2 freq  -13769 path delay       537
+//      10 value nanosecond
+//    -100 +100 nanosecond
+// ptp4l.0.config is NIC 0
+// add filter
+// 1 minute.. should see master offset
 func configurePTP() {
 	ptpNodes, err := nodes.PtpEnabled(client.Client)
 	Expect(err).ToNot(HaveOccurred())
@@ -496,10 +654,12 @@ func configurePTPMasterSlave(ptpNodes []*nodes.NodeTopology) {
 	if err == nil && configureFifo {
 		ptpSchedulingPolicy = "SCHED_FIFO"
 	}
+	fmt.Println("PTP Grand master node =", ptpGrandMasterNode.NodeName)
+	fmt.Println("PTP Slave node =", ptpSlaveNode.NodeName)
 	for _, gmInterface := range ptpGrandMasterNode.InterfaceList {
 		for _, slaveInterface := range ptpSlaveNode.InterfaceList {
-			clean.Configs()
 			fmt.Printf("Validating interface %s for grandmaster, %s for slave\n", gmInterface, slaveInterface)
+			clean.Configs()
 			By("Creating the policy for the grandmaster node")
 			err = createConfig(PtpGrandMasterPolicyName,
 				gmInterface,

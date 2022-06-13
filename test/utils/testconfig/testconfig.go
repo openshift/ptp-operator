@@ -220,7 +220,6 @@ func discoverPTPConfiguration(namespace string) {
 			}
 		}
 	}
-
 	//GlobalConfig.DiscoveredMasterPtpConfig=checkPtpProfileLabels(masters)
 	discoverMode(slaves, masters)
 }

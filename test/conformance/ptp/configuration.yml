@@ -1,0 +1,6 @@
+masteroffsetcontinuous:
+  enable: true
+  failfast: true
+  minoffset: -100
+  maxoffset: 100
+  duration:  10

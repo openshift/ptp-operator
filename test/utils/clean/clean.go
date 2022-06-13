@@ -7,6 +7,7 @@ import (
 
 	"github.com/openshift/ptp-operator/test/utils"
 	"github.com/openshift/ptp-operator/test/utils/client"
+	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -57,10 +58,14 @@ func Configs() error {
 	for i := 0; i < 20; i++ {
 		ptpconfigList, err = client.Client.PtpConfigs(utils.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
-			return fmt.Errorf("clean.All: Failed to list ptp config  %v", err)
+			return fmt.Errorf("clean.All: Failed to list ptp config  %v, nodes list=%d", err, len(ptpconfigList.Items))
 		}
-		if len(ptpconfigList.Items) == 0 {
+		if ptpconfigList == nil || len(ptpconfigList.Items) == 0 {
 			return nil
+		}
+		logrus.Debug("found ", len(ptpconfigList.Items), " element")
+		for _, e := range ptpconfigList.Items {
+			logrus.Debugf("element found %v", e)
 		}
 		time.Sleep(5 * time.Second)
 	}
