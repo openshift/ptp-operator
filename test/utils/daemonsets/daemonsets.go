@@ -145,7 +145,7 @@ func doesDaemonSetExist(daemonSetName, namespace string) bool {
 	logrus.Infof("Checking if the daemonset exists")
 	_, err := client.Client.DaemonSets(namespace).Get(context.TODO(), daemonSetName, metav1.GetOptions{})
 	if err != nil {
-		logrus.Errorf("Error ocurred for" + err.Error())
+		logrus.Infof("daemonset %s does not exist, err=%s", daemonSetName, err.Error())
 	}
 	// If the error is not found, that means the daemonset exists
 	return err == nil

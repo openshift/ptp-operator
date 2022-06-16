@@ -27,8 +27,8 @@ type NodeTopology struct {
 }
 
 // PtpEnabled returns the topology of a given node, filtering using the given selector.
-func PtpEnabled(client *client.ClientSet) ([]*NodeTopology, error) {
-	nodeDevicesList, err := client.NodePtpDevices(utils.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{})
+func PtpEnabled(aclient *client.ClientSet) ([]*NodeTopology, error) {
+	nodeDevicesList, err := aclient.NodePtpDevices(utils.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -40,6 +40,9 @@ func PtpEnabled(client *client.ClientSet) ([]*NodeTopology, error) {
 	nodeTopologyList := []*NodeTopology{}
 
 	nodesList, err := MatchingOptionalSelectorPTP(nodeDevicesList.Items)
+	if err != nil {
+		return nodeTopologyList, fmt.Errorf("error getting node list, err= %s", err)
+	}
 	for _, node := range nodesList {
 		if len(node.Status.Devices) > 0 {
 			interfaceList := []string{}
