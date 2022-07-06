@@ -72,7 +72,7 @@ metadata:
     provider: Red Hat
     repository: https://github.com/openshift/ptp-operator
     support: Red Hat
-  name: ptp-operator.v4.11.0
+  name: ptp-operator.v4.12.0
   namespace: openshift-ptp
 spec:
   apiservicedefinitions: {}
@@ -334,7 +334,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.name
-                image: quay.io/openshift/origin-ptp-operator:4.11
+                image: quay.io/openshift/origin-ptp-operator:4.12
                 imagePullPolicy: IfNotPresent
                 name: ptp-operator
                 ports:
@@ -428,7 +428,7 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat
-  version: 4.11.0
+  version: 4.12.0
   webhookdefinitions:
   - admissionReviewVersions:
     - v1
