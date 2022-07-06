@@ -132,6 +132,7 @@ github.com/onsi/gomega/types
 ## explicit
 github.com/openshift/api/config/v1
 # github.com/openshift/client-go v0.0.0-20211209144617-7385dd6338e3
+## explicit
 github.com/openshift/client-go/config/clientset/versioned/scheme
 github.com/openshift/client-go/config/clientset/versioned/typed/config/v1
 # github.com/openshift/library-go v0.0.0-20211220195323-eca2c467c492
