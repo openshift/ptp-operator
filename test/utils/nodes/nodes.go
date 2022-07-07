@@ -3,11 +3,17 @@ package nodes
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
+	"os/exec"
+	"time"
 
 	ptpv1 "github.com/openshift/ptp-operator/api/v1"
+	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/pkg/errors"
 
 	"github.com/openshift/ptp-operator/test/utils"
 	"github.com/openshift/ptp-operator/test/utils/client"
@@ -27,7 +33,7 @@ type NodeTopology struct {
 }
 
 // PtpEnabled returns the topology of a given node, filtering using the given selector.
-func PtpEnabled(client *client.ClientSet) ([]NodeTopology, error) {
+func PtpEnabled(client *client.ClientSet) ([]*NodeTopology, error) {
 	nodeDevicesList, err := client.NodePtpDevices(utils.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		return nil, err
@@ -37,7 +43,7 @@ func PtpEnabled(client *client.ClientSet) ([]NodeTopology, error) {
 		return nil, fmt.Errorf("Zero nodes found")
 	}
 
-	nodeTopologyList := []NodeTopology{}
+	nodeTopologyList := []*NodeTopology{}
 
 	nodesList, err := MatchingOptionalSelectorPTP(nodeDevicesList.Items)
 	for _, node := range nodesList {
@@ -47,7 +53,7 @@ func PtpEnabled(client *client.ClientSet) ([]NodeTopology, error) {
 				interfaceList = append(interfaceList, iface.Name)
 			}
 			nodeTopology := NodeTopology{NodeName: node.Name, InterfaceList: interfaceList}
-			nodeTopologyList = append(nodeTopologyList, nodeTopology)
+			nodeTopologyList = append(nodeTopologyList, &nodeTopology)
 		}
 	}
 
@@ -55,13 +61,13 @@ func PtpEnabled(client *client.ClientSet) ([]NodeTopology, error) {
 }
 
 func LabelNode(nodeName, key, value string) (*corev1.Node, error) {
-	NodeObject, err := client.Client.Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
+	NodeObject, err := client.Client.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 
 	NodeObject.Labels[key] = value
-	NodeObject, err = client.Client.Nodes().Update(context.Background(), NodeObject, metav1.UpdateOptions{})
+	NodeObject, err = client.Client.CoreV1().Nodes().Update(context.Background(), NodeObject, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +83,7 @@ func MatchingOptionalSelectorPTP(toFilter []ptpv1.NodePtpDevice) ([]ptpv1.NodePt
 	if NodesSelector == "" {
 		return toFilter, nil
 	}
-	toMatch, err := client.Client.Nodes().List(context.Background(), metav1.ListOptions{
+	toMatch, err := client.Client.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{
 		LabelSelector: NodesSelector,
 	})
 	if err != nil {
@@ -103,9 +109,75 @@ func MatchingOptionalSelectorPTP(toFilter []ptpv1.NodePtpDevice) ([]ptpv1.NodePt
 }
 
 func IsSingleNodeCluster() (bool, error) {
-	nodes, err := client.Client.Nodes().List(context.Background(), metav1.ListOptions{})
+	nodes, err := client.Client.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		return false, err
 	}
 	return len(nodes.Items) == 1, nil
+}
+
+// expectedReachabilityStatus true means test if the node is reachable, false means test if the node is unreachable
+func WaitForNodeReachability(node *corev1.Node, timeout time.Duration, expectedReachabilityStatus bool) {
+
+	logrus.Printf("Reachable test %t\n", expectedReachabilityStatus)
+
+	isCurrentlyReachable := false
+	for start := time.Now(); time.Since(start) < timeout; {
+		isCurrentlyReachable = IsNodeReachable(node)
+
+		if isCurrentlyReachable == expectedReachabilityStatus {
+			break
+		}
+		if isCurrentlyReachable {
+			logrus.Printf("The node %s is reachable via ping", node.Name)
+		} else {
+			logrus.Printf("The node %s is unreachable via ping", node.Name)
+		}
+
+		time.Sleep(time.Second)
+	}
+	if expectedReachabilityStatus {
+		logrus.Printf("The node %s is not reachable via ping", node.Name)
+	} else {
+		logrus.Printf("The node %s is unreachable via ping", node.Name)
+	}
+}
+
+func IsNodeReachable(node *corev1.Node) bool {
+	_, err := ExecAndLogCommand(false, 20*time.Second, "ping", "-c", "3", "-W", "10", node.Name)
+
+	return err == nil
+}
+
+func ExecAndLogCommand(logCommand bool, timeout time.Duration, name string, arg ...string) ([]byte, error) {
+	// Create a new context and add a timeout to it
+	if timeout <= 0 {
+		timeout = 2 * time.Minute
+	}
+
+	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
+
+	defer cancel() // The cancel should be deferred so resources are cleaned up
+
+	if logCommand {
+		logrus.Printf("run command '%s %v'", name, arg)
+	}
+
+	out, err := exec.CommandContext(ctx, name, arg...).Output()
+
+	// We want to check the context error to see if the timeout was executed.
+	// The error returned by cmd.Output() will be OS specific based on what
+	// happens when a process is killed.
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return nil, fmt.Errorf("command '%s %v' failed because of the timeout", name, arg)
+	}
+
+	if logCommand {
+		var exitError *exec.ExitError
+		if errors.As(err, &exitError) {
+			log.Printf("err=%v:\n  stderr=%s\n  output=%s\n", err, exitError.Stderr, string(out))
+		}
+	}
+
+	return out, err
 }
