@@ -14,7 +14,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func CreateDaemonSetsTemplate(dsName, namespace, containerName, imageWithVersion string) *v1.DaemonSet {
+const waitingTime = 5 * time.Second
+
+func createDaemonSetsTemplate(dsName, namespace, containerName, imageWithVersion string) *v1.DaemonSet {
 
 	dsAnnotations := make(map[string]string)
 	dsAnnotations["debug.openshift.io/source-container"] = containerName
@@ -32,8 +34,7 @@ func CreateDaemonSetsTemplate(dsName, namespace, containerName, imageWithVersion
 	container := v1core.Container{
 		Name:            containerName,
 		Image:           imageWithVersion,
-		ImagePullPolicy: "Always",
-		//Command:         []string{"/bin/sh"},
+		ImagePullPolicy: "IfNotPresent",
 		SecurityContext: &v1core.SecurityContext{
 			Privileged: &trueBool,
 			RunAsUser:  &zeroInt,
@@ -105,9 +106,13 @@ func CreateDaemonSetsTemplate(dsName, namespace, containerName, imageWithVersion
 	}
 }
 
+// This method is used to delete a daemonset specified by the name at a specified namespace
 func DeleteDaemonSet(daemonSetName, namespace string) error {
+	const (
+		Timeout = 5 * time.Minute
+	)
 
-	fmt.Printf("Deleting daemon set %s\n", daemonSetName)
+	logrus.Infof("Deleting daemonset %s", daemonSetName)
 	deletePolicy := metav1.DeletePropagationForeground
 
 	if err := client.Client.AppsV1Interface.DaemonSets(namespace).Delete(context.TODO(), daemonSetName, metav1.DeleteOptions{
@@ -116,9 +121,8 @@ func DeleteDaemonSet(daemonSetName, namespace string) error {
 		logrus.Infof("The daemonset (%d) deletion is unsuccessful due to %+v", daemonSetName, err.Error())
 	}
 
-	timeout := 5 * time.Minute
 	doneCleanUp := false
-	for start := time.Now(); !doneCleanUp && time.Since(start) < timeout; {
+	for start := time.Now(); !doneCleanUp && time.Since(start) < Timeout; {
 
 		pods, err := client.Client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "name=" + daemonSetName})
 		if err != nil {
@@ -129,53 +133,58 @@ func DeleteDaemonSet(daemonSetName, namespace string) error {
 			doneCleanUp = true
 			break
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(waitingTime)
 	}
 
-	fmt.Printf("Successfully cleaned up daemon set %s\n", daemonSetName)
+	logrus.Infof("Successfully cleaned up daemonset %s", daemonSetName)
 	return nil
 }
 
-// Check if the daemon set exists
+// Check if the daemonset exists
 func doesDaemonSetExist(daemonSetName, namespace string) bool {
+	logrus.Infof("Checking if the daemonset exists")
 	_, err := client.Client.DaemonSets(namespace).Get(context.TODO(), daemonSetName, metav1.GetOptions{})
 	if err != nil {
-		fmt.Println("Error ocurred for" + err.Error())
+		logrus.Errorf("Error ocurred for" + err.Error())
 	}
-	// If the error is not found, that means the daemon set exists
+	// If the error is not found, that means the daemonset exists
 	return err == nil
 }
 
+// This function is used to create a daemonset with the specified name, namespace, container name and image with the timeout to check
+// if the deployment is ready and all daemonset pods are running fine
 func CreateDaemonSet(daemonSetName, namespace, containerName, imageWithVersion string, timeout time.Duration) (*v1core.PodList, error) {
 
-	rebootDaemonSet := CreateDaemonSetsTemplate(daemonSetName, namespace, containerName, imageWithVersion)
+	rebootDaemonSet := createDaemonSetsTemplate(daemonSetName, namespace, containerName, imageWithVersion)
 
 	if doesDaemonSetExist(daemonSetName, namespace) {
 		err := DeleteDaemonSet(daemonSetName, namespace)
 		if err != nil {
-			logrus.Debug("Failed to delete L2discovery daemonset because: %s", err)
+			logrus.Errorf("Failed to delete %s daemonset because: %s", daemonSetName, err)
 		}
 	}
 
-	fmt.Printf("Creating daemon set %s\n", daemonSetName)
+	logrus.Infof("Creating daemonset %s", daemonSetName)
 	_, err := client.Client.DaemonSets(namespace).Create(context.TODO(), rebootDaemonSet, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	}
 	WaitDaemonsetReady(namespace, daemonSetName, timeout)
 
-	fmt.Println("Deamon set is ready")
+	logrus.Infof("Deamonset is ready")
 
 	var ptpPods *v1core.PodList
 	ptpPods, err = client.Client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "name=" + daemonSetName})
 	if err != nil {
 		return ptpPods, err
 	}
-	fmt.Printf("Successfully created daemon set %s\n", daemonSetName)
+	logrus.Infof("Successfully created daemonset %s", daemonSetName)
 	return ptpPods, nil
 }
 
+// This function is used to wait until daemonset is ready
 func WaitDaemonsetReady(namespace, name string, timeout time.Duration) error {
+
 	oc := client.Client
 	nodes, err := oc.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
@@ -200,8 +209,7 @@ func WaitDaemonsetReady(namespace, name string, timeout time.Duration) error {
 			isReady = true
 			break
 		}
-
-		time.Sleep(5 * time.Second)
+		time.Sleep(waitingTime)
 	}
 
 	if !isReady {

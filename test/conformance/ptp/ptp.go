@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -15,9 +16,10 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/openshift/ptp-operator/test/utils/event"
 
+	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/apps/v1"
 	v1core "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
@@ -271,13 +273,47 @@ var _ = Describe("[ptp]", func() {
 					Expect(err).NotTo(HaveOccurred())
 					Eventually(func() bool {
 						_, err := client.Client.PtpV1Interface.PtpConfigs("openshift-ptp").Get(context.Background(), "test", metav1.GetOptions{})
-						return errors.IsNotFound(err)
+						return kerrors.IsNotFound(err)
 					}, 1*time.Minute, 1*time.Second).Should(BeTrue(), "Could not delete the test profile")
 				})
 
 				By("Checking the profile is reverted", func() {
 					waitUntilLogIsDetected(testPtpPod, 3*time.Minute, "Profile Name: test-slave")
 				})
+			})
+
+			It("Should retrieve the details of hardwares for the Ptp", func() {
+				By("Getting the version of the OCP cluster")
+
+				ocpVersion, err := getOCPVersion()
+				Expect(err).ToNot(HaveOccurred())
+				Expect(ocpVersion).ShouldNot(BeEmpty())
+
+				By("Getting the version of the PTP operator")
+
+				ptpOperatorVersion, err := getPtpOperatorVersion()
+				Expect(err).ToNot(HaveOccurred())
+				Expect(ptpOperatorVersion).ShouldNot(BeEmpty())
+
+				By("Getting the NIC details of all the PTP enabled interfaces")
+
+				var mapping = make(map[string]string)
+				for _, pod := range ptpRunningPods {
+					mapping = getNICInfo(pod)
+					Expect(mapping).ShouldNot(BeEmpty())
+				}
+
+				By("Getting the interface details of the PTP config")
+
+				ptpConfig := testconfig.GlobalConfig
+				printInterface(ptpConfig.DiscoveredMasterPtpConfig.Config, mapping)
+				printInterface(ptpConfig.DiscoveredSlavePtpConfig.Config, mapping)
+				printInterface(ptpConfig.DiscoveredSlavePtpConfigSecondary.Config, mapping)
+
+				By("Getting ptp config details")
+
+				logrus.Infof("Discovered master ptp config %s", ptpConfig.DiscoveredMasterPtpConfig.String())
+				logrus.Infof("Discovered slave ptp config %s", ptpConfig.DiscoveredSlavePtpConfig.String())
 			})
 		})
 
@@ -496,6 +532,7 @@ func configurePTPMasterSlave(ptpNodes []*nodes.NodeTopology) {
 	if err == nil && configureFifo {
 		ptpSchedulingPolicy = "SCHED_FIFO"
 	}
+
 	for _, gmInterface := range ptpGrandMasterNode.InterfaceList {
 		for _, slaveInterface := range ptpSlaveNode.InterfaceList {
 			clean.Configs()
@@ -586,7 +623,7 @@ func waitForNewForeignMaster(ptpSlaveNode *nodes.NodeTopology, slaveInterface st
 		ptpPods, err := client.Client.CoreV1().Pods(PtpLinuxDaemonNamespace).List(context.Background(),
 			metav1.ListOptions{LabelSelector: "app=linuxptp-daemon", FieldSelector: fmt.Sprintf("spec.nodeName=%s", ptpSlaveNode.NodeName)})
 		if err != nil {
-			return false, fmt.Errorf("could not get ptp daemon pods")
+			return false, errors.New("could not get ptp daemon pods")
 		}
 		if len(ptpPods.Items) != 1 {
 			return false, fmt.Errorf("number of ptp daemon pods is not 1, pods number:%d", len(ptpPods.Items))
@@ -623,13 +660,13 @@ func waitForPtpDaemonToBeReady() {
 		daemonset, err = client.Client.DaemonSets(PtpLinuxDaemonNamespace).Get(context.Background(), PtpDaemonsetName, metav1.GetOptions{})
 		Expect(err).ToNot(HaveOccurred())
 		return daemonset.Status.NumberReady
-	}, 2*time.Minute, 2*time.Second).Should(Equal(expectedNumber))
+	}, 5*time.Minute, 2*time.Second).Should(Equal(expectedNumber))
 
 	Eventually(func() int {
 		ptpPods, err := client.Client.CoreV1().Pods(PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
 		Expect(err).ToNot(HaveOccurred())
 		return len(ptpPods.Items)
-	}, 2*time.Minute, 2*time.Second).Should(Equal(int(expectedNumber)))
+	}, 5*time.Minute, 2*time.Second).Should(Equal(int(expectedNumber)))
 }
 
 // Returns the slave node label to be used in the test
@@ -735,7 +772,7 @@ func getPtpPodOnNode(nodeName string) (v1core.Pod, error) {
 			return pod, nil
 		}
 	}
-	return v1core.Pod{}, fmt.Errorf("Pod not found")
+	return v1core.Pod{}, errors.New("pod not found")
 }
 
 func getMasterSlaveAttachedInterfaces(pod v1core.Pod) []string {
@@ -747,12 +784,12 @@ func getMasterSlaveAttachedInterfaces(pod v1core.Pod) []string {
 		}
 
 		if stdout.String() == "" {
-			return fmt.Errorf("empty response from pod retrying")
+			return errors.New("empty response from pod retrying")
 		}
 
 		IntList = strings.Split(strings.Join(strings.Fields(stdout.String()), " "), " ")
 		if len(IntList) == 0 {
-			return fmt.Errorf("No interface detected")
+			return errors.New("no interface detected")
 		}
 
 		return nil
@@ -779,7 +816,7 @@ func getPtpMasterSlaveAttachedInterfaces(pod v1core.Pod) []string {
 			}
 
 			if stdout.String() == "" {
-				return fmt.Errorf("empty response from pod retrying")
+				return errors.New("empty response from pod retrying")
 			}
 
 			// Skip virtual interface
@@ -815,7 +852,7 @@ func getPtpMasterSlaveAttachedInterfaces(pod v1core.Pod) []string {
 			}
 
 			if stdout.String() == "" {
-				return fmt.Errorf("empty response from pod retrying")
+				return errors.New("empty response from pod retrying")
 			}
 
 			// Virtual function
@@ -830,7 +867,7 @@ func getPtpMasterSlaveAttachedInterfaces(pod v1core.Pod) []string {
 		Eventually(func() error {
 			stdout, err = pods.ExecCommand(client.Client, pod, PtpContainerName, []string{"ethtool", "-T", interf})
 			if stdout.String() == "" {
-				return fmt.Errorf("empty response from pod retrying")
+				return errors.New("empty response from pod retrying")
 			}
 
 			if err != nil {
@@ -868,7 +905,7 @@ func replaceTestPod(pod v1core.Pod, timeout time.Duration) (v1core.Pod, error) {
 			return nil
 		}
 
-		return fmt.Errorf("Can not replace PTP pod")
+		return errors.New("cannot replace PTP pod")
 	}, timeout, 1*time.Second).Should(BeNil())
 
 	return newPod, nil
@@ -887,7 +924,7 @@ func getNonPtpMasterSlaveAttachedInterfaces(pod v1core.Pod) []string {
 				return err
 			}
 			if stdout.String() == "" {
-				return fmt.Errorf("empty response from pod retrying")
+				return errors.New("empty response from pod retrying")
 			}
 			return nil
 		}, 3*time.Minute, 2*time.Second).Should(BeNil())
@@ -942,4 +979,105 @@ func ptpEventEnabled() bool {
 		return false
 	}
 	return ptpConfig.Spec.EventConfig.EnableEventPublisher
+}
+
+func getNICInfo(pod v1core.Pod) map[string]string {
+	var ptpSupportedInterfaces []string = getPtpMasterSlaveAttachedInterfaces(pod)
+	var stdout bytes.Buffer
+
+	var ptpInterfaceNicMapping = make(map[string]string)
+
+	for _, interf := range ptpSupportedInterfaces {
+		PCIAddr := ""
+		var err error
+
+		Eventually(func() error {
+			stdout, err = pods.ExecCommand(client.Client, pod, PtpContainerName, []string{"readlink", "-f", fmt.Sprintf("/sys/class/net/%s", interf)})
+			if err != nil {
+				return err
+			}
+
+			if stdout.String() == "" {
+				return errors.New("empty response from pod retrying")
+			}
+
+			pathSegments := strings.Split(stdout.String(), "/")
+			PCIAddr = pathSegments[5] // 0000:19:00.5
+			return nil
+		}, 3*time.Minute, 5*time.Second).Should(BeNil())
+
+		if PCIAddr == "" {
+			continue
+		}
+
+		ptpInterfaceNicMapping[interf] = PCIAddr
+	}
+
+	return ptpInterfaceNicMapping
+}
+
+func getPtpOperatorVersion() (string, error) {
+
+	const releaseVersionStr = "RELEASE_VERSION"
+
+	var ptpOperatorVersion string
+
+	deploy, err := client.Client.AppsV1Interface.Deployments(PtpLinuxDaemonNamespace).Get(context.TODO(), PtpOperatorDeploymentName, metav1.GetOptions{})
+
+	if err != nil {
+		logrus.Infof("PTP Operator version is not found: %v", err)
+		return "", err
+	}
+
+	envs := deploy.Spec.Template.Spec.Containers[0].Env
+	for _, env := range envs {
+
+		if env.Name == releaseVersionStr {
+			ptpOperatorVersion = env.Value
+			ptpOperatorVersion = ptpOperatorVersion[1:]
+		}
+	}
+
+	logrus.Infof("PTP operator version is %v", ptpOperatorVersion)
+
+	return ptpOperatorVersion, err
+}
+
+func getOCPVersion() (string, error) {
+
+	const OpenShiftAPIServer = "openshift-apiserver"
+
+	ocpClient := client.Client.OcpClient
+	clusterOperator, err := ocpClient.ClusterOperators().Get(context.TODO(), OpenShiftAPIServer, metav1.GetOptions{})
+
+	var ocpVersion string
+	if err != nil {
+		switch {
+		case kerrors.IsForbidden(err), kerrors.IsNotFound(err):
+			logrus.Errorf("OpenShift Version not found (must be logged in to cluster as admin): %v", err)
+			err = nil
+		}
+	}
+	if clusterOperator != nil {
+		for _, ver := range clusterOperator.Status.Versions {
+			if ver.Name == OpenShiftAPIServer {
+				ocpVersion = ver.Version
+				break
+			}
+		}
+	}
+	logrus.Infof("OCP Version is %v", ocpVersion)
+
+	return ocpVersion, err
+}
+
+func printInterface(config ptpv1.PtpConfig, interfaceDetailsMap map[string]string) {
+	for _, profile := range config.Spec.Profile {
+		if (ptpv1.PtpProfile{}) == profile {
+			continue
+		}
+		if profile.Interface != nil {
+			logrus.Infof("profile name = %s, interface name = %s, interface details = %s", *profile.Name, *profile.Interface, interfaceDetailsMap[*profile.Interface])
+		}
+	}
 }
