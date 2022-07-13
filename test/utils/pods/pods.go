@@ -33,7 +33,7 @@ func GetLog(p *corev1.Pod, containerName string) (string, error) {
 }
 
 // ExecCommand runs command in the pod and returns buffer output
-func ExecCommand(cs *testclient.ClientSet, pod corev1.Pod, containerName string, command []string) (bytes.Buffer, error) {
+func ExecCommand(cs *testclient.ClientSet, pod *corev1.Pod, containerName string, command []string) (bytes.Buffer, error) {
 	var buf bytes.Buffer
 	req := testclient.Client.CoreV1().RESTClient().
 		Post().

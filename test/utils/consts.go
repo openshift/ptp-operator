@@ -2,7 +2,6 @@ package utils
 
 const (
 	// NamespaceTesting contains the name of the testing namespace
-	NamespaceTesting = "ptp-testing"
 
 	ETHTOOL_HARDWARE_RECEIVE_CAP    = "hardware-receive"
 	ETHTOOL_HARDWARE_TRANSMIT_CAP   = "hardware-transmit"
@@ -13,14 +12,20 @@ const (
 	PtpLinuxDaemonNamespace         = "openshift-ptp"
 	PtpOperatorDeploymentName       = "ptp-operator"
 	PtpDaemonsetName                = "linuxptp-daemon"
-	PtpSlaveNodeLabel               = "ptp/test-slave"
 	PtpGrandmasterNodeLabel         = "ptp/test-grandmaster"
+	PtpSlaveNodeLabel               = "ptp/test-slave"
+	PtpBCMasterNodeLabel            = "ptp/test-bc-master"
+	PtpBCSlaveNodeLabel             = "ptp/test-bc-slave"
 	PtpResourcesGroupVersionPrefix  = "ptp.openshift.io/v"
 	PtpResourcesNameOperatorConfigs = "ptpoperatorconfigs"
 	NodePtpDeviceAPIPath            = "/apis/ptp.openshift.io/v1/namespaces/openshift-ptp/nodeptpdevices/"
 	ConfigPtpAPIPath                = "/apis/ptp.openshift.io/v1/namespaces/openshift-ptp/ptpconfigs"
 	PtpContainerName                = "linuxptp-daemon-container"
 	EventProxyContainerName         = "cloud-event-proxy"
+	PtpGrandMasterPolicyName        = "test-grandmaster"
+	PtpSlavePolicyName              = "test-slave"
+	PtpBcMasterPolicyName           = "test-bc-master"
+	PtpBcSlavePolicyName            = "test-bc-slave"
 )
 
 const (
@@ -32,9 +37,4 @@ const (
 	PtpConfigsCRD = "ptpconfigs.ptp.openshift.io"
 	// PtpOperatorConfigs contains the name of the ptp operator config CRD
 	PtpOperatorConfigsCRD = "ptpoperatorconfigs.ptp.openshift.io"
-)
-
-var (
-	PtpGrandMasterPolicyName = "test-grandmaster"
-	PtpSlavePolicyName       = "test-slave"
 )

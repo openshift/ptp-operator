@@ -29,5 +29,6 @@ func TestTest(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	testclient.Client = testclient.New("")
 	Expect(testclient.Client).NotTo(BeNil())
 })

@@ -28,10 +28,6 @@ import (
 // Client defines the client set that will be used for testing
 var Client = &ClientSet{}
 
-func init() {
-	Client = New("")
-}
-
 // ClientSet provides the struct to talk with relevant API
 type ClientSet struct {
 	client.Client
@@ -61,8 +57,9 @@ func New(kubeconfig string) *ClientSet {
 		config, err = rest.InClusterConfig()
 	}
 	if err != nil {
-		glog.Infof("Failed to create a valid client")
-		return Client
+		glog.Infof("Failed to create a valid client,  environement variable.")
+		// Cannot create client, nothing else to do
+		os.Exit(1)
 	}
 
 	clientSet := &ClientSet{}
