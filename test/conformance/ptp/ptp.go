@@ -7,12 +7,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "github.com/openshift/ptp-operator/test/utils"
+	"github.com/openshift/ptp-operator/test/utils/daemonsets"
 	"github.com/openshift/ptp-operator/test/utils/event"
 
 	"github.com/sirupsen/logrus"
@@ -27,8 +30,29 @@ import (
 	"github.com/openshift/ptp-operator/test/utils/client"
 	"github.com/openshift/ptp-operator/test/utils/execute"
 	"github.com/openshift/ptp-operator/test/utils/nodes"
+	testnode "github.com/openshift/ptp-operator/test/utils/nodes"
 	"github.com/openshift/ptp-operator/test/utils/pods"
 	"github.com/openshift/ptp-operator/test/utils/testconfig"
+)
+
+type TestCase string
+
+const (
+	Reboot TestCase = "reboot"
+
+	masterOffsetLowerBound  = -100
+	masterOffsetHigherBound = 100
+
+	timeoutIn3Minutes  = 3 * time.Minute
+	timeoutIn5Minutes  = 5 * time.Minute
+	timeoutIn10Minutes = 10 * time.Minute
+
+	metricsEndPoint       = "127.0.0.1:9091/metrics"
+	ptpConfigOperatorName = "default"
+
+	rebootDaemonSetNamespace     = "default"
+	rebootDaemonSetName          = "ptp-reboot"
+	rebootDaemonSetContainerName = "container-00"
 )
 
 var _ = Describe("[ptp]", func() {
@@ -43,7 +67,7 @@ var _ = Describe("[ptp]", func() {
 			By("Find if variable set to enable ptp events")
 			if event.Enable() {
 				Expect(enablePTPEvent()).NotTo(HaveOccurred())
-				ptpConfig, err := client.Client.PtpV1Interface.PtpOperatorConfigs(PtpLinuxDaemonNamespace).Get(context.Background(), "default", metav1.GetOptions{})
+				ptpConfig, err := client.Client.PtpV1Interface.PtpOperatorConfigs(PtpLinuxDaemonNamespace).Get(context.Background(), ptpConfigOperatorName, metav1.GetOptions{})
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ptpConfig.Spec.EventConfig.EnableEventPublisher).Should(BeTrue(), "failed to enable ptp event")
 			}
@@ -72,7 +96,7 @@ var _ = Describe("[ptp]", func() {
 		It("Should check that all nodes are running at least one replica of linuxptp-daemon", func() {
 			By("Getting ptp operator config")
 
-			ptpConfig, err := client.Client.PtpV1Interface.PtpOperatorConfigs(PtpLinuxDaemonNamespace).Get(context.Background(), "default", metav1.GetOptions{})
+			ptpConfig, err := client.Client.PtpV1Interface.PtpOperatorConfigs(PtpLinuxDaemonNamespace).Get(context.Background(), ptpConfigOperatorName, metav1.GetOptions{})
 			Expect(err).NotTo(HaveOccurred())
 			listOptions := metav1.ListOptions{}
 			if ptpConfig.Spec.DaemonNodeSelector != nil && len(ptpConfig.Spec.DaemonNodeSelector) != 0 {
@@ -119,6 +143,25 @@ var _ = Describe("[ptp]", func() {
 
 		})
 
+		Context("PTP Reboot discovery", func() {
+
+			BeforeEach(func() {
+				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
+					Skip("Failed to find a valid ptp slave configuration")
+				}
+			})
+
+			It("The slave node is rebooted and discovered and in sync", func() {
+				if testCaseEnabled(Reboot) {
+					By("Slave node is rebooted", func() {
+						rebootSlaveNode(fullConfig)
+					})
+				} else {
+					Skip("Skipping the reboot test")
+				}
+			})
+		})
+
 		Context("PTP Interfaces discovery", func() {
 			BeforeEach(func() {
 				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
@@ -133,10 +176,10 @@ var _ = Describe("[ptp]", func() {
 
 				for podIndex := range ptpPods.Items {
 					if podRole(&ptpPods.Items[podIndex], fullConfig.DiscoveredSlavePtpConfig.Label) {
-						waitUntilLogIsDetected(&ptpPods.Items[podIndex], 3*time.Minute, "Profile Name:")
+						waitUntilLogIsDetected(&ptpPods.Items[podIndex], timeoutIn3Minutes, "Profile Name:")
 						ptpSlaveRunningPods = append(ptpSlaveRunningPods, ptpPods.Items[podIndex])
 					} else if podRole(&ptpPods.Items[podIndex], fullConfig.DiscoveredMasterPtpConfig.Label) {
-						waitUntilLogIsDetected(&ptpPods.Items[podIndex], 3*time.Minute, "Profile Name:")
+						waitUntilLogIsDetected(&ptpPods.Items[podIndex], timeoutIn3Minutes, "Profile Name:")
 						ptpMasterRunningPods = append(ptpMasterRunningPods, ptpPods.Items[podIndex])
 					}
 				}
@@ -285,7 +328,7 @@ var _ = Describe("[ptp]", func() {
 					case testconfig.BoundaryClock:
 						policyName = PtpBcMasterPolicyName
 					}
-					ptpConfigSlave, err := client.Client.PtpV1Interface.PtpConfigs("openshift-ptp").Get(context.Background(), policyName, metav1.GetOptions{})
+					ptpConfigSlave, err := client.Client.PtpV1Interface.PtpConfigs(PtpLinuxDaemonNamespace).Get(context.Background(), policyName, metav1.GetOptions{})
 					Expect(err).NotTo(HaveOccurred())
 					nodes, err := client.Client.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{
 						LabelSelector: fullConfig.DiscoveredSlavePtpConfig.Label,
@@ -295,7 +338,7 @@ var _ = Describe("[ptp]", func() {
 						fmt.Sprintf("PTP Nodes with label %s are not deployed on cluster", fullConfig.DiscoveredSlavePtpConfig.Label))
 
 					ptpConfigTest := mutateProfile(ptpConfigSlave, PtpSlavePolicyName, nodes.Items[0].Name)
-					_, err = client.Client.PtpV1Interface.PtpConfigs("openshift-ptp").Create(context.Background(), ptpConfigTest, metav1.CreateOptions{})
+					_, err = client.Client.PtpV1Interface.PtpConfigs(PtpLinuxDaemonNamespace).Create(context.Background(), ptpConfigTest, metav1.CreateOptions{})
 					Expect(err).NotTo(HaveOccurred())
 
 					testPtpPod, err = getPtpPodOnNode(nodes.Items[0].Name)
@@ -306,20 +349,20 @@ var _ = Describe("[ptp]", func() {
 				})
 
 				By("Checking if Node has Profile", func() {
-					waitUntilLogIsDetected(&testPtpPod, 3*time.Minute, "Profile Name: test")
+					waitUntilLogIsDetected(&testPtpPod, timeoutIn3Minutes, "Profile Name: test")
 				})
 
 				By("Deleting the test profile", func() {
-					err := client.Client.PtpV1Interface.PtpConfigs("openshift-ptp").Delete(context.Background(), "test", metav1.DeleteOptions{})
+					err := client.Client.PtpV1Interface.PtpConfigs(PtpLinuxDaemonNamespace).Delete(context.Background(), "test", metav1.DeleteOptions{})
 					Expect(err).NotTo(HaveOccurred())
 					Eventually(func() bool {
-						_, err := client.Client.PtpV1Interface.PtpConfigs("openshift-ptp").Get(context.Background(), "test", metav1.GetOptions{})
+						_, err := client.Client.PtpV1Interface.PtpConfigs(PtpLinuxDaemonNamespace).Get(context.Background(), "test", metav1.GetOptions{})
 						return kerrors.IsNotFound(err)
 					}, 1*time.Minute, 1*time.Second).Should(BeTrue(), "Could not delete the test profile")
 				})
 
 				By("Checking the profile is reverted", func() {
-					waitUntilLogIsDetected(&testPtpPod, 3*time.Minute, "Profile Name: test-slave")
+					waitUntilLogIsDetected(&testPtpPod, timeoutIn3Minutes, "Profile Name: test-slave")
 				})
 			})
 
@@ -378,10 +421,10 @@ var _ = Describe("[ptp]", func() {
 
 				for podIndex := range ptpPods.Items {
 					if podRole(&ptpPods.Items[podIndex], fullConfig.DiscoveredSlavePtpConfig.Label) {
-						waitUntilLogIsDetected(&ptpPods.Items[podIndex], 3*time.Minute, "Profile Name:")
+						waitUntilLogIsDetected(&ptpPods.Items[podIndex], timeoutIn3Minutes, "Profile Name:")
 						ptpSlaveRunningPods = append(ptpSlaveRunningPods, ptpPods.Items[podIndex])
 					} else if podRole(&ptpPods.Items[podIndex], fullConfig.DiscoveredMasterPtpConfig.Label) {
-						waitUntilLogIsDetected(&ptpPods.Items[podIndex], 3*time.Minute, "Profile Name:")
+						waitUntilLogIsDetected(&ptpPods.Items[podIndex], timeoutIn3Minutes, "Profile Name:")
 						ptpMasterRunningPods = append(ptpMasterRunningPods, ptpPods.Items[podIndex])
 					}
 				}
@@ -400,9 +443,9 @@ var _ = Describe("[ptp]", func() {
 				for podIndex := range ptpRunningPods {
 					if podRole(&ptpRunningPods[podIndex], fullConfig.DiscoveredSlavePtpConfig.Label) {
 						Eventually(func() string {
-							buf, _ := pods.ExecCommand(client.Client, &ptpRunningPods[podIndex], PtpContainerName, []string{"curl", "127.0.0.1:9091/metrics"})
+							buf, _ := pods.ExecCommand(client.Client, &ptpRunningPods[podIndex], PtpContainerName, []string{"curl", metricsEndPoint})
 							return buf.String()
-						}, 5*time.Minute, 5*time.Second).Should(ContainSubstring("openshift_ptp_offset_ns"),
+						}, timeoutIn5Minutes, 5*time.Second).Should(ContainSubstring("openshift_ptp_offset_ns"),
 							"Time metrics are not detected")
 						slavePodDetected = true
 						break
@@ -427,7 +470,7 @@ var _ = Describe("[ptp]", func() {
 
 				for podIndex := range ptpPods.Items {
 					if podRole(&ptpPods.Items[podIndex], fullConfig.DiscoveredSlavePtpConfig.Label) {
-						waitUntilLogIsDetected(&ptpPods.Items[podIndex], 3*time.Minute, "Profile Name:")
+						waitUntilLogIsDetected(&ptpPods.Items[podIndex], timeoutIn3Minutes, "Profile Name:")
 						ptpSlaveRunningPods = append(ptpSlaveRunningPods, ptpPods.Items[podIndex])
 					}
 				}
@@ -453,15 +496,15 @@ var _ = Describe("[ptp]", func() {
 				By("Checking event metrics are present")
 				for podIndex := range ptpSlaveRunningPods {
 					Eventually(func() string {
-						buf, _ := pods.ExecCommand(client.Client, &ptpSlaveRunningPods[podIndex], EventProxyContainerName, []string{"curl", "127.0.0.1:9091/metrics"})
+						buf, _ := pods.ExecCommand(client.Client, &ptpSlaveRunningPods[podIndex], EventProxyContainerName, []string{"curl", metricsEndPoint})
 						return buf.String()
-					}, 5*time.Minute, 5*time.Second).Should(ContainSubstring("openshift_ptp_interface_role"),
+					}, timeoutIn5Minutes, 5*time.Second).Should(ContainSubstring("openshift_ptp_interface_role"),
 						"Interface role metrics are not detected")
 
 					Eventually(func() string {
-						buf, _ := pods.ExecCommand(client.Client, &ptpSlaveRunningPods[podIndex], EventProxyContainerName, []string{"curl", "127.0.0.1:9091/metrics"})
+						buf, _ := pods.ExecCommand(client.Client, &ptpSlaveRunningPods[podIndex], EventProxyContainerName, []string{"curl", metricsEndPoint})
 						return buf.String()
-					}, 5*time.Minute, 5*time.Second).Should(ContainSubstring("openshift_ptp_threshold"),
+					}, timeoutIn5Minutes, 5*time.Second).Should(ContainSubstring("openshift_ptp_threshold"),
 						"Threshold metrics are not detected")
 				}
 
@@ -470,7 +513,7 @@ var _ = Describe("[ptp]", func() {
 					Eventually(func() string {
 						buf, _ := pods.ExecCommand(client.Client, &ptpSlaveRunningPods[podIndex], EventProxyContainerName, []string{"curl", "127.0.0.1:9085/api/cloudNotifications/v1/health"})
 						return buf.String()
-					}, 5*time.Minute, 5*time.Second).Should(ContainSubstring("OK"),
+					}, timeoutIn5Minutes, 5*time.Second).Should(ContainSubstring("OK"),
 						"Event API is not in healthy state")
 				}
 
@@ -479,7 +522,7 @@ var _ = Describe("[ptp]", func() {
 					Eventually(func() string {
 						buf, _ := pods.ExecCommand(client.Client, &ptpSlaveRunningPods[podIndex], EventProxyContainerName, []string{"curl", "127.0.0.1:9085/api/cloudNotifications/v1/publishers"})
 						return buf.String()
-					}, 5*time.Minute, 5*time.Second).Should(ContainSubstring("endpointUri"),
+					}, timeoutIn5Minutes, 5*time.Second).Should(ContainSubstring("endpointUri"),
 						"Event API  did not return publishers")
 				}
 
@@ -584,13 +627,13 @@ func waitForPtpDaemonToBeReady() int {
 		daemonset, err = client.Client.DaemonSets(PtpLinuxDaemonNamespace).Get(context.Background(), PtpDaemonsetName, metav1.GetOptions{})
 		Expect(err).ToNot(HaveOccurred())
 		return daemonset.Status.NumberReady
-	}, 5*time.Minute, 2*time.Second).Should(Equal(expectedNumber))
+	}, timeoutIn5Minutes, 2*time.Second).Should(Equal(expectedNumber))
 
 	Eventually(func() int {
 		ptpPods, err := client.Client.CoreV1().Pods(PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
 		Expect(err).ToNot(HaveOccurred())
 		return len(ptpPods.Items)
-	}, 5*time.Minute, 2*time.Second).Should(Equal(int(expectedNumber)))
+	}, timeoutIn5Minutes, 2*time.Second).Should(Equal(int(expectedNumber)))
 	return 0
 }
 
@@ -718,7 +761,7 @@ func getMasterSlaveAttachedInterfaces(pod *v1core.Pod) []string {
 		}
 
 		return nil
-	}, 3*time.Minute, 5*time.Second).Should(BeNil())
+	}, timeoutIn3Minutes, 5*time.Second).Should(BeNil())
 
 	return IntList
 }
@@ -759,7 +802,7 @@ func getPtpMasterSlaveAttachedInterfaces(pod *v1core.Pod) []string {
 
 			PCIAddr = pathSegments[5] // 0000:19:00.5
 			return nil
-		}, 3*time.Minute, 5*time.Second).Should(BeNil())
+		}, timeoutIn3Minutes, 5*time.Second).Should(BeNil())
 
 		if skipInterface || PCIAddr == "" {
 			continue
@@ -852,7 +895,7 @@ func getNonPtpMasterSlaveAttachedInterfaces(pod *v1core.Pod) []string {
 				return errors.New("empty response from pod retrying")
 			}
 			return nil
-		}, 3*time.Minute, 2*time.Second).Should(BeNil())
+		}, timeoutIn3Minutes, 2*time.Second).Should(BeNil())
 
 		if strings.Contains(stdout.String(), "No such device") {
 			continue
@@ -866,7 +909,7 @@ func getNonPtpMasterSlaveAttachedInterfaces(pod *v1core.Pod) []string {
 }
 
 func enablePTPEvent() error {
-	ptpConfig, err := client.Client.PtpV1Interface.PtpOperatorConfigs(PtpLinuxDaemonNamespace).Get(context.Background(), "default", metav1.GetOptions{})
+	ptpConfig, err := client.Client.PtpV1Interface.PtpOperatorConfigs(PtpLinuxDaemonNamespace).Get(context.Background(), ptpConfigOperatorName, metav1.GetOptions{})
 	Expect(err).NotTo(HaveOccurred())
 	if ptpConfig.Spec.EventConfig == nil {
 		ptpConfig.Spec.EventConfig = &ptpv1.PtpEventConfig{
@@ -884,7 +927,7 @@ func enablePTPEvent() error {
 }
 
 func ptpEventEnabled() bool {
-	ptpConfig, err := client.Client.PtpV1Interface.PtpOperatorConfigs(PtpLinuxDaemonNamespace).Get(context.Background(), "default", metav1.GetOptions{})
+	ptpConfig, err := client.Client.PtpV1Interface.PtpOperatorConfigs(PtpLinuxDaemonNamespace).Get(context.Background(), ptpConfigOperatorName, metav1.GetOptions{})
 	Expect(err).NotTo(HaveOccurred())
 	if ptpConfig.Spec.EventConfig == nil {
 		return false
@@ -915,7 +958,7 @@ func getNICInfo(pod v1core.Pod) map[string]string {
 			pathSegments := strings.Split(stdout.String(), "/")
 			PCIAddr = pathSegments[5] // 0000:19:00.5
 			return nil
-		}, 3*time.Minute, 5*time.Second).Should(BeNil())
+		}, timeoutIn3Minutes, 5*time.Second).Should(BeNil())
 
 		if PCIAddr == "" {
 			continue
@@ -991,4 +1034,250 @@ func printInterface(config ptpv1.PtpConfig, interfaceDetailsMap map[string]strin
 			logrus.Infof("profile name = %s, interface name = %s, interface details = %s", *profile.Name, *profile.Interface, interfaceDetailsMap[*profile.Interface])
 		}
 	}
+}
+
+func rebootSlaveNode(fullConfig testconfig.TestConfig) {
+	logrus.Info("Rebooting system starts ..............")
+
+	const (
+		imageWithVersion = "quay.io/testnetworkfunction/debug-partner:latest"
+	)
+
+	// 1. create a daemon set for the node reboot
+	rebootDaemonSetRunningPods, err := daemonsets.CreateDaemonSet(rebootDaemonSetName, rebootDaemonSetNamespace, rebootDaemonSetContainerName, imageWithVersion, timeoutIn5Minutes)
+	if err != nil {
+		logrus.Errorf("error : +%v\n", err.Error())
+	}
+	nodeToPodMapping := make(map[string]v1core.Pod)
+	for _, dsPod := range rebootDaemonSetRunningPods.Items {
+		nodeToPodMapping[dsPod.Spec.NodeName] = dsPod
+	}
+
+	// 2. Get the slave config, restart the slave node
+	slavePtpConfig := fullConfig.DiscoveredSlavePtpConfig.Config
+
+	restartedNodes := make([]string, len(rebootDaemonSetRunningPods.Items))
+
+	for _, recommend := range slavePtpConfig.Spec.Recommend {
+		matches := recommend.Match
+
+		for _, match := range matches {
+			nodeLabel := *match.NodeLabel
+			// Get all nodes with this node label
+			nodes, err := client.Client.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{LabelSelector: nodeLabel})
+			Expect(err).NotTo(HaveOccurred())
+
+			// Restart the node
+			for _, node := range nodes.Items {
+				rebootNode(nodeToPodMapping[node.Name], node)
+				restartedNodes = append(restartedNodes, node.Name)
+			}
+		}
+	}
+	logrus.Printf("Restarted nodes %v", restartedNodes)
+
+	// 3. Verify the setup of PTP
+	verifyAfterRebootState(restartedNodes, fullConfig)
+
+	// 4. Slave nodes can sync to master
+	checkSlaveSyncWithMaster(fullConfig)
+
+	logrus.Info("Rebooting system ends ..............")
+}
+
+func rebootNode(pod v1core.Pod, node v1core.Node) {
+	checkRestart(pod)
+	// Wait for the node to be unreachable
+	const unrechable = false
+	testnode.WaitForNodeReachability(&node, timeoutIn10Minutes, unrechable)
+
+	// Wait for all nodes to be reachable now after the restart
+	const reachable = true
+	testnode.WaitForNodeReachability(&node, timeoutIn10Minutes, reachable)
+}
+
+func checkRestart(pod v1core.Pod) {
+	logrus.Printf("Restarting the node %s that pod %s is running on", pod.Spec.NodeName, pod.Name)
+
+	const (
+		pollingInterval = 3 * time.Second
+	)
+
+	Eventually(func() error {
+		_, err := pods.ExecCommand(client.Client, &pod, "container-00", []string{"chroot", "/host", "shutdown", "-r"})
+		return err
+	}, timeoutIn10Minutes, pollingInterval).Should(BeNil())
+}
+
+func verifyAfterRebootState(rebootedNodes []string, fullConfig testconfig.TestConfig) {
+	By("Getting ptp operator config")
+	ptpConfig, err := client.Client.PtpV1Interface.PtpOperatorConfigs(PtpLinuxDaemonNamespace).Get(context.Background(), ptpConfigOperatorName, metav1.GetOptions{})
+	Expect(err).NotTo(HaveOccurred())
+	listOptions := metav1.ListOptions{}
+	if ptpConfig.Spec.DaemonNodeSelector != nil && len(ptpConfig.Spec.DaemonNodeSelector) != 0 {
+		listOptions = metav1.ListOptions{LabelSelector: metav1.FormatLabelSelector(&metav1.LabelSelector{MatchLabels: ptpConfig.Spec.DaemonNodeSelector})}
+	}
+
+	By("Getting list of nodes")
+	nodes, err := client.Client.CoreV1().Nodes().List(context.Background(), listOptions)
+	Expect(err).NotTo(HaveOccurred())
+	By("Checking number of nodes")
+	Expect(len(nodes.Items)).To(BeNumerically(">", 0), "number of nodes should be more than 0")
+
+	By("Get daemonsets collection for the namespace " + PtpLinuxDaemonNamespace)
+	ds, err := client.Client.DaemonSets(PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{})
+	Expect(err).ToNot(HaveOccurred())
+	Expect(len(ds.Items)).To(BeNumerically(">", 0), "no damonsets found in the namespace "+PtpLinuxDaemonNamespace)
+
+	By("Checking number of scheduled instances")
+	Expect(ds.Items[0].Status.CurrentNumberScheduled).To(BeNumerically("==", len(nodes.Items)), "should be one instance per node")
+
+	By("Checking if the ptp offset metric is present")
+	for _, slaveNode := range rebootedNodes {
+
+		runningPods := getRebootDaemonsetPodsAt(slaveNode)
+
+		// Testing for one pod is sufficient as these pods are running on the same node that restarted
+		for _, pod := range runningPods.Items {
+			Expect(podRole(&pod, fullConfig.DiscoveredSlavePtpConfig.Label)).To(BeTrue())
+
+			logrus.Printf("Calling metrics endpoint for pod %s with status %s", pod.Name, pod.Status.Phase)
+
+			time.Sleep(timeoutIn3Minutes)
+
+			Eventually(func() string {
+				commands := []string{
+					"curl", "-s", metricsEndPoint,
+					//"curl", "-s", `127.0.0.1:9091/metrics | grep  '^openshift_ptp_offset_ns' | cut -d ' ' -f 2`,
+				}
+				buf, err := pods.ExecCommand(client.Client, &pod, rebootDaemonSetContainerName, commands)
+				Expect(err).NotTo(HaveOccurred())
+
+				scanner := bufio.NewScanner(strings.NewReader(buf.String()))
+				var lines []string = make([]string, 5)
+				for scanner.Scan() {
+					text := scanner.Text()
+					if strings.Contains(text, "openshift_ptp_offset_ns{from=\"master\"") {
+						logrus.Printf("Line obtained is %s", text)
+						lines = append(lines, text)
+					}
+				}
+				var offset string
+				var offsetVal int
+				for _, line := range lines {
+					line = strings.TrimSpace(line)
+					if line == "" {
+						continue
+					}
+					tokens := strings.Fields(line)
+					len := len(tokens)
+
+					if len > 0 {
+						offset = tokens[len-1]
+						if offset != "" {
+							if val, err := strconv.Atoi(offset); err == nil {
+								offsetVal = val
+								logrus.Println("Offset value obtained", offsetVal)
+								break
+							}
+						}
+					}
+				}
+				Expect(buf.String()).NotTo(BeEmpty())
+				Expect(offsetVal >= masterOffsetLowerBound && offsetVal < masterOffsetHigherBound).To(BeTrue())
+				return buf.String()
+			}, timeoutIn5Minutes, 5*time.Second).Should(ContainSubstring("openshift_ptp_offset_ns"),
+				"Time metrics are not detected")
+			break
+		}
+	}
+}
+
+func getRebootDaemonsetPodsAt(node string) *v1core.PodList {
+
+	rebootDaemonsetPodList, err := client.Client.CoreV1().Pods(rebootDaemonSetNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "name=" + rebootDaemonSetName, FieldSelector: fmt.Sprintf("spec.nodeName=%s", node)})
+	Expect(err).ToNot(HaveOccurred())
+
+	return rebootDaemonsetPodList
+}
+
+func checkSlaveSyncWithMaster(fullConfig testconfig.TestConfig) {
+	By("Checking if slave nodes can sync with the master")
+
+	ptpPods, err := client.Client.CoreV1().Pods(PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
+	Expect(err).NotTo(HaveOccurred())
+	Expect(len(ptpPods.Items)).To(BeNumerically(">", 0), "linuxptp-daemon is not deployed on cluster")
+
+	ptpSlaveRunningPods := []v1core.Pod{}
+	ptpMasterRunningPods := []v1core.Pod{}
+
+	for _, pod := range ptpPods.Items {
+		if podRole(&pod, fullConfig.DiscoveredSlavePtpConfig.Label) {
+			waitUntilLogIsDetected(&pod, timeoutIn5Minutes, "Profile Name:")
+			ptpSlaveRunningPods = append(ptpSlaveRunningPods, pod)
+		} else if podRole(&pod, fullConfig.DiscoveredMasterPtpConfig.Label) {
+			waitUntilLogIsDetected(&pod, timeoutIn5Minutes, "Profile Name:")
+			ptpMasterRunningPods = append(ptpMasterRunningPods, pod)
+		}
+	}
+	if testconfig.GlobalConfig.ConfiguredMasterPresent {
+		Expect(len(ptpMasterRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP master pods on Cluster")
+		Expect(len(ptpSlaveRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP slave pods on Cluster")
+	} else {
+		Expect(len(ptpSlaveRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP slave pods on Cluster")
+	}
+
+	var masterID string
+	var slaveMasterID string
+	grandMaster := "assuming the grand master role"
+
+	for _, pod := range ptpPods.Items {
+		if fullConfig.DiscoveredMasterPtpConfig.Label != "" &&
+			podRole(&pod, fullConfig.DiscoveredMasterPtpConfig.Label) {
+			podLogs, err := pods.GetLog(&pod, PtpContainerName)
+			Expect(err).NotTo(HaveOccurred(), "Error to find needed log due to %s", err)
+			Expect(podLogs).Should(ContainSubstring(grandMaster),
+				fmt.Sprintf("Log message \"%s\" not found in pod's log %s", grandMaster, pod.Name))
+			for _, line := range strings.Split(podLogs, "\n") {
+				if strings.Contains(line, "selected local clock") && strings.Contains(line, "as best master") {
+					// Log example: ptp4l[10731.364]: [eno1] selected local clock 3448ed.fffe.f38e00 as best master
+					masterID = strings.Split(line, " ")[5]
+				}
+			}
+		}
+		if podRole(&pod, fullConfig.DiscoveredSlavePtpConfig.Label) {
+			podLogs, err := pods.GetLog(&pod, PtpContainerName)
+			Expect(err).NotTo(HaveOccurred(), "Error to find needed log due to %s", err)
+
+			for _, line := range strings.Split(podLogs, "\n") {
+				if strings.Contains(line, "new foreign master") {
+					// Log example: ptp4l[11292.467]: [eno1] port 1: new foreign master 3448ed.fffe.f38e00-1
+					slaveMasterID = strings.Split(line, " ")[7]
+				}
+			}
+		}
+	}
+	Expect(masterID).NotTo(BeNil())
+	Expect(slaveMasterID).NotTo(BeNil())
+	Expect(slaveMasterID).Should(HavePrefix(masterID), "Error match MasterID with the SlaveID. Slave connected to another Master")
+
+	Expect(masterID).NotTo(BeNil())
+	Expect(slaveMasterID).NotTo(BeNil())
+	Expect(slaveMasterID).Should(HavePrefix(masterID), "Error match MasterID with the SlaveID. Slave connected to another Master")
+}
+
+func testCaseEnabled(testCase TestCase) bool {
+
+	enabledTests, isSet := os.LookupEnv("ENABLE_TEST_CASE")
+
+	if isSet {
+		tokens := strings.Split(enabledTests, ",")
+		for _, token := range tokens {
+			token = strings.TrimSpace(token)
+			if strings.Contains(token, string(testCase)) {
+				return true
+			}
+		}
+	}
+	return false
 }
