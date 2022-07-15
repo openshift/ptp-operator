@@ -5,6 +5,7 @@ To run the conformance tests, first set the following environment variables:
 - **KUBECONFIG**: this is the path to the openshift kubeconfig 
 - **PTP_TEST_MODE**: this is the desired mode to run the tests. Choose between: Discovery, OC and BC. See below for an explanation for each mode.
 - **DISCOVERY_MODE**: This is a legacy option and is equivalent to setting "Discovery" option in the PTP_TEST_MODE environment variable
+- **ENABLE_TEST_CASE**: This is an option to run the long running tests separated by comma. For example, to run reboot test, `ENABLE_TEST_CASE=reboot` shall be used.
 
 Then run the following command:
 ```
@@ -14,6 +15,12 @@ So for instance to run in discovery mode the command line could look like this:
 ```
 KUBECONFIG="/home/user/.kube/config" PTP_TEST_MODE=Discovery make functests
 ```
+
+To run all the tests
+```
+KUBECONFIG="/home/user/.kube/config" ENABLE_TEST_CASE=reboot PTP_TEST_MODE=Discovery make functests
+```
+
 ## Labelling test nodes manually in discovery mode
 In Discovery mode, the node roles are indicated via labels
 To indicate a node with a OC configuration, label it with 
