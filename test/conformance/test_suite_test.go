@@ -43,6 +43,7 @@ func TestTest(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	// create test namespace
+	testclient.Client = testclient.New("")
 	Expect(testclient.Client).NotTo(BeNil())
 
 	ns := &corev1.Namespace{
