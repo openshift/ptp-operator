@@ -18,8 +18,10 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.11.1 // indirect
 	github.com/sirupsen/logrus v1.8.1
+	github.com/stretchr/testify v1.7.0
 	github.com/test-network-function/l2discovery v0.0.0-20220623183212-8664ef7e8a44
 	github.com/yourbasic/graph v0.0.0-20210606180040-8ecfec1c2869
+	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.23.0
 	k8s.io/apiextensions-apiserver v0.23.0
 	k8s.io/apimachinery v0.23.0

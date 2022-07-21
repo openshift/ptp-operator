@@ -2,7 +2,7 @@ package utils
 
 const (
 	// NamespaceTesting contains the name of the testing namespace
-
+	NamespaceTesting                = "ptp-testing" // Added by Banashri
 	ETHTOOL_HARDWARE_RECEIVE_CAP    = "hardware-receive"
 	ETHTOOL_HARDWARE_TRANSMIT_CAP   = "hardware-transmit"
 	ETHTOOL_HARDWARE_RAW_CLOCK_CAP  = "hardware-raw-clock"

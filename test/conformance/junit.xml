@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+  <testsuite name="PTP e2e integration tests" tests="16" failures="16" errors="0" time="0">
+      <testcase name="BeforeSuite" classname="PTP e2e integration tests" time="0.000288254">
+          <failure type="Panic">/Users/bmandal/RHDev/github.com/ptp-forked/ptp-operator/test/conformance/test_suite_test.go:44&#xA;Test Panicked&#xA;/usr/local/Cellar/go/1.18.1/libexec/src/runtime/panic.go:220</failure>
+      </testcase>
+      <testcase name="AfterSuite" classname="PTP e2e integration tests" time="0.000163598">
+          <failure type="Panic">/Users/bmandal/RHDev/github.com/ptp-forked/ptp-operator/test/conformance/test_suite_test.go:57&#xA;Test Panicked&#xA;/usr/local/Cellar/go/1.18.1/libexec/src/runtime/panic.go:220</failure>
+      </testcase>
+  </testsuite>
