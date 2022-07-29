@@ -471,10 +471,15 @@ func addFlagsForMonitor(nodeProfile *ptpv1.PtpProfile, conf *ptp4lConf, stdoutTo
 		}
 
 		if !strings.Contains(*nodeProfile.Ptp4lOpts, "--summary_interval") {
-			_, exist := conf.sections["[global]"].options["summary_interval"]
-			if !exist {
-				glog.Info("adding summary_interval 1 to print summary messages to stdout for ptp4l to use prometheus exporter")
-				conf.sections["[global]"].options["summary_interval"] = "1"
+			for index, section := range conf.sections {
+				if section.sectionName == "[global]" {
+					_, exist := section.options["summary_interval"]
+					if !exist {
+						glog.Info("adding summary_interval 1 to print summary messages to stdout for ptp4l to use prometheus exporter")
+						section.options["summary_interval"] = "1"
+					}
+					conf.sections[index] = section
+				}
 			}
 		}
 	}

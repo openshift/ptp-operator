@@ -260,17 +260,19 @@ func (dn *Daemon) addProfileConfig(socketPath string, configFile string, nodePro
 	output.profile_name = *nodeProfile.Name
 
 	if nodeProfile.Interface != nil && *nodeProfile.Interface != "" {
-		ifaceSection := fmt.Sprintf("[%s]", *nodeProfile.Interface)
-		output.sections[ifaceSection] = ptp4lConfSection{options: map[string]string{}}
+		output.sections = append(output.sections, ptp4lConfSection{options: map[string]string{}})
 	} else {
 		iface := string("")
 		nodeProfile.Interface = &iface
 	}
 
-	section := output.sections["[global]"]
-	section.options["message_tag"] = fmt.Sprintf("[%s]", configFile)
-	section.options["uds_address"] = socketPath
-	output.sections["[global]"] = section
+	for index, section := range output.sections {
+		if section.sectionName == "[global]" {
+			section.options["message_tag"] = fmt.Sprintf("[%s]", configFile)
+			section.options["uds_address"] = socketPath
+			output.sections[index] = section
+		}
+	}
 
 	// This add the flags needed for monitor
 	addFlagsForMonitor(nodeProfile, output, dn.stdoutToSocket)

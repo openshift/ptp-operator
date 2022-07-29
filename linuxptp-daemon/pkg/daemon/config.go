@@ -24,11 +24,12 @@ type LinuxPTPConfUpdate struct {
 }
 
 type ptp4lConfSection struct {
-	options map[string]string
+	sectionName string
+	options     map[string]string
 }
 
 type ptp4lConf struct {
-	sections     map[string]ptp4lConfSection
+	sections     []ptp4lConfSection
 	mapping      []string
 	profile_name string
 }
@@ -107,35 +108,42 @@ func tryToLoadOldConfig(nodeProfilesJson []byte) ([]ptpv1.PtpProfile, bool) {
 
 func (output *ptp4lConf) populatePtp4lConf(config *string) error {
 	lines := strings.Split(*config, "\n")
-	var currentSection string
-	output.sections = make(map[string]ptp4lConfSection)
+	var currentSectionName string
+	var currentSection ptp4lConfSection
+	output.sections = make([]ptp4lConfSection, 0)
+	globalIsDefined := false
 
 	for _, line := range lines {
 		if strings.HasPrefix(line, "[") {
-			currentSection = line
+			if currentSectionName != "" {
+				output.sections = append(output.sections, currentSection)
+			}
+			currentSectionName = line
 			currentLine := strings.Split(line, "]")
 
 			if len(currentLine) < 2 {
 				return errors.New("Section missing closing ']'")
 			}
 
-			currentSection = fmt.Sprintf("%s]", currentLine[0])
-			section := ptp4lConfSection{options: map[string]string{}}
-			output.sections[currentSection] = section
-		} else if currentSection != "" {
+			currentSectionName = fmt.Sprintf("%s]", currentLine[0])
+			if currentSectionName == "[global]" {
+				globalIsDefined = true
+			}
+			currentSection = ptp4lConfSection{options: map[string]string{}, sectionName: currentSectionName}
+		} else if currentSectionName != "" {
 			split := strings.IndexByte(line, ' ')
 			if split > 0 {
-				section := output.sections[currentSection]
-				section.options[line[:split]] = line[split:]
-				output.sections[currentSection] = section
+				currentSection.options[line[:split]] = line[split:]
 			}
 		} else {
 			return errors.New("Config option not in section")
 		}
 	}
-	_, exist := output.sections["[global]"]
-	if !exist {
-		output.sections["[global]"] = ptp4lConfSection{options: map[string]string{}}
+	if currentSectionName != "" {
+		output.sections = append(output.sections, currentSection)
+	}
+	if !globalIsDefined {
+		output.sections = append(output.sections, ptp4lConfSection{options: map[string]string{}, sectionName: "[global]"})
 	}
 	return nil
 }
@@ -144,10 +152,10 @@ func (conf *ptp4lConf) renderPtp4lConf() (string, string) {
 	configOut := fmt.Sprintf("#profile: %s\n", conf.profile_name)
 	conf.mapping = nil
 
-	for name, section := range conf.sections {
-		configOut = fmt.Sprintf("%s\n %s", configOut, name)
-		if name != "[global]" {
-			iface := name
+	for _, section := range conf.sections {
+		configOut = fmt.Sprintf("%s\n %s", configOut, section.sectionName)
+		if section.sectionName != "[global]" {
+			iface := section.sectionName
 			iface = strings.ReplaceAll(iface, "[", "")
 			iface = strings.ReplaceAll(iface, "]", "")
 			conf.mapping = append(conf.mapping, iface)
