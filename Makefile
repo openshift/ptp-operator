@@ -229,3 +229,8 @@ test-validation-only:
 # download controller-gen if necessary
 operator-sdk:
 	go install ./vendor/github.com/operator-framework/operator-sdk/cmd/operator-sdk
+buildtest:
+	PATH=${PATH}:${GOBIN} ginkgo build ./test/conformance
+	cp ./test/conformance/conformance.test ./bin/testptp
+buildimage: buildtest
+	./scripts/image.sh

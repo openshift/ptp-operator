@@ -1,0 +1,8 @@
+FROM registry.access.redhat.com/ubi8/ubi:latest 
+
+ENV KUBECONFIG="/tmp/config"
+
+COPY bin/testptp /usr/bin/testptp
+ENV SHELL=/bin/bash
+CMD ["testptp","-junit","/output/junit.xml"]
+

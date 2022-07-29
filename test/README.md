@@ -18,7 +18,16 @@ KUBECONFIG="/home/user/.kube/config" PTP_TEST_MODE=Discovery make functests
 
 To run all the tests
 ```
-KUBECONFIG="/home/user/.kube/config" ENABLE_TEST_CASE=reboot PTP_TEST_MODE=Discovery make functests
+KUBECONFIG="/home/usr/.kube/config" ENABLE_TEST_CASE=reboot PTP_TEST_MODE=Discovery make functests
+```
+
+To run all the tests with a container:
+```
+docker run -e PTP_TEST_MODE=<TEST MODE> -e ENABLE_TEST_CASE=<EXTRA TEST CASES> -v <KUBECONFIG PATH>:/tmp/config:Z -v <OUTPUT DIRECTORY PATH>:/output:Z <IMAGE>
+```
+for example: 
+```
+docker run -e PTP_TEST_MODE=OC -e ENABLE_TEST_CASE=reboot -v /home/usr/.kube/config.3nodes:/tmp/config:Z -v .:/output:Z quay.io/redhat-cne/ptp-operator-test:latest
 ```
 
 ## Labelling test nodes manually in discovery mode
