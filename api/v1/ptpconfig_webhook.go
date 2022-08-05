@@ -175,7 +175,7 @@ func GetInterfaces(config PtpConfig, mode PtpRole) (interfaces []string) {
 			finalInterfaces = append(finalInterfaces, aIf)
 		}
 	}
-	if len(interfaces) == 0 && mode == Slave {
+	if len(interfaces) == 0 && mode == Slave && config.Spec.Profile[0].Interface != nil {
 		finalInterfaces = append(finalInterfaces, *config.Spec.Profile[0].Interface)
 	}
 	return finalInterfaces

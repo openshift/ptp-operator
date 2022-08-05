@@ -20,7 +20,7 @@ func DeleteLabel(label string) error {
 		delete(nodeList.Items[nodeIndex].Labels, label)
 		_, err = client.Client.CoreV1().Nodes().Update(context.Background(), &nodeList.Items[nodeIndex], metav1.UpdateOptions{})
 		if err != nil {
-			logrus.Errorf("Error updating node, err=%s", err)
+			return fmt.Errorf("error updating node, err=%s", err)
 		}
 	}
 	return nil
@@ -34,18 +34,19 @@ func All() error {
 	if err != nil {
 		return fmt.Errorf("clean.All: fail to delete label: %s, err: %s", utils.PtpGrandmasterNodeLabel, err)
 	}
-	err = DeleteLabel(utils.PtpSlaveNodeLabel)
+	err = DeleteLabel(utils.PtpClockUnderTestNodeLabel)
 	if err != nil {
-		return fmt.Errorf("clean.All: fail to delete label: %s, err: %s", utils.PtpSlaveNodeLabel, err)
+		return fmt.Errorf("clean.All: fail to delete label: %s, err: %s", utils.PtpClockUnderTestNodeLabel, err)
 	}
-	err = DeleteLabel(utils.PtpBCMasterNodeLabel)
+	err = DeleteLabel(utils.PtpSlave1NodeLabel)
 	if err != nil {
-		return fmt.Errorf("clean.All: fail to delete label: %s, err: %s", utils.PtpBCMasterNodeLabel, err)
+		return fmt.Errorf("clean.All: fail to delete label: %s, err: %s", utils.PtpSlave1NodeLabel, err)
 	}
-	err = DeleteLabel(utils.PtpBCSlaveNodeLabel)
+	err = DeleteLabel(utils.PtpSlave2NodeLabel)
 	if err != nil {
-		return fmt.Errorf("clean.All: fail to delete label: %s, err: %s", utils.PtpBCSlaveNodeLabel, err)
+		return fmt.Errorf("clean.All: fail to delete label: %s, err: %s", utils.PtpSlave2NodeLabel, err)
 	}
+
 	return nil
 }
 
@@ -57,9 +58,11 @@ func Configs() {
 
 	for _, ptpConfig := range ptpconfigList.Items {
 		if ptpConfig.Name == utils.PtpGrandMasterPolicyName ||
-			ptpConfig.Name == utils.PtpSlavePolicyName ||
-			ptpConfig.Name == utils.PtpBcMasterPolicyName ||
-			ptpConfig.Name == utils.PtpBcSlavePolicyName {
+			ptpConfig.Name == utils.PtpBcMaster1PolicyName ||
+			ptpConfig.Name == utils.PtpSlave1PolicyName ||
+			ptpConfig.Name == utils.PtpBcMaster2PolicyName ||
+			ptpConfig.Name == utils.PtpSlave2PolicyName ||
+			ptpConfig.Name == utils.PtpTempPolicyName {
 			err = client.Client.PtpConfigs(utils.PtpLinuxDaemonNamespace).Delete(context.Background(), ptpConfig.Name, metav1.DeleteOptions{})
 			if err != nil {
 				logrus.Errorf("clean.All: Failed to delete ptp config %s %v", ptpConfig.Name, err)
