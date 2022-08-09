@@ -37,8 +37,8 @@ const (
 	L2DiscoveryNsName              = "default"
 	L2DiscoveryContainerName       = "l2discovery"
 	timeoutDaemon                  = time.Second * 60
-	L2DiscoveryDuration            = time.Second * 15
-	L2DiscoveryDurationSNO         = time.Second * 15
+	L2DiscoveryDuration            = time.Second * 30
+	L2DiscoveryDurationSNO         = time.Second * 30
 	l2DiscoveryImage               = "quay.io/testnetworkfunction/l2discovery:v2"
 )
 
