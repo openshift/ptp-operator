@@ -1,0 +1,6 @@
+masteroffsetcontinuous:
+  enable: false
+  failFast: false
+  minoffset: -15
+  maxoffset: 19
+  duration:  9
