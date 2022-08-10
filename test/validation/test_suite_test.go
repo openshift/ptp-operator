@@ -4,8 +4,8 @@ import (
 	"flag"
 	"testing"
 
-	. "github.com/onsi/ginkgo"
-	"github.com/onsi/ginkgo/reporters"
+	. "github.com/onsi/ginkgo/v2"
+	"github.com/onsi/ginkgo/v2/reporters"
 	. "github.com/onsi/gomega"
 
 	testclient "github.com/openshift/ptp-operator/test/utils/client"

@@ -7,8 +7,8 @@ import (
 	"flag"
 	"testing"
 
-	. "github.com/onsi/ginkgo"
-	"github.com/onsi/ginkgo/reporters"
+	. "github.com/onsi/ginkgo/v2"
+	"github.com/onsi/ginkgo/v2/reporters"
 	. "github.com/onsi/gomega"
 
 	_ "github.com/openshift/ptp-operator/test/conformance/ptp"
@@ -21,7 +21,7 @@ import (
 var junitPath *string
 
 func init() {
-	junitPath = flag.String("junit", "junit.xml", "the path for the junit format report")
+	junitPath = flag.String("junit-report", "junit.xml", "the path for the junit format report")
 }
 
 func TestTest(t *testing.T) {
