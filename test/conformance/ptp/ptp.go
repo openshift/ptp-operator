@@ -12,7 +12,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -20,6 +19,7 @@ import (
 	. "github.com/openshift/ptp-operator/test/utils"
 	"github.com/openshift/ptp-operator/test/utils/daemonsets"
 	"github.com/openshift/ptp-operator/test/utils/event"
+	"github.com/openshift/ptp-operator/test/utils/execute"
 
 	"github.com/sirupsen/logrus"
 	v1app "k8s.io/api/apps/v1"
@@ -33,7 +33,6 @@ import (
 
 	"github.com/openshift/ptp-operator/test/utils/client"
 	testclient "github.com/openshift/ptp-operator/test/utils/client"
-	"github.com/openshift/ptp-operator/test/utils/execute"
 	"github.com/openshift/ptp-operator/test/utils/nodes"
 	testnode "github.com/openshift/ptp-operator/test/utils/nodes"
 	"github.com/openshift/ptp-operator/test/utils/pods"
@@ -60,7 +59,155 @@ const (
 	rebootDaemonSetContainerName = "container-00"
 )
 
+var _ = Describe("[ptp-long-running]", func() {
+
+	BeforeEach(func() {
+		Expect(client.Client).NotTo(BeNil())
+	})
+
+	Context("Soak testing", func() {
+
+		/*BeforeEach(func() {
+			if fullConfig.Status == testconfig.DiscoveryFailureStatus {
+				Skip("Failed to find a valid ptp slave configuration")
+			}
+			ptpPods, err := client.Client.CoreV1().Pods(PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(len(ptpPods.Items)).To(BeNumerically(">", 0), "linuxptp-daemon is not deployed on cluster")
+
+			ptpSlaveRunningPods := []v1core.Pod{}
+			ptpMasterRunningPods := []v1core.Pod{}
+
+			for podIndex := range ptpPods.Items {
+				if podRole(&ptpPods.Items[podIndex], fullConfig.DiscoveredSlavePtpConfig.Label) {
+					waitUntilLogIsDetected(&ptpPods.Items[podIndex], timeoutIn3Minutes, "Profile Name:")
+					ptpSlaveRunningPods = append(ptpSlaveRunningPods, ptpPods.Items[podIndex])
+				} else if podRole(&ptpPods.Items[podIndex], fullConfig.DiscoveredMasterPtpConfig.Label) {
+					waitUntilLogIsDetected(&ptpPods.Items[podIndex], timeoutIn3Minutes, "Profile Name:")
+					ptpMasterRunningPods = append(ptpMasterRunningPods, ptpPods.Items[podIndex])
+				}
+			}
+			if testconfig.GlobalConfig.ConfiguredMasterPresent {
+				Expect(len(ptpMasterRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP master pods on Cluster")
+				Expect(len(ptpSlaveRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP slave pods on Cluster")
+			} else {
+				Expect(len(ptpSlaveRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP slave pods on Cluster")
+			}
+			//ptpRunningPods = append(ptpMasterRunningPods, ptpSlaveRunningPods...)
+		})*/
+
+		Context("PTP parallel tests", func() {
+			It("test-feature-1", func() {
+				done := make(chan interface{})
+				go func() {
+					logrus.Info("Testing feature 1")
+					time.Sleep(100 * time.Millisecond)
+					logrus.Info("Ending testing feature 1")
+					close(done)
+				}()
+				Eventually(done, timeoutIn5Minutes).Should(BeClosed())
+			})
+			It("test-feature-2", func() {
+				done := make(chan interface{})
+				go func() {
+					logrus.Info("Testing feature 2")
+					time.Sleep(500 * time.Millisecond)
+					logrus.Info("Ending testing feature 2")
+					close(done)
+				}()
+				Eventually(done, timeoutIn10Minutes).Should(BeClosed())
+			})
+
+			It("test-feature-3", func() {
+				done := make(chan interface{})
+				go func() {
+					logrus.Info("Testing feature 3", 0)
+					time.Sleep(500 * time.Millisecond)
+					logrus.Info("Ending testing feature 3")
+					close(done)
+				}()
+				Eventually(done, timeoutIn10Minutes).Should(BeClosed())
+			})
+		})
+
+		/*It("continuous-offset-testing", func() {
+			logrus.Debug("soak-testing started")
+
+			logrus.Info("config=", testParameters)
+			//
+			if fullConfig.Status == testconfig.DiscoveryFailureStatus {
+				Fail("Failed to find a valid ptp slave configuration")
+			}
+			// Get All PTP pods
+			slaveNodes, err := client.Client.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{
+				LabelSelector: "ptp/test-slave",
+			})
+			if err != nil {
+				logrus.Error("Can't list slave nodes")
+				Fail("Can't list slave nodes")
+			}
+
+			var slavePods []v1.Pod
+
+			for _, s := range slaveNodes.Items {
+				ptpPods, err := client.Client.CoreV1().Pods(PtpLinuxDaemonNamespace).List(context.Background(),
+					metav1.ListOptions{LabelSelector: "app=linuxptp-daemon", FieldSelector: fmt.Sprintf("spec.nodeName=%s", s.Name)})
+				if err != nil {
+					logrus.Error("Error in getting ptp pods")
+					Fail("can't find ptp pods, test skipped")
+				}
+				slavePods = append(slavePods, ptpPods.Items...)
+			}
+
+			if len(slavePods) == 0 {
+				logrus.Error("No slave pod found")
+				Fail("no slave pods found")
+			}
+			messages := make(chan string)
+			duration := time.Duration(testParameters.MasterOffsetContinuousConfig.Duration) * time.Minute
+			ticker := time.NewTicker(duration)
+			var wg sync.WaitGroup
+			ctx, cancel := context.WithTimeout(context.Background(), duration)
+			for _, p := range slavePods {
+				logrus.Debug("node=", p.Spec.NodeName, ", pod=", p.Name, " label=", p.Labels)
+				wg.Add(1)
+				go func(namespace, pod, container string, min, max int, messages chan string, ctx context.Context) {
+					defer wg.Done()
+					GetPodLogs(namespace, pod, container, min, max, messages, ctx)
+				}(p.Namespace, p.Name, PtpContainerName,
+					testParameters.MasterOffsetContinuousConfig.MinOffset,
+					testParameters.MasterOffsetContinuousConfig.MaxOffset,
+					messages, ctx)
+			}
+			asyncCounter := 0
+		L1:
+			for {
+				select {
+				case msg := <-messages:
+					if testParameters.MasterOffsetContinuousConfig.FailFast {
+						cancel()
+						Fail(msg)
+						break L1
+					} else {
+						logrus.Error(msg)
+						asyncCounter++
+					}
+				case <-ticker.C:
+					logrus.Info("test duration ended")
+					cancel()
+					break L1
+				}
+			}
+			wg.Wait()
+			if asyncCounter != 0 {
+				Fail("Error found in master offset sync, please check the logs")
+			}
+		})*/
+	})
+})
+
 var _ = Describe("[ptp]", func() {
+
 	BeforeEach(func() {
 		Expect(client.Client).NotTo(BeNil())
 	})
@@ -100,7 +247,6 @@ var _ = Describe("[ptp]", func() {
 		// Setup verification
 		It("Should check that all nodes are running at least one replica of linuxptp-daemon", func() {
 			By("Getting ptp operator config")
-
 			ptpConfig, err := client.Client.PtpV1Interface.PtpOperatorConfigs(PtpLinuxDaemonNamespace).Get(context.Background(), ptpConfigOperatorName, metav1.GetOptions{})
 			Expect(err).NotTo(HaveOccurred())
 			listOptions := metav1.ListOptions{}
@@ -133,26 +279,20 @@ var _ = Describe("[ptp]", func() {
 				}
 			}
 		})
-
 	})
 
-	Describe("PTP e2e tests", func() {
+	Describe("PTP e2e tests", Serial, func() {
 		var ptpRunningPods []v1core.Pod
 		var fifoPriorities map[string]int64
 		var fullConfig testconfig.TestConfig
-		var testParameters Configuration
 
 		execute.BeforeAll(func() {
 			testconfig.CreatePtpConfigurations()
 			fullConfig = testconfig.GetFullDiscoveredConfig(PtpLinuxDaemonNamespace, false)
-			testParameters = getConfiguration()
-
 			restartPtpDaemon()
-
 		})
 
 		Context("PTP Reboot discovery", func() {
-
 			BeforeEach(func() {
 				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 					Skip("Failed to find a valid ptp slave configuration")
@@ -412,80 +552,6 @@ var _ = Describe("[ptp]", func() {
 
 				logrus.Infof("Discovered master ptp config %s", ptpConfig.DiscoveredMasterPtpConfig.String())
 				logrus.Infof("Discovered slave ptp config %s", ptpConfig.DiscoveredSlavePtpConfig.String())
-			})
-
-			It("continuous-offset-testing", func() {
-				logrus.Debug("soak-testing started")
-
-				logrus.Info("config=", testParameters)
-				//
-				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
-					Fail("Failed to find a valid ptp slave configuration")
-				}
-				// Get All PTP pods
-				slaveNodes, err := client.Client.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{
-					LabelSelector: "ptp/test-slave",
-				})
-				if err != nil {
-					logrus.Error("Can't list slave nodes")
-					Fail("Can't list slave nodes")
-				}
-
-				var slavePods []v1.Pod
-
-				for _, s := range slaveNodes.Items {
-					ptpPods, err := client.Client.CoreV1().Pods(PtpLinuxDaemonNamespace).List(context.Background(),
-						metav1.ListOptions{LabelSelector: "app=linuxptp-daemon", FieldSelector: fmt.Sprintf("spec.nodeName=%s", s.Name)})
-					if err != nil {
-						logrus.Error("Error in getting ptp pods")
-						Fail("can't find ptp pods, test skipped")
-					}
-					slavePods = append(slavePods, ptpPods.Items...)
-				}
-
-				if len(slavePods) == 0 {
-					logrus.Error("No slave pod found")
-					Fail("no slave pods found")
-				}
-				messages := make(chan string)
-				duration := time.Duration(testParameters.MasterOffsetContinuousConfig.Duration) * time.Minute
-				ticker := time.NewTicker(duration)
-				var wg sync.WaitGroup
-				ctx, cancel := context.WithTimeout(context.Background(), duration)
-				for _, p := range slavePods {
-					logrus.Debug("node=", p.Spec.NodeName, ", pod=", p.Name, " label=", p.Labels)
-					wg.Add(1)
-					go func(namespace, pod, container string, min, max int, messages chan string, ctx context.Context) {
-						defer wg.Done()
-						GetPodLogs(namespace, pod, container, min, max, messages, ctx)
-					}(p.Namespace, p.Name, PtpContainerName,
-						testParameters.MasterOffsetContinuousConfig.MinOffset,
-						testParameters.MasterOffsetContinuousConfig.MaxOffset,
-						messages, ctx)
-				}
-				asyncCounter := 0
-			L1:
-				for {
-					select {
-					case msg := <-messages:
-						if testParameters.MasterOffsetContinuousConfig.FailFast {
-							cancel()
-							Fail(msg)
-							break L1
-						} else {
-							logrus.Error(msg)
-							asyncCounter++
-						}
-					case <-ticker.C:
-						logrus.Info("test duration ended")
-						cancel()
-						break L1
-					}
-				}
-				wg.Wait()
-				if asyncCounter != 0 {
-					Fail("Error found in master offset sync, please check the logs")
-				}
 			})
 		})
 
