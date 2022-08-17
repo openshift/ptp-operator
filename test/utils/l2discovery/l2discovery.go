@@ -39,7 +39,7 @@ const (
 	timeoutDaemon                  = time.Second * 60
 	L2DiscoveryDuration            = time.Second * 15
 	L2DiscoveryDurationSNO         = time.Second * 15
-	l2DiscoveryImage               = "quay.io/deliedit/l2discovery654419616:latest"
+	l2DiscoveryImage               = "quay.io/testnetworkfunction/l2discovery:v3"
 	FirstSolution                  = 0
 )
 
