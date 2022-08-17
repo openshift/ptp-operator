@@ -8,6 +8,7 @@ require (
 	github.com/Masterminds/sprig v2.22.0+incompatible
 	github.com/go-logr/logr v1.2.0
 	github.com/golang/glog v1.0.0
+	github.com/google/go-cmp v0.5.8 // indirect
 	github.com/huandu/xstrings v1.3.2 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/onsi/ginkgo v1.16.5
@@ -20,6 +21,7 @@ require (
 	github.com/sirupsen/logrus v1.8.1
 	github.com/test-network-function/l2discovery v0.0.0-20220623183212-8664ef7e8a44
 	github.com/yourbasic/graph v0.0.0-20210606180040-8ecfec1c2869
+	golang.org/x/tools v0.1.11 // indirect
 	k8s.io/api v0.23.0
 	k8s.io/apiextensions-apiserver v0.23.0
 	k8s.io/apimachinery v0.23.0
