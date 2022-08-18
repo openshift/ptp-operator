@@ -21,8 +21,26 @@ type MasterOffsetContinuous struct {
 	Duration  int64 `yaml:"duration"`
 }
 
+type TestCaseA struct {
+	Enable    bool  `yaml:"enable"`
+	FailFast  bool  `yaml:"failfast"`
+	MinOffset int   `yaml:"minoffset"`
+	MaxOffset int   `yaml:"maxoffset"`
+	Duration  int64 `yaml:"duration"`
+}
+
+type TestCaseB struct {
+	Enable    bool  `yaml:"enable"`
+	FailFast  bool  `yaml:"failfast"`
+	MinOffset int   `yaml:"minoffset"`
+	MaxOffset int   `yaml:"maxoffset"`
+	Duration  int64 `yaml:"duration"`
+}
+
 type Configuration struct {
 	MasterOffsetContinuousConfig MasterOffsetContinuous `yaml:"masteroffsetcontinuous"`
+	TestCaseAConfig              TestCaseA              `yaml:"testacontinuous"`
+	TestCaseBConfig              TestCaseB              `yaml:"testbcontinuous"`
 }
 
 var configuration Configuration

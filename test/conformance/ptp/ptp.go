@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -60,18 +61,22 @@ const (
 )
 
 var _ = Describe("[ptp-long-running]", func() {
+	var fullConfig testconfig.TestConfig
+	var testParameters Configuration
 
 	BeforeEach(func() {
 		Expect(client.Client).NotTo(BeNil())
+		fullConfig = testconfig.GetFullDiscoveredConfig(utils.PtpLinuxDaemonNamespace, false)
+		testParameters = getConfiguration()
 	})
 
 	Context("Soak testing", func() {
 
-		/*BeforeEach(func() {
+		BeforeEach(func() {
 			if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 				Skip("Failed to find a valid ptp slave configuration")
 			}
-			ptpPods, err := client.Client.CoreV1().Pods(PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
+			ptpPods, err := client.Client.CoreV1().Pods(utils.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(ptpPods.Items)).To(BeNumerically(">", 0), "linuxptp-daemon is not deployed on cluster")
 
@@ -79,22 +84,22 @@ var _ = Describe("[ptp-long-running]", func() {
 			ptpMasterRunningPods := []v1core.Pod{}
 
 			for podIndex := range ptpPods.Items {
-				if podRole(&ptpPods.Items[podIndex], fullConfig.DiscoveredSlavePtpConfig.Label) {
+				if podRole(&ptpPods.Items[podIndex], utils.PtpClockUnderTestNodeLabel) {
 					waitUntilLogIsDetected(&ptpPods.Items[podIndex], timeoutIn3Minutes, "Profile Name:")
 					ptpSlaveRunningPods = append(ptpSlaveRunningPods, ptpPods.Items[podIndex])
-				} else if podRole(&ptpPods.Items[podIndex], fullConfig.DiscoveredMasterPtpConfig.Label) {
+				} else if podRole(&ptpPods.Items[podIndex], utils.PtpGrandmasterNodeLabel) {
 					waitUntilLogIsDetected(&ptpPods.Items[podIndex], timeoutIn3Minutes, "Profile Name:")
 					ptpMasterRunningPods = append(ptpMasterRunningPods, ptpPods.Items[podIndex])
 				}
 			}
-			if testconfig.GlobalConfig.ConfiguredMasterPresent {
+			if testconfig.GlobalConfig.DiscoveredGrandMasterPtpConfig != nil {
 				Expect(len(ptpMasterRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP master pods on Cluster")
 				Expect(len(ptpSlaveRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP slave pods on Cluster")
 			} else {
 				Expect(len(ptpSlaveRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP slave pods on Cluster")
 			}
 			//ptpRunningPods = append(ptpMasterRunningPods, ptpSlaveRunningPods...)
-		})*/
+		})
 
 		Context("PTP parallel tests", func() {
 			It("test-feature-1", func() {
@@ -130,7 +135,7 @@ var _ = Describe("[ptp-long-running]", func() {
 			})
 		})
 
-		/*It("continuous-offset-testing", func() {
+		It("continuous-offset-testing", func() {
 			logrus.Debug("soak-testing started")
 
 			logrus.Info("config=", testParameters)
@@ -150,7 +155,7 @@ var _ = Describe("[ptp-long-running]", func() {
 			var slavePods []v1.Pod
 
 			for _, s := range slaveNodes.Items {
-				ptpPods, err := client.Client.CoreV1().Pods(PtpLinuxDaemonNamespace).List(context.Background(),
+				ptpPods, err := client.Client.CoreV1().Pods(utils.PtpLinuxDaemonNamespace).List(context.Background(),
 					metav1.ListOptions{LabelSelector: "app=linuxptp-daemon", FieldSelector: fmt.Sprintf("spec.nodeName=%s", s.Name)})
 				if err != nil {
 					logrus.Error("Error in getting ptp pods")
@@ -174,7 +179,7 @@ var _ = Describe("[ptp-long-running]", func() {
 				go func(namespace, pod, container string, min, max int, messages chan string, ctx context.Context) {
 					defer wg.Done()
 					GetPodLogs(namespace, pod, container, min, max, messages, ctx)
-				}(p.Namespace, p.Name, PtpContainerName,
+				}(p.Namespace, p.Name, utils.PtpContainerName,
 					testParameters.MasterOffsetContinuousConfig.MinOffset,
 					testParameters.MasterOffsetContinuousConfig.MaxOffset,
 					messages, ctx)
@@ -202,7 +207,7 @@ var _ = Describe("[ptp-long-running]", func() {
 			if asyncCounter != 0 {
 				Fail("Error found in master offset sync, please check the logs")
 			}
-		})*/
+		})
 	})
 })
 

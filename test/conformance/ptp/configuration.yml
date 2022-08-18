@@ -4,3 +4,17 @@ masteroffsetcontinuous:
   minoffset: -100
   maxoffset: 100
   duration:  10 
+
+testacontinuous:
+  enable: true
+  failfast: true
+  minoffset: -100
+  maxoffset: 100
+  duration:  10 
+
+testbcontinuous:
+  enable: true
+  failfast: true
+  minoffset: -100
+  maxoffset: 100
+  duration:  10 
