@@ -6,6 +6,8 @@ To run the conformance tests, first set the following environment variables:
 - **PTP_TEST_MODE**: this is the desired mode to run the tests. Choose between: Discovery, OC and BC. See below for an explanation for each mode.
 - **DISCOVERY_MODE**: This is a legacy option and is equivalent to setting "Discovery" option in the PTP_TEST_MODE environment variable
 - **ENABLE_TEST_CASE**: This is an option to run the long running tests separated by comma. For example, to run reboot test, `ENABLE_TEST_CASE=reboot` shall be used.
+- **SKIP_INTERFACES**: passes a list of interfaces to be skipped in the form "eno1,ens2f1" `SKIP_INTERFACES="eno1,ens2f1"`
+- **KEEP_PTPCONFIG**: if set to true, the test script will not delete the ptpconfig it automatically created. If set to false, it will delete them. The ptpconfigs are deleted by default. For instance `KEEP_PTPCONFIG=true`
 
 Then run the following command:
 ```
@@ -31,16 +33,12 @@ docker run -e PTP_TEST_MODE=OC -e ENABLE_TEST_CASE=reboot -v /home/usr/.kube/con
 ```
 
 ## Labelling test nodes manually in discovery mode
-In Discovery mode, the node roles are indicated via labels
-To indicate a node with a OC configuration, label it with 
-```
- oc label  node <nodename>    ptp/test-slave=""
-```
+In Discovery mode, the node holding the clock under test is indicated via a label
 To indicate a node with a BC configuration, label it with 
 ```
- oc label  node <nodename>    ptp/test-bc-master=""
+ oc label  node <nodename>    ptp/clock-under-test=""
 ```
-In addition to the label, a valid user provided ptpconfig must be present corresponding to the labelled node
+In addition to the label, a valid user provided ptpconfig must be present corresponding to the labeled node
 
 example BC ptp config:
 ```yaml
@@ -80,7 +78,7 @@ spec:
     ptpSchedulingPriority: 65
   recommend:
   - match:
-    - nodeLabel: ptp/test-bc-master
+    - nodeLabel: ptp/clock-under-test
     priority: 5
     profile: test-bc-master
 
@@ -89,7 +87,7 @@ spec:
 The type of clock to test is indicated by selecting a PTP test mode. The mode selection also determines which test are executed.
 ### Discovery mode
 This mode assumes that one or more valid ptpconfig objects are configured in the openshift-ptp namespace. The test parses the ptpconfig objects and labels to automatically determines the type of clock to test. Currently able to detect OC, BC configurations. GrandMasters or Boundary clock slaves are not detected.
-### Auto-Configured modes
+### Auto-Configured modes in SNO and Multinode clusters
 The following modes need a multinode or single node cluster to run:
 - with a multi-node cluster, One node is selected to act as a Master. Another node is selected to act as a slave Ordinary clock. The test suite uses the L2 discovery mechanism to discover the cluster connectivity and create a graph of the network. The graph is resolved to find the best OC, or BC configuration. 
 - with a single node cluster, the L2 mechanism instead reports interfaces on which PTP ethernet frames are received. The PTP frames received are assumed to be from ax external Grand master. The test suite uses one of the interfaces identified as receiving ptp GM frames and create the ordinary or boundary clock with it. 
@@ -97,27 +95,41 @@ The following modes need a multinode or single node cluster to run:
 #### OC
 The OC configurations includes a grandmaster providing a clock signal to a slave ordinary clock. See diagram below:
 
-![discovery_workflow](doc/oc_config.svg)
+![multi_oc](doc/multi_oc.svg)
 
 If the OC configuration was detected from the discovery mode or in OC mode in single node cluster with an external grandmaster, the following diagram applies:
 
-![discovery_workflow](doc/oc_config_external.svg)
+![sno_oc](doc/sno_oc.svg)
 #### BC
 Several boundary clock scenarios are possible, dependent on minimum hardware configuration.
 In the optimal scenario, the openshift cluster needs to be at least connected to 2 separate LANs. These LANs are realized with the help of VLANs or other technologies. The following configuration is tested if 2 LANs are detected in the cluster. Note that the cluster needs to have at least one NIC which ports are connected on the 2 separate LANs, as shown below:
 
-![discovery_workflow](doc/bc_config.svg)
+![multi_bc_with_slave](doc/multi_bc_with_slave.svg)
 
 If only one LAN is available, the following configuration is tested. In this case, the synchronization of the slave ordinary clocks cannot be tested
 
-![discovery_workflow](doc/bc_config_no_slave.svg)
+![multi_bc](doc/multi_bc.svg)
 
-Finally, if the BC clock is discovered in "Discovery" mode or in BC mode but in single node cluster, then the following configuration can be tested. Note that in this mode, the conformance test suite does not modify the ptpconfigs provided by the user. The user provides a boundary clock configuration, then the following configuration is tested:
+Finally, if the BC clock is discovered in "Discovery" mode or in BC mode but in single node cluster, then the following configuration can be tested. Note that in discovery mode, the conformance test suite does not modify the ptpconfigs provided by the user. 
 
-![discovery_workflow](doc/bc_config_external_no_slave.svg)
+![sno_bc](doc/sno_bc.svg)
+
 
 #### DualNICBC
-Not Implemented yet
+
+Several dual NIC boundary clock scenarios are possible, dependent on minimum hardware configuration.
+In the optimal scenario, the openshift cluster needs to be at least connected to 3 separate LANs. These LANs are realized with the help of VLANs or other technologies. The following configuration is tested if 3 LANs are detected in the cluster.
+
+![multi_dnbc_with_slaves](doc/multi_dnbc_with_slaves.svg)
+
+If only one LAN is available, the following configuration is tested. In this case, the synchronization of the slave ordinary clocks cannot be tested
+
+![multi_dnbc](doc/multi_dnbc.svg)
+
+Finally, if the BC clock is discovered in "Discovery" mode or in Dual NIC BC mode but in single node cluster, then the following configuration can be tested. Note that in discovery mode, the conformance test suite does not modify the ptpconfigs provided by the user. 
+
+![sno_dnbc](doc/sno_dnbc.svg)
+
 ## Test mode discovery workflow 
 The Test mode discovery workflow is as follows:
 
@@ -200,6 +212,26 @@ Each openshift node reports L2 connectivity with a JSON log as shown below. The 
 
 ## Solving Clock configuration from discovered L2 topology
 
-The following flowchart describes the algorithm producing the OC and BC ptp configuration based on the L2 connectivity graph:
+To solve the problem of finding an optimal ptp configuration, we are using a homemade solver based on the backtracting algorithm modified to take into account multiple level of successive constraints
 
-![L2topology](doc/bc_configuration_flowchart.svg)
+As an example, the representation of the algorithm to solve the BC configuration in a multinode scenario is the following:
+
+![multi_bc](doc/multi_bc.svg)
+
+Note the labels, p0, p1. These represent the interface number in the algorithm and also the step. in step 0, we can check constraints for interface p0 only. In step 1, we can check constraints for interfaces p0 and p1 if needed.
+The representation in the code of the visual representation of the algorithm represented by the picture above is the following:
+
+```
+	BCAlgo := [][][]int{
+		{{int(StepNil), 0, 0}},            //step nil
+		{{int(StepSameNic), 2, 0, 1}},     //step0 checks that p0 and p1 are in the same NIC
+		{{int(StepSameIsland2), 2, 1, 2}}, //step1 checks that p1 and p2 are in the same island
+	}
+```
+
+each step in the algorithm means:
+
+```
+{<constraint to check>, <number of parameters to the function>, <interface0>, ..., interfaceN}}
+```
+note: parameter0 ... parameterN are integers representing an interface. 0 means p0, 1 means p1, etc...

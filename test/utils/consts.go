@@ -3,29 +3,36 @@ package utils
 const (
 	// NamespaceTesting contains the name of the testing namespace
 
-	ETHTOOL_HARDWARE_RECEIVE_CAP    = "hardware-receive"
-	ETHTOOL_HARDWARE_TRANSMIT_CAP   = "hardware-transmit"
-	ETHTOOL_HARDWARE_RAW_CLOCK_CAP  = "hardware-raw-clock"
-	ETHTOOL_RX_HARDWARE_FLAG        = "(SOF_TIMESTAMPING_RX_HARDWARE)"
-	ETHTOOL_TX_HARDWARE_FLAG        = "(SOF_TIMESTAMPING_TX_HARDWARE)"
-	ETHTOOL_RAW_HARDWARE_FLAG       = "(SOF_TIMESTAMPING_RAW_HARDWARE)"
-	PtpLinuxDaemonNamespace         = "openshift-ptp"
-	PtpOperatorDeploymentName       = "ptp-operator"
-	PtpDaemonsetName                = "linuxptp-daemon"
-	PtpGrandmasterNodeLabel         = "ptp/test-grandmaster"
-	PtpSlaveNodeLabel               = "ptp/test-slave"
-	PtpBCMasterNodeLabel            = "ptp/test-bc-master"
-	PtpBCSlaveNodeLabel             = "ptp/test-bc-slave"
+	ETHTOOL_HARDWARE_RECEIVE_CAP   = "hardware-receive"
+	ETHTOOL_HARDWARE_TRANSMIT_CAP  = "hardware-transmit"
+	ETHTOOL_HARDWARE_RAW_CLOCK_CAP = "hardware-raw-clock"
+	ETHTOOL_RX_HARDWARE_FLAG       = "(SOF_TIMESTAMPING_RX_HARDWARE)"
+	ETHTOOL_TX_HARDWARE_FLAG       = "(SOF_TIMESTAMPING_TX_HARDWARE)"
+	ETHTOOL_RAW_HARDWARE_FLAG      = "(SOF_TIMESTAMPING_RAW_HARDWARE)"
+	PtpLinuxDaemonNamespace        = "openshift-ptp"
+	PtpOperatorDeploymentName      = "ptp-operator"
+	PtpDaemonsetName               = "linuxptp-daemon"
+
 	PtpResourcesGroupVersionPrefix  = "ptp.openshift.io/v"
 	PtpResourcesNameOperatorConfigs = "ptpoperatorconfigs"
 	NodePtpDeviceAPIPath            = "/apis/ptp.openshift.io/v1/namespaces/openshift-ptp/nodeptpdevices/"
 	ConfigPtpAPIPath                = "/apis/ptp.openshift.io/v1/namespaces/openshift-ptp/ptpconfigs"
 	PtpContainerName                = "linuxptp-daemon-container"
 	EventProxyContainerName         = "cloud-event-proxy"
-	PtpGrandMasterPolicyName        = "test-grandmaster"
-	PtpSlavePolicyName              = "test-slave"
-	PtpBcMasterPolicyName           = "test-bc-master"
-	PtpBcSlavePolicyName            = "test-bc-slave"
+
+	// policy name
+	PtpGrandMasterPolicyName = "test-grandmaster"
+	PtpBcMaster1PolicyName   = "test-bc-master1"
+	PtpSlave1PolicyName      = "test-slave1"
+	PtpBcMaster2PolicyName   = "test-bc-master2"
+	PtpSlave2PolicyName      = "test-slave2"
+	PtpTempPolicyName        = "temp"
+
+	// node labels
+	PtpGrandmasterNodeLabel    = "ptp/test-grandmaster"
+	PtpClockUnderTestNodeLabel = "ptp/clock-under-test"
+	PtpSlave1NodeLabel         = "ptp/test-slave1"
+	PtpSlave2NodeLabel         = "ptp/test-slave2"
 )
 
 const (

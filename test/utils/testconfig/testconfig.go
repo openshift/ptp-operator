@@ -20,12 +20,7 @@ import (
 )
 
 const (
-	// OrdinaryClockString matches the OC clock mode in Environement
-	OrdinaryClockString = "OC"
-	// BoundaryClockString matches the BC clock mode in Environement
-	BoundaryClockString = "BC"
-	// DualNICBoundaryClockString matches the DualNICBC clock mode in Environement
-	DualNICBoundaryClockString = "DualNICBC"
+
 	// DualNICBoundaryClockString matches the Discovery clock mode in Environement
 	DiscoveryString = "Discovery"
 	// legacyDiscoveryString matches the legacy Discovery clock mode in Environement
@@ -45,6 +40,18 @@ const (
 	PtpLinuxDaemonNamespace      = "openshift-ptp"
 	int65                        = 65
 	int5                         = 5
+	// OrdinaryClockString matches the OC clock mode in Environement
+	OrdinaryClockString = "OC"
+	// BoundaryClockString matches the BC clock mode in Environement
+	BoundaryClockString = "BC"
+	// DualNICBoundaryClockString matches the DualNICBC clock mode in Environement
+	DualNICBoundaryClockString = "DualNICBC"
+	ptp4lEthernet              = "-2"
+	ptp4lEthernetSlave         = "-2 -s"
+	phc2sysGM                  = "-a -r -r"
+	phc2sysSlave               = "-a -r"
+	SCHED_OTHER                = "SCHED_OTHER"
+	SCHED_FIFO                 = "SCHED_FIFO"
 )
 
 type ConfigStatus int64
@@ -81,16 +88,14 @@ type TestConfig struct {
 	PtpModeDesired    PTPMode
 	PtpModeDiscovered PTPMode
 	Status            ConfigStatus
-	DiscoveredSlavePtpConfig,
-	DiscoveredSlavePtpConfigSecondary,
-	DiscoveredMasterPtpConfig *ptpDiscoveryRes
-	L2Config                *l2discovery.L2DiscoveryConfig
-	ConfiguredMasterPresent bool
+	DiscoveredGrandMasterPtpConfig,
+	DiscoveredSlave1PtpConfig,
+	DiscoveredSlave2PtpConfig,
+	DiscoveredClockUnderTestPtpConfig,
+	DiscoveredClockUnderTestSecondaryPtpConfig *ptpDiscoveryRes
+	L2Config *l2discovery.L2DiscoveryConfig
 }
-type ptpDiscoveryRes struct {
-	Label  string
-	Config ptpv1.PtpConfig
-}
+type ptpDiscoveryRes ptpv1.PtpConfig
 
 const BasePtp4lConfig = `[global]
 ptp_dst_mac 01:1B:19:00:00:00
@@ -99,16 +104,24 @@ domainNumber 24
 logging_level 7`
 
 func (obj *ptpDiscoveryRes) String() string {
-	return fmt.Sprintf("[label=%s, config name=%s]", obj.Label, obj.Config.Name)
+	if obj == nil {
+		return "nil"
+	}
+	return obj.Name
 }
 func (obj *TestConfig) String() string {
-	return fmt.Sprintf("PtpModeDesired=%s, PtpModeDiscovered=%s, Status=%s, DiscoveredSlavePtpConfig=%s, DiscoveredSlavePtpConfigSecondary=%s, DiscoveredMasterPtpConfig=%s",
+	if obj == nil {
+		return "nil"
+	}
+	return fmt.Sprintf("PtpModeDesired=%s, PtpModeDiscovered=%s, Status=%s, DiscoveredClockUnderTestPtpConfig=%s, DiscoveredClockUnderTestSecondaryPtpConfig=%s, DiscoveredGrandMasterPtpConfig=%s, DiscoveredSlave1PtpConfig=%s, DiscoveredSlave2PtpConfig=%s",
 		obj.PtpModeDesired,
 		obj.PtpModeDiscovered,
 		obj.Status,
-		obj.DiscoveredSlavePtpConfig,
-		obj.DiscoveredSlavePtpConfigSecondary,
-		obj.DiscoveredMasterPtpConfig)
+		obj.DiscoveredClockUnderTestPtpConfig,
+		obj.DiscoveredClockUnderTestSecondaryPtpConfig,
+		obj.DiscoveredGrandMasterPtpConfig,
+		obj.DiscoveredSlave1PtpConfig,
+		obj.DiscoveredSlave2PtpConfig)
 }
 
 func (status ConfigStatus) String() string {
@@ -146,16 +159,16 @@ func (mode PTPMode) String() string {
 }
 
 func StringToMode(aString string) PTPMode {
-	switch aString {
-	case OrdinaryClockString:
+	switch strings.ToLower(aString) {
+	case strings.ToLower(OrdinaryClockString):
 		return OrdinaryClock
-	case BoundaryClockString:
+	case strings.ToLower(BoundaryClockString):
 		return BoundaryClock
-	case DualNICBoundaryClockString:
+	case strings.ToLower(DualNICBoundaryClockString):
 		return DualNICBoundaryClock
-	case DiscoveryString, legacyDiscoveryString:
+	case strings.ToLower(DiscoveryString), strings.ToLower(legacyDiscoveryString):
 		return Discovery
-	case NoneString:
+	case strings.ToLower(NoneString):
 		return OrdinaryClock
 	default:
 		return OrdinaryClock
@@ -224,7 +237,23 @@ func CreatePtpConfigurations() {
 		if err != nil {
 			logrus.Errorf("Error deleting labels and configuration, err=%s", err)
 		}
-		CreatePtpConfigs(GlobalConfig.L2Config)
+
+		if len(GlobalConfig.L2Config.Solutions) == 0 {
+			logrus.Errorf("Could not find a solution")
+			return
+		}
+		switch GlobalConfig.PtpModeDesired {
+		case Discovery, None:
+			logrus.Errorf("error creating ptpconfig Discovery, None not supported")
+		case OrdinaryClock:
+			PtpConfigOC(GlobalConfig.L2Config)
+
+		case BoundaryClock:
+			PtpConfigBC(GlobalConfig.L2Config)
+		case DualNICBoundaryClock:
+			PtpConfigDualNicBC(GlobalConfig.L2Config)
+		}
+
 	}
 }
 
@@ -232,6 +261,7 @@ func CreatePtpConfigurations() {
 func GetFullDiscoveredConfig(namespace string, forceUpdate bool) TestConfig {
 	logrus.Infof("Getting ptp configuration for namespace:%s", namespace)
 	defer logrus.Infof("Current PTP test config=%s", &GlobalConfig)
+
 	if GlobalConfig.Status == DiscoveryFailureStatus ||
 		GlobalConfig.Status == DiscoverySuccessStatus && !forceUpdate {
 		return GlobalConfig
@@ -241,112 +271,367 @@ func GetFullDiscoveredConfig(namespace string, forceUpdate bool) TestConfig {
 	return GlobalConfig
 }
 
-// Creates the ptpconfigs based on the calculated best clock configuration
-func CreatePtpConfigs(config *l2discovery.L2DiscoveryConfig) {
-	if config == nil {
-		return
-	}
-	ptpSchedulingPolicy := "SCHED_OTHER"
+func CreatePtpConfigGrandMaster(nodeName, ifName string) error {
+	ptpSchedulingPolicy := SCHED_OTHER
 	configureFifo, err := strconv.ParseBool(os.Getenv("CONFIGURE_FIFO"))
 	if err == nil && configureFifo {
-		ptpSchedulingPolicy = "SCHED_FIFO"
+		ptpSchedulingPolicy = SCHED_FIFO
 	}
-	if config.BestClockConfig.Grandmaster != nil {
-		// Labeling the grandmaster node
-		_, err = nodes.LabelNode(config.BestClockConfig.Grandmaster.NodeName, utils.PtpGrandmasterNodeLabel, "")
-		if err != nil {
-			logrus.Errorf("Error setting Grandmaster node role label: %s", err)
-		}
+	// Labeling the grandmaster node
+	_, err = nodes.LabelNode(nodeName, utils.PtpGrandmasterNodeLabel, "")
+	if err != nil {
+		logrus.Errorf("Error setting Grandmaster node role label: %s", err)
 	}
-	if config.BestClockConfig.Slave != nil {
-		// Labeling the Slave node
-		_, err = nodes.LabelNode(config.BestClockConfig.Slave.NodeName, utils.PtpSlaveNodeLabel, "")
-		if err != nil {
-			logrus.Errorf("Error setting Slave node role label: %s", err)
-		}
-	}
-	if len(config.BestClockConfig.BcMaster) > 0 &&
-		config.BestClockConfig.BcMaster[0] != nil {
-		// Labeling the BC master node
-		_, err = nodes.LabelNode(config.BestClockConfig.BcMaster[0].NodeName, utils.PtpBCMasterNodeLabel, "")
-		if err != nil {
-			logrus.Errorf("Error setting BC Master node role label: %s", err)
-		}
-	}
-	if len(config.BestClockConfig.BcSlave) > 0 &&
-		config.BestClockConfig.BcSlave[0] != nil {
-		// Labeling the BC Slave node
-		_, err = nodes.LabelNode(config.BestClockConfig.BcSlave[0].NodeName, utils.PtpBCSlaveNodeLabel, "")
-		if err != nil {
-			logrus.Errorf("Error setting BC Slave node role label: %s", err)
-		}
-	}
+
 	// Grandmaster
-	if config.BestClockConfig.Grandmaster != nil {
-		err = createConfig(utils.PtpGrandMasterPolicyName,
-			&config.BestClockConfig.Grandmaster.IfName,
-			"-2",
-			BasePtp4lConfig,
-			"-a -r -r",
-			utils.PtpGrandmasterNodeLabel,
-			pointer.Int64Ptr(int5),
-			ptpSchedulingPolicy,
-			pointer.Int64Ptr(int65))
+	gmConfig := BasePtp4lConfig + "\nmasterOnly 1"
+	ptp4lsysOpts := ptp4lEthernet
+	phc2sysOpts := phc2sysGM
+	return createConfig(utils.PtpGrandMasterPolicyName,
+		&ifName,
+		&ptp4lsysOpts,
+		gmConfig,
+		&phc2sysOpts,
+		utils.PtpGrandmasterNodeLabel,
+		pointer.Int64Ptr(int5),
+		ptpSchedulingPolicy,
+		pointer.Int64Ptr(int65))
+
+}
+
+func CreatePtpConfigBC(policyName, nodeName, ifMasterName, ifSlaveName string, phc2sys bool) (err error) {
+	ptpSchedulingPolicy := SCHED_OTHER
+	configureFifo, err := strconv.ParseBool(os.Getenv("CONFIGURE_FIFO"))
+	if err == nil && configureFifo {
+		ptpSchedulingPolicy = SCHED_FIFO
 	}
-	switch GlobalConfig.PtpModeDesired {
-	case Discovery, DualNICBoundaryClock, None:
-		logrus.Errorf("error creating ptpconfig Discovery, DualNICBoundaryClock, None not supported")
-	case OrdinaryClock:
-		if config.BestClockConfig.Slave != nil {
-			// Slave
-			err = createConfig(utils.PtpSlavePolicyName,
-				&config.BestClockConfig.Slave.IfName,
-				"-s -2",
-				BasePtp4lConfig,
-				"-a -r",
-				utils.PtpSlaveNodeLabel,
-				pointer.Int64Ptr(int5),
-				ptpSchedulingPolicy,
-				pointer.Int64Ptr(int65))
-			if err != nil {
-				logrus.Errorf("error creating OC ptpconfig, err=%s", err)
-			}
-		}
-	case BoundaryClock:
-		if len(config.BestClockConfig.BcMaster) > 0 &&
-			config.BestClockConfig.BcMaster[0] != nil {
-			bcConfig := BasePtp4lConfig + "\nboundary_clock_jbod 1"
-			bcConfig = AddInterface(bcConfig, config.BestClockConfig.Slave.IfName, 0)
-			bcConfig = AddInterface(bcConfig, config.BestClockConfig.BcMaster[0].IfName, 1)
-			err = createConfig(utils.PtpBcMasterPolicyName,
-				nil,
-				"-s -2",
-				bcConfig,
-				"-a -r",
-				utils.PtpBCMasterNodeLabel,
-				pointer.Int64Ptr(int5),
-				ptpSchedulingPolicy,
-				pointer.Int64Ptr(int65))
-		}
+	_, err = nodes.LabelNode(nodeName, utils.PtpClockUnderTestNodeLabel, "")
+	if err != nil {
+		logrus.Errorf("Error setting BC node role label: %s", err)
+	}
+
+	bcConfig := BasePtp4lConfig + "\nboundary_clock_jbod 1\ngmCapable 0"
+	bcConfig = AddInterface(bcConfig, ifSlaveName, 0)
+	bcConfig = AddInterface(bcConfig, ifMasterName, 1)
+	ptp4lsysOpts := ptp4lEthernet
+
+	var phc2sysOpts *string
+	temp := phc2sysSlave
+	if phc2sys {
+		phc2sysOpts = &temp
+	} else {
+		phc2sysOpts = nil
+	}
+	return createConfig(policyName,
+		nil,
+		&ptp4lsysOpts,
+		bcConfig,
+		phc2sysOpts,
+		utils.PtpClockUnderTestNodeLabel,
+		pointer.Int64Ptr(int5),
+		ptpSchedulingPolicy,
+		pointer.Int64Ptr(int65))
+
+}
+
+func CreatePtpConfigOC(profileName, nodeName, ifSlaveName string, phc2sys bool, label string) (err error) {
+	ptpSchedulingPolicy := SCHED_OTHER
+	configureFifo, err := strconv.ParseBool(os.Getenv("CONFIGURE_FIFO"))
+	if err == nil && configureFifo {
+		ptpSchedulingPolicy = SCHED_FIFO
+	}
+	_, err = nodes.LabelNode(nodeName, label, "")
+	if err != nil {
+		logrus.Errorf("Error setting Slave node role label: %s", err)
+	}
+	ptp4lsysOpts := ptp4lEthernetSlave
+	var phc2sysOpts *string
+	temp := phc2sysSlave
+	if phc2sys {
+		phc2sysOpts = &temp
+	} else {
+		phc2sysOpts = nil
+	}
+
+	return createConfig(profileName,
+		&ifSlaveName,
+		&ptp4lsysOpts,
+		BasePtp4lConfig,
+		phc2sysOpts,
+		label,
+		pointer.Int64Ptr(int5),
+		ptpSchedulingPolicy,
+		pointer.Int64Ptr(int65))
+}
+
+func PtpConfigOC(config *l2discovery.L2DiscoveryConfig) {
+	var grandmaster, slave1 int
+
+	BestSolution := l2discovery.AlgoOC
+
+	if len(config.Solutions[l2discovery.AlgoOC]) == 0 &&
+		len(config.Solutions[l2discovery.AlgoSNOOC]) == 0 {
+		logrus.Infof("Could not configure OC clock")
+		return
+	}
+
+	if len(config.Solutions[l2discovery.AlgoOC]) == 0 &&
+		len(config.Solutions[l2discovery.AlgoSNOOC]) != 0 {
+		BestSolution = l2discovery.AlgoSNOOC
+	}
+
+	switch BestSolution {
+	case l2discovery.AlgoOC:
+		grandmaster = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.Grandmaster]
+		slave1 = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.Slave1]
+
+		gmIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][grandmaster]]
+		slave1If := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][slave1]]
+
+		err := CreatePtpConfigGrandMaster(gmIf.NodeName,
+			gmIf.IfName)
 		if err != nil {
-			logrus.Errorf("error creating BC Master ptpconfig, err=%s", err)
+			logrus.Errorf("Error creating Grandmaster ptpconfig: %s", err)
 		}
-		if len(config.BestClockConfig.BcSlave) > 0 &&
-			config.BestClockConfig.BcSlave[0] != nil {
-			err = createConfig(utils.PtpBcSlavePolicyName,
-				&config.BestClockConfig.BcSlave[0].IfName,
-				`"-2"`,
-				BasePtp4lConfig,
-				"-a -r",
-				utils.PtpBCSlaveNodeLabel,
-				pointer.Int64Ptr(int5),
-				ptpSchedulingPolicy,
-				pointer.Int64Ptr(int65))
-		}
+
+		err = CreatePtpConfigOC(utils.PtpSlave1PolicyName, slave1If.NodeName,
+			slave1If.IfName, true, utils.PtpClockUnderTestNodeLabel)
 		if err != nil {
-			logrus.Errorf("error creating BC Slave ptpconfig, err=%s", err)
+			logrus.Errorf("Error creating Slave1 ptpconfig: %s", err)
+		}
+
+	case l2discovery.AlgoSNOOC:
+
+		slave1 = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.Slave1]
+
+		slave1If := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][slave1]]
+
+		err := CreatePtpConfigOC(utils.PtpSlave1PolicyName, slave1If.NodeName,
+			slave1If.IfName, true, utils.PtpClockUnderTestNodeLabel)
+		if err != nil {
+			logrus.Errorf("Error creating Slave1 ptpconfig: %s", err)
 		}
 	}
+
+}
+func PtpConfigBC(config *l2discovery.L2DiscoveryConfig) {
+	var grandmaster, bc1Master, bc1Slave, slave1 int
+
+	BestSolution := l2discovery.AlgoBCWithSlaves
+
+	if len(config.Solutions[l2discovery.AlgoBCWithSlaves]) == 0 &&
+		len(config.Solutions[l2discovery.AlgoBC]) == 0 &&
+		len(config.Solutions[l2discovery.AlgoSNOBC]) == 0 {
+		logrus.Infof("Could not configure BC clock")
+		return
+	}
+
+	if len(config.Solutions[l2discovery.AlgoBCWithSlaves]) == 0 &&
+		len(config.Solutions[l2discovery.AlgoBC]) != 0 {
+		BestSolution = l2discovery.AlgoBC
+	}
+
+	if len(config.Solutions[l2discovery.AlgoBCWithSlaves]) == 0 &&
+		len(config.Solutions[l2discovery.AlgoBC]) == 0 &&
+		len(config.Solutions[l2discovery.AlgoSNOBC]) != 0 {
+		BestSolution = l2discovery.AlgoSNOBC
+	}
+
+	switch BestSolution {
+	case l2discovery.AlgoBCWithSlaves:
+		grandmaster = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.Grandmaster]
+		bc1Master = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC1Master]
+		bc1Slave = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC1Slave]
+		slave1 = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.Slave1]
+
+		gmIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][grandmaster]]
+		bc1MasterIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc1Master]]
+		bc1SlaveIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc1Slave]]
+		slave1If := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][slave1]]
+
+		err := CreatePtpConfigGrandMaster(gmIf.NodeName,
+			gmIf.IfName)
+		if err != nil {
+			logrus.Errorf("Error creating Grandmaster ptpconfig: %s", err)
+		}
+
+		err = CreatePtpConfigBC(utils.PtpBcMaster1PolicyName, bc1MasterIf.NodeName,
+			bc1MasterIf.IfName, bc1SlaveIf.IfName, true)
+		if err != nil {
+			logrus.Errorf("Error creating bc1master ptpconfig: %s", err)
+		}
+
+		err = CreatePtpConfigOC(utils.PtpSlave1PolicyName, slave1If.NodeName,
+			slave1If.IfName, false, utils.PtpSlave1NodeLabel)
+		if err != nil {
+			logrus.Errorf("Error creating Slave1 ptpconfig: %s", err)
+		}
+
+	case l2discovery.AlgoBC:
+		grandmaster = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.Grandmaster]
+		bc1Master = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC1Master]
+		bc1Slave = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC1Slave]
+
+		gmIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][grandmaster]]
+		bc1MasterIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc1Master]]
+		bc1SlaveIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc1Slave]]
+
+		err := CreatePtpConfigGrandMaster(gmIf.NodeName,
+			gmIf.IfName)
+		if err != nil {
+			logrus.Errorf("Error creating Grandmaster ptpconfig: %s", err)
+		}
+
+		err = CreatePtpConfigBC(utils.PtpBcMaster1PolicyName, bc1MasterIf.NodeName,
+			bc1MasterIf.IfName, bc1SlaveIf.IfName, true)
+		if err != nil {
+			logrus.Errorf("Error creating bc1master ptpconfig: %s", err)
+		}
+
+	case l2discovery.AlgoSNOBC:
+
+		bc1Master = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC1Master]
+		bc1Slave = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC1Slave]
+
+		bc1MasterIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc1Master]]
+		bc1SlaveIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc1Slave]]
+
+		err := CreatePtpConfigBC(utils.PtpBcMaster1PolicyName, bc1MasterIf.NodeName,
+			bc1MasterIf.IfName, bc1SlaveIf.IfName, true)
+		if err != nil {
+			logrus.Errorf("Error creating bc1master ptpconfig: %s", err)
+		}
+	}
+
+}
+
+func PtpConfigDualNicBC(config *l2discovery.L2DiscoveryConfig) {
+
+	var grandmaster, bc1Master, bc1Slave, slave1, bc2Master, bc2Slave, slave2 int
+
+	BestSolution := l2discovery.AlgoDualNicBCWithSlaves
+
+	if len(config.Solutions[l2discovery.AlgoDualNicBCWithSlaves]) == 0 &&
+		len(config.Solutions[l2discovery.AlgoDualNicBC]) == 0 &&
+		len(config.Solutions[l2discovery.AlgoSNODualNicBC]) == 0 {
+		logrus.Infof("Could not configure Dual NIC BC clock")
+		return
+	}
+
+	if len(config.Solutions[l2discovery.AlgoDualNicBCWithSlaves]) == 0 &&
+		len(config.Solutions[l2discovery.AlgoDualNicBC]) != 0 {
+		BestSolution = l2discovery.AlgoDualNicBC
+	}
+
+	if len(config.Solutions[l2discovery.AlgoDualNicBCWithSlaves]) == 0 &&
+		len(config.Solutions[l2discovery.AlgoDualNicBC]) == 0 &&
+		len(config.Solutions[l2discovery.AlgoSNODualNicBC]) != 0 {
+		BestSolution = l2discovery.AlgoSNODualNicBC
+	}
+
+	switch BestSolution {
+	case l2discovery.AlgoDualNicBCWithSlaves:
+		grandmaster = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.Grandmaster]
+		bc1Master = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC1Master]
+		bc1Slave = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC1Slave]
+		slave1 = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.Slave1]
+		bc2Master = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC2Master]
+		bc2Slave = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC2Slave]
+		slave2 = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.Slave2]
+
+		gmIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][grandmaster]]
+		bc1MasterIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc1Master]]
+		bc1SlaveIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc1Slave]]
+		slave1If := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][slave1]]
+		bc2MasterIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc2Master]]
+		bc2SlaveIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc2Slave]]
+		slave2If := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][slave2]]
+
+		err := CreatePtpConfigGrandMaster(gmIf.NodeName,
+			gmIf.IfName)
+		if err != nil {
+			logrus.Errorf("Error creating Grandmaster ptpconfig: %s", err)
+		}
+
+		err = CreatePtpConfigBC(utils.PtpBcMaster1PolicyName, bc1MasterIf.NodeName,
+			bc1MasterIf.IfName, bc1SlaveIf.IfName, true)
+		if err != nil {
+			logrus.Errorf("Error creating bc1master ptpconfig: %s", err)
+		}
+
+		err = CreatePtpConfigBC(utils.PtpBcMaster2PolicyName, bc2MasterIf.NodeName,
+			bc2MasterIf.IfName, bc2SlaveIf.IfName, false)
+		if err != nil {
+			logrus.Errorf("Error creating bc2master ptpconfig: %s", err)
+		}
+
+		err = CreatePtpConfigOC(utils.PtpSlave1PolicyName, slave1If.NodeName,
+			slave1If.IfName, false, utils.PtpSlave1NodeLabel)
+		if err != nil {
+			logrus.Errorf("Error creating Slave1 ptpconfig: %s", err)
+		}
+		err = CreatePtpConfigOC(utils.PtpSlave2PolicyName, slave2If.NodeName,
+			slave2If.IfName, false, utils.PtpSlave2NodeLabel)
+		if err != nil {
+			logrus.Errorf("Error creating Slave2 ptpconfig: %s", err)
+		}
+
+	case l2discovery.AlgoDualNicBC:
+		grandmaster = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.Grandmaster]
+		bc1Master = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC1Master]
+		bc1Slave = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC1Slave]
+		bc2Master = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC2Master]
+		bc2Slave = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC2Slave]
+
+		gmIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][grandmaster]]
+		bc1MasterIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc1Master]]
+		bc1SlaveIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc1Slave]]
+		bc2MasterIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc2Master]]
+		bc2SlaveIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc2Slave]]
+
+		err := CreatePtpConfigGrandMaster(gmIf.NodeName,
+			gmIf.IfName)
+		if err != nil {
+			logrus.Errorf("Error creating Grandmaster ptpconfig: %s", err)
+		}
+
+		err = CreatePtpConfigBC(utils.PtpBcMaster1PolicyName, bc1MasterIf.NodeName,
+			bc1MasterIf.IfName, bc1SlaveIf.IfName, true)
+		if err != nil {
+			logrus.Errorf("Error creating bc1master ptpconfig: %s", err)
+		}
+
+		err = CreatePtpConfigBC(utils.PtpBcMaster2PolicyName, bc2MasterIf.NodeName,
+			bc2MasterIf.IfName, bc2SlaveIf.IfName, false)
+		if err != nil {
+			logrus.Errorf("Error creating bc2master ptpconfig: %s", err)
+		}
+
+	case l2discovery.AlgoSNODualNicBC:
+
+		bc1Master = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC1Master]
+		bc1Slave = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC1Slave]
+		bc2Master = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC2Master]
+		bc2Slave = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC2Slave]
+
+		bc1MasterIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc1Master]]
+		bc1SlaveIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc1Slave]]
+		bc2MasterIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc2Master]]
+		bc2SlaveIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc2Slave]]
+
+		err := CreatePtpConfigBC(utils.PtpBcMaster1PolicyName, bc1MasterIf.NodeName,
+			bc1MasterIf.IfName, bc1SlaveIf.IfName, true)
+		if err != nil {
+			logrus.Errorf("Error creating bc1master ptpconfig: %s", err)
+		}
+
+		err = CreatePtpConfigBC(utils.PtpBcMaster2PolicyName, bc2MasterIf.NodeName,
+			bc2MasterIf.IfName, bc2SlaveIf.IfName, false)
+		if err != nil {
+			logrus.Errorf("Error creating bc2master ptpconfig: %s", err)
+		}
+	}
+
 }
 
 // helper function to add an interface to the ptp4l config
@@ -355,8 +640,9 @@ func AddInterface(ptpConfig, iface string, masterOnly int) (updatedPtpConfig str
 }
 
 // helper function to create a ptpconfig
-func createConfig(profileName string, ifaceName *string, ptp4lOpts, ptp4lConfig, phc2sysOpts, nodeLabel string, priority *int64, ptpSchedulingPolicy string, ptpSchedulingPriority *int64) error {
-	ptpProfile := ptpv1.PtpProfile{Name: &profileName, Interface: ifaceName, Phc2sysOpts: &phc2sysOpts, Ptp4lOpts: &ptp4lOpts, PtpSchedulingPolicy: &ptpSchedulingPolicy, PtpSchedulingPriority: ptpSchedulingPriority}
+func createConfig(profileName string, ifaceName, ptp4lOpts *string, ptp4lConfig string, phc2sysOpts *string, nodeLabel string, priority *int64, ptpSchedulingPolicy string, ptpSchedulingPriority *int64) error {
+
+	ptpProfile := ptpv1.PtpProfile{Name: &profileName, Interface: ifaceName, Phc2sysOpts: phc2sysOpts, Ptp4lOpts: ptp4lOpts, PtpSchedulingPolicy: &ptpSchedulingPolicy, PtpSchedulingPriority: ptpSchedulingPriority}
 	if ptp4lConfig != "" {
 		ptpProfile.Ptp4lConf = &ptp4lConfig
 	}
@@ -371,8 +657,7 @@ func createConfig(profileName string, ifaceName *string, ptp4lOpts, ptp4lConfig,
 
 // Discovers the PTP configuration
 func discoverPTPConfiguration(namespace string) {
-	var slaves []*ptpv1.PtpConfig
-	var masters []*ptpv1.PtpConfig
+	var ptpConfigClockUnderTest []*ptpv1.PtpConfig
 
 	configList, err := client.Client.PtpConfigs(namespace).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
@@ -380,59 +665,67 @@ func discoverPTPConfiguration(namespace string) {
 	}
 	logrus.Infof("%d ptpconfig objects recovered", len(configList.Items))
 	for profileIndex := range configList.Items {
-		for _, profile := range configList.Items[profileIndex].Spec.Profile {
-			if profile.Name != nil && *profile.Name != utils.PtpBcSlavePolicyName {
-				if IsPtpMaster(profile.Ptp4lOpts, profile.Phc2sysOpts) {
-					masters = append(masters, &configList.Items[profileIndex])
+		for _, r := range configList.Items[profileIndex].Spec.Recommend {
+			for _, m := range r.Match {
+				if m.NodeLabel == nil {
+					continue
 				}
-				if IsPtpSlave(profile.Ptp4lOpts, profile.Phc2sysOpts) {
-					slaves = append(slaves, &configList.Items[profileIndex])
+				if *m.NodeLabel == utils.PtpClockUnderTestNodeLabel {
+					ptpConfigClockUnderTest = append(ptpConfigClockUnderTest, &configList.Items[profileIndex])
+				}
+
+				// Grand master, slave 1 and slave 2 are checked as they are always created by the test program
+				if GlobalConfig.PtpModeDesired != Discovery && GlobalConfig.PtpModeDesired != None {
+					if *m.NodeLabel == utils.PtpGrandmasterNodeLabel {
+						GlobalConfig.DiscoveredGrandMasterPtpConfig = (*ptpDiscoveryRes)(&configList.Items[profileIndex])
+					}
+					if *m.NodeLabel == utils.PtpSlave1NodeLabel {
+						GlobalConfig.DiscoveredSlave1PtpConfig = (*ptpDiscoveryRes)(&configList.Items[profileIndex])
+					}
+					if *m.NodeLabel == utils.PtpSlave2NodeLabel {
+						GlobalConfig.DiscoveredSlave2PtpConfig = (*ptpDiscoveryRes)(&configList.Items[profileIndex])
+					}
 				}
 			}
 		}
 	}
-	discoverMode(slaves, masters)
+	discoverMode(ptpConfigClockUnderTest)
 }
 
 // Helper function analysing ptpconfig to deduce the actual ptp configuration
-func discoverMode(slaves, masters []*ptpv1.PtpConfig) {
+func discoverMode(ptpConfigClockUnderTest []*ptpv1.PtpConfig) {
 	GlobalConfig.Status = DiscoveryFailureStatus
-	if len(slaves) == 0 {
+	if len(ptpConfigClockUnderTest) == 0 {
 		logrus.Warnf("No Configs present, cannot discover")
 		return
 	}
 	numBc := 0
 	numSecondaryBC := 0
-	pickedMasterConfig := checkPtpProfileLabels(masters)
-	GlobalConfig.DiscoveredMasterPtpConfig = &pickedMasterConfig
-	for _, slave := range slaves {
-		pickedSlaveConfig := checkSinglePtpProfileLabels(slave)
-		if pickedSlaveConfig.Config.Name != "" {
 
-			masterIf := len(ptpv1.GetInterfaces(pickedSlaveConfig.Config, ptpv1.Master))
-			slaveIf := len(ptpv1.GetInterfaces(pickedSlaveConfig.Config, ptpv1.Slave))
-			// OC
-			if masterIf == 0 && slaveIf == 1 {
-				GlobalConfig.PtpModeDiscovered = OrdinaryClock
-				GlobalConfig.Status = DiscoverySuccessStatus
-				GlobalConfig.DiscoveredSlavePtpConfig = &pickedSlaveConfig
-				break
+	GlobalConfig.Status = DiscoveryFailureStatus
+
+	for _, ptpConfig := range ptpConfigClockUnderTest {
+		masterIf := len(ptpv1.GetInterfaces(*ptpConfig, ptpv1.Master))
+		slaveIf := len(ptpv1.GetInterfaces(*ptpConfig, ptpv1.Slave))
+		// OC
+		if masterIf == 0 && slaveIf == 1 && len(ptpConfigClockUnderTest) == 1 {
+			GlobalConfig.PtpModeDiscovered = OrdinaryClock
+			GlobalConfig.Status = DiscoverySuccessStatus
+			GlobalConfig.DiscoveredClockUnderTestPtpConfig = (*ptpDiscoveryRes)(ptpConfig)
+			break
+		}
+		// BC and Dual NIC BC
+		if masterIf >= 1 && slaveIf >= 1 {
+			if numBc == 0 {
+				GlobalConfig.DiscoveredClockUnderTestPtpConfig = (*ptpDiscoveryRes)(ptpConfig)
 			}
-			// BC and Dual NIC BC
-			if masterIf >= 1 && slaveIf >= 1 {
-				if numBc == 0 {
-					GlobalConfig.DiscoveredSlavePtpConfig = &pickedSlaveConfig
-				}
-				if numBc == 1 {
-					GlobalConfig.DiscoveredSlavePtpConfigSecondary = &pickedSlaveConfig
-				}
-				numBc++
-				if isSecondaryBc(&pickedSlaveConfig) {
-					numSecondaryBC++
-				}
+			if numBc == 1 {
+				GlobalConfig.DiscoveredClockUnderTestSecondaryPtpConfig = (*ptpDiscoveryRes)(ptpConfig)
 			}
-		} else {
-			GlobalConfig.Status = DiscoveryFailureStatus
+			numBc++
+			if isSecondaryBc(ptpConfig) {
+				numSecondaryBC++
+			}
 		}
 	}
 	if numBc == 1 {
@@ -446,8 +739,8 @@ func discoverMode(slaves, masters []*ptpv1.PtpConfig) {
 }
 
 // Checks for DualNIC BC
-func isSecondaryBc(config *ptpDiscoveryRes) bool {
-	for _, profile := range config.Config.Spec.Profile {
+func isSecondaryBc(config *ptpv1.PtpConfig) bool {
+	for _, profile := range config.Spec.Profile {
 		if profile.Phc2sysOpts != nil {
 			return false
 		}
@@ -457,45 +750,11 @@ func isSecondaryBc(config *ptpDiscoveryRes) bool {
 
 // Checks for OC
 func IsPtpSlave(ptp4lOpts, phc2sysOpts *string) bool {
-	return strings.Contains(*ptp4lOpts, "-s") &&
-		((phc2sysOpts != nil && (strings.Count(*phc2sysOpts, "-a") == 1 && strings.Count(*phc2sysOpts, "-r") == 1)) ||
-			phc2sysOpts == nil)
+	return /*strings.Contains(*ptp4lOpts, "-s") &&*/ ((phc2sysOpts != nil && (strings.Count(*phc2sysOpts, "-a") == 1 && strings.Count(*phc2sysOpts, "-r") == 1)) ||
+		phc2sysOpts == nil)
 }
 
 // Checks for Grand master
 func IsPtpMaster(ptp4lOpts, phc2sysOpts *string) bool {
 	return ptp4lOpts != nil && phc2sysOpts != nil && !strings.Contains(*ptp4lOpts, "-s ") && strings.Count(*phc2sysOpts, "-a") == 1 && strings.Count(*phc2sysOpts, "-r") == 2
-}
-
-// Checks for the presence of the ptp test node labels (GM, OC, BC, BC slave) from the profile in the node
-func checkPtpProfileLabels(configs []*ptpv1.PtpConfig) ptpDiscoveryRes {
-	for _, config := range configs {
-		return checkSinglePtpProfileLabels(config)
-	}
-	return ptpDiscoveryRes{"", ptpv1.PtpConfig{}}
-}
-
-// Checks a single node
-func checkSinglePtpProfileLabels(config *ptpv1.PtpConfig) ptpDiscoveryRes {
-	for _, recommend := range config.Spec.Recommend {
-		for _, match := range recommend.Match {
-			label := *match.NodeLabel
-			nodeCount := checkLabeledNodesExists(label)
-
-			if nodeCount > 0 {
-				return ptpDiscoveryRes{label, *config}
-			}
-		}
-	}
-	return ptpDiscoveryRes{"", ptpv1.PtpConfig{}}
-}
-
-// Checks for the presence of the ptp test node labels (GM, OC, BC, BC slave) from the profile in the node
-func checkLabeledNodesExists(label string) int {
-	nodeList, err := client.Client.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=", label)})
-	if err != nil {
-		logrus.Errorf("error listing nodes, err=%s", err)
-		return 0
-	}
-	return len(nodeList.Items)
 }
