@@ -4,12 +4,9 @@
 package test_test
 
 import (
-<<<<<<< HEAD
-=======
 	"flag"
 	"os"
 	"strings"
->>>>>>> cd6ef388c2775b2b9cd219613c69facfebe6f09d
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
