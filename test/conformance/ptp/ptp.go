@@ -18,7 +18,6 @@ import (
 	"github.com/openshift/ptp-operator/test/utils"
 	"github.com/openshift/ptp-operator/test/utils/daemonsets"
 	"github.com/openshift/ptp-operator/test/utils/event"
-	"github.com/openshift/ptp-operator/test/utils/execute"
 	"github.com/openshift/ptp-operator/test/utils/l2discovery"
 	"github.com/sirupsen/logrus"
 	v1app "k8s.io/api/apps/v1"
@@ -137,13 +136,13 @@ var _ = Describe("[ptp]", func() {
 		var fifoPriorities map[string]int64
 		var fullConfig testconfig.TestConfig
 
-		execute.BeforeAll(func() {
+		/*execute.BeforeAll(func() {
 			testconfig.CreatePtpConfigurations()
 
 			fullConfig = testconfig.GetFullDiscoveredConfig(utils.PtpLinuxDaemonNamespace, false)
 
 			restartPtpDaemon()
-		})
+		})*/
 
 		Context("PTP Reboot discovery", func() {
 			BeforeEach(func() {
@@ -418,7 +417,7 @@ var _ = Describe("[ptp]", func() {
 
 		Context("PTP metric is present", func() {
 			BeforeEach(func() {
-				waitForPtpDaemonToBeReady()
+				// waitForPtpDaemonToBeReady()
 				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 					Skip("Failed to find a valid ptp slave configuration")
 				}
@@ -468,7 +467,7 @@ var _ = Describe("[ptp]", func() {
 		Context("Running with event enabled", func() {
 			ptpSlaveRunningPods := []v1core.Pod{}
 			BeforeEach(func() {
-				waitForPtpDaemonToBeReady()
+				// waitForPtpDaemonToBeReady()
 				if !ptpEventEnabled() {
 					Skip("Skipping, PTP events not enabled")
 				}
@@ -550,7 +549,7 @@ var _ = Describe("[ptp]", func() {
 		})
 		Context("Running with fifo scheduling", func() {
 			BeforeEach(func() {
-				waitForPtpDaemonToBeReady()
+				// waitForPtpDaemonToBeReady()
 				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 					Skip("Failed to find a valid ptp slave configuration")
 				}
@@ -595,35 +594,6 @@ var _ = Describe("[ptp]", func() {
 	})
 
 })
-
-func restartPtpDaemon() {
-	ptpPods, err := client.Client.CoreV1().Pods(utils.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
-	Expect(err).ToNot(HaveOccurred())
-	for podIndex := range ptpPods.Items {
-		err = client.Client.CoreV1().Pods(utils.PtpLinuxDaemonNamespace).Delete(context.Background(), ptpPods.Items[podIndex].Name, metav1.DeleteOptions{GracePeriodSeconds: pointer.Int64Ptr(0)})
-		Expect(err).ToNot(HaveOccurred())
-	}
-
-	waitForPtpDaemonToBeReady()
-}
-
-func waitForPtpDaemonToBeReady() int {
-	daemonset, err := client.Client.DaemonSets(utils.PtpLinuxDaemonNamespace).Get(context.Background(), utils.PtpDaemonsetName, metav1.GetOptions{})
-	Expect(err).ToNot(HaveOccurred())
-	expectedNumber := daemonset.Status.DesiredNumberScheduled
-	Eventually(func() int32 {
-		daemonset, err = client.Client.DaemonSets(utils.PtpLinuxDaemonNamespace).Get(context.Background(), utils.PtpDaemonsetName, metav1.GetOptions{})
-		Expect(err).ToNot(HaveOccurred())
-		return daemonset.Status.NumberReady
-	}, timeoutIn5Minutes, 2*time.Second).Should(Equal(expectedNumber))
-
-	Eventually(func() int {
-		ptpPods, err := client.Client.CoreV1().Pods(utils.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
-		Expect(err).ToNot(HaveOccurred())
-		return len(ptpPods.Items)
-	}, timeoutIn5Minutes, 2*time.Second).Should(Equal(int(expectedNumber)))
-	return 0
-}
 
 // Returns the slave node label to be used in the test
 func discoveryPTPConfiguration(namespace string) (masters, slaves []*ptpv1.PtpConfig) {
@@ -717,7 +687,7 @@ func waitUntilLogIsDetected(pod *v1core.Pod, timeout time.Duration, neededLog st
 }
 
 func getPtpPodOnNode(nodeName string) (v1core.Pod, error) {
-	waitForPtpDaemonToBeReady()
+	// waitForPtpDaemonToBeReady()
 	runningPod, err := client.Client.CoreV1().Pods(utils.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
 	Expect(err).NotTo(HaveOccurred(), "Error to get list of pods by label: app=linuxptp-daemon")
 	Expect(len(runningPod.Items)).To(BeNumerically(">", 0), "PTP pods are  not deployed on cluster")

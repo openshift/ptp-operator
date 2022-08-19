@@ -44,7 +44,7 @@ var _ = Describe("[ptp-long-running]", func() {
 
 	execute.BeforeAll(func() {
 		Expect(client.Client).NotTo(BeNil())
-		fullConfig = testconfig.GetFullDiscoveredConfig(utils.PtpLinuxDaemonNamespace, false)
+		// fullConfig = testconfig.GetFullDiscoveredConfig(utils.PtpLinuxDaemonNamespace, false)
 		testParameters = ptp.GetConfiguration()
 	})
 
