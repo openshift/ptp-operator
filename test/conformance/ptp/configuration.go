@@ -57,7 +57,7 @@ func loadConfiguration(filename string, conf *Configuration) {
 	}
 }
 
-func getConfiguration() Configuration {
+func GetConfiguration() Configuration {
 	if loaded {
 		return configuration
 	}
