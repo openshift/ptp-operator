@@ -20,6 +20,7 @@ import (
 	"github.com/openshift/ptp-operator/test/conformance/ptp"
 	_ "github.com/openshift/ptp-operator/test/conformance/ptp"
 	testclient "github.com/openshift/ptp-operator/test/utils/client"
+	"github.com/openshift/ptp-operator/test/utils/execute"
 
 	// . "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -41,15 +42,9 @@ var _ = Describe("[ptp-long-running]", func() {
 	var fullConfig testconfig.TestConfig
 	var testParameters ptp.Configuration
 
-	var m sync.Mutex
-
-	BeforeEach(func() {
+	execute.BeforeAll(func() {
 		Expect(client.Client).NotTo(BeNil())
-		m.Lock()
-		testconfig.CreatePtpConfigurations()
 		fullConfig = testconfig.GetFullDiscoveredConfig(utils.PtpLinuxDaemonNamespace, false)
-
-		m.Unlock()
 		testParameters = ptp.GetConfiguration()
 	})
 

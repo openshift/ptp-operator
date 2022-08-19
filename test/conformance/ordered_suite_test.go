@@ -13,13 +13,19 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/sirupsen/logrus"
 
+	"github.com/openshift/ptp-operator/test/conformance/ptp"
 	_ "github.com/openshift/ptp-operator/test/conformance/ptp"
+	"github.com/openshift/ptp-operator/test/utils"
 	"github.com/openshift/ptp-operator/test/utils/clean"
 	testclient "github.com/openshift/ptp-operator/test/utils/client"
+	"github.com/openshift/ptp-operator/test/utils/testconfig"
 )
 
 var junitPath *string
 var DeletePtpConfig bool
+
+var fullConfig testconfig.TestConfig
+var testParameters ptp.Configuration
 
 func init() {
 	junitPath = flag.String("junit", "junit.xml", "the path for the junit format report")
@@ -42,6 +48,9 @@ var _ = BeforeSuite(func() {
 	logrus.Info("Executed from BeforeSuite")
 	testclient.Client = testclient.New("")
 	Expect(testclient.Client).NotTo(BeNil())
+
+	fullConfig = testconfig.GetFullDiscoveredConfig(utils.PtpLinuxDaemonNamespace, false)
+	testParameters = ptp.GetConfiguration()
 })
 
 var _ = AfterSuite(func() {

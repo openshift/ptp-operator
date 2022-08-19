@@ -132,7 +132,7 @@ var _ = Describe("[ptp]", func() {
 		})
 	})
 
-	Describe("PTP e2e tests", Serial, func() {
+	Describe("PTP e2e tests", Ordered, func() {
 		var ptpRunningPods []v1core.Pod
 		var fifoPriorities map[string]int64
 		var fullConfig testconfig.TestConfig
