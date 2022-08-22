@@ -64,6 +64,7 @@ func (output *ptp4lConf) populatePtp4lConf(config *string, ptp4lopts *string) er
 
 	for _, line := range lines {
 		if strings.HasPrefix(line, "[") {
+			//nolint:all
 			currentSection = line
 			currentLine := strings.Split(line, "]")
 
@@ -97,7 +98,10 @@ func (r *PtpConfig) validate() error {
 	profiles := r.Spec.Profile
 	for _, profile := range profiles {
 		conf := &ptp4lConf{}
-		conf.populatePtp4lConf(profile.Ptp4lConf, profile.Ptp4lOpts)
+		err := conf.populatePtp4lConf(profile.Ptp4lConf, profile.Ptp4lOpts)
+		if err != nil {
+			return err
+		}
 
 		// Validate that interface field only set in ordinary clock
 		if profile.Interface != nil && *profile.Interface != "" {
@@ -153,10 +157,10 @@ func getInterfaces(input *ptp4lConf, mode PtpRole) (interfaces []string) {
 func GetInterfaces(config PtpConfig, mode PtpRole) (interfaces []string) {
 
 	if len(config.Spec.Profile) > 1 {
-		logrus.Warnf("More than one profile detected for ptpconfig %s", &config.ObjectMeta.Name)
+		logrus.Warnf("More than one profile detected for ptpconfig %s", config.ObjectMeta.Name)
 	}
 	if len(config.Spec.Profile) == 0 {
-		logrus.Warnf("No profile detected for ptpconfig %s", &config.ObjectMeta.Name)
+		logrus.Warnf("No profile detected for ptpconfig %s", config.ObjectMeta.Name)
 		return interfaces
 	}
 	conf := &ptp4lConf{}

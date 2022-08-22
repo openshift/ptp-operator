@@ -118,6 +118,7 @@ func DeleteDaemonSet(daemonSetName, namespace string) error {
 	if err := client.Client.AppsV1Interface.DaemonSets(namespace).Delete(context.TODO(), daemonSetName, metav1.DeleteOptions{
 		PropagationPolicy: &deletePolicy,
 	}); err != nil {
+		//nolint:all
 		logrus.Infof("The daemonset (%d) deletion is unsuccessful due to %+v", daemonSetName, err.Error())
 	}
 
@@ -130,6 +131,7 @@ func DeleteDaemonSet(daemonSetName, namespace string) error {
 		}
 
 		if len(pods.Items) == 0 {
+			//nolint:all
 			doneCleanUp = true
 			break
 		}
@@ -169,7 +171,10 @@ func CreateDaemonSet(daemonSetName, namespace, containerName, imageWithVersion s
 	if err != nil {
 		return nil, err
 	}
-	WaitDaemonsetReady(namespace, daemonSetName, timeout)
+	err = WaitDaemonsetReady(namespace, daemonSetName, timeout)
+	if err != nil {
+		return nil, err
+	}
 
 	logrus.Infof("Deamonset is ready")
 

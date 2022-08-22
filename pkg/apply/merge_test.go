@@ -255,6 +255,7 @@ metadata:
 	err = MergeObjectForUpdate(cur, upd)
 	g.Expect(err).NotTo(HaveOccurred())
 
+	//nolint:all
 	s, ok, err := uns.NestedSlice(upd.Object, "secrets")
 	g.Expect(ok).To(BeTrue())
 	g.Expect(s).To(ConsistOf("foo"))

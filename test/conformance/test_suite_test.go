@@ -54,6 +54,7 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterSuite(func() {
 	if DeletePtpConfig {
+		//nolint:errcheck
 		clean.All()
 	}
 })

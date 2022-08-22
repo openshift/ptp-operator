@@ -58,6 +58,9 @@ func Clean(namespace string, cs *testclient.ClientSet) error {
 	err = cs.CoreV1().Pods(namespace).DeleteCollection(context.Background(), metav1.DeleteOptions{
 		GracePeriodSeconds: pointer.Int64Ptr(0),
 	}, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
 
 	allServices, err := cs.CoreV1().Services(namespace).List(context.Background(), metav1.ListOptions{})
 	if err != nil {

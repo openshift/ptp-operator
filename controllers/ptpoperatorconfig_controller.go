@@ -166,7 +166,7 @@ func (r *PtpOperatorConfigReconciler) setDaemonNodeSelector(
 // syncLinuxptpDaemon synchronizes Linuxptp DaemonSet
 func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, defaultCfg *ptpv1.PtpOperatorConfig) error {
 	var err error
-	objs := []*uns.Unstructured{}
+	var objs []*uns.Unstructured
 
 	data := render.MakeRenderData()
 	data.Data["Image"] = os.Getenv("LINUXPTP_DAEMON_IMAGE")
