@@ -39,6 +39,8 @@ spec:
               profile:
                 items:
                   properties:
+                    boundaryClockHA:
+                      type: boolean
                     interface:
                       type: string
                     name:

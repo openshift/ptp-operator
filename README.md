@@ -36,11 +36,11 @@ metadata:
   resourceVersion: ""
   selfLink: ""
 ```
-### Enable PTP events via fast event framework 
+### Enable PTP events via fast event framework
 PTP Operator supports fast event publisher for events such as PTP state change, os clock out of sync, clock class change and port failure.
 Event publisher is enabled by deploying PTP operator with [cloud events framework](https://github.com/redhat-cne/cloud-event-proxy) (based on O-RAN API specifications).
 The events are published via AMQ interconnect router and available for local subscribers.
-####Enabling fast events 
+####Enabling fast events
 ```
 $ oc edit ptpoperatorconfigs.ptp.openshift.io default -n openshift-ptp
 
@@ -69,18 +69,18 @@ metadata:
 ```
 ## PtpConfig
 
-`PtpConfig` CRD is used to define linuxptp configurations and to which node these 
-linuxptp configurations shall be applied. 
-The Spec of CR has two major sections. 
-The first section `profile` contains `interface`, `ptp4lOpts`, `phc2sysOpts` and `ptp4lConf` options,
+`PtpConfig` CRD is used to define linuxptp configurations and to which node these
+linuxptp configurations shall be applied.
+The Spec of CR has two major sections.
+The first section `profile` contains `interface`, `ptp4lOpts`, `phc2sysOpts`, `boundaryClockHA` and `ptp4lConf` options,
 the second `recommend` defines profile selection logic.
 ```
  PTP operator supports T-BC and Ordinary clock which can be configured via ptpConfig
 ```
 ### ptpConfig to set up ordinary clock using single interface
-``` 
-NOTE: following ptp4l/phc2sys opts required when events are enabled 
-    ptp4lOpts: "-2 -s --summary_interval -4" 
+```
+NOTE: following ptp4l/phc2sys opts required when events are enabled
+    ptp4lOpts: "-2 -s --summary_interval -4"
     phc2sysOpts: "-a -r -m -n 24 -N 8 -R 16"
 ```
 ```
@@ -94,6 +94,7 @@ spec:
   - name: "profile1"
     interface: "enp134s0f0"
     ptp4lOpts: "-s -2"
+    boundaryClockHA: false
     phc2sysOpts: "-a -r"
   recommend:
   - profile: "profile1"
@@ -102,9 +103,9 @@ spec:
     - nodeLabel: "node-role.kubernetes.io/worker"
 ```
 ### ptpConfig to set up boundary clock using multiple interface
-``` 
-NOTE: following ptp4l/phc2sys opts required when events are enabled 
-    ptp4lOpts: "-2 --summary_interval -4" 
+```
+NOTE: following ptp4l/phc2sys opts required when events are enabled
+    ptp4lOpts: "-2 --summary_interval -4"
     phc2sysOpts: "-a -r -m -n 24 -N 8 -R 16"
 ```
 ```
@@ -131,6 +132,41 @@ spec:
     match:
     - nodeLabel: "node-role.kubernetes.io/worker"
 ```
+### ptpConfig to set up boundary clock using multiple interface with HA
+```
+NOTE: following ptp4l/phc2sys opts required when events are enabled
+    ptp4lOpts: "-2 --summary_interval -4"
+    phc2sysOpts: "-a -r -m -n 24 -N 8 -R 16"
+```
+```
+apiVersion: ptp.openshift.io/v1
+kind: PtpConfig
+metadata:
+  name: boundary-clock-ptpconfig
+  namespace: ptp
+spec:
+  profile:
+  - name: "profile1"
+    ptp4lOpts: "-s -2"
+    phc2sysOpts: "-a -r"
+    ptp4lConf: |
+      [ens7f0]
+      masterOnly 0
+      [ens7f1]
+      masterOnly 1
+      [ens7f2]
+      masterOnly 1
+  recommend:
+  - profile: "profile1"
+    priority: 4
+    match:
+    - nodeLabel: "node-role.kubernetes.io/worker"
+  highAvailability:
+    enableHA: true
+    preferredPrimary: "ens7f0"
+    heartBeatTimeout: 15
+```
+
 #### ptpConfig to override offset threshold when events are enabled
 ```
 apiVersion: ptp.openshift.io/v1
@@ -143,7 +179,7 @@ spec:
   - name: "profile1"
     ...
     ...
-    ......   
+    ......
     ptpClockThreshold:
       holdOverTimeout: 24 # in secs
       maxOffsetThreshold: 100 #in nano secs
@@ -153,7 +189,7 @@ spec:
     priority: 4
     match:
     - nodeLabel: "node-role.kubernetes.io/worker"
-    
+
 ```
 
 In above examples, `profile1` will be applied by `linuxptp-daemon` to nodes labeled with `node-role.kubernetes.io/worker`.
@@ -171,4 +207,3 @@ To un-install:
 ```
 $ make undeploy
 ```
-

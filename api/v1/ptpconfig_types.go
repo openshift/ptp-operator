@@ -28,8 +28,9 @@ type PtpConfigSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	Profile   []PtpProfile   `json:"profile"`
-	Recommend []PtpRecommend `json:"recommend"`
+	Profile          []PtpProfile     `json:"profile"`
+	Recommend        []PtpRecommend   `json:"recommend"`
+	HighAvailability HighAvailability `json:"highAvailability,omitempty"`
 }
 
 // PtpConfigStatus defines the observed state of PtpConfig
@@ -49,6 +50,17 @@ type PtpConfig struct {
 
 	Spec   PtpConfigSpec   `json:"spec,omitempty"`
 	Status PtpConfigStatus `json:"status,omitempty"`
+}
+
+// HA configuration for ptpConfig
+type HighAvailability struct {
+	// +kubebuilder.default:=false
+	EnableHA *bool `json:"enableHA"`
+	// +optional
+	PreferredPrimary *string `json:"preferredPrimary,omitempty"`
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	HeartBeatTimeOut *int32 `json:"heartBeatTimeout,omitempty"`
 }
 
 //+kubebuilder:object:root=true
