@@ -1,7 +1,7 @@
 //go:build !unittests
 // +build !unittests
 
-package test_test
+package test
 
 import (
 	"context"
@@ -19,23 +19,18 @@ import (
 
 	"github.com/openshift/ptp-operator/test/conformance/ptp"
 	_ "github.com/openshift/ptp-operator/test/conformance/ptp"
+	"github.com/openshift/ptp-operator/test/utils"
 	testclient "github.com/openshift/ptp-operator/test/utils/client"
 	"github.com/openshift/ptp-operator/test/utils/execute"
+	"github.com/openshift/ptp-operator/test/utils/testconfig"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	// . "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/openshift/ptp-operator/test/utils"
 	"github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/openshift/ptp-operator/test/utils/client"
-	"github.com/openshift/ptp-operator/test/utils/testconfig"
-)
-
-const (
-	timeoutIn3Minutes  = 3 * time.Minute
-	timeoutIn5Minutes  = 5 * time.Minute
-	timeoutIn10Minutes = 10 * time.Minute
 )
 
 var _ = Describe("[ptp-long-running]", func() {
@@ -44,7 +39,7 @@ var _ = Describe("[ptp-long-running]", func() {
 
 	execute.BeforeAll(func() {
 		Expect(client.Client).NotTo(BeNil())
-		// fullConfig = testconfig.GetFullDiscoveredConfig(utils.PtpLinuxDaemonNamespace, false)
+		fullConfig = testconfig.GetFullDiscoveredConfig(utils.PtpLinuxDaemonNamespace, false)
 		testParameters = ptp.GetConfiguration()
 	})
 
@@ -88,7 +83,7 @@ var _ = Describe("[ptp-long-running]", func() {
 					logrus.Info("Ending testing feature 1")
 					close(done)
 				}()
-				Eventually(done, timeoutIn5Minutes).Should(BeClosed())
+				Eventually(done, utils.TimeoutIn5Minutes).Should(BeClosed())
 			})
 			It("test-feature-2", func() {
 				done := make(chan interface{})
@@ -98,7 +93,7 @@ var _ = Describe("[ptp-long-running]", func() {
 					logrus.Info("Ending testing feature 2")
 					close(done)
 				}()
-				Eventually(done, timeoutIn10Minutes).Should(BeClosed())
+				Eventually(done, utils.TimeoutIn10Minutes).Should(BeClosed())
 			})
 
 			It("test-feature-3", func() {
@@ -109,7 +104,7 @@ var _ = Describe("[ptp-long-running]", func() {
 					logrus.Info("Ending testing feature 3")
 					close(done)
 				}()
-				Eventually(done, timeoutIn3Minutes).Should(BeClosed())
+				Eventually(done, utils.TimeoutIn3Minutes).Should(BeClosed())
 				Expect("banashri").ToNot(BeNil())
 			})
 

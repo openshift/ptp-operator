@@ -1,5 +1,7 @@
 package utils
 
+import "time"
+
 const (
 	// NamespaceTesting contains the name of the testing namespace
 
@@ -44,4 +46,10 @@ const (
 	PtpConfigsCRD = "ptpconfigs.ptp.openshift.io"
 	// PtpOperatorConfigs contains the name of the ptp operator config CRD
 	PtpOperatorConfigsCRD = "ptpoperatorconfigs.ptp.openshift.io"
+)
+
+const (
+	TimeoutIn3Minutes  = 3 * time.Minute
+	TimeoutIn5Minutes  = 5 * time.Minute
+	TimeoutIn10Minutes = 10 * time.Minute
 )

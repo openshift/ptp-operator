@@ -19,9 +19,4 @@ GOPATH="${GOPATH:-~/go}"
 JUNIT_OUTPUT="${JUNIT_OUTPUT:-/tmp/artifacts/unit_report.xml}"
 export PATH=$PATH:$GOPATH/bin
 
-NUMPROC=$(getconf _NPROCESSORS_ONLN)
-echo $SUITE
-
-#GOFLAGS=-mod=vendor ginkgo -race -v -p "$SUITE" --label-filter="soak-testing" --junit-report=$JUNIT_OUTPUT
-
-GOFLAGS=-mod=vendor ginkgo -race -v -p "$SUITE" --junit-report=$JUNIT_OUTPUT
+GOFLAGS=-mod=vendor ginkgo -v -p "$SUITE"/serial  "$SUITE"/parallel  --junit-report=$JUNIT_OUTPUT
