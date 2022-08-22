@@ -51,7 +51,7 @@ const (
 	rebootDaemonSetContainerName = "container-00"
 )
 
-var _ = Describe("[ptp]", func() {
+var _ = Describe("[ptp]", Serial, func() {
 
 	BeforeEach(func() {
 		Expect(client.Client).NotTo(BeNil())
@@ -128,7 +128,7 @@ var _ = Describe("[ptp]", func() {
 		})
 	})
 
-	Describe("PTP e2e tests", Serial, func() {
+	Describe("PTP e2e tests", func() {
 		var ptpRunningPods []v1core.Pod
 		var fifoPriorities map[string]int64
 		var fullConfig testconfig.TestConfig

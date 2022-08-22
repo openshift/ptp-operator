@@ -1,4 +1,4 @@
-package ptp
+package test
 
 import (
 	"fmt"
@@ -67,7 +67,7 @@ func GetConfiguration() Configuration {
 		logrus.Error("can't retrieve path, trying to continue")
 		return configuration
 	}
-	loadConfiguration(fmt.Sprintf("%s/%s", path, "ptp/configuration.yml"), &configuration)
+	loadConfiguration(fmt.Sprintf("%s/%s", path, "configuration.yml"), &configuration)
 	logrus.Info("config=", configuration)
 	return configuration
 }

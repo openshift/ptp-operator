@@ -1,4 +1,4 @@
-package ptp
+package test
 
 import (
 	"fmt"

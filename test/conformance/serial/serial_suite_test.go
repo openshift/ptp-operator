@@ -14,18 +14,12 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/sirupsen/logrus"
 
-	"github.com/openshift/ptp-operator/test/conformance/ptp"
-	_ "github.com/openshift/ptp-operator/test/conformance/ptp"
 	"github.com/openshift/ptp-operator/test/utils/clean"
 	testclient "github.com/openshift/ptp-operator/test/utils/client"
-	"github.com/openshift/ptp-operator/test/utils/testconfig"
 )
 
 var junitPath *string
 var DeletePtpConfig bool
-
-var fullConfig testconfig.TestConfig
-var testParameters ptp.Configuration
 
 const (
 	TimeoutIn3Minutes  = 3 * time.Minute
@@ -54,7 +48,6 @@ var _ = BeforeSuite(func() {
 	logrus.Info("Executed from serial suite")
 	testclient.Client = testclient.New("")
 	Expect(testclient.Client).NotTo(BeNil())
-	testParameters = ptp.GetConfiguration()
 })
 
 var _ = AfterSuite(func() {

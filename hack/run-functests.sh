@@ -20,3 +20,4 @@ JUNIT_OUTPUT="${JUNIT_OUTPUT:-/tmp/artifacts/unit_report.xml}"
 export PATH=$PATH:$GOPATH/bin
 
 GOFLAGS=-mod=vendor ginkgo -v -p "$SUITE"/serial  "$SUITE"/parallel  --junit-report=$JUNIT_OUTPUT
+# GOFLAGS=-mod=vendor ginkgo -v -p "$SUITE"/parallel  --junit-report=$JUNIT_OUTPUT
