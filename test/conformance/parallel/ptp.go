@@ -31,7 +31,6 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/sirupsen/logrus"
 
-	"github.com/openshift/ptp-operator/test/utils/client"
 )
 
 var _ = Describe("[ptp-long-running]", func() {
@@ -39,10 +38,9 @@ var _ = Describe("[ptp-long-running]", func() {
 	var testParameters Configuration
 
 	execute.BeforeAll(func() {
-		Expect(client.Client).NotTo(BeNil())
-
-		fullConfig = testconfig.GetFullDiscoveredConfig(utils.PtpLinuxDaemonNamespace, false)
 		testParameters = GetConfiguration()
+		testclient.Client = testclient.New("")
+	    Expect(testclient.Client).NotTo(BeNil())
 	})
 
 	Context("Soak testing", func() {
@@ -114,7 +112,7 @@ var _ = Describe("[ptp-long-running]", func() {
 
 		It("continuous-offset-testing", func() {
 
-			restartPtpDaemon()
+			Expect(testclient.Client).NotTo(BeNil())
 
 			logrus.Debug("soak-testing started")
 
@@ -123,9 +121,10 @@ var _ = Describe("[ptp-long-running]", func() {
 			if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 				Fail("Failed to find a valid ptp slave configuration")
 			}
+			logrus.Infof("testclient: %v",testclient.Client)
 			// Get All PTP pods
-			slaveNodes, err := client.Client.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{
-				LabelSelector: "ptp/test-slave",
+			slaveNodes, err := testclient.Client.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{
+				LabelSelector: utils.PtpClockUnderTestNodeLabel,
 			})
 			if err != nil {
 				logrus.Error("Can't list slave nodes")
@@ -135,7 +134,7 @@ var _ = Describe("[ptp-long-running]", func() {
 			var slavePods []v1.Pod
 
 			for _, s := range slaveNodes.Items {
-				ptpPods, err := client.Client.CoreV1().Pods(utils.PtpLinuxDaemonNamespace).List(context.Background(),
+				ptpPods, err := testclient.Client.CoreV1().Pods(utils.PtpLinuxDaemonNamespace).List(context.Background(),
 					metav1.ListOptions{LabelSelector: "app=linuxptp-daemon", FieldSelector: fmt.Sprintf("spec.nodeName=%s", s.Name)})
 				if err != nil {
 					logrus.Error("Error in getting ptp pods")
@@ -255,7 +254,7 @@ func GetPodLogs(namespace, podName, containerName string, min, max int, messages
 }
 
 func podRole(runningPod *v1core.Pod, role string) bool {
-	nodeList, err := client.Client.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{
+	nodeList, err := testclient.Client.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{
 		LabelSelector: role,
 	})
 	Expect(err).NotTo(HaveOccurred())
@@ -276,10 +275,10 @@ func waitUntilLogIsDetected(pod *v1core.Pod, timeout time.Duration, neededLog st
 }
 
 func restartPtpDaemon() {
-	ptpPods, err := client.Client.CoreV1().Pods(utils.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
+	ptpPods, err := testclient.Client.CoreV1().Pods(utils.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
 	Expect(err).ToNot(HaveOccurred())
 	for podIndex := range ptpPods.Items {
-		err = client.Client.CoreV1().Pods(utils.PtpLinuxDaemonNamespace).Delete(context.Background(), ptpPods.Items[podIndex].Name, metav1.DeleteOptions{GracePeriodSeconds: pointer.Int64Ptr(0)})
+		err = testclient.Client.CoreV1().Pods(utils.PtpLinuxDaemonNamespace).Delete(context.Background(), ptpPods.Items[podIndex].Name, metav1.DeleteOptions{GracePeriodSeconds: pointer.Int64Ptr(0)})
 		Expect(err).ToNot(HaveOccurred())
 	}
 
@@ -287,17 +286,17 @@ func restartPtpDaemon() {
 }
 
 func waitForPtpDaemonToBeReady() int {
-	daemonset, err := client.Client.DaemonSets(utils.PtpLinuxDaemonNamespace).Get(context.Background(), utils.PtpDaemonsetName, metav1.GetOptions{})
+	daemonset, err := testclient.Client.DaemonSets(utils.PtpLinuxDaemonNamespace).Get(context.Background(), utils.PtpDaemonsetName, metav1.GetOptions{})
 	Expect(err).ToNot(HaveOccurred())
 	expectedNumber := daemonset.Status.DesiredNumberScheduled
 	Eventually(func() int32 {
-		daemonset, err = client.Client.DaemonSets(utils.PtpLinuxDaemonNamespace).Get(context.Background(), utils.PtpDaemonsetName, metav1.GetOptions{})
+		daemonset, err = testclient.Client.DaemonSets(utils.PtpLinuxDaemonNamespace).Get(context.Background(), utils.PtpDaemonsetName, metav1.GetOptions{})
 		Expect(err).ToNot(HaveOccurred())
 		return daemonset.Status.NumberReady
 	}, utils.TimeoutIn5Minutes, 2*time.Second).Should(Equal(expectedNumber))
 
 	Eventually(func() int {
-		ptpPods, err := client.Client.CoreV1().Pods(utils.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
+		ptpPods, err := testclient.Client.CoreV1().Pods(utils.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
 		Expect(err).ToNot(HaveOccurred())
 		return len(ptpPods.Items)
 	}, utils.TimeoutIn5Minutes, 2*time.Second).Should(Equal(int(expectedNumber)))
