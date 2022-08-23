@@ -1,11 +1,11 @@
-# VERSION defines the project version for the bundle. 
+# VERSION defines the project version for the bundle.
 # Update this value when you upgrade the version of your project.
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
 VERSION ?= 4.12
 
-# CHANNELS define the bundle channels used in the bundle. 
+# CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "preview,fast,stable")
 # To re-generate a bundle for other specific channels without changing the standard setup, you can:
 # - use the CHANNELS as arg of the bundle target (e.g make bundle CHANNELS=preview,fast,stable)
@@ -14,7 +14,7 @@ ifneq ($(origin CHANNELS), undefined)
 BUNDLE_CHANNELS := --channels=$(CHANNELS)
 endif
 
-# DEFAULT_CHANNEL defines the default channel used in the bundle. 
+# DEFAULT_CHANNEL defines the default channel used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g DEFAULT_CHANNEL = "stable")
 # To re-generate a bundle for any other default channel without changing the default setup, you can:
 # - use the DEFAULT_CHANNEL as arg of the bundle target (e.g make bundle DEFAULT_CHANNEL=stable)
@@ -87,6 +87,16 @@ fmt-code: ## Run go fmt against code.
 
 vet: ## Run go vet against code.
 	go vet ./...
+
+ifeq ($(shell which markdownlint 2>/dev/null),)
+check-markdownlint:
+	@echo "Skipping markdownlint: Not installed"
+else
+check-markdownlint:
+	find . -name '*.md' -not -path '*/vendor/*' -not -path './git/*' -print0 \
+		 | xargs -0 --no-run-if-empty markdownlint
+endif
+.PHONY: check-markdownlint
 
 #ENVTEST_ASSETS_DIR=$(shell pwd)/testbin
 #test: manifests generate fmt vet ## Run tests.

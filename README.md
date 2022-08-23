@@ -1,4 +1,5 @@
 # PTP Operator
+
 ## Table of Contents
 
 - [PTP Operator](#ptp-operator)
@@ -6,17 +7,21 @@
 - [PtpConfig](#ptpconfig)
 - [Quick Start](#quick-start)
 
-## PTP Operator
-Ptp Operator, runs in `openshift-ptp` namespace, manages cluster wide PTP configuration. It offers `PtpOperatorConfig` and `PtpConfig` CRDs and creates `linuxptp daemon` to apply node specific PTP config.
+## What is PTP Operator
 
+Ptp Operator, runs in `openshift-ptp` namespace, manages cluster wide PTP configuration. It offers `PtpOperatorConfig`
+and `PtpConfig` CRDs and creates `linuxptp daemon` to apply node specific PTP config.
 
 ## PtpOperatorConfig
-Upon deployment of PTP Operator, it automatically creates a `default` custom resource of `PtpOperatorConfig` kind which contains a configurable option `daemonNodeSelector`, it is used to specify which nodes `linuxptp daemon` shall be created on. The `daemonNodeSelector` will be applied to `linuxptp daemon` DaemonSet `nodeSelector` field and trigger relaunching of `linuxptp daemon`. Ptp Operator only recognizes `default` `PtpOperatorConfig`, use `oc edit PtpOperatorConfig default -n openshift-ptp` to update the `daemonNodeSelector`.
 
+Upon deployment of PTP Operator, it automatically creates a `default` custom resource of `PtpOperatorConfig` kind,
+which contains a configurable option `daemonNodeSelector`. It is used to specify which nodes `linuxptp daemon` shall be
+created on. The `daemonNodeSelector` will be applied to `linuxptp daemon` DaemonSet `nodeSelector` field and trigger
+relaunching of `linuxptp daemon`. Ptp Operator only recognizes `default` `PtpOperatorConfig`, use `oc edit
+PtpOperatorConfig default -n openshift-ptp` to update the `daemonNodeSelector`.
 
-```
+```bash
 $ oc get ptpoperatorconfigs.ptp.openshift.io default -n openshift-ptp -o yaml
-
 apiVersion: v1
 items:
 - apiVersion: ptp.openshift.io/v1
@@ -36,12 +41,20 @@ metadata:
   resourceVersion: ""
   selfLink: ""
 ```
-### Enable PTP events via fast event framework 
-PTP Operator supports fast event publisher for events such as PTP state change, os clock out of sync, clock class change and port failure.
-Event publisher is enabled by deploying PTP operator with [cloud events framework](https://github.com/redhat-cne/cloud-event-proxy) (based on O-RAN API specifications).
+
+### Enable PTP events via fast event framework
+
+PTP Operator supports fast event publisher for events such as PTP state change, os clock out of sync, clock class
+change and port failure.
+
+Event publisher is enabled by deploying PTP operator with [cloud events framework](
+https://github.com/redhat-cne/cloud-event-proxy) (based on O-RAN API specifications).
+
 The events are published via AMQ interconnect router and available for local subscribers.
-####Enabling fast events 
-```
+
+#### Enabling fast events
+
+```bash
 $ oc edit ptpoperatorconfigs.ptp.openshift.io default -n openshift-ptp
 
 apiVersion: v1
@@ -67,23 +80,28 @@ metadata:
   resourceVersion: ""
   selfLink: ""
 ```
+
 ## PtpConfig
 
-`PtpConfig` CRD is used to define linuxptp configurations and to which node these 
-linuxptp configurations shall be applied. 
-The Spec of CR has two major sections. 
+`PtpConfig` CRD is used to define linuxptp configurations and to which node these
+linuxptp configurations shall be applied.
+The Spec of CR has two major sections.
 The first section `profile` contains `interface`, `ptp4lOpts`, `phc2sysOpts` and `ptp4lConf` options,
 the second `recommend` defines profile selection logic.
+
+```console
+PTP operator supports T-BC and Ordinary clock which can be configured via ptpConfig
 ```
- PTP operator supports T-BC and Ordinary clock which can be configured via ptpConfig
-```
+
 ### ptpConfig to set up ordinary clock using single interface
-``` 
-NOTE: following ptp4l/phc2sys opts required when events are enabled 
-    ptp4lOpts: "-2 -s --summary_interval -4" 
+
+```console
+NOTE: following ptp4l/phc2sys opts required when events are enabled
+    ptp4lOpts: "-2 -s --summary_interval -4"
     phc2sysOpts: "-a -r -m -n 24 -N 8 -R 16"
 ```
-```
+
+```yaml
 apiVersion: ptp.openshift.io/v1
 kind: PtpConfig
 metadata:
@@ -101,13 +119,16 @@ spec:
     match:
     - nodeLabel: "node-role.kubernetes.io/worker"
 ```
+
 ### ptpConfig to set up boundary clock using multiple interface
-``` 
-NOTE: following ptp4l/phc2sys opts required when events are enabled 
-    ptp4lOpts: "-2 --summary_interval -4" 
+
+```console
+NOTE: following ptp4l/phc2sys opts required when events are enabled
+    ptp4lOpts: "-2 --summary_interval -4"
     phc2sysOpts: "-a -r -m -n 24 -N 8 -R 16"
 ```
-```
+
+```yaml
 apiVersion: ptp.openshift.io/v1
 kind: PtpConfig
 metadata:
@@ -131,8 +152,10 @@ spec:
     match:
     - nodeLabel: "node-role.kubernetes.io/worker"
 ```
+
 #### ptpConfig to override offset threshold when events are enabled
-```
+
+```yaml
 apiVersion: ptp.openshift.io/v1
 kind: PtpConfig
 metadata:
@@ -143,7 +166,7 @@ spec:
   - name: "profile1"
     ...
     ...
-    ......   
+    ......
     ptpClockThreshold:
       holdOverTimeout: 24 # in secs
       maxOffsetThreshold: 100 #in nano secs
@@ -153,22 +176,29 @@ spec:
     priority: 4
     match:
     - nodeLabel: "node-role.kubernetes.io/worker"
-    
 ```
 
-In above examples, `profile1` will be applied by `linuxptp-daemon` to nodes labeled with `node-role.kubernetes.io/worker`.
+In above examples, `profile1` will be applied by `linuxptp-daemon` to nodes labeled with
+`node-role.kubernetes.io/worker`.
 
-`xxx-ptpconfig` CR is created with `PtpConfig` kind. `spec.profile` defines profile named `profile1` which contains `interface (enp134s0f0)` to run ptp4l process on, `ptp4lOpts (-s -2)` sysconfig options to run ptp4l process with and `phc2sysOpts (-a -r)` to run phc2sys process with. `spec.recommend` defines `priority` (lower numbers mean higher priority, 0 is the highest priority) and `match` rules of profile `profile1`. `priority` is useful when there are multiple `PtpConfig` CRs defined, linuxptp daemon applies `match` rules against node labels and names from high priority to low priority in order. If any of `nodeLabel` or `nodeName` on a specific node matches with the node label or name where daemon runs, it applies profile on that node.
+`xxx-ptpconfig` CR is created with `PtpConfig` kind. `spec.profile` defines profile named `profile1` which contains
+`interface (enp134s0f0)` to run ptp4l process on, `ptp4lOpts (-s -2)` sysconfig options to run ptp4l process with and
+`phc2sysOpts (-a -r)` to run phc2sys process with. `spec.recommend` defines `priority` (lower numbers mean higher
+priority, 0 is the highest priority) and `match` rules of profile `profile1`. `priority` is useful when there are
+multiple `PtpConfig` CRs defined, linuxptp daemon applies `match` rules against node labels and names from high
+priority to low priority in order. If any of `nodeLabel` or `nodeName` on a specific node matches with the node label
+or name where daemon runs, it applies profile on that node.
 
 ## Quick Start
 
 To install PTP Operator:
-```
-$ make deploy
+
+```bash
+make deploy
 ```
 
 To un-install:
-```
-$ make undeploy
-```
 
+```bash
+make undeploy
+```
