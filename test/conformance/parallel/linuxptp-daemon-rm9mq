@@ -1,0 +1,2464 @@
+ptp4l[1653020.364]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653020.364]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653020.364]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653020.364]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653020.364]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653020.364]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653020.364]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653020.364]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653020.364]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653020.364]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653020.364]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653020.364]: [ptp4l.0.config] config item (null).priority2 is 128
+phc2sys[1653020.365]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[1653020.382]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653020.382]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653020.382]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:37:52.026054 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:37:52.026100 3856662 daemon.go:334] ptp4l[1661186272]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653021.366]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:37:53.026694 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:37:53.026802 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:37:53.026817 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:37:53.027133 3856662 daemon.go:334] ptp4l[1661186273]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653021.385]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653021.386]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653021.386]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653021.386]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653021.386]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653021.386]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653021.386]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653021.386]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653021.386]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653021.386]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653021.386]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653021.386]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653021.386]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653021.386]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653021.386]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653021.386]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653021.386]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653021.386]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653021.386]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653021.386]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653021.386]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653021.386]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653021.386]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653021.386]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653021.386]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653021.386]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653021.386]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653021.403]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653021.403]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+ptp4l[1653021.403]: [ptp4l.0.config] config item (null).free_running is 0
+failed to create a clock
+E0822 16:37:53.047202 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:37:53.047255 3856662 daemon.go:334] ptp4l[1661186273]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653022.367]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:37:54.048400 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:37:54.048492 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:37:54.048505 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:37:54.048793 3856662 daemon.go:334] ptp4l[1661186274]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653022.407]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653022.407]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653022.407]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653022.407]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653022.407]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653022.407]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653022.407]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653022.407]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653022.407]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653022.407]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653022.408]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653022.408]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653022.408]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653022.408]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653022.408]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653022.408]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653022.408]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653022.408]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653022.408]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653022.408]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653022.408]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653022.408]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653022.408]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653022.408]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653022.408]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653022.408]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653022.408]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653022.425]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653022.425]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653022.425]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:37:54.069266 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:37:54.069311 3856662 daemon.go:334] ptp4l[1661186274]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653023.368]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:37:55.070084 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:37:55.070178 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:37:55.070190 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:37:55.070446 3856662 daemon.go:334] ptp4l[1661186275]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653023.429]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653023.429]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653023.429]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653023.429]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653023.429]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653023.429]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653023.429]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653023.429]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653023.429]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653023.429]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653023.429]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653023.429]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653023.429]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653023.429]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653023.429]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653023.429]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653023.429]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653023.429]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653023.429]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653023.429]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653023.429]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653023.430]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653023.430]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653023.430]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653023.430]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653023.430]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653023.430]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653023.444]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653023.444]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653023.444]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:37:55.088260 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:37:55.088304 3856662 daemon.go:334] ptp4l[1661186275]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653024.370]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:37:56.088929 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:37:56.089006 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:37:56.089017 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:37:56.089269 3856662 daemon.go:334] ptp4l[1661186276]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653024.463]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653024.464]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653024.464]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653024.464]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653024.464]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653024.464]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653024.464]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653024.464]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653024.464]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653024.464]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653024.464]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653024.464]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653024.464]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653024.464]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653024.464]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653024.464]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653024.464]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653024.464]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653024.464]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653024.464]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653024.464]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653024.464]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653024.464]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653024.464]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653024.464]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653024.464]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653024.464]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653024.481]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653024.481]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653024.481]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:37:56.125177 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:37:56.125218 3856662 daemon.go:334] ptp4l[1661186276]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653025.371]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:37:57.126204 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:37:57.126314 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:37:57.126328 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:37:57.126597 3856662 daemon.go:334] ptp4l[1661186277]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653025.485]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653025.485]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653025.485]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653025.485]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653025.485]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653025.485]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653025.485]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653025.485]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653025.485]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653025.485]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653025.485]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653025.485]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653025.485]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653025.485]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653025.485]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653025.485]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653025.485]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653025.485]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653025.485]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653025.485]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653025.485]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653025.486]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653025.486]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653025.486]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653025.486]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653025.486]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653025.486]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653025.502]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653025.502]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653025.502]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:37:57.145979 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:37:57.146026 3856662 daemon.go:334] ptp4l[1661186277]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653026.372]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:37:58.146402 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:37:58.146516 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:37:58.146531 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:37:58.146780 3856662 daemon.go:334] ptp4l[1661186278]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653026.505]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653026.505]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653026.505]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653026.505]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653026.505]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653026.505]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653026.505]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653026.505]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653026.505]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653026.505]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653026.505]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653026.505]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653026.505]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653026.505]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653026.506]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653026.506]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653026.506]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653026.506]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653026.506]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653026.506]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653026.506]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653026.506]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653026.506]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653026.506]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653026.506]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653026.506]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653026.506]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653026.520]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653026.520]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653026.520]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:37:58.163679 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:37:58.163721 3856662 daemon.go:334] ptp4l[1661186278]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653027.373]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:37:59.164717 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:37:59.164829 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:37:59.164847 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:37:59.165129 3856662 daemon.go:334] ptp4l[1661186279]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653027.523]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653027.524]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653027.524]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653027.524]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653027.524]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653027.524]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653027.524]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653027.524]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653027.524]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653027.524]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653027.524]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653027.524]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653027.524]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653027.524]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653027.524]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653027.524]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653027.524]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653027.524]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653027.524]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653027.524]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653027.524]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653027.524]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653027.524]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653027.524]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653027.524]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653027.524]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653027.524]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653027.542]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653027.542]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653027.542]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:37:59.185760 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:37:59.185802 3856662 daemon.go:334] ptp4l[1661186279]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653028.375]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:00.052307 3856662 main.go:111] ticker pull
+I0822 16:38:00.186706 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:00.186790 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:00.186802 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:00.187069 3856662 daemon.go:334] ptp4l[1661186280]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653028.545]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653028.545]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653028.545]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653028.545]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653028.545]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653028.545]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653028.545]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653028.545]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653028.545]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653028.545]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653028.545]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653028.546]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653028.546]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653028.546]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653028.546]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653028.546]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653028.546]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653028.546]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653028.546]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653028.546]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653028.546]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653028.546]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653028.546]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653028.546]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653028.546]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653028.546]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653028.546]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653028.563]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653028.563]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653028.563]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:00.206634 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:00.206678 3856662 daemon.go:334] ptp4l[1661186280]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653029.376]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:01.206977 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:01.207087 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:01.207101 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:01.207393 3856662 daemon.go:334] ptp4l[1661186281]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653029.565]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653029.566]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653029.566]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653029.566]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653029.566]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653029.566]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653029.566]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653029.566]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653029.566]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653029.566]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653029.566]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653029.566]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653029.566]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653029.566]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653029.566]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653029.566]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653029.566]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653029.566]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653029.566]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653029.566]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653029.566]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653029.566]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653029.566]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653029.566]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653029.566]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653029.566]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653029.566]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653029.581]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653029.581]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653029.581]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:01.224670 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:01.224719 3856662 daemon.go:334] ptp4l[1661186281]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653030.377]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:02.225332 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:02.225413 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:02.225425 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:02.225666 3856662 daemon.go:334] ptp4l[1661186282]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653030.584]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653030.584]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653030.584]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653030.584]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653030.584]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653030.584]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653030.584]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653030.584]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653030.584]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653030.584]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653030.584]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653030.584]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653030.584]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653030.584]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653030.584]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653030.584]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653030.584]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653030.584]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653030.584]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653030.584]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653030.584]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653030.584]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653030.584]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653030.584]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653030.584]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653030.584]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653030.584]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653030.599]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653030.600]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653030.600]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:02.243452 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:02.243493 3856662 daemon.go:334] ptp4l[1661186282]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653031.378]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:03.244559 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:03.244668 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:03.244682 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:03.244978 3856662 daemon.go:334] ptp4l[1661186283]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653031.603]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653031.603]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653031.603]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653031.603]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653031.603]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653031.603]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653031.603]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653031.603]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653031.603]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653031.603]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653031.603]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653031.604]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653031.604]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653031.604]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653031.604]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653031.604]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653031.604]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653031.604]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653031.604]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653031.604]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653031.604]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653031.604]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653031.604]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653031.604]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653031.604]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653031.604]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653031.604]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653031.618]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653031.618]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653031.618]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:03.261746 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:03.261802 3856662 daemon.go:334] ptp4l[1661186283]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653032.380]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:04.262768 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:04.262865 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:04.262878 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:04.263151 3856662 daemon.go:334] ptp4l[1661186284]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653032.621]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653032.621]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653032.622]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653032.622]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653032.622]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653032.622]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653032.622]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653032.622]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653032.622]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653032.622]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653032.622]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653032.622]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653032.622]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653032.622]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653032.622]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653032.622]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653032.622]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653032.622]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653032.622]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653032.622]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653032.622]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653032.622]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653032.622]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653032.622]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653032.622]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653032.622]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653032.622]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653032.639]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653032.640]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653032.640]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:04.283524 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:04.283581 3856662 daemon.go:334] ptp4l[1661186284]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653033.381]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:05.284472 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:05.284559 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:05.284570 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:05.284874 3856662 daemon.go:334] ptp4l[1661186285]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653033.643]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653033.643]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653033.643]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653033.643]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653033.643]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653033.643]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653033.643]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653033.643]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653033.643]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653033.643]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653033.643]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653033.643]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653033.643]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653033.643]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653033.644]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653033.644]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653033.644]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653033.644]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653033.644]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653033.644]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653033.644]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653033.644]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653033.644]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653033.644]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653033.644]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653033.644]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653033.644]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653033.660]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653033.661]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653033.661]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:05.304565 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:05.304615 3856662 daemon.go:334] ptp4l[1661186285]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653034.382]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:06.305472 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:06.305576 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:06.305590 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:06.305848 3856662 daemon.go:334] ptp4l[1661186286]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653034.664]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653034.664]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653034.664]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653034.664]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653034.664]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653034.664]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653034.664]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653034.664]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653034.665]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653034.665]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653034.665]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653034.665]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653034.665]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653034.665]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653034.665]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653034.665]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653034.665]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653034.665]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653034.665]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653034.665]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653034.665]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653034.665]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653034.665]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653034.665]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653034.665]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653034.665]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653034.665]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653034.683]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653034.683]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653034.683]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:06.326722 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:06.326765 3856662 daemon.go:334] ptp4l[1661186286]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653035.383]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:07.327653 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:07.327736 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:07.327748 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:07.328006 3856662 daemon.go:334] ptp4l[1661186287]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653035.686]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653035.686]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653035.686]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653035.686]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653035.686]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653035.686]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653035.687]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653035.687]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653035.687]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653035.687]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653035.687]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653035.687]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653035.687]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653035.687]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653035.687]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653035.687]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653035.687]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653035.687]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653035.687]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653035.687]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653035.687]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653035.687]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653035.687]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653035.687]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653035.687]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653035.687]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653035.687]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653035.702]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653035.702]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653035.702]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:07.346148 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:07.346204 3856662 daemon.go:334] ptp4l[1661186287]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653036.385]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:08.346981 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:08.347073 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:08.347087 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:08.347434 3856662 daemon.go:334] ptp4l[1661186288]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653036.706]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653036.706]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653036.706]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653036.706]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653036.706]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653036.706]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653036.706]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653036.706]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653036.706]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653036.706]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653036.706]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653036.706]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653036.706]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653036.706]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653036.706]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653036.706]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653036.706]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653036.706]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653036.706]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653036.706]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653036.706]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653036.706]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653036.706]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653036.706]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653036.706]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653036.706]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653036.706]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653036.722]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653036.722]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653036.722]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:08.365732 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:08.365780 3856662 daemon.go:334] ptp4l[1661186288]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653037.386]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:09.366122 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:09.366220 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:09.366233 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:09.366474 3856662 daemon.go:334] ptp4l[1661186289]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653037.725]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653037.725]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653037.725]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653037.725]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653037.725]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653037.725]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653037.725]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653037.725]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653037.725]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653037.725]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653037.725]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653037.725]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653037.725]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653037.725]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653037.725]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653037.725]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653037.725]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653037.725]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653037.725]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653037.725]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653037.725]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653037.725]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653037.725]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653037.726]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653037.726]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653037.726]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653037.726]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653037.742]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653037.742]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653037.742]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:09.386447 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:09.386510 3856662 daemon.go:334] ptp4l[1661186289]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653038.387]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:10.386591 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:10.386689 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:10.386703 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:10.386911 3856662 daemon.go:334] ptp4l[1661186290]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653038.745]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653038.746]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653038.746]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653038.746]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653038.746]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653038.746]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653038.746]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653038.746]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653038.746]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653038.746]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653038.746]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653038.746]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653038.746]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653038.746]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653038.746]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653038.746]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653038.746]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653038.746]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653038.746]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653038.746]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653038.746]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653038.746]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653038.746]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653038.746]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653038.746]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653038.746]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653038.746]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653038.761]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653038.761]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653038.761]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:10.404893 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:10.404938 3856662 daemon.go:334] ptp4l[1661186290]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653039.388]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:11.405915 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:11.406026 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:11.406062 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:11.406336 3856662 daemon.go:334] ptp4l[1661186291]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653039.764]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653039.765]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653039.765]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653039.765]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653039.765]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653039.765]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653039.765]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653039.765]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653039.765]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653039.765]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653039.765]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653039.765]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653039.765]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653039.765]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653039.765]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653039.765]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653039.765]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653039.765]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653039.765]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653039.765]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653039.765]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653039.765]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653039.765]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653039.765]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653039.765]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653039.765]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653039.765]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653039.782]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653039.782]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653039.782]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:11.426208 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:11.426253 3856662 daemon.go:334] ptp4l[1661186291]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653040.390]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:12.427163 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:12.427269 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:12.427283 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:12.427571 3856662 daemon.go:334] ptp4l[1661186292]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653040.786]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653040.786]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653040.786]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653040.786]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653040.786]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653040.786]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653040.786]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653040.786]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653040.786]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653040.786]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653040.786]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653040.786]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653040.786]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653040.786]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653040.786]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653040.786]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653040.786]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653040.786]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653040.786]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653040.787]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653040.787]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653040.787]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653040.787]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653040.787]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653040.787]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653040.787]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653040.787]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653040.802]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653040.803]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653040.802]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:12.446460 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:12.446513 3856662 daemon.go:334] ptp4l[1661186292]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653041.391]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:13.447449 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:13.447551 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:13.447564 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:13.447868 3856662 daemon.go:334] ptp4l[1661186293]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653041.806]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653041.806]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653041.806]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653041.806]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653041.806]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653041.806]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653041.806]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653041.806]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653041.806]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653041.806]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653041.806]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653041.806]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653041.806]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653041.807]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653041.807]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653041.807]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653041.807]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653041.807]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653041.807]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653041.807]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653041.807]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653041.807]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653041.807]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653041.807]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653041.807]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653041.807]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653041.807]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653041.825]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653041.825]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653041.825]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:13.468634 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:13.468689 3856662 daemon.go:334] ptp4l[1661186293]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653042.392]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:14.469674 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:14.469785 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:14.469798 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:14.470077 3856662 daemon.go:334] ptp4l[1661186294]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653042.828]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653042.828]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653042.829]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653042.829]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653042.829]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653042.829]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653042.829]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653042.829]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653042.829]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653042.829]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653042.829]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653042.829]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653042.829]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653042.829]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653042.829]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653042.829]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653042.829]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653042.829]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653042.829]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653042.829]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653042.829]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653042.829]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653042.829]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653042.829]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653042.829]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653042.829]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653042.829]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653042.846]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653042.846]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+ptp4l[1653042.846]: [ptp4l.0.config] config item (null).free_running is 0
+failed to create a clock
+E0822 16:38:14.490232 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:14.490282 3856662 daemon.go:334] ptp4l[1661186294]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653043.393]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:15.490786 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:15.490892 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:15.490906 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:15.491160 3856662 daemon.go:334] ptp4l[1661186295]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653043.849]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653043.850]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653043.850]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653043.850]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653043.850]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653043.850]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653043.850]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653043.850]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653043.850]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653043.850]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653043.850]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653043.850]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653043.850]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653043.850]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653043.850]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653043.850]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653043.850]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653043.850]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653043.850]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653043.850]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653043.850]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653043.850]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653043.850]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653043.850]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653043.850]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653043.850]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653043.850]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653043.866]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653043.867]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653043.866]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:15.510483 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:15.510545 3856662 daemon.go:334] ptp4l[1661186295]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653044.395]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:16.511209 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:16.511302 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:16.511315 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:16.511605 3856662 daemon.go:334] ptp4l[1661186296]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653044.870]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653044.870]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653044.870]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653044.870]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653044.870]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653044.870]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653044.870]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653044.870]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653044.870]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653044.870]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653044.870]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653044.870]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653044.870]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653044.870]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653044.870]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653044.870]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653044.870]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653044.870]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653044.870]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653044.870]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653044.870]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653044.870]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653044.870]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653044.870]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653044.870]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653044.870]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653044.870]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653044.900]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653044.900]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653044.900]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:16.544450 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:16.544507 3856662 daemon.go:334] ptp4l[1661186296]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653045.396]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:17.545383 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:17.545472 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:17.545485 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:17.545933 3856662 daemon.go:334] ptp4l[1661186297]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653045.904]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653045.904]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653045.904]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653045.904]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653045.904]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653045.904]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653045.904]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653045.904]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653045.904]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653045.904]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653045.904]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653045.904]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653045.904]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653045.904]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653045.904]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653045.904]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653045.905]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653045.905]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653045.905]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653045.905]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653045.905]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653045.905]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653045.905]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653045.905]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653045.905]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653045.905]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653045.905]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653045.919]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653045.919]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653045.919]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:17.563285 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:17.563341 3856662 daemon.go:334] ptp4l[1661186297]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653046.397]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:18.563722 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:18.563804 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:18.563818 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:18.564133 3856662 daemon.go:334] ptp4l[1661186298]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653046.922]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653046.922]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653046.922]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653046.922]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653046.922]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653046.922]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653046.923]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653046.923]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653046.923]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653046.923]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653046.923]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653046.923]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653046.923]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653046.923]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653046.923]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653046.923]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653046.923]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653046.923]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653046.923]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653046.923]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653046.923]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653046.923]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653046.923]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653046.923]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653046.923]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653046.923]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653046.923]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653046.939]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653046.940]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653046.940]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:18.583466 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:18.583516 3856662 daemon.go:334] ptp4l[1661186298]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653047.398]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:19.584045 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:19.584133 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:19.584145 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:19.584385 3856662 daemon.go:334] ptp4l[1661186299]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653047.943]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653047.943]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653047.943]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653047.943]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653047.943]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653047.943]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653047.943]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653047.943]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653047.943]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653047.943]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653047.943]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653047.943]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653047.943]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653047.943]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653047.943]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653047.943]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653047.943]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653047.943]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653047.943]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653047.943]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653047.943]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653047.943]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653047.943]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653047.943]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653047.943]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653047.943]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653047.943]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653047.959]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653047.959]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653047.959]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:19.602789 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:19.602845 3856662 daemon.go:334] ptp4l[1661186299]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653048.400]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:20.603304 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:20.603401 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:20.603415 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:20.603693 3856662 daemon.go:334] ptp4l[1661186300]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653048.962]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653048.962]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653048.962]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653048.962]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653048.962]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653048.962]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653048.962]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653048.962]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653048.962]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653048.962]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653048.962]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653048.962]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653048.962]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653048.962]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653048.962]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653048.962]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653048.962]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653048.962]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653048.962]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653048.962]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653048.962]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653048.962]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653048.963]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653048.963]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653048.963]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653048.963]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653048.963]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653048.981]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653048.981]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653048.981]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:20.624604 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:20.624651 3856662 daemon.go:334] ptp4l[1661186300]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653049.401]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:21.625675 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:21.625790 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:21.625804 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:21.626110 3856662 daemon.go:334] ptp4l[1661186301]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653049.984]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653049.984]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653049.985]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653049.985]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653049.985]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653049.985]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653049.985]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653049.985]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653049.985]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653049.985]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653049.985]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653049.985]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653049.985]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653049.985]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653049.985]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653049.985]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653049.985]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653049.985]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653049.985]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653049.985]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653049.985]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653049.985]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653049.985]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653049.985]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653049.985]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653049.985]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653049.985]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653049.999]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653050.000]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653049.999]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:21.643400 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:21.643450 3856662 daemon.go:334] ptp4l[1661186301]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653050.402]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:22.643890 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:22.643985 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:22.643999 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:22.644261 3856662 daemon.go:334] ptp4l[1661186302]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653051.002]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653051.003]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653051.003]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653051.003]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653051.003]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653051.003]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653051.003]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653051.003]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653051.003]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653051.003]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653051.003]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653051.003]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653051.003]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653051.003]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653051.003]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653051.003]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653051.003]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653051.003]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653051.003]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653051.003]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653051.003]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653051.003]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653051.003]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653051.003]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653051.003]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653051.003]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653051.003]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653051.019]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653051.019]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653051.019]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:22.663080 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:22.663126 3856662 daemon.go:334] ptp4l[1661186302]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653051.404]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:23.663190 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:23.663285 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:23.663310 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:23.663555 3856662 daemon.go:334] ptp4l[1661186303]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653052.022]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653052.022]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653052.022]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653052.022]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653052.022]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653052.022]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653052.022]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653052.022]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653052.022]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653052.022]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653052.022]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653052.022]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653052.022]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653052.022]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653052.022]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653052.022]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653052.022]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653052.022]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653052.022]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653052.022]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653052.022]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653052.022]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653052.022]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653052.022]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653052.022]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653052.023]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653052.023]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653052.038]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653052.038]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653052.038]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:23.682107 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:23.682163 3856662 daemon.go:334] ptp4l[1661186303]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653052.405]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:24.682409 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:24.682496 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:24.682513 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:24.682814 3856662 daemon.go:334] ptp4l[1661186304]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653053.041]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653053.041]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653053.041]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653053.041]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653053.041]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653053.041]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653053.041]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653053.041]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653053.041]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653053.041]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653053.041]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653053.041]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653053.041]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653053.041]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653053.041]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653053.042]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653053.042]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653053.042]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653053.042]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653053.042]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653053.042]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653053.042]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653053.042]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653053.042]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653053.042]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653053.042]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653053.042]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653053.060]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653053.061]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653053.061]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:24.704592 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:24.704643 3856662 daemon.go:334] ptp4l[1661186304]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653053.406]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:25.705661 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:25.705744 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:25.705755 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:25.706015 3856662 daemon.go:334] ptp4l[1661186305]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653054.064]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653054.064]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653054.064]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653054.064]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653054.064]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653054.064]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653054.064]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653054.065]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653054.065]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653054.065]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653054.065]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653054.065]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653054.065]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653054.065]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653054.065]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653054.065]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653054.065]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653054.065]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653054.065]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653054.065]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653054.065]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653054.065]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653054.065]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653054.065]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653054.065]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653054.065]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653054.065]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653054.080]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653054.080]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653054.080]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:25.723620 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:25.723678 3856662 daemon.go:334] ptp4l[1661186305]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653054.407]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:26.723937 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:26.724064 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:26.724080 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:26.724378 3856662 daemon.go:334] ptp4l[1661186306]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653055.083]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653055.083]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653055.083]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653055.083]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653055.083]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653055.083]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653055.083]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653055.083]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653055.083]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653055.083]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653055.083]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653055.083]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653055.083]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653055.083]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653055.083]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653055.083]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653055.083]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653055.083]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653055.083]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653055.083]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653055.083]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653055.083]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653055.083]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653055.083]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653055.083]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653055.083]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653055.083]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653055.099]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653055.099]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653055.099]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:26.743015 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:26.743079 3856662 daemon.go:334] ptp4l[1661186306]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653055.408]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:27.744212 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:27.744319 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:27.744332 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:27.744631 3856662 daemon.go:334] ptp4l[1661186307]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653056.103]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653056.103]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653056.103]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653056.103]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653056.103]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653056.103]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653056.103]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653056.103]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653056.103]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653056.103]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653056.103]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653056.103]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653056.103]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653056.103]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653056.103]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653056.103]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653056.103]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653056.103]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653056.103]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653056.103]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653056.103]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653056.104]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653056.104]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653056.104]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653056.104]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653056.104]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653056.104]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653056.118]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653056.118]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653056.118]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:27.762194 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:27.762240 3856662 daemon.go:334] ptp4l[1661186307]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653056.410]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:28.762395 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:28.762489 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:28.762504 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:28.762795 3856662 daemon.go:334] ptp4l[1661186308]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653057.121]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653057.121]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653057.121]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653057.121]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653057.121]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653057.121]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653057.121]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653057.121]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653057.121]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653057.121]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653057.121]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653057.121]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653057.121]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653057.121]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653057.121]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653057.122]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653057.122]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653057.122]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653057.122]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653057.122]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653057.122]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653057.122]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653057.122]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653057.122]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653057.122]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653057.122]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653057.122]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653057.137]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653057.137]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653057.137]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:28.781055 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:28.781104 3856662 daemon.go:334] ptp4l[1661186308]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653057.411]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:29.781655 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:29.781753 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:29.781766 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:29.782023 3856662 daemon.go:334] ptp4l[1661186309]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653058.140]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653058.140]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653058.140]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653058.140]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653058.140]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653058.140]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653058.140]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653058.140]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653058.141]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653058.141]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653058.141]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653058.141]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653058.141]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653058.141]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653058.141]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653058.141]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653058.141]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653058.141]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653058.141]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653058.141]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653058.141]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653058.141]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653058.141]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653058.141]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653058.141]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653058.141]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653058.141]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653058.154]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653058.154]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653058.154]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:29.798071 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:29.798112 3856662 daemon.go:334] ptp4l[1661186309]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+I0822 16:38:30.052187 3856662 main.go:111] ticker pull
+phc2sys[1653058.412]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:30.798944 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:30.799059 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:30.799072 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:30.799315 3856662 daemon.go:334] ptp4l[1661186310]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653059.158]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653059.158]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653059.158]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653059.158]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653059.158]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653059.158]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653059.158]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653059.158]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653059.158]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653059.158]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653059.158]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653059.158]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653059.158]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653059.158]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653059.158]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653059.158]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653059.158]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653059.158]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653059.158]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653059.158]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653059.158]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653059.158]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653059.158]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653059.158]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653059.158]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653059.158]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653059.158]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653059.171]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653059.171]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+ptp4l[1653059.171]: [ptp4l.0.config] config item (null).free_running is 0
+failed to create a clock
+E0822 16:38:30.814510 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:30.814545 3856662 daemon.go:334] ptp4l[1661186310]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653059.413]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:31.815131 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:31.815230 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:31.815260 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:31.815459 3856662 daemon.go:334] ptp4l[1661186311]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653060.174]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653060.174]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653060.174]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653060.174]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653060.174]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653060.174]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653060.174]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653060.174]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653060.174]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653060.174]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653060.174]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653060.174]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653060.174]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653060.174]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653060.174]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653060.174]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653060.174]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653060.174]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653060.174]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653060.175]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653060.175]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653060.175]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653060.175]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653060.175]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653060.175]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653060.175]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653060.175]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653060.188]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653060.188]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653060.188]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:31.831941 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:31.831998 3856662 daemon.go:334] ptp4l[1661186311]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653060.415]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:32.832436 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:32.832538 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:32.832551 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:32.832794 3856662 daemon.go:334] ptp4l[1661186312]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653061.191]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653061.191]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653061.191]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653061.191]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653061.191]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653061.191]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653061.191]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653061.191]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653061.191]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653061.191]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653061.191]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653061.191]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653061.191]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653061.191]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653061.191]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653061.191]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653061.192]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653061.192]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653061.192]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653061.192]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653061.192]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653061.192]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653061.192]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653061.192]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653061.192]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653061.192]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653061.192]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653061.208]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653061.208]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653061.208]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:32.851869 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:32.851910 3856662 daemon.go:334] ptp4l[1661186312]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653061.416]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:33.852756 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:33.852847 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:33.852861 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:33.853180 3856662 daemon.go:334] ptp4l[1661186313]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653062.211]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653062.212]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653062.212]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653062.212]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653062.212]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653062.212]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653062.212]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653062.212]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653062.212]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653062.212]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653062.212]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653062.212]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653062.212]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653062.212]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653062.212]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653062.212]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653062.212]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653062.212]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653062.212]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653062.212]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653062.212]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653062.212]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653062.212]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653062.212]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653062.212]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653062.212]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653062.212]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653062.226]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653062.226]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653062.226]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:33.869653 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:33.869701 3856662 daemon.go:334] ptp4l[1661186313]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653062.417]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:34.870074 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:34.870158 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:34.870176 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:34.870392 3856662 daemon.go:334] ptp4l[1661186314]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653063.228]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653063.229]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653063.229]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653063.229]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653063.229]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653063.229]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653063.229]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653063.229]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653063.229]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653063.229]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653063.229]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653063.229]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653063.229]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653063.229]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653063.229]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653063.229]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653063.229]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653063.229]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653063.229]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653063.229]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653063.229]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653063.229]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653063.229]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653063.229]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653063.229]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653063.229]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653063.229]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653063.242]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653063.242]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653063.242]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:34.886317 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:34.886357 3856662 daemon.go:334] ptp4l[1661186314]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653063.419]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:35.887275 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:35.887369 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:35.887384 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:35.887667 3856662 daemon.go:334] ptp4l[1661186315]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653064.246]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653064.246]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653064.246]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653064.246]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653064.246]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653064.246]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653064.246]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653064.246]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653064.246]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653064.246]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653064.246]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653064.246]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653064.246]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653064.246]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653064.246]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653064.246]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653064.246]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653064.246]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653064.246]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653064.246]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653064.246]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653064.246]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653064.246]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653064.247]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653064.247]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653064.247]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653064.247]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653064.263]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653064.263]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653064.263]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:35.906807 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:35.906857 3856662 daemon.go:334] ptp4l[1661186315]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653064.420]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:36.907541 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:36.907625 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:36.907638 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:36.907870 3856662 daemon.go:334] ptp4l[1661186316]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653065.266]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653065.266]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653065.266]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653065.266]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653065.266]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653065.266]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653065.266]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653065.266]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653065.266]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653065.266]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653065.266]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653065.266]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653065.266]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653065.266]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653065.267]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653065.267]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653065.267]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653065.267]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653065.267]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653065.267]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653065.267]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653065.267]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653065.267]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653065.267]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653065.267]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653065.267]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653065.267]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653065.280]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653065.281]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653065.281]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:36.924539 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:36.924596 3856662 daemon.go:334] ptp4l[1661186316]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653065.421]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:37.924904 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:37.925008 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:37.925022 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:37.925326 3856662 daemon.go:334] ptp4l[1661186317]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653066.283]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653066.284]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653066.284]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653066.284]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653066.284]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653066.284]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653066.284]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653066.284]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653066.284]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653066.284]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653066.284]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653066.284]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653066.284]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653066.284]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653066.284]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653066.284]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653066.284]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653066.284]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653066.284]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653066.284]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653066.284]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653066.284]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653066.284]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653066.284]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653066.284]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653066.284]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653066.284]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653066.298]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653066.298]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653066.298]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:37.942360 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:37.942407 3856662 daemon.go:334] ptp4l[1661186317]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653066.422]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:38.943161 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:38.943248 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:38.943260 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:38.943553 3856662 daemon.go:334] ptp4l[1661186318]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653067.302]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653067.302]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653067.302]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653067.302]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653067.302]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653067.302]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653067.302]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653067.302]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653067.302]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653067.302]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653067.302]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653067.302]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653067.302]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653067.302]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653067.302]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653067.302]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653067.302]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653067.302]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653067.302]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653067.302]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653067.302]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653067.302]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653067.302]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653067.302]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653067.302]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653067.302]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653067.302]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653067.318]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653067.318]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653067.318]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:38.962265 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:38.962313 3856662 daemon.go:334] ptp4l[1661186318]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653067.424]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:39.962409 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:39.962495 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:39.962506 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:39.962751 3856662 daemon.go:334] ptp4l[1661186319]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653068.321]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653068.321]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653068.321]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653068.321]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653068.321]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653068.321]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653068.321]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653068.321]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653068.321]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653068.321]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653068.321]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653068.321]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653068.321]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653068.321]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653068.321]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653068.321]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653068.321]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653068.322]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653068.322]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653068.322]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653068.322]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653068.322]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653068.322]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653068.322]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653068.322]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653068.322]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653068.322]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653068.336]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653068.336]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653068.336]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:39.979643 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:39.979699 3856662 daemon.go:334] ptp4l[1661186319]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653068.425]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:40.980163 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:40.980260 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:40.980275 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:40.980529 3856662 daemon.go:334] ptp4l[1661186320]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653069.339]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653069.339]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653069.339]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653069.339]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653069.339]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653069.339]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653069.339]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653069.339]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653069.339]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653069.339]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653069.339]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653069.339]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653069.339]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653069.339]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653069.339]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653069.339]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653069.339]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653069.339]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653069.339]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653069.339]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653069.339]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653069.339]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653069.339]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653069.339]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653069.339]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653069.340]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653069.340]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653069.355]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653069.355]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653069.355]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:40.998829 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:40.998877 3856662 daemon.go:334] ptp4l[1661186320]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653069.426]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:41.999955 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:42.000079 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:42.000094 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:42.000332 3856662 daemon.go:334] ptp4l[1661186322]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653070.358]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653070.359]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653070.359]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653070.359]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653070.359]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653070.359]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653070.359]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653070.359]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653070.359]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653070.359]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653070.359]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653070.359]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653070.359]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653070.359]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653070.359]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653070.359]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653070.359]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653070.359]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653070.359]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653070.359]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653070.359]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653070.359]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653070.359]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653070.359]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653070.359]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653070.359]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653070.359]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653070.374]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653070.374]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653070.374]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:42.017895 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:42.017939 3856662 daemon.go:334] ptp4l[1661186322]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653070.427]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:43.018266 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:43.018378 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:43.018393 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:43.018665 3856662 daemon.go:334] ptp4l[1661186323]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653071.377]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653071.377]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653071.377]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653071.377]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653071.377]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653071.377]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653071.377]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653071.377]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653071.377]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653071.377]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653071.377]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653071.377]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653071.377]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653071.377]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653071.377]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653071.377]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653071.377]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653071.377]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653071.377]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653071.377]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653071.377]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653071.377]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653071.377]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653071.378]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653071.378]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653071.378]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653071.378]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653071.393]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653071.393]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653071.393]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:43.037168 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:43.037253 3856662 daemon.go:334] ptp4l[1661186323]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653071.429]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:44.037502 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:44.037607 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:44.037622 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:44.037917 3856662 daemon.go:334] ptp4l[1661186324]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653072.396]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653072.396]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653072.396]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653072.396]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653072.396]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653072.396]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653072.396]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653072.396]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653072.396]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653072.396]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653072.396]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653072.396]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653072.396]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653072.397]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653072.397]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653072.397]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653072.397]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653072.397]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653072.397]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653072.397]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653072.397]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653072.397]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653072.397]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653072.397]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653072.397]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653072.397]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653072.397]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653072.413]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653072.413]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653072.413]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:44.056759 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:44.056809 3856662 daemon.go:334] ptp4l[1661186324]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653072.430]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:45.057487 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:45.057564 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:45.057576 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:45.057809 3856662 daemon.go:334] ptp4l[1661186325]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653073.416]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653073.416]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653073.416]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653073.416]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653073.416]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653073.416]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653073.416]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653073.416]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653073.416]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653073.416]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653073.416]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653073.416]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653073.416]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653073.416]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653073.416]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653073.416]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653073.416]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653073.416]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653073.416]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653073.416]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653073.417]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653073.417]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653073.417]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653073.417]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653073.417]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653073.417]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653073.417]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653073.430]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653073.430]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653073.430]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:45.074216 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:45.074258 3856662 daemon.go:334] ptp4l[1661186325]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653073.431]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:46.074639 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:46.074735 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:46.074749 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:46.075060 3856662 daemon.go:334] ptp4l[1661186326]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+phc2sys[1653074.432]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[1653074.433]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653074.433]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653074.433]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653074.433]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653074.433]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653074.433]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653074.433]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653074.433]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653074.434]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653074.434]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653074.434]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653074.434]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653074.434]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653074.434]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653074.434]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653074.434]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653074.434]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653074.434]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653074.434]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653074.434]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653074.434]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653074.434]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653074.434]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653074.434]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653074.434]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653074.434]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653074.434]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653074.449]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653074.449]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+ptp4l[1653074.449]: [ptp4l.0.config] config item (null).free_running is 0
+failed to create a clock
+E0822 16:38:46.092592 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:46.092633 3856662 daemon.go:334] ptp4l[1661186326]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653075.434]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:47.093725 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:47.093806 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:47.093819 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:47.094070 3856662 daemon.go:334] ptp4l[1661186327]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653075.452]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653075.452]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653075.452]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653075.452]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653075.452]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653075.452]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653075.453]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653075.453]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653075.453]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653075.453]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653075.453]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653075.453]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653075.453]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653075.453]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653075.453]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653075.453]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653075.453]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653075.453]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653075.453]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653075.453]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653075.453]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653075.453]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653075.453]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653075.453]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653075.453]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653075.453]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653075.453]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653075.467]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653075.468]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653075.467]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:47.111383 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:47.111431 3856662 daemon.go:334] ptp4l[1661186327]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653076.435]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:48.112157 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:48.112269 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:48.112302 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:48.112552 3856662 daemon.go:334] ptp4l[1661186328]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653076.471]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653076.471]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653076.471]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653076.471]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653076.471]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653076.471]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653076.471]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653076.471]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653076.471]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653076.471]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653076.471]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653076.471]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653076.471]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653076.471]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653076.471]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653076.471]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653076.471]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653076.471]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653076.471]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653076.471]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653076.471]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653076.471]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653076.471]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653076.472]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653076.472]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653076.472]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653076.472]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653076.485]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653076.486]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653076.486]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:48.129535 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:48.129607 3856662 daemon.go:334] ptp4l[1661186328]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653077.436]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:49.130201 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:49.130288 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:49.130300 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:49.130591 3856662 daemon.go:334] ptp4l[1661186329]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653077.489]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653077.489]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653077.489]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653077.489]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653077.489]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653077.489]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653077.489]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653077.489]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653077.489]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653077.489]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653077.489]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653077.489]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653077.489]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653077.489]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653077.489]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653077.489]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653077.490]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653077.490]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653077.490]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653077.490]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653077.490]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653077.490]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653077.490]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653077.490]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653077.490]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653077.490]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653077.490]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653077.506]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653077.506]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+ptp4l[1653077.506]: [ptp4l.0.config] config item (null).free_running is 0
+failed to create a clock
+E0822 16:38:49.149878 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:49.149927 3856662 daemon.go:334] ptp4l[1661186329]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653078.437]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:50.150493 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:50.150579 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:50.150591 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:50.150832 3856662 daemon.go:334] ptp4l[1661186330]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653078.509]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653078.509]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653078.509]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653078.509]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653078.509]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653078.509]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653078.509]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653078.509]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653078.509]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653078.509]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653078.509]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653078.509]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653078.509]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653078.509]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653078.509]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653078.509]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653078.510]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653078.510]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653078.510]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653078.510]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653078.510]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653078.510]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653078.510]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653078.510]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653078.510]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653078.510]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653078.510]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653078.524]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653078.524]: [ptp4l.0.config] config item (null).free_running is 0
+ptp4l[1653078.524]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+E0822 16:38:50.167660 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:50.167742 3856662 daemon.go:334] ptp4l[1661186330]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653079.439]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:51.168869 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:51.168972 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:51.168986 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:51.169307 3856662 daemon.go:334] ptp4l[1661186331]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653079.527]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653079.528]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653079.528]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653079.528]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653079.528]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653079.528]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653079.528]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653079.528]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653079.528]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653079.528]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653079.528]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653079.528]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653079.528]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653079.528]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653079.528]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653079.528]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653079.528]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653079.528]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653079.528]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653079.528]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653079.528]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653079.528]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653079.528]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653079.528]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653079.528]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653079.528]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653079.528]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653079.543]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653079.543]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653079.543]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:51.187089 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:51.187155 3856662 daemon.go:334] ptp4l[1661186331]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653080.440]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:52.187946 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:52.188051 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:52.188081 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:52.188390 3856662 daemon.go:334] ptp4l[1661186332]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653080.546]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653080.547]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653080.547]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653080.547]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653080.547]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653080.547]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653080.547]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653080.547]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653080.547]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653080.547]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653080.547]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653080.547]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653080.547]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653080.547]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653080.547]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653080.547]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653080.547]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653080.547]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653080.547]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653080.547]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653080.547]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653080.547]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653080.547]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653080.547]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653080.547]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653080.547]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653080.547]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653080.562]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653080.562]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653080.562]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:52.206133 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:52.206180 3856662 daemon.go:334] ptp4l[1661186332]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653081.441]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:53.206295 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:53.206405 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:53.206419 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:53.206718 3856662 daemon.go:334] ptp4l[1661186333]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653081.565]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653081.565]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653081.565]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653081.565]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653081.565]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653081.565]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653081.565]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653081.565]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653081.565]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653081.565]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653081.565]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653081.565]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653081.565]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653081.565]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653081.565]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653081.565]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653081.565]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653081.565]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653081.565]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653081.565]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653081.565]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653081.566]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653081.566]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653081.566]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653081.566]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653081.566]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653081.566]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653081.580]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653081.580]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653081.580]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:53.223843 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:53.223905 3856662 daemon.go:334] ptp4l[1661186333]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653082.442]: [ptp4l.0.config] Waiting for ptp4l...
+I0822 16:38:54.224655 3856662 daemon.go:464] Recreating ptp4l...
+I0822 16:38:54.224753 3856662 daemon.go:357] Starting ptp4l...
+I0822 16:38:54.224766 3856662 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -s -m
+I0822 16:38:54.225070 3856662 daemon.go:334] ptp4l[1661186334]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653082.583]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653082.583]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653082.583]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653082.583]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653082.583]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653082.583]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653082.583]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653082.583]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653082.584]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653082.584]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653082.584]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653082.584]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653082.584]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653082.584]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653082.584]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653082.584]: [ptp4l.0.config] config item (null).slaveOnly is 1
+ptp4l[1653082.584]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653082.584]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653082.584]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653082.584]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653082.584]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653082.584]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653082.584]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653082.584]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653082.584]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653082.584]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653082.584]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653082.600]: [ptp4l.0.config] ioctl SIOCETHTOOL failed: No such device
+ptp4l[1653082.600]: [ptp4l.0.config] PTP device not specified and automatic determination is not supported. Please specify PTP device.
+failed to create a clock
+ptp4l[1653082.600]: [ptp4l.0.config] config item (null).free_running is 0
+E0822 16:38:54.244190 3856662 daemon.go:450] cmdRun() error waiting for ptp4l: exit status 255
+I0822 16:38:54.244237 3856662 daemon.go:334] ptp4l[1661186334]:[ptp4l.0.config] PTP_PROCESS_STATUS:0
+
+phc2sys[1653083.444]: [ptp4l.0.config] Waiting for ptp4l...

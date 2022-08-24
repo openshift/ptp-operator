@@ -1,0 +1,599 @@
+	on
+Hardware Receive Filter Modes:
+	none
+	ptpv1-l4-sync
+	ptpv1-l4-delay-req
+	ptpv2-l4-event
+	ptpv2-l4-sync
+	ptpv2-l4-delay-req
+	ptpv2-l2-event
+	ptpv2-l2-sync
+	ptpv2-l2-delay-req
+	ptpv2-event
+	ptpv2-sync
+	ptpv2-delay-req
+I0822 16:42:07.434379 3899539 utils.go:65] grabbing NIC timestamp capability for ens3f0
+I0822 16:42:07.436204 3899539 utils.go:31] cmd output for Time stamping parameters for ens3f0:
+Capabilities:
+	hardware-transmit
+	software-transmit
+	hardware-receive
+	software-receive
+	software-system-clock
+	hardware-raw-clock
+PTP Hardware Clock: 4
+Hardware Transmit Timestamp Modes:
+	off
+	on
+Hardware Receive Filter Modes:
+	none
+	ptpv1-l4-sync
+	ptpv1-l4-delay-req
+	ptpv2-l4-event
+	ptpv2-l4-sync
+	ptpv2-l4-delay-req
+	ptpv2-l2-event
+	ptpv2-l2-sync
+	ptpv2-l2-delay-req
+	ptpv2-event
+	ptpv2-sync
+	ptpv2-delay-req
+I0822 16:42:07.436337 3899539 utils.go:65] grabbing NIC timestamp capability for ens3f1
+I0822 16:42:07.438141 3899539 utils.go:31] cmd output for Time stamping parameters for ens3f1:
+Capabilities:
+	hardware-transmit
+	software-transmit
+	hardware-receive
+	software-receive
+	software-system-clock
+	hardware-raw-clock
+PTP Hardware Clock: 5
+Hardware Transmit Timestamp Modes:
+	off
+	on
+Hardware Receive Filter Modes:
+	none
+	ptpv1-l4-sync
+	ptpv1-l4-delay-req
+	ptpv2-l4-event
+	ptpv2-l4-sync
+	ptpv2-l4-delay-req
+	ptpv2-l2-event
+	ptpv2-l2-sync
+	ptpv2-l2-delay-req
+	ptpv2-event
+	ptpv2-sync
+	ptpv2-delay-req
+I0822 16:42:07.438234 3899539 utils.go:65] grabbing NIC timestamp capability for f88cdeb09f66052
+I0822 16:42:07.439971 3899539 utils.go:31] cmd output for Time stamping parameters for f88cdeb09f66052:
+Capabilities:
+	software-transmit
+	software-receive
+	software-system-clock
+PTP Hardware Clock: none
+Hardware Transmit Timestamp Modes: none
+Hardware Receive Filter Modes: none
+I0822 16:42:07.440010 3899539 utils.go:65] grabbing NIC timestamp capability for genev_sys_6081
+I0822 16:42:07.441859 3899539 utils.go:31] cmd output for Time stamping parameters for genev_sys_6081:
+Capabilities:
+	software-receive
+	software-system-clock
+PTP Hardware Clock: none
+Hardware Transmit Timestamp Modes: none
+Hardware Receive Filter Modes: none
+I0822 16:42:07.441914 3899539 utils.go:65] grabbing NIC timestamp capability for ovn-k8s-mp0
+I0822 16:42:07.443807 3899539 utils.go:31] cmd output for Time stamping parameters for ovn-k8s-mp0:
+Capabilities:
+	software-receive
+	software-system-clock
+PTP Hardware Clock: none
+Hardware Transmit Timestamp Modes: none
+Hardware Receive Filter Modes: none
+I0822 16:42:07.443869 3899539 utils.go:65] grabbing NIC timestamp capability for ovs-system
+I0822 16:42:07.445808 3899539 utils.go:31] cmd output for Time stamping parameters for ovs-system:
+Capabilities:
+	software-receive
+	software-system-clock
+PTP Hardware Clock: none
+Hardware Transmit Timestamp Modes: none
+Hardware Receive Filter Modes: none
+I0822 16:42:07.445869 3899539 ptpdev.go:20] PTP capable NICs: [eno1 eno2 ens1f0 ens1f1 ens3f0 ens3f1]
+I0822 16:42:37.236497 3899539 main.go:111] ticker pull
+I0822 16:42:37.236928 3899539 config.go:59] load profiles
+I0822 16:42:37.236998 3899539 daemon.go:148] in applyNodePTPProfiles
+I0822 16:42:37.237016 3899539 daemon.go:170] updating NodePTPProfiles to:
+I0822 16:42:37.237098 3899539 metrics.go:453] adding -m to print messages to stdout for phc2sys to use prometheus exporter
+I0822 16:42:37.237126 3899539 metrics.go:469] adding -m to print messages to stdout for ptp4l to use prometheus exporter
+I0822 16:42:37.237145 3899539 metrics.go:476] adding summary_interval 1 to print summary messages to stdout for ptp4l to use prometheus exporter
+I0822 16:42:37.237226 3899539 daemon.go:199] ------------------------------------
+I0822 16:42:37.237247 3899539 daemon.go:136] Profile Name: test-grandmaster
+I0822 16:42:37.237262 3899539 daemon.go:136] Interface: eno1
+I0822 16:42:37.237276 3899539 daemon.go:136] Ptp4lOpts: -2 -m
+I0822 16:42:37.237290 3899539 daemon.go:136] Ptp4lConf: #profile: test-grandmaster
+
+ [global]
+ ptp_dst_mac  01:1B:19:00:00:00
+ p2p_dst_mac  01:80:C2:00:00:0E
+ domainNumber  24
+ logging_level  7
+ masterOnly  1
+ message_tag [ptp4l.0.config]
+ uds_address /var/run/ptp4l.0.socket
+ summary_interval 1
+ [eno1]
+I0822 16:42:37.237304 3899539 daemon.go:136] Phc2sysOpts: -a -r -r -m -z /var/run/ptp4l.0.socket -t [ptp4l.0.config]
+I0822 16:42:37.237331 3899539 daemon.go:136] PtpSchedulingPolicy: SCHED_OTHER
+I0822 16:42:37.237345 3899539 daemon.go:140] PtpSchedulingPriority: 65
+I0822 16:42:37.237359 3899539 daemon.go:207] ------------------------------------
+I0822 16:42:37.237516 3899539 metrics.go:453] adding -m to print messages to stdout for phc2sys to use prometheus exporter
+I0822 16:42:37.237539 3899539 metrics.go:469] adding -m to print messages to stdout for ptp4l to use prometheus exporter
+I0822 16:42:37.237570 3899539 metrics.go:476] adding summary_interval 1 to print summary messages to stdout for ptp4l to use prometheus exporter
+I0822 16:42:37.237607 3899539 daemon.go:199] ------------------------------------
+I0822 16:42:37.237622 3899539 daemon.go:136] Profile Name: test-slave1
+I0822 16:42:37.237636 3899539 daemon.go:136] Interface: eno1
+I0822 16:42:37.237650 3899539 daemon.go:136] Ptp4lOpts: -2 -s -m
+I0822 16:42:37.237663 3899539 daemon.go:136] Ptp4lConf: #profile: test-slave1
+
+ [eno1]
+ [global]
+ p2p_dst_mac  01:80:C2:00:00:0E
+ domainNumber  24
+ logging_level  7
+ message_tag [ptp4l.1.config]
+ uds_address /var/run/ptp4l.1.socket
+ summary_interval 1
+ ptp_dst_mac  01:1B:19:00:00:00
+I0822 16:42:37.237686 3899539 daemon.go:136] Phc2sysOpts: -a -r -m -z /var/run/ptp4l.1.socket -t [ptp4l.1.config]
+I0822 16:42:37.237701 3899539 daemon.go:136] PtpSchedulingPolicy: SCHED_OTHER
+I0822 16:42:37.237714 3899539 daemon.go:140] PtpSchedulingPriority: 65
+I0822 16:42:37.237727 3899539 daemon.go:207] ------------------------------------
+I0822 16:42:38.238150 3899539 daemon.go:357] Starting phc2sys...
+I0822 16:42:38.238192 3899539 daemon.go:358] phc2sys cmd: /usr/sbin/phc2sys -a -r -r -m -z /var/run/ptp4l.0.socket -t [ptp4l.0.config]
+I0822 16:42:38.238527 3899539 daemon.go:334] phc2sys[1661186558]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+I0822 16:42:39.238877 3899539 daemon.go:357] Starting ptp4l...
+I0822 16:42:39.238928 3899539 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.0.config -2 -m
+I0822 16:42:39.239232 3899539 daemon.go:334] ptp4l[1661186559]:[ptp4l.0.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653307.597]: [ptp4l.0.config] config item (null).assume_two_step is 0
+ptp4l[1653307.598]: [ptp4l.0.config] config item (null).check_fup_sync is 0
+ptp4l[1653307.598]: [ptp4l.0.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653307.598]: [ptp4l.0.config] config item (null).hwts_filter is 0
+ptp4l[1653307.598]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653307.598]: [ptp4l.0.config] config item (null).clock_type is 32768
+ptp4l[1653307.598]: [ptp4l.0.config] config item (null).clock_servo is 0
+ptp4l[1653307.598]: [ptp4l.0.config] config item (null).clockClass is 248
+ptp4l[1653307.598]: [ptp4l.0.config] config item (null).clockAccuracy is 254
+ptp4l[1653307.598]: [ptp4l.0.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653307.598]: [ptp4l.0.config] config item (null).productDescription is ';;'
+ptp4l[1653307.598]: [ptp4l.0.config] config item (null).revisionData is ';;'
+ptp4l[1653307.598]: [ptp4l.0.config] config item (null).userDescription is ''
+ptp4l[1653307.598]: [ptp4l.0.config] config item (null).manufacturerIdentity is '00:00:00'
+phc2sys[1653307.598]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[1653307.598]: [ptp4l.0.config] config item (null).domainNumber is 24
+ptp4l[1653307.598]: [ptp4l.0.config] config item (null).slaveOnly is 0
+ptp4l[1653307.598]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653307.598]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653307.598]: [ptp4l.0.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653307.598]: [ptp4l.0.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653307.598]: [ptp4l.0.config] config item (null).clock_class_threshold is 248
+ptp4l[1653307.598]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653307.598]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653307.598]: [ptp4l.0.config] config item (null).twoStepFlag is 1
+ptp4l[1653307.598]: [ptp4l.0.config] config item (null).time_stamping is 1
+ptp4l[1653307.598]: [ptp4l.0.config] config item (null).priority1 is 128
+ptp4l[1653307.598]: [ptp4l.0.config] config item (null).priority2 is 128
+ptp4l[1653307.599]: [ptp4l.0.config] interface index 5 is up
+ptp4l[1653307.599]: [ptp4l.0.config] config item (null).free_running is 0
+ptp4l[1653307.599]: [ptp4l.0.config] selected /dev/ptp1 as PTP clock
+ptp4l[1653307.599]: [ptp4l.0.config] config item (null).clockIdentity is '000000.0000.000000'
+ptp4l[1653307.599]: [ptp4l.0.config] config item (null).uds_address is '/var/run/ptp4l.0.socket'
+ptp4l[1653307.599]: [ptp4l.0.config] section item /var/run/ptp4l.0.socket.announceReceiptTimeout now 0
+ptp4l[1653307.599]: [ptp4l.0.config] section item /var/run/ptp4l.0.socket.delay_mechanism now 0
+ptp4l[1653307.599]: [ptp4l.0.config] section item /var/run/ptp4l.0.socket.network_transport now 0
+ptp4l[1653307.599]: [ptp4l.0.config] section item /var/run/ptp4l.0.socket.delay_filter_length now 1
+ptp4l[1653307.599]: [ptp4l.0.config] config item (null).uds_ro_address is '/var/run/ptp4lro'
+ptp4l[1653307.599]: [ptp4l.0.config] section item /var/run/ptp4lro.announceReceiptTimeout now 0
+ptp4l[1653307.599]: [ptp4l.0.config] section item /var/run/ptp4lro.delay_mechanism now 0
+ptp4l[1653307.599]: [ptp4l.0.config] section item /var/run/ptp4lro.network_transport now 0
+ptp4l[1653307.599]: [ptp4l.0.config] section item /var/run/ptp4lro.delay_filter_length now 1
+ptp4l[1653307.599]: [ptp4l.0.config] config item (null).free_running is 0
+ptp4l[1653307.599]: [ptp4l.0.config] config item (null).freq_est_interval is 1
+ptp4l[1653307.599]: [ptp4l.0.config] config item (null).write_phase_mode is 0
+ptp4l[1653307.599]: [ptp4l.0.config] config item (null).gmCapable is 1
+ptp4l[1653307.599]: [ptp4l.0.config] config item (null).kernel_leap is 1
+ptp4l[1653307.599]: [ptp4l.0.config] config item (null).utc_offset is 37
+ptp4l[1653307.599]: [ptp4l.0.config] config item (null).timeSource is 160
+ptp4l[1653307.599]: [ptp4l.0.config] config item (null).pi_proportional_const is 0.000000
+ptp4l[1653307.599]: [ptp4l.0.config] config item (null).pi_integral_const is 0.000000
+ptp4l[1653307.599]: [ptp4l.0.config] config item (null).pi_proportional_scale is 0.000000
+ptp4l[1653307.599]: [ptp4l.0.config] config item (null).pi_proportional_exponent is -0.300000
+ptp4l[1653307.599]: [ptp4l.0.config] config item (null).pi_proportional_norm_max is 0.700000
+ptp4l[1653307.599]: [ptp4l.0.config] config item (null).pi_integral_scale is 0.000000
+ptp4l[1653307.599]: [ptp4l.0.config] config item (null).pi_integral_exponent is 0.400000
+ptp4l[1653307.599]: [ptp4l.0.config] config item (null).pi_integral_norm_max is 0.300000
+ptp4l[1653307.599]: [ptp4l.0.config] config item (null).step_threshold is 0.000000
+ptp4l[1653307.599]: [ptp4l.0.config] config item (null).first_step_threshold is 0.000020
+ptp4l[1653307.599]: [ptp4l.0.config] config item (null).max_frequency is 900000000
+ptp4l[1653307.599]: [ptp4l.0.config] config item (null).servo_offset_threshold is 0
+ptp4l[1653307.599]: [ptp4l.0.config] config item (null).servo_num_offset_values is 10
+ptp4l[1653307.599]: [ptp4l.0.config] config item (null).dataset_comparison is 0
+ptp4l[1653307.599]: [ptp4l.0.config] config item (null).delay_filter_length is 10
+ptp4l[1653307.600]: [ptp4l.0.config] config item (null).delay_filter is 1
+ptp4l[1653307.600]: [ptp4l.0.config] config item (null).tsproc_mode is 0
+ptp4l[1653307.600]: [ptp4l.0.config] config item (null).initial_delay is 0
+ptp4l[1653307.600]: [ptp4l.0.config] config item (null).summary_interval is 1
+ptp4l[1653307.600]: [ptp4l.0.config] config item (null).sanity_freq_limit is 200000000
+ptp4l[1653307.600]: [ptp4l.0.config] PI servo: sync interval 1.000 kp 0.700 ki 0.300000
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.boundary_clock_jbod is 0
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.network_transport is 0
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.masterOnly is 1
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.BMCA is 0
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.delayAsymmetry is 0
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.follow_up_info is 0
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.freq_est_interval is 1
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.msg_interval_request is 0
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.net_sync_monitor is 0
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.path_trace_enabled is 0
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.tc_spanning_tree is 0
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.ingressLatency is 0
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.egressLatency is 0
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.delay_mechanism is 0
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.hybrid_e2e is 0
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.fault_badpeernet_interval is 16
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.fault_reset_interval is 4
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.delay_filter_length is 1
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.delay_filter is 1
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.tsproc_mode is 0
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4lro.boundary_clock_jbod is 0
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4lro.network_transport is 0
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4lro.masterOnly is 1
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4lro.BMCA is 0
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4lro.delayAsymmetry is 0
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4lro.follow_up_info is 0
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4lro.freq_est_interval is 1
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4lro.msg_interval_request is 0
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4lro.net_sync_monitor is 0
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4lro.path_trace_enabled is 0
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4lro.tc_spanning_tree is 0
+ptp4l[1653307.600]: [ptp4l.0.config] config item /var/run/ptp4lro.ingressLatency is 0
+ptp4l[1653307.601]: [ptp4l.0.config] config item /var/run/ptp4lro.egressLatency is 0
+ptp4l[1653307.601]: [ptp4l.0.config] config item /var/run/ptp4lro.delay_mechanism is 0
+ptp4l[1653307.601]: [ptp4l.0.config] config item /var/run/ptp4lro.hybrid_e2e is 0
+ptp4l[1653307.601]: [ptp4l.0.config] config item /var/run/ptp4lro.fault_badpeernet_interval is 16
+ptp4l[1653307.601]: [ptp4l.0.config] config item /var/run/ptp4lro.fault_reset_interval is 4
+ptp4l[1653307.601]: [ptp4l.0.config] config item /var/run/ptp4lro.delay_filter_length is 1
+ptp4l[1653307.601]: [ptp4l.0.config] config item /var/run/ptp4lro.delay_filter is 1
+ptp4l[1653307.601]: [ptp4l.0.config] config item /var/run/ptp4lro.tsproc_mode is 0
+ptp4l[1653307.601]: [ptp4l.0.config] config item (null).slave_event_monitor is ''
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.boundary_clock_jbod is 0
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.network_transport is 3
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.masterOnly is 1
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.BMCA is 0
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.delayAsymmetry is 0
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.follow_up_info is 0
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.freq_est_interval is 1
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.msg_interval_request is 0
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.net_sync_monitor is 0
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.path_trace_enabled is 0
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.tc_spanning_tree is 0
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.ingressLatency is 0
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.egressLatency is 0
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.delay_mechanism is 1
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.unicast_master_table is 0
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.unicast_listen is 0
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.hybrid_e2e is 0
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.fault_badpeernet_interval is 16
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.fault_reset_interval is 4
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.delay_filter_length is 10
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.delay_filter is 1
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.tsproc_mode is 0
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.logMinDelayReqInterval is 0
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.logAnnounceInterval is 1
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.inhibit_announce is 0
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.ignore_source_id is 0
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.announceReceiptTimeout is 3
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.syncReceiptTimeout is 0
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.transportSpecific is 0
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.ignore_transport_specific is 0
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.G.8275.portDS.localPriority is 128
+ptp4l[1653307.601]: [ptp4l.0.config] config item eno1.logSyncInterval is 0
+ptp4l[1653307.602]: [ptp4l.0.config] config item eno1.operLogSyncInterval is 0
+ptp4l[1653307.602]: [ptp4l.0.config] config item eno1.logMinPdelayReqInterval is 0
+ptp4l[1653307.602]: [ptp4l.0.config] config item eno1.operLogPdelayReqInterval is 0
+ptp4l[1653307.602]: [ptp4l.0.config] config item eno1.neighborPropDelayThresh is 20000000
+ptp4l[1653307.602]: [ptp4l.0.config] config item eno1.min_neighbor_prop_delay is -20000000
+ptp4l[1653307.602]: [ptp4l.0.config] config item eno1.asCapable is 1
+ptp4l[1653307.602]: [ptp4l.0.config] config item eno1.inhibit_delay_req is 0
+ptp4l[1653307.602]: [ptp4l.0.config] config item eno1.ptp_dst_mac is '01:1B:19:00:00:00'
+ptp4l[1653307.602]: [ptp4l.0.config] config item eno1.p2p_dst_mac is '01:80:C2:00:00:0E'
+ptp4l[1653307.602]: [ptp4l.0.config] config item global.socket_priority is 0
+ptp4l[1653307.619]: [ptp4l.0.config] port 1: INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[1653307.619]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.logMinDelayReqInterval is 0
+ptp4l[1653307.619]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.logAnnounceInterval is 1
+ptp4l[1653307.619]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.inhibit_announce is 0
+ptp4l[1653307.619]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.ignore_source_id is 0
+ptp4l[1653307.619]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.announceReceiptTimeout is 0
+ptp4l[1653307.619]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.syncReceiptTimeout is 0
+ptp4l[1653307.619]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.transportSpecific is 0
+ptp4l[1653307.619]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.ignore_transport_specific is 0
+ptp4l[1653307.619]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.G.8275.portDS.localPriority is 128
+ptp4l[1653307.619]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.logSyncInterval is 0
+ptp4l[1653307.619]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.operLogSyncInterval is 0
+ptp4l[1653307.619]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.logMinPdelayReqInterval is 0
+ptp4l[1653307.619]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.operLogPdelayReqInterval is 0
+ptp4l[1653307.619]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.neighborPropDelayThresh is 20000000
+ptp4l[1653307.619]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.min_neighbor_prop_delay is -20000000
+ptp4l[1653307.620]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.asCapable is 1
+ptp4l[1653307.620]: [ptp4l.0.config] config item /var/run/ptp4l.0.socket.inhibit_delay_req is 0
+ptp4l[1653307.620]: [ptp4l.0.config] config item (null).uds_address is '/var/run/ptp4l.0.socket'
+ptp4l[1653307.620]: [ptp4l.0.config] port 0: INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[1653307.620]: [ptp4l.0.config] config item /var/run/ptp4lro.logMinDelayReqInterval is 0
+ptp4l[1653307.620]: [ptp4l.0.config] config item /var/run/ptp4lro.logAnnounceInterval is 1
+ptp4l[1653307.620]: [ptp4l.0.config] config item /var/run/ptp4lro.inhibit_announce is 0
+ptp4l[1653307.620]: [ptp4l.0.config] config item /var/run/ptp4lro.ignore_source_id is 0
+ptp4l[1653307.620]: [ptp4l.0.config] config item /var/run/ptp4lro.announceReceiptTimeout is 0
+ptp4l[1653307.620]: [ptp4l.0.config] config item /var/run/ptp4lro.syncReceiptTimeout is 0
+ptp4l[1653307.620]: [ptp4l.0.config] config item /var/run/ptp4lro.transportSpecific is 0
+ptp4l[1653307.620]: [ptp4l.0.config] config item /var/run/ptp4lro.ignore_transport_specific is 0
+ptp4l[1653307.620]: [ptp4l.0.config] config item /var/run/ptp4lro.G.8275.portDS.localPriority is 128
+ptp4l[1653307.620]: [ptp4l.0.config] config item /var/run/ptp4lro.logSyncInterval is 0
+ptp4l[1653307.620]: [ptp4l.0.config] config item /var/run/ptp4lro.operLogSyncInterval is 0
+ptp4l[1653307.620]: [ptp4l.0.config] config item /var/run/ptp4lro.logMinPdelayReqInterval is 0
+ptp4l[1653307.620]: [ptp4l.0.config] config item /var/run/ptp4lro.operLogPdelayReqInterval is 0
+ptp4l[1653307.620]: [ptp4l.0.config] config item /var/run/ptp4lro.neighborPropDelayThresh is 20000000
+ptp4l[1653307.620]: [ptp4l.0.config] config item /var/run/ptp4lro.min_neighbor_prop_delay is -20000000
+ptp4l[1653307.620]: [ptp4l.0.config] config item /var/run/ptp4lro.asCapable is 1
+ptp4l[1653307.620]: [ptp4l.0.config] config item /var/run/ptp4lro.inhibit_delay_req is 0
+ptp4l[1653307.620]: [ptp4l.0.config] config item (null).uds_address is '/var/run/ptp4l.0.socket'
+ptp4l[1653307.620]: [ptp4l.0.config] port 0: INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[1653307.620]: [ptp4l.0.config] port 1: received link status notification
+ptp4l[1653307.620]: [ptp4l.0.config] interface index 5 is up
+I0822 16:42:40.239145 3899539 daemon.go:357] Starting phc2sys...
+I0822 16:42:40.239195 3899539 daemon.go:358] phc2sys cmd: /usr/sbin/phc2sys -a -r -m -z /var/run/ptp4l.1.socket -t [ptp4l.1.config]
+I0822 16:42:40.239477 3899539 daemon.go:334] phc2sys[1661186560]:[ptp4l.1.config] PTP_PROCESS_STATUS:1
+
+phc2sys[1653308.599]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[1653308.599]: [ptp4l.0.config] port 0: setting asCapable
+I0822 16:42:41.239719 3899539 daemon.go:357] Starting ptp4l...
+I0822 16:42:41.239796 3899539 daemon.go:358] ptp4l cmd: /usr/sbin/ptp4l -f /var/run/ptp4l.1.config -2 -s -m
+I0822 16:42:41.240186 3899539 daemon.go:334] ptp4l[1661186561]:[ptp4l.1.config] PTP_PROCESS_STATUS:1
+
+ptp4l[1653309.598]: [ptp4l.1.config] config item (null).assume_two_step is 0
+ptp4l[1653309.599]: [ptp4l.1.config] config item (null).check_fup_sync is 0
+ptp4l[1653309.599]: [ptp4l.1.config] config item (null).tx_timestamp_timeout is 10
+ptp4l[1653309.599]: [ptp4l.1.config] config item (null).hwts_filter is 0
+ptp4l[1653309.599]: [ptp4l.1.config] config item (null).clock_servo is 0
+ptp4l[1653309.599]: [ptp4l.1.config] config item (null).clock_type is 32768
+ptp4l[1653309.599]: [ptp4l.1.config] config item (null).clock_servo is 0
+ptp4l[1653309.599]: [ptp4l.1.config] config item (null).clockClass is 248
+ptp4l[1653309.599]: [ptp4l.1.config] config item (null).clockAccuracy is 254
+ptp4l[1653309.599]: [ptp4l.1.config] config item (null).offsetScaledLogVariance is 65535
+ptp4l[1653309.599]: [ptp4l.1.config] config item (null).productDescription is ';;'
+ptp4l[1653309.599]: [ptp4l.1.config] config item (null).revisionData is ';;'
+ptp4l[1653309.599]: [ptp4l.1.config] config item (null).userDescription is ''
+ptp4l[1653309.599]: [ptp4l.1.config] config item (null).manufacturerIdentity is '00:00:00'
+ptp4l[1653309.599]: [ptp4l.1.config] config item (null).domainNumber is 24
+phc2sys[1653309.599]: [ptp4l.1.config] Waiting for ptp4l...
+ptp4l[1653309.599]: [ptp4l.1.config] config item (null).slaveOnly is 1
+ptp4l[1653309.599]: [ptp4l.1.config] config item (null).gmCapable is 1
+ptp4l[1653309.599]: [ptp4l.1.config] config item (null).gmCapable is 1
+ptp4l[1653309.599]: [ptp4l.1.config] config item (null).G.8275.defaultDS.localPriority is 128
+ptp4l[1653309.599]: [ptp4l.1.config] config item (null).maxStepsRemoved is 255
+ptp4l[1653309.599]: [ptp4l.1.config] config item (null).clock_class_threshold is 248
+ptp4l[1653309.599]: [ptp4l.1.config] config item (null).time_stamping is 1
+ptp4l[1653309.599]: [ptp4l.1.config] config item (null).twoStepFlag is 1
+ptp4l[1653309.599]: [ptp4l.1.config] config item (null).twoStepFlag is 1
+ptp4l[1653309.599]: [ptp4l.1.config] config item (null).time_stamping is 1
+ptp4l[1653309.599]: [ptp4l.1.config] config item (null).priority1 is 128
+ptp4l[1653309.599]: [ptp4l.1.config] config item (null).priority2 is 128
+phc2sys[1653309.600]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[1653309.600]: [ptp4l.1.config] interface index 5 is up
+ptp4l[1653309.600]: [ptp4l.1.config] config item (null).free_running is 0
+ptp4l[1653309.600]: [ptp4l.1.config] selected /dev/ptp1 as PTP clock
+ptp4l[1653309.600]: [ptp4l.1.config] config item (null).clockIdentity is '000000.0000.000000'
+ptp4l[1653309.600]: [ptp4l.1.config] config item (null).uds_address is '/var/run/ptp4l.1.socket'
+ptp4l[1653309.600]: [ptp4l.1.config] section item /var/run/ptp4l.1.socket.announceReceiptTimeout now 0
+ptp4l[1653309.600]: [ptp4l.1.config] section item /var/run/ptp4l.1.socket.delay_mechanism now 0
+ptp4l[1653309.600]: [ptp4l.1.config] section item /var/run/ptp4l.1.socket.network_transport now 0
+ptp4l[1653309.600]: [ptp4l.1.config] section item /var/run/ptp4l.1.socket.delay_filter_length now 1
+ptp4l[1653309.600]: [ptp4l.1.config] config item (null).uds_ro_address is '/var/run/ptp4lro'
+ptp4l[1653309.600]: [ptp4l.1.config] section item /var/run/ptp4lro.announceReceiptTimeout now 0
+ptp4l[1653309.600]: [ptp4l.1.config] section item /var/run/ptp4lro.delay_mechanism now 0
+ptp4l[1653309.600]: [ptp4l.1.config] section item /var/run/ptp4lro.network_transport now 0
+ptp4l[1653309.600]: [ptp4l.1.config] section item /var/run/ptp4lro.delay_filter_length now 1
+ptp4l[1653309.600]: [ptp4l.1.config] config item (null).free_running is 0
+ptp4l[1653309.600]: [ptp4l.1.config] config item (null).freq_est_interval is 1
+ptp4l[1653309.600]: [ptp4l.1.config] config item (null).write_phase_mode is 0
+ptp4l[1653309.600]: [ptp4l.1.config] config item (null).gmCapable is 1
+ptp4l[1653309.600]: [ptp4l.1.config] config item (null).kernel_leap is 1
+ptp4l[1653309.600]: [ptp4l.1.config] config item (null).utc_offset is 37
+ptp4l[1653309.600]: [ptp4l.1.config] config item (null).timeSource is 160
+ptp4l[1653309.600]: [ptp4l.1.config] config item (null).pi_proportional_const is 0.000000
+ptp4l[1653309.600]: [ptp4l.1.config] config item (null).pi_integral_const is 0.000000
+ptp4l[1653309.600]: [ptp4l.1.config] config item (null).pi_proportional_scale is 0.000000
+ptp4l[1653309.600]: [ptp4l.1.config] config item (null).pi_proportional_exponent is -0.300000
+ptp4l[1653309.600]: [ptp4l.1.config] config item (null).pi_proportional_norm_max is 0.700000
+ptp4l[1653309.600]: [ptp4l.1.config] config item (null).pi_integral_scale is 0.000000
+ptp4l[1653309.600]: [ptp4l.1.config] config item (null).pi_integral_exponent is 0.400000
+ptp4l[1653309.600]: [ptp4l.1.config] config item (null).pi_integral_norm_max is 0.300000
+ptp4l[1653309.600]: [ptp4l.1.config] config item (null).step_threshold is 0.000000
+ptp4l[1653309.600]: [ptp4l.1.config] config item (null).first_step_threshold is 0.000020
+ptp4l[1653309.600]: [ptp4l.1.config] config item (null).max_frequency is 900000000
+ptp4l[1653309.600]: [ptp4l.1.config] config item (null).servo_offset_threshold is 0
+ptp4l[1653309.600]: [ptp4l.1.config] config item (null).servo_num_offset_values is 10
+ptp4l[1653309.600]: [ptp4l.1.config] config item (null).dataset_comparison is 0
+ptp4l[1653309.600]: [ptp4l.1.config] config item (null).delay_filter_length is 10
+ptp4l[1653309.600]: [ptp4l.1.config] config item (null).delay_filter is 1
+ptp4l[1653309.600]: [ptp4l.1.config] config item (null).tsproc_mode is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item (null).initial_delay is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item (null).summary_interval is 1
+ptp4l[1653309.601]: [ptp4l.1.config] config item (null).sanity_freq_limit is 200000000
+ptp4l[1653309.601]: [ptp4l.1.config] PI servo: sync interval 1.000 kp 0.700 ki 0.300000
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.boundary_clock_jbod is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.network_transport is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.masterOnly is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.BMCA is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.delayAsymmetry is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.follow_up_info is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.freq_est_interval is 1
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.msg_interval_request is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.net_sync_monitor is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.path_trace_enabled is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.tc_spanning_tree is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.ingressLatency is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.egressLatency is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.delay_mechanism is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.hybrid_e2e is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.fault_badpeernet_interval is 16
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.fault_reset_interval is 4
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.delay_filter_length is 1
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.delay_filter is 1
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.tsproc_mode is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4lro.boundary_clock_jbod is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4lro.network_transport is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4lro.masterOnly is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4lro.BMCA is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4lro.delayAsymmetry is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4lro.follow_up_info is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4lro.freq_est_interval is 1
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4lro.msg_interval_request is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4lro.net_sync_monitor is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4lro.path_trace_enabled is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4lro.tc_spanning_tree is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4lro.ingressLatency is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4lro.egressLatency is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4lro.delay_mechanism is 0
+ptp4l[1653309.601]: [ptp4l.1.config] config item /var/run/ptp4lro.hybrid_e2e is 0
+ptp4l[1653309.602]: [ptp4l.1.config] config item /var/run/ptp4lro.fault_badpeernet_interval is 16
+ptp4l[1653309.602]: [ptp4l.1.config] config item /var/run/ptp4lro.fault_reset_interval is 4
+ptp4l[1653309.602]: [ptp4l.1.config] config item /var/run/ptp4lro.delay_filter_length is 1
+ptp4l[1653309.602]: [ptp4l.1.config] config item /var/run/ptp4lro.delay_filter is 1
+ptp4l[1653309.602]: [ptp4l.1.config] config item /var/run/ptp4lro.tsproc_mode is 0
+ptp4l[1653309.602]: [ptp4l.1.config] config item (null).slave_event_monitor is ''
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.boundary_clock_jbod is 0
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.network_transport is 3
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.masterOnly is 0
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.BMCA is 0
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.delayAsymmetry is 0
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.follow_up_info is 0
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.freq_est_interval is 1
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.msg_interval_request is 0
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.net_sync_monitor is 0
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.path_trace_enabled is 0
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.tc_spanning_tree is 0
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.ingressLatency is 0
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.egressLatency is 0
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.delay_mechanism is 1
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.unicast_master_table is 0
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.unicast_listen is 0
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.hybrid_e2e is 0
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.fault_badpeernet_interval is 16
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.fault_reset_interval is 4
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.delay_filter_length is 10
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.delay_filter is 1
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.tsproc_mode is 0
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.logMinDelayReqInterval is 0
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.logAnnounceInterval is 1
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.inhibit_announce is 0
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.ignore_source_id is 0
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.announceReceiptTimeout is 3
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.syncReceiptTimeout is 0
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.transportSpecific is 0
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.ignore_transport_specific is 0
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.G.8275.portDS.localPriority is 128
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.logSyncInterval is 0
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.operLogSyncInterval is 0
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.logMinPdelayReqInterval is 0
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.operLogPdelayReqInterval is 0
+ptp4l[1653309.602]: [ptp4l.1.config] config item eno1.neighborPropDelayThresh is 20000000
+ptp4l[1653309.603]: [ptp4l.1.config] config item eno1.min_neighbor_prop_delay is -20000000
+ptp4l[1653309.603]: [ptp4l.1.config] config item eno1.asCapable is 1
+ptp4l[1653309.603]: [ptp4l.1.config] config item eno1.inhibit_delay_req is 0
+ptp4l[1653309.603]: [ptp4l.1.config] config item eno1.ptp_dst_mac is '01:1B:19:00:00:00'
+ptp4l[1653309.603]: [ptp4l.1.config] config item eno1.p2p_dst_mac is '01:80:C2:00:00:0E'
+ptp4l[1653309.603]: [ptp4l.1.config] config item global.socket_priority is 0
+ptp4l[1653309.618]: [ptp4l.1.config] port 1: INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[1653309.618]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.logMinDelayReqInterval is 0
+ptp4l[1653309.618]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.logAnnounceInterval is 1
+ptp4l[1653309.618]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.inhibit_announce is 0
+ptp4l[1653309.618]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.ignore_source_id is 0
+ptp4l[1653309.618]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.announceReceiptTimeout is 0
+ptp4l[1653309.618]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.syncReceiptTimeout is 0
+ptp4l[1653309.618]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.transportSpecific is 0
+ptp4l[1653309.618]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.ignore_transport_specific is 0
+ptp4l[1653309.618]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.G.8275.portDS.localPriority is 128
+ptp4l[1653309.618]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.logSyncInterval is 0
+ptp4l[1653309.618]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.operLogSyncInterval is 0
+ptp4l[1653309.618]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.logMinPdelayReqInterval is 0
+ptp4l[1653309.618]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.operLogPdelayReqInterval is 0
+ptp4l[1653309.618]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.neighborPropDelayThresh is 20000000
+ptp4l[1653309.618]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.min_neighbor_prop_delay is -20000000
+ptp4l[1653309.618]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.asCapable is 1
+ptp4l[1653309.619]: [ptp4l.1.config] config item /var/run/ptp4l.1.socket.inhibit_delay_req is 0
+ptp4l[1653309.619]: [ptp4l.1.config] config item (null).uds_address is '/var/run/ptp4l.1.socket'
+ptp4l[1653309.619]: [ptp4l.1.config] port 0: INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[1653309.619]: [ptp4l.1.config] config item /var/run/ptp4lro.logMinDelayReqInterval is 0
+ptp4l[1653309.619]: [ptp4l.1.config] config item /var/run/ptp4lro.logAnnounceInterval is 1
+ptp4l[1653309.619]: [ptp4l.1.config] config item /var/run/ptp4lro.inhibit_announce is 0
+ptp4l[1653309.619]: [ptp4l.1.config] config item /var/run/ptp4lro.ignore_source_id is 0
+ptp4l[1653309.619]: [ptp4l.1.config] config item /var/run/ptp4lro.announceReceiptTimeout is 0
+ptp4l[1653309.619]: [ptp4l.1.config] config item /var/run/ptp4lro.syncReceiptTimeout is 0
+ptp4l[1653309.619]: [ptp4l.1.config] config item /var/run/ptp4lro.transportSpecific is 0
+ptp4l[1653309.619]: [ptp4l.1.config] config item /var/run/ptp4lro.ignore_transport_specific is 0
+ptp4l[1653309.619]: [ptp4l.1.config] config item /var/run/ptp4lro.G.8275.portDS.localPriority is 128
+ptp4l[1653309.619]: [ptp4l.1.config] config item /var/run/ptp4lro.logSyncInterval is 0
+ptp4l[1653309.619]: [ptp4l.1.config] config item /var/run/ptp4lro.operLogSyncInterval is 0
+ptp4l[1653309.619]: [ptp4l.1.config] config item /var/run/ptp4lro.logMinPdelayReqInterval is 0
+ptp4l[1653309.619]: [ptp4l.1.config] config item /var/run/ptp4lro.operLogPdelayReqInterval is 0
+ptp4l[1653309.619]: [ptp4l.1.config] config item /var/run/ptp4lro.neighborPropDelayThresh is 20000000
+ptp4l[1653309.619]: [ptp4l.1.config] config item /var/run/ptp4lro.min_neighbor_prop_delay is -20000000
+ptp4l[1653309.619]: [ptp4l.1.config] config item /var/run/ptp4lro.asCapable is 1
+ptp4l[1653309.619]: [ptp4l.1.config] config item /var/run/ptp4lro.inhibit_delay_req is 0
+ptp4l[1653309.619]: [ptp4l.1.config] config item (null).uds_address is '/var/run/ptp4l.1.socket'
+ptp4l[1653309.619]: [ptp4l.1.config] port 0: INITIALIZING to LISTENING on INIT_COMPLETE
+ptp4l[1653309.619]: [ptp4l.1.config] port 1: ignoring message
+ptp4l[1653309.619]: [ptp4l.1.config] port 1: received link status notification
+ptp4l[1653309.619]: [ptp4l.1.config] interface index 5 is up
+phc2sys[1653310.600]: [ptp4l.1.config] Waiting for ptp4l...
+ptp4l[1653310.601]: [ptp4l.1.config] port 0: setting asCapable
+phc2sys[1653310.601]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[1653311.602]: [ptp4l.1.config] Waiting for ptp4l...
+phc2sys[1653311.602]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[1653312.603]: [ptp4l.1.config] Waiting for ptp4l...
+phc2sys[1653312.603]: [ptp4l.0.config] Waiting for ptp4l...
+phc2sys[1653313.604]: [ptp4l.1.config] Waiting for ptp4l...
+phc2sys[1653313.605]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[1653314.117]: [ptp4l.0.config] port 1: announce timeout
+ptp4l[1653314.117]: [ptp4l.0.config] port 1: LISTENING to MASTER on ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES
+ptp4l[1653314.117]: [ptp4l.0.config] selected local clock 0c42a1.fffe.757fc0 as best master
+ptp4l[1653314.117]: [ptp4l.0.config] port 1: assuming the grand master role
+ptp4l[1653314.118]: [ptp4l.0.config] port 1: master tx announce timeout
+ptp4l[1653314.118]: [ptp4l.0.config] port 1: setting asCapable
+ptp4l[1653314.118]: [ptp4l.1.config] port 1: setting asCapable
+phc2sys[1653314.606]: [ptp4l.1.config] Waiting for ptp4l...
+phc2sys[1653314.606]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[1653315.117]: [ptp4l.0.config] port 1: master sync timeout
+phc2sys[1653315.607]: [ptp4l.1.config] Waiting for ptp4l...
+phc2sys[1653315.607]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[1653316.117]: [ptp4l.0.config] port 1: master sync timeout
+ptp4l[1653316.118]: [ptp4l.0.config] port 1: master tx announce timeout
+phc2sys[1653316.608]: [ptp4l.1.config] Waiting for ptp4l...
+phc2sys[1653316.608]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[1653316.961]: [ptp4l.1.config] port 1: announce timeout
+ptp4l[1653316.962]: [ptp4l.1.config] selected local clock 0c42a1.fffe.757fc0 as best master
+ptp4l[1653317.117]: [ptp4l.0.config] port 1: master sync timeout
+phc2sys[1653317.609]: [ptp4l.1.config] Waiting for ptp4l...
+phc2sys[1653317.610]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[1653318.118]: [ptp4l.0.config] port 1: master sync timeout
+ptp4l[1653318.118]: [ptp4l.0.config] port 1: master tx announce timeout
+phc2sys[1653318.611]: [ptp4l.1.config] Waiting for ptp4l...
+phc2sys[1653318.611]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[1653319.118]: [ptp4l.0.config] port 1: master sync timeout
+phc2sys[1653319.612]: [ptp4l.1.config] Waiting for ptp4l...
+phc2sys[1653319.612]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[1653320.118]: [ptp4l.0.config] port 1: master tx announce timeout
+ptp4l[1653320.118]: [ptp4l.0.config] port 1: master sync timeout
+phc2sys[1653320.613]: [ptp4l.1.config] Waiting for ptp4l...
+phc2sys[1653320.614]: [ptp4l.0.config] Waiting for ptp4l...
+ptp4l[1653321.119]: [ptp4l.0.config] port 1: master sync timeout
