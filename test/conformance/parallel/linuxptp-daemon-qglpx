@@ -1,0 +1,100 @@
+	all
+I0822 16:41:23.489553 3628932 utils.go:65] grabbing NIC timestamp capability for ens4f1
+I0822 16:41:23.491128 3628932 utils.go:31] cmd output for Time stamping parameters for ens4f1:
+Capabilities:
+	hardware-transmit
+	hardware-receive
+	hardware-raw-clock
+PTP Hardware Clock: 9
+Hardware Transmit Timestamp Modes:
+	off
+	on
+Hardware Receive Filter Modes:
+	none
+	all
+I0822 16:41:23.491190 3628932 utils.go:65] grabbing NIC timestamp capability for ens7f0
+I0822 16:41:23.492771 3628932 utils.go:31] cmd output for Time stamping parameters for ens7f0:
+Capabilities:
+	hardware-transmit
+	software-transmit
+	hardware-receive
+	software-receive
+	software-system-clock
+	hardware-raw-clock
+PTP Hardware Clock: 3
+Hardware Transmit Timestamp Modes:
+	off
+	on
+Hardware Receive Filter Modes:
+	none
+	ptpv1-l4-sync
+	ptpv1-l4-delay-req
+	ptpv2-l4-event
+	ptpv2-l4-sync
+	ptpv2-l4-delay-req
+	ptpv2-l2-event
+	ptpv2-l2-sync
+	ptpv2-l2-delay-req
+	ptpv2-event
+	ptpv2-sync
+	ptpv2-delay-req
+I0822 16:41:23.492845 3628932 utils.go:65] grabbing NIC timestamp capability for ens7f1
+I0822 16:41:23.494443 3628932 utils.go:31] cmd output for Time stamping parameters for ens7f1:
+Capabilities:
+	hardware-transmit
+	software-transmit
+	hardware-receive
+	software-receive
+	software-system-clock
+	hardware-raw-clock
+PTP Hardware Clock: 4
+Hardware Transmit Timestamp Modes:
+	off
+	on
+Hardware Receive Filter Modes:
+	none
+	ptpv1-l4-sync
+	ptpv1-l4-delay-req
+	ptpv2-l4-event
+	ptpv2-l4-sync
+	ptpv2-l4-delay-req
+	ptpv2-l2-event
+	ptpv2-l2-sync
+	ptpv2-l2-delay-req
+	ptpv2-event
+	ptpv2-sync
+	ptpv2-delay-req
+I0822 16:41:23.494520 3628932 utils.go:65] grabbing NIC timestamp capability for f902590e6807998
+I0822 16:41:23.496021 3628932 utils.go:31] cmd output for Time stamping parameters for f902590e6807998:
+Capabilities:
+	software-transmit
+	software-receive
+	software-system-clock
+PTP Hardware Clock: none
+Hardware Transmit Timestamp Modes: none
+Hardware Receive Filter Modes: none
+I0822 16:41:23.496058 3628932 utils.go:65] grabbing NIC timestamp capability for genev_sys_6081
+I0822 16:41:23.497645 3628932 utils.go:31] cmd output for Time stamping parameters for genev_sys_6081:
+Capabilities:
+	software-receive
+	software-system-clock
+PTP Hardware Clock: none
+Hardware Transmit Timestamp Modes: none
+Hardware Receive Filter Modes: none
+I0822 16:41:23.497673 3628932 utils.go:65] grabbing NIC timestamp capability for ovn-k8s-mp0
+I0822 16:41:23.499221 3628932 utils.go:31] cmd output for Time stamping parameters for ovn-k8s-mp0:
+Capabilities:
+	software-receive
+	software-system-clock
+PTP Hardware Clock: none
+Hardware Transmit Timestamp Modes: none
+Hardware Receive Filter Modes: none
+I0822 16:41:23.499246 3628932 utils.go:65] grabbing NIC timestamp capability for ovs-system
+I0822 16:41:23.500771 3628932 utils.go:31] cmd output for Time stamping parameters for ovs-system:
+Capabilities:
+	software-receive
+	software-system-clock
+PTP Hardware Clock: none
+Hardware Transmit Timestamp Modes: none
+Hardware Receive Filter Modes: none
+I0822 16:41:23.500795 3628932 ptpdev.go:20] PTP capable NICs: [eno1 eno2 ens1f0 ens1f1 ens2f0 ens2f1 ens4f0 ens4f1 ens7f0 ens7f1]

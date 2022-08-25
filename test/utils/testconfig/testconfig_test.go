@@ -6,9 +6,17 @@ import (
 	"testing"
 
 	ptpv1 "github.com/openshift/ptp-operator/api/v1"
+	"github.com/openshift/ptp-operator/test/utils"
 	testclient "github.com/openshift/ptp-operator/test/utils/client"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+)
+
+const (
+	config1    = "config1"
+	config2    = "config2"
+	config3    = "config3"
+	namespace1 = "namespace1"
 )
 
 func TestGetDesiredConfig(t *testing.T) {
@@ -33,7 +41,8 @@ func TestGetDesiredConfig(t *testing.T) {
 				nil,
 				nil,
 				nil,
-				false,
+				nil,
+				nil,
 			},
 		},
 		{
@@ -48,7 +57,8 @@ func TestGetDesiredConfig(t *testing.T) {
 				nil,
 				nil,
 				nil,
-				false,
+				nil,
+				nil,
 			},
 		},
 		{
@@ -63,7 +73,8 @@ func TestGetDesiredConfig(t *testing.T) {
 				nil,
 				nil,
 				nil,
-				false,
+				nil,
+				nil,
 			},
 		},
 		{
@@ -78,7 +89,8 @@ func TestGetDesiredConfig(t *testing.T) {
 				nil,
 				nil,
 				nil,
-				false,
+				nil,
+				nil,
 			},
 		},
 		{
@@ -93,7 +105,8 @@ func TestGetDesiredConfig(t *testing.T) {
 				nil,
 				nil,
 				nil,
-				false,
+				nil,
+				nil,
 			},
 		},
 		{
@@ -109,7 +122,8 @@ func TestGetDesiredConfig(t *testing.T) {
 				nil,
 				nil,
 				nil,
-				false,
+				nil,
+				nil,
 			},
 		},
 		{
@@ -125,7 +139,8 @@ func TestGetDesiredConfig(t *testing.T) {
 				nil,
 				nil,
 				nil,
-				false,
+				nil,
+				nil,
 			},
 		},
 	}
@@ -154,39 +169,38 @@ func TestGetFullDiscoveredConfig(t *testing.T) {
 		// TODO: Add test cases.
 		{
 			name: "Ordinary clock",
-			args: args{namespace: "namespace1",
+			args: args{namespace: namespace1,
 				mode: OrdinaryClock},
 			want: TestConfig{
-				PtpModeDesired:            OrdinaryClock,
-				PtpModeDiscovered:         OrdinaryClock,
-				Status:                    DiscoverySuccessStatus,
-				DiscoveredSlavePtpConfig:  &ptpDiscoveryRes{Label: "label1", Config: *mockPtpConfig("config2", "namespace1", ptpv1.Slave, OrdinaryClock)},
-				DiscoveredMasterPtpConfig: &ptpDiscoveryRes{Label: "label1", Config: *mockPtpConfig("config1", "namespace1", ptpv1.Master, OrdinaryClock)},
+				PtpModeDesired:                    None,
+				PtpModeDiscovered:                 OrdinaryClock,
+				Status:                            DiscoverySuccessStatus,
+				DiscoveredClockUnderTestPtpConfig: (*ptpDiscoveryRes)(mockPtpConfig(config1, namespace1, ptpv1.Slave, OrdinaryClock)),
+				DiscoveredClockUnderTestSecondaryPtpConfig: nil,
 			},
 		},
 		{
 			name: "Boundary clock",
-			args: args{namespace: "namespace1",
+			args: args{namespace: namespace1,
 				mode: BoundaryClock},
 			want: TestConfig{
-				PtpModeDesired:            OrdinaryClock,
-				PtpModeDiscovered:         BoundaryClock,
-				Status:                    DiscoverySuccessStatus,
-				DiscoveredSlavePtpConfig:  &ptpDiscoveryRes{Label: "label1", Config: *mockPtpConfig("config2", "namespace1", ptpv1.Slave, BoundaryClock)},
-				DiscoveredMasterPtpConfig: &ptpDiscoveryRes{Label: "label1", Config: *mockPtpConfig("config1", "namespace1", ptpv1.Master, OrdinaryClock)},
+				PtpModeDesired:                    None,
+				PtpModeDiscovered:                 BoundaryClock,
+				Status:                            DiscoverySuccessStatus,
+				DiscoveredClockUnderTestPtpConfig: (*ptpDiscoveryRes)(mockPtpConfig(config2, namespace1, ptpv1.Slave, BoundaryClock)),
+				DiscoveredClockUnderTestSecondaryPtpConfig: nil,
 			},
 		},
 		{
 			name: "Dual NIC Boundary clock",
-			args: args{namespace: "namespace1",
+			args: args{namespace: namespace1,
 				mode: DualNICBoundaryClock},
 			want: TestConfig{
-				PtpModeDesired:                    OrdinaryClock,
+				PtpModeDesired:                    None,
 				PtpModeDiscovered:                 DualNICBoundaryClock,
 				Status:                            DiscoverySuccessStatus,
-				DiscoveredSlavePtpConfig:          &ptpDiscoveryRes{Label: "label1", Config: *mockPtpConfig("config2", "namespace1", ptpv1.Slave, BoundaryClock)},
-				DiscoveredSlavePtpConfigSecondary: &ptpDiscoveryRes{Label: "label1", Config: *mockPtpConfig("config3", "namespace1", ptpv1.Slave, DualNICBoundaryClock)},
-				DiscoveredMasterPtpConfig:         &ptpDiscoveryRes{Label: "label1", Config: *mockPtpConfig("config1", "namespace1", ptpv1.Master, OrdinaryClock)},
+				DiscoveredClockUnderTestPtpConfig: (*ptpDiscoveryRes)(mockPtpConfig(config2, namespace1, ptpv1.Slave, BoundaryClock)),
+				DiscoveredClockUnderTestSecondaryPtpConfig: (*ptpDiscoveryRes)(mockPtpConfig(config3, namespace1, ptpv1.Slave, DualNICBoundaryClock)),
 			},
 		},
 	}
@@ -204,7 +218,7 @@ func TestGetFullDiscoveredConfig(t *testing.T) {
 }
 func mockPtpConfig(name, namespace string, role ptpv1.PtpRole, mode PTPMode) *ptpv1.PtpConfig {
 	// Label
-	aLabel := "label1"
+	aLabel := utils.PtpClockUnderTestNodeLabel
 	// Match rule
 	aMatchRule := ptpv1.MatchRule{}
 	aMatchRule.NodeLabel = &aLabel
@@ -226,17 +240,29 @@ func mockPtpConfig(name, namespace string, role ptpv1.PtpRole, mode PTPMode) *pt
 		aStringPhc2sys := "-a -r -r"
 		aProfile.Phc2sysOpts = &aStringPhc2sys
 	} else {
-		aStringPtp4l := "-s"
-		aProfile.Ptp4lOpts = &aStringPtp4l
-		aStringPhc2sys := "-a -r"
-		aProfile.Phc2sysOpts = &aStringPhc2sys
-		aStringInterface := "eth0"
-		aProfile.Interface = &aStringInterface
+
 		switch mode {
+		case OrdinaryClock:
+			aStringPtp4l := "-s -2"
+			aProfile.Ptp4lOpts = &aStringPtp4l
+			aStringPhc2sys := "-a -r"
+			aProfile.Phc2sysOpts = &aStringPhc2sys
+			aStringInterface := "eth0"
+			aProfile.Interface = &aStringInterface
 		case BoundaryClock:
+			aStringPtp4l := "-2"
+			aProfile.Ptp4lOpts = &aStringPtp4l
+			aStringPhc2sys := "-a -r"
+			aProfile.Phc2sysOpts = &aStringPhc2sys
+			aStringInterface := "eth0"
+			aProfile.Interface = &aStringInterface
 			aString := ptp4lconfBc
 			aProfile.Ptp4lConf = &aString
 		case DualNICBoundaryClock:
+			aStringPtp4l := "-2"
+			aProfile.Ptp4lOpts = &aStringPtp4l
+			aStringInterface := "eth0"
+			aProfile.Interface = &aStringInterface
 			aString := ptp4lconfBc
 			aProfile.Ptp4lConf = &aString
 			aProfile.Phc2sysOpts = nil
@@ -260,7 +286,7 @@ func mockNode(name string) *corev1.Node {
 	aNode := corev1.Node{}
 	aNode.Name = name
 	aNode.Labels = make(map[string]string)
-	aNode.Labels["label1"] = ""
+	aNode.Labels[utils.PtpClockUnderTestNodeLabel] = ""
 	return &aNode
 }
 func GeneratePTPObjects(mode PTPMode) {
@@ -268,21 +294,18 @@ func GeneratePTPObjects(mode PTPMode) {
 	switch mode {
 	case OrdinaryClock:
 		var mockClientObjects []runtime.Object
-		mockClientObjects = append(mockClientObjects, mockPtpConfig("config1", "namespace1", ptpv1.Master, OrdinaryClock))
-		mockClientObjects = append(mockClientObjects, mockPtpConfig("config2", "namespace1", ptpv1.Slave, OrdinaryClock))
+		mockClientObjects = append(mockClientObjects, mockPtpConfig(config1, namespace1, ptpv1.Slave, OrdinaryClock))
 		mockClientObjects = append(mockClientObjects, mockNode("node1"))
 		_ = testclient.GetTestClientSet(mockClientObjects)
 	case BoundaryClock:
 		var mockClientObjects []runtime.Object
-		mockClientObjects = append(mockClientObjects, mockPtpConfig("config1", "namespace1", ptpv1.Master, OrdinaryClock))
-		mockClientObjects = append(mockClientObjects, mockPtpConfig("config2", "namespace1", ptpv1.Slave, BoundaryClock))
+		mockClientObjects = append(mockClientObjects, mockPtpConfig(config2, namespace1, ptpv1.Slave, BoundaryClock))
 		mockClientObjects = append(mockClientObjects, mockNode("node1"))
 		_ = testclient.GetTestClientSet(mockClientObjects)
 	case DualNICBoundaryClock:
 		var mockClientObjects []runtime.Object
-		mockClientObjects = append(mockClientObjects, mockPtpConfig("config1", "namespace1", ptpv1.Master, OrdinaryClock))
-		mockClientObjects = append(mockClientObjects, mockPtpConfig("config2", "namespace1", ptpv1.Slave, BoundaryClock))
-		mockClientObjects = append(mockClientObjects, mockPtpConfig("config3", "namespace1", ptpv1.Slave, DualNICBoundaryClock))
+		mockClientObjects = append(mockClientObjects, mockPtpConfig(config2, namespace1, ptpv1.Slave, BoundaryClock))
+		mockClientObjects = append(mockClientObjects, mockPtpConfig(config3, namespace1, ptpv1.Slave, DualNICBoundaryClock))
 		mockClientObjects = append(mockClientObjects, mockNode("node1"))
 		_ = testclient.GetTestClientSet(mockClientObjects)
 	}
