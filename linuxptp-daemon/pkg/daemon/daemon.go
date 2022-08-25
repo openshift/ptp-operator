@@ -260,7 +260,7 @@ func (dn *Daemon) addProfileConfig(socketPath string, configFile string, nodePro
 	output.profile_name = *nodeProfile.Name
 
 	if nodeProfile.Interface != nil && *nodeProfile.Interface != "" {
-		output.sections = append(output.sections, ptp4lConfSection{options: map[string]string{}})
+		output.sections = append([]ptp4lConfSection{{options: map[string]string{}, sectionName: fmt.Sprintf("[%s]", *nodeProfile.Interface)}}, output.sections...)
 	} else {
 		iface := string("")
 		nodeProfile.Interface = &iface

@@ -114,7 +114,10 @@ func (output *ptp4lConf) populatePtp4lConf(config *string) error {
 	globalIsDefined := false
 
 	for _, line := range lines {
-		if strings.HasPrefix(line, "[") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "#") {
+			continue
+		} else if strings.HasPrefix(line, "[") {
 			if currentSectionName != "" {
 				output.sections = append(output.sections, currentSection)
 			}
@@ -153,7 +156,7 @@ func (conf *ptp4lConf) renderPtp4lConf() (string, string) {
 	conf.mapping = nil
 
 	for _, section := range conf.sections {
-		configOut = fmt.Sprintf("%s\n %s", configOut, section.sectionName)
+		configOut = fmt.Sprintf("%s\n%s", configOut, section.sectionName)
 		if section.sectionName != "[global]" {
 			iface := section.sectionName
 			iface = strings.ReplaceAll(iface, "[", "")
@@ -161,7 +164,7 @@ func (conf *ptp4lConf) renderPtp4lConf() (string, string) {
 			conf.mapping = append(conf.mapping, iface)
 		}
 		for k, v := range section.options {
-			configOut = fmt.Sprintf("%s\n %s %s", configOut, k, v)
+			configOut = fmt.Sprintf("%s\n%s %s", configOut, k, v)
 		}
 	}
 	return configOut, strings.Join(conf.mapping, ",")
