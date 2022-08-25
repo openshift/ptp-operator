@@ -825,6 +825,7 @@ func (config *L2DiscoveryConfig) getInterfacesReceivingPTP() {
 			config.PortsGettingPTP = append(config.PortsGettingPTP, aPortGettingPTP)
 		}
 	}
+	logrus.Infof("interfaces receiving PTP frames: %v", config.PortsGettingPTP)
 }
 
 // Creates Mapping tables between interfaces index, mac address, and graph integer indexes
