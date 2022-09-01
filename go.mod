@@ -26,6 +26,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.23.0
 	k8s.io/apimachinery v0.23.0
 	k8s.io/client-go v1.5.2
+	k8s.io/code-generator v0.23.0
 	k8s.io/klog v1.0.0
 	k8s.io/utils v0.0.0-20210930125809-cb0fa318a74b
 	sigs.k8s.io/controller-runtime v0.11.0
@@ -37,4 +38,5 @@ replace (
 	k8s.io/api => k8s.io/api v0.23.0
 	k8s.io/apimachinery => k8s.io/apimachinery v0.23.0
 	k8s.io/client-go => k8s.io/client-go v0.23.0
+	k8s.io/code-generator => k8s.io/code-generator v0.23.0
 )

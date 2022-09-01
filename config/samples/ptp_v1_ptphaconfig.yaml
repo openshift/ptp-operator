@@ -1,0 +1,6 @@
+apiVersion: ptp.openshift.io/v1
+kind: PtpHAConfig
+metadata:
+  name: ptphaconfig-sample
+spec:
+  # TODO(user): Add fields here

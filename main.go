@@ -104,6 +104,13 @@ func main() {
 		setupLog.Error(err, "unable to create webhook", "webhook", "PtpConfig")
 		os.Exit(1)
 	}
+	if err = (&controllers.PtpHAConfigReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "PtpHAConfig")
+		os.Exit(1)
+	}
 	// +kubebuilder:scaffold:builder
 
 	err = createDefaultOperatorConfig(ctrl.GetConfigOrDie())

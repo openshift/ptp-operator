@@ -36,4 +36,13 @@ resources:
   kind: PtpOperatorConfig
   path: github.com/openshift/ptp-operator/api/v1
   version: v1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: openshift.io
+  group: ptp
+  kind: PtpHAConfig
+  path: github.com/openshift/ptp-operator/api/v1
+  version: v1
 version: "3"
