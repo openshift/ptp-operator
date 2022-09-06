@@ -56,6 +56,9 @@ type IngressSpec struct {
 	// .status.componentRoutes list, where participating operators write the status of
 	// configurable routes.
 	// +optional
+	// +listType=map
+	// +listMapKey=namespace
+	// +listMapKey=name
 	ComponentRoutes []ComponentRouteSpec `json:"componentRoutes,omitempty"`
 
 	// requiredHSTSPolicies specifies HSTS policies that are required to be set on newly created  or updated routes
@@ -91,14 +94,47 @@ type IngressSpec struct {
 type ConsumingUser string
 
 // Hostname is an alias for hostname string validation.
-// +kubebuilder:validation:Format=hostname
+//
+// The left operand of the | is the original kubebuilder hostname validation format, which is incorrect because it
+// allows upper case letters, disallows hyphen or number in the TLD, and allows labels to start/end in non-alphanumeric
+// characters.  See https://bugzilla.redhat.com/show_bug.cgi?id=2039256.
+// ^([a-zA-Z0-9\p{S}\p{L}]((-?[a-zA-Z0-9\p{S}\p{L}]{0,62})?)|([a-zA-Z0-9\p{S}\p{L}](([a-zA-Z0-9-\p{S}\p{L}]{0,61}[a-zA-Z0-9\p{S}\p{L}])?)(\.)){1,}([a-zA-Z\p{L}]){2,63})$
+//
+// The right operand of the | is a new pattern that mimics the current API route admission validation on hostname,
+// except that it allows hostnames longer than the maximum length:
+// ^(([a-z0-9][-a-z0-9]{0,61}[a-z0-9]|[a-z0-9]{1,63})[\.]){0,}([a-z0-9][-a-z0-9]{0,61}[a-z0-9]|[a-z0-9]{1,63})$
+//
+// Both operand patterns are made available so that modifications on ingress spec can still happen after an invalid hostname
+// was saved via validation by the incorrect left operand of the | operator.
+//
+// +kubebuilder:validation:Pattern=`^([a-zA-Z0-9\p{S}\p{L}]((-?[a-zA-Z0-9\p{S}\p{L}]{0,62})?)|([a-zA-Z0-9\p{S}\p{L}](([a-zA-Z0-9-\p{S}\p{L}]{0,61}[a-zA-Z0-9\p{S}\p{L}])?)(\.)){1,}([a-zA-Z\p{L}]){2,63})$|^(([a-z0-9][-a-z0-9]{0,61}[a-z0-9]|[a-z0-9]{1,63})[\.]){0,}([a-z0-9][-a-z0-9]{0,61}[a-z0-9]|[a-z0-9]{1,63})$`
 type Hostname string
 
 type IngressStatus struct {
 	// componentRoutes is where participating operators place the current route status for routes whose
 	// hostnames and serving certificates can be customized by the cluster-admin.
 	// +optional
+	// +listType=map
+	// +listMapKey=namespace
+	// +listMapKey=name
 	ComponentRoutes []ComponentRouteStatus `json:"componentRoutes,omitempty"`
+
+	// defaultPlacement is set at installation time to control which
+	// nodes will host the ingress router pods by default. The options are
+	// control-plane nodes or worker nodes.
+	//
+	// This field works by dictating how the Cluster Ingress Operator will
+	// consider unset replicas and nodePlacement fields in IngressController
+	// resources when creating the corresponding Deployments.
+	//
+	// See the documentation for the IngressController replicas and nodePlacement
+	// fields for more information.
+	//
+	// When omitted, the default value is Workers
+	//
+	// +kubebuilder:validation:Enum:="ControlPlane";"Workers";""
+	// +optional
+	DefaultPlacement DefaultPlacement `json:"defaultPlacement"`
 }
 
 // ComponentRouteSpec allows for configuration of a route's hostname and serving certificate.
@@ -191,6 +227,8 @@ type ComponentRouteStatus struct {
 	//
 	// If Progressing is true, that means the component is taking some action related to the componentRoutes entry.
 	// +optional
+	// +listType=map
+	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
 	// relatedObjects is a list of resources which are useful when debugging or inspecting how spec.componentRoutes is applied.
@@ -209,3 +247,14 @@ type IngressList struct {
 
 	Items []Ingress `json:"items"`
 }
+
+// DefaultPlacement defines the default placement of ingress router pods.
+type DefaultPlacement string
+
+const (
+	// "Workers" is for having router pods placed on worker nodes by default.
+	DefaultPlacementWorkers DefaultPlacement = "Workers"
+
+	// "ControlPlane" is for having router pods placed on control-plane nodes by default.
+	DefaultPlacementControlPlane DefaultPlacement = "ControlPlane"
+)
