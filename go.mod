@@ -14,6 +14,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.0
 	github.com/test-network-function/l2discovery v0.0.0-20220817163120-5aa77e3c1d0c
+	github.com/test-network-function/privileged-daemonset v0.0.0-20220826123400-aaf1694908af
 	github.com/yourbasic/graph v0.0.0-20210606180040-8ecfec1c2869
 	k8s.io/api v0.25.0
 	k8s.io/apiextensions-apiserver v0.25.0

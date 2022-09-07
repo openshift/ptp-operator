@@ -399,6 +399,8 @@ github.com/stretchr/testify v1.7.0 h1:nwc3DEeHmmLAfoZucVR881uASk0Mfjw8xYJ99tb5Cc
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/test-network-function/l2discovery v0.0.0-20220817163120-5aa77e3c1d0c h1:Jzc6aQ/FI63ec410oiT35WG3ciyJ4b13GYoXpo3lr9A=
 github.com/test-network-function/l2discovery v0.0.0-20220817163120-5aa77e3c1d0c/go.mod h1:fRZ3dlxBG5bwgVIaMhCKBv3431r9X40C2lYM3r4iwHE=
+github.com/test-network-function/privileged-daemonset v0.0.0-20220826123400-aaf1694908af h1:hz/L249lHk6QBaO723lbIRgz/VHVnbaMBoMhxwark80=
+github.com/test-network-function/privileged-daemonset v0.0.0-20220826123400-aaf1694908af/go.mod h1:psbuW1xPzS2+9x+lXtL0HrlEJtBEHrD8cZ2X6mbnyOU=
 github.com/yourbasic/graph v0.0.0-20210606180040-8ecfec1c2869 h1:7v7L5lsfw4w8iqBBXETukHo4IPltmD+mWoLRYUmeGN8=
 github.com/yourbasic/graph v0.0.0-20210606180040-8ecfec1c2869/go.mod h1:Rfzr+sqaDreiCaoQbFCu3sTXxeFq/9kXRuyOoSlGQHE=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

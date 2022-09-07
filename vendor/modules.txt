@@ -231,6 +231,9 @@ github.com/spf13/pflag
 # github.com/test-network-function/l2discovery v0.0.0-20220817163120-5aa77e3c1d0c
 ## explicit; go 1.18
 github.com/test-network-function/l2discovery/export
+# github.com/test-network-function/privileged-daemonset v0.0.0-20220826123400-aaf1694908af
+## explicit; go 1.18
+github.com/test-network-function/privileged-daemonset
 # github.com/yourbasic/graph v0.0.0-20210606180040-8ecfec1c2869
 ## explicit
 github.com/yourbasic/graph

@@ -1,4 +1,4 @@
-package daemonsets
+package privilegeddaemonset
 
 import (
 	"context"
@@ -6,13 +6,23 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/openshift/ptp-operator/test/utils/client"
 	"github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/apps/v1"
 	v1core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
+
+type DaemonSetClient struct {
+	K8sClient kubernetes.Interface
+}
+
+var daemonsetClient = DaemonSetClient{}
+
+func SetDaemonSetClient(k8sClient kubernetes.Interface) {
+	daemonsetClient.K8sClient = k8sClient
+}
 
 const waitingTime = 5 * time.Second
 
@@ -115,22 +125,20 @@ func DeleteDaemonSet(daemonSetName, namespace string) error {
 	logrus.Infof("Deleting daemonset %s", daemonSetName)
 	deletePolicy := metav1.DeletePropagationForeground
 
-	if err := client.Client.AppsV1Interface.DaemonSets(namespace).Delete(context.TODO(), daemonSetName, metav1.DeleteOptions{
+	if err := daemonsetClient.K8sClient.AppsV1().DaemonSets(namespace).Delete(context.TODO(), daemonSetName, metav1.DeleteOptions{
 		PropagationPolicy: &deletePolicy,
 	}); err != nil {
-		logrus.Infof("The daemonset (%d) deletion is unsuccessful due to %+v", daemonSetName, err.Error())
+		logrus.Infof("The daemonset (%s) deletion is unsuccessful due to %+v", daemonSetName, err.Error())
 	}
 
-	doneCleanUp := false
-	for start := time.Now(); !doneCleanUp && time.Since(start) < Timeout; {
+	for start := time.Now(); time.Since(start) < Timeout; {
 
-		pods, err := client.Client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "name=" + daemonSetName})
+		pods, err := daemonsetClient.K8sClient.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "name=" + daemonSetName})
 		if err != nil {
 			return fmt.Errorf("failed to get pods, err: %s", err)
 		}
 
 		if len(pods.Items) == 0 {
-			doneCleanUp = true
 			break
 		}
 		time.Sleep(waitingTime)
@@ -143,7 +151,7 @@ func DeleteDaemonSet(daemonSetName, namespace string) error {
 // Check if the daemonset exists
 func doesDaemonSetExist(daemonSetName, namespace string) bool {
 	logrus.Infof("Checking if the daemonset exists")
-	_, err := client.Client.DaemonSets(namespace).Get(context.TODO(), daemonSetName, metav1.GetOptions{})
+	_, err := daemonsetClient.K8sClient.AppsV1().DaemonSets(namespace).Get(context.TODO(), daemonSetName, metav1.GetOptions{})
 	if err != nil {
 		logrus.Infof("daemonset %s does not exist, err=%s", daemonSetName, err.Error())
 	}
@@ -165,16 +173,20 @@ func CreateDaemonSet(daemonSetName, namespace, containerName, imageWithVersion s
 	}
 
 	logrus.Infof("Creating daemonset %s", daemonSetName)
-	_, err := client.Client.DaemonSets(namespace).Create(context.TODO(), rebootDaemonSet, metav1.CreateOptions{})
+	_, err := daemonsetClient.K8sClient.AppsV1().DaemonSets(namespace).Create(context.TODO(), rebootDaemonSet, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	}
-	WaitDaemonsetReady(namespace, daemonSetName, timeout)
+
+	err = WaitDaemonsetReady(namespace, daemonSetName, timeout)
+	if err != nil {
+		return nil, err
+	}
 
 	logrus.Infof("Deamonset is ready")
 
 	var ptpPods *v1core.PodList
-	ptpPods, err = client.Client.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "name=" + daemonSetName})
+	ptpPods, err = daemonsetClient.K8sClient.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "name=" + daemonSetName})
 	if err != nil {
 		return ptpPods, err
 	}
@@ -185,8 +197,7 @@ func CreateDaemonSet(daemonSetName, namespace, containerName, imageWithVersion s
 // This function is used to wait until daemonset is ready
 func WaitDaemonsetReady(namespace, name string, timeout time.Duration) error {
 
-	oc := client.Client
-	nodes, err := oc.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	nodes, err := daemonsetClient.K8sClient.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get node list, err:%s", err)
 	}
@@ -194,7 +205,7 @@ func WaitDaemonsetReady(namespace, name string, timeout time.Duration) error {
 	nodesCount := int32(len(nodes.Items))
 	isReady := false
 	for start := time.Now(); !isReady && time.Since(start) < timeout; {
-		daemonSet, err := oc.AppsV1().DaemonSets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+		daemonSet, err := daemonsetClient.K8sClient.AppsV1().DaemonSets(namespace).Get(context.Background(), name, metav1.GetOptions{})
 
 		if err != nil {
 			return fmt.Errorf("failed to get daemonset, err: %s", err)
