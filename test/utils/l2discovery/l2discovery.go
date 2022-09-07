@@ -15,12 +15,13 @@ import (
 	"github.com/openshift/ptp-operator/test/utils/nodes"
 	"github.com/openshift/ptp-operator/test/utils/pods"
 
-	"github.com/openshift/ptp-operator/test/utils/daemonsets"
 	l2 "github.com/test-network-function/l2discovery/export"
 
 	"github.com/sirupsen/logrus"
 	"github.com/yourbasic/graph"
 	v1core "k8s.io/api/core/v1"
+
+	k8sPriviledgedDs "github.com/test-network-function/privileged-daemonset"
 )
 
 func init() {
@@ -350,10 +351,12 @@ func (config *L2DiscoveryConfig) DiscoverL2Connectivity(client *client.ClientSet
 		logrus.Errorf("could not retrieve ptp interface list")
 	}
 
+	// Create the client of Priviledged Daemonset
+	k8sPriviledgedDs.SetDaemonSetClient(client.Interface)
 	// Create L2 discovery daemonset
 	config.L2DsMode = StringToL2Mode(os.Getenv("L2_DAEMONSET"))
 	if config.L2DsMode == Managed {
-		_, err = daemonsets.CreateDaemonSet(L2DiscoveryDsName, L2DiscoveryNsName, L2DiscoveryContainerName, l2DiscoveryImage, timeoutDaemon)
+		_, err = k8sPriviledgedDs.CreateDaemonSet(L2DiscoveryDsName, L2DiscoveryNsName, L2DiscoveryContainerName, l2DiscoveryImage, timeoutDaemon)
 		if err != nil {
 			logrus.Errorf("error creating l2 discovery daemonset, err=%s", err)
 		}
@@ -385,7 +388,7 @@ func (config *L2DiscoveryConfig) DiscoverL2Connectivity(client *client.ClientSet
 
 	// Delete L2 discovery daemonset
 	if config.L2DsMode == Managed {
-		err = daemonsets.DeleteDaemonSet(L2DiscoveryDsName, L2DiscoveryNsName)
+		err = k8sPriviledgedDs.DeleteDaemonSet(L2DiscoveryDsName, L2DiscoveryNsName)
 		if err != nil {
 			logrus.Errorf("error deleting l2 discovery daemonset, err=%s", err)
 		}

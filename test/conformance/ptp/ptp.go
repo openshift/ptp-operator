@@ -16,7 +16,6 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/openshift/ptp-operator/test/utils"
-	"github.com/openshift/ptp-operator/test/utils/daemonsets"
 	"github.com/openshift/ptp-operator/test/utils/event"
 	"github.com/openshift/ptp-operator/test/utils/l2discovery"
 
@@ -34,6 +33,8 @@ import (
 	"github.com/openshift/ptp-operator/test/utils/nodes"
 	"github.com/openshift/ptp-operator/test/utils/pods"
 	"github.com/openshift/ptp-operator/test/utils/testconfig"
+
+	k8sPriviledgedDs "github.com/test-network-function/privileged-daemonset"
 )
 
 type TestCase string
@@ -1030,8 +1031,10 @@ func rebootSlaveNode(fullConfig testconfig.TestConfig) {
 		imageWithVersion = "quay.io/testnetworkfunction/debug-partner:latest"
 	)
 
+	// Create the client of Priviledged Daemonset
+	k8sPriviledgedDs.SetDaemonSetClient(client.Client.Interface)
 	// 1. create a daemon set for the node reboot
-	rebootDaemonSetRunningPods, err := daemonsets.CreateDaemonSet(rebootDaemonSetName, rebootDaemonSetNamespace, rebootDaemonSetContainerName, imageWithVersion, timeoutIn5Minutes)
+	rebootDaemonSetRunningPods, err := k8sPriviledgedDs.CreateDaemonSet(rebootDaemonSetName, rebootDaemonSetNamespace, rebootDaemonSetContainerName, imageWithVersion, timeoutIn5Minutes)
 	if err != nil {
 		logrus.Errorf("error : +%v\n", err.Error())
 	}
