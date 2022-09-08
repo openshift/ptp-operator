@@ -17,7 +17,6 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/openshift/ptp-operator/test/utils"
 	"github.com/openshift/ptp-operator/test/utils/event"
-	"github.com/openshift/ptp-operator/test/utils/l2discovery"
 	"github.com/openshift/ptp-operator/test/utils/metrics"
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/apps/v1"
@@ -321,9 +320,9 @@ var _ = Describe("[ptp]", func() {
 					Skip("test only valid for Boundary clock in multi-node clusters")
 				}
 				if (fullConfig.PtpModeDiscovered == testconfig.BoundaryClock &&
-					len(fullConfig.L2Config.Solutions[l2discovery.AlgoBCWithSlaves]) == 0) ||
+					!fullConfig.FoundSolutions[testconfig.AlgoBCWithSlavesString]) ||
 					(fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock &&
-						len(fullConfig.L2Config.Solutions[l2discovery.AlgoDualNicBCWithSlaves]) == 0) {
+						!fullConfig.FoundSolutions[testconfig.AlgoDualNicBCWithSlavesString]) {
 					Skip("test only valid for Boundary clock in multi-node clusters with slaves")
 				}
 				aLabel := utils.PtpClockUnderTestNodeLabel
@@ -332,7 +331,7 @@ var _ = Describe("[ptp]", func() {
 				BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredSlave1PtpConfig), &masterIDBc1)
 
 				if fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock &&
-					len(fullConfig.L2Config.Solutions[l2discovery.AlgoDualNicBCWithSlaves]) != 0 {
+					fullConfig.FoundSolutions[testconfig.AlgoDualNicBCWithSlavesString] {
 
 					aLabel := utils.PtpClockUnderTestNodeLabel
 					masterIDBc2, err := getClockIDMaster(utils.PtpBcMaster2PolicyName, &aLabel, nil)
@@ -409,46 +408,6 @@ var _ = Describe("[ptp]", func() {
 				By("Checking the profile is reverted", func() {
 					waitUntilLogIsDetected(&testPtpPod, timeoutIn3Minutes, "Profile Name: "+policyName)
 				})
-			})
-
-			It("Should retrieve the details of hardwares for the Ptp", func() {
-				By("Getting the version of the OCP cluster")
-
-				ocpVersion, err := getOCPVersion()
-				Expect(err).ToNot(HaveOccurred())
-				Expect(ocpVersion).ShouldNot(BeEmpty())
-
-				By("Getting the version of the PTP operator")
-
-				ptpOperatorVersion, err := getPtpOperatorVersion()
-				Expect(err).ToNot(HaveOccurred())
-				Expect(ptpOperatorVersion).ShouldNot(BeEmpty())
-
-				By("Getting the NIC details of all the PTP enabled interfaces")
-
-				var mapping = make(map[string]string)
-				for _, pod := range ptpRunningPods {
-					mapping = getNICInfo(pod)
-					Expect(mapping).ShouldNot(BeEmpty())
-				}
-
-				By("Getting the interface details of the PTP config")
-
-				ptpConfig := testconfig.GlobalConfig
-				if ptpConfig.DiscoveredGrandMasterPtpConfig != nil {
-					printInterface(ptpv1.PtpConfig(*ptpConfig.DiscoveredGrandMasterPtpConfig), mapping)
-				}
-				if ptpConfig.DiscoveredClockUnderTestPtpConfig != nil {
-					printInterface(ptpv1.PtpConfig(*ptpConfig.DiscoveredClockUnderTestPtpConfig), mapping)
-				}
-				if ptpConfig.DiscoveredClockUnderTestSecondaryPtpConfig != nil {
-					printInterface(ptpv1.PtpConfig(*ptpConfig.DiscoveredClockUnderTestSecondaryPtpConfig), mapping)
-				}
-
-				By("Getting ptp config details")
-
-				logrus.Infof("Discovered master ptp config %s", ptpConfig.DiscoveredGrandMasterPtpConfig.String())
-				logrus.Infof("Discovered slave ptp config %s", ptpConfig.DiscoveredClockUnderTestPtpConfig.String())
 			})
 		})
 

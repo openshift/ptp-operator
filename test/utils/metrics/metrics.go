@@ -131,7 +131,12 @@ func CheckClockRoleAndOffset(ptpConfig *ptpv1.PtpConfig, label, nodeName *string
 	if nodeName == nil {
 		var name string
 		name, err = getNode(*label)
-		if err != nil || name == "" || label == nil || *label != utils.PtpClockUnderTestNodeLabel {
+		if err != nil ||
+			name == "" ||
+			label == nil ||
+			(*label != utils.PtpClockUnderTestNodeLabel &&
+				*label != utils.PtpSlave1NodeLabel &&
+				*label != utils.PtpSlave2NodeLabel) {
 			fmt.Printf(`error getting node name for label %s
 Did you label the node running the clock under test with the %s label?
 Only this label should be used to identify the clock under test. err:%s`, *label, utils.PtpClockUnderTestNodeLabel, err)
