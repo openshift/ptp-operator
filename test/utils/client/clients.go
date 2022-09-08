@@ -26,7 +26,7 @@ import (
 )
 
 // Client defines the client set that will be used for testing
-var Client = &ClientSet{}
+var Client *ClientSet
 
 // ClientSet provides the struct to talk with relevant API
 type ClientSet struct {
