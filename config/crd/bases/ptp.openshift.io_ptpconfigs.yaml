@@ -77,6 +77,10 @@ spec:
                       maximum: 65
                       minimum: 1
                       type: integer
+                    ts2PhcConf:
+                      type: string
+                    ts2PhcOpts:
+                      type: string
                   required:
                   - name
                   type: object

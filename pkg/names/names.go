@@ -11,6 +11,10 @@ const Namespace = "openshift-ptp"
 // by ptp-operator.
 const DefaultPTPConfigMapName = "ptp-configmap"
 
+// DefaultPTPLeapFileConfigMapName is the default ptp leap file config map that created
+// by ptp-operator.
+const DefaultPTPLeapFileConfigMapName = "ptp-leap-second-configmap"
+
 // DefaultOperatorConfigName is the default operator config that
 // created by ptp-operator. It's set to the owner of resources of
 // linuxptp daemonset, ptp-configmap and nodePtpDevice.

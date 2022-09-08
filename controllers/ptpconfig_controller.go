@@ -108,6 +108,7 @@ func (r *PtpConfigReconciler) syncPtpConfig(ctx context.Context, ptpConfigList *
 			return fmt.Errorf("failed to update ptp config map: %v", err)
 		}
 	}
+
 	return nil
 }
 

@@ -65,7 +65,9 @@ type PtpProfile struct {
 	Interface   *string `json:"interface,omitempty"`
 	Ptp4lOpts   *string `json:"ptp4lOpts,omitempty"`
 	Phc2sysOpts *string `json:"phc2sysOpts,omitempty"`
+	Ts2PhcOpts  *string `json:"ts2PhcOpts,omitempty"`
 	Ptp4lConf   *string `json:"ptp4lConf,omitempty"`
+	Ts2PhcConf  *string `json:"ts2PhcConf,omitempty"`
 	// +kubebuilder:validation:Enum=SCHED_OTHER;SCHED_FIFO;
 	PtpSchedulingPolicy *string `json:"ptpSchedulingPolicy,omitempty"`
 	// +kubebuilder:validation:Minimum=1

@@ -104,6 +104,11 @@ func (r *PtpOperatorConfigReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		return reconcile.Result{}, err
 	}
 
+	if err = r.createPTPLeapFileConfigMap(ctx, defaultCfg); err != nil {
+		glog.Errorf("failed to create ptp leap file config map node: %v", err)
+		return reconcile.Result{}, err
+	}
+
 	if err = r.syncLinuxptpDaemon(ctx, defaultCfg); err != nil {
 		glog.Errorf("failed to sync linux ptp daemon: %v", err)
 		return reconcile.Result{}, err
@@ -134,6 +139,36 @@ func (r *PtpOperatorConfigReconciler) createPTPConfigMap(ctx context.Context, de
 				return fmt.Errorf("failed to create ptp config map: %v", err)
 			}
 			glog.Infof("create ptp config map successfully")
+		} else {
+			return fmt.Errorf("failed to node ptp config map: %v", err)
+		}
+	}
+	return nil
+}
+
+// createPTPLeapFileConfigMap creates PTP leap file config map
+func (r *PtpOperatorConfigReconciler) createPTPLeapFileConfigMap(ctx context.Context, defaultCfg *ptpv1.PtpOperatorConfig) error {
+	var err error
+
+	cm := &corev1.ConfigMap{}
+	err = r.Get(ctx, types.NamespacedName{
+		Namespace: names.Namespace, Name: names.DefaultPTPLeapFileConfigMapName}, cm)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			cm.Name = names.DefaultPTPLeapFileConfigMapName
+			cm.Namespace = names.Namespace
+			cm.Data = make(map[string]string)
+			cm.Data["leap-seconds.list"] = "|\n" +
+				"update with content from here https://www.ietf.org/timezones/data/leap-seconds.list"
+			if err = controllerutil.SetControllerReference(defaultCfg, cm, r.Scheme); err != nil {
+				return fmt.Errorf("failed to set owner reference: %v", err)
+			}
+
+			err = r.Create(ctx, cm)
+			if err != nil {
+				return fmt.Errorf("failed to create ptp leap file config map: %v", err)
+			}
+			glog.Infof("create ptp leap file config map successfully")
 		} else {
 			return fmt.Errorf("failed to node ptp config map: %v", err)
 		}
