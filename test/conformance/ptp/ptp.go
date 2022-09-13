@@ -18,7 +18,7 @@ import (
 	"github.com/openshift/ptp-operator/test/utils"
 	"github.com/openshift/ptp-operator/test/utils/event"
 	"github.com/openshift/ptp-operator/test/utils/l2discovery"
-
+	"github.com/openshift/ptp-operator/test/utils/metrics"
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/apps/v1"
 	v1core "k8s.io/api/core/v1"
@@ -48,6 +48,7 @@ const (
 	timeoutIn3Minutes  = 3 * time.Minute
 	timeoutIn5Minutes  = 5 * time.Minute
 	timeoutIn10Minutes = 10 * time.Minute
+	timeout10Seconds   = 10 * time.Second
 
 	metricsEndPoint       = "127.0.0.1:9091/metrics"
 	ptpConfigOperatorName = "default"
@@ -134,14 +135,15 @@ var _ = Describe("[ptp]", func() {
 	})
 
 	Describe("PTP e2e tests", func() {
-		var ptpRunningPods []v1core.Pod
+		var ptpRunningPods []*v1core.Pod
 		var fifoPriorities map[string]int64
 		var fullConfig testconfig.TestConfig
 		execute.BeforeAll(func() {
 			testconfig.CreatePtpConfigurations()
 			fullConfig = testconfig.GetFullDiscoveredConfig(utils.PtpLinuxDaemonNamespace, false)
-
-			restartPtpDaemon()
+			if fullConfig.PtpModeDesired != testconfig.Discovery {
+				restartPtpDaemon()
+			}
 
 		})
 
@@ -164,7 +166,8 @@ var _ = Describe("[ptp]", func() {
 			})
 		})
 
-		Context("PTP Interfaces discovery", func() {
+		XContext("PTP Interfaces discovery", func() {
+
 			BeforeEach(func() {
 				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 					Skip("Failed to find a valid ptp slave configuration")
@@ -173,31 +176,13 @@ var _ = Describe("[ptp]", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(len(ptpPods.Items)).To(BeNumerically(">", 0), "linuxptp-daemon is not deployed on cluster")
 
-				ptpSlaveRunningPods := []v1core.Pod{}
-				ptpMasterRunningPods := []v1core.Pod{}
-
-				for podIndex := range ptpPods.Items {
-					if podRole(&ptpPods.Items[podIndex], utils.PtpClockUnderTestNodeLabel) {
-						waitUntilLogIsDetected(&ptpPods.Items[podIndex], timeoutIn3Minutes, "Profile Name:")
-						ptpSlaveRunningPods = append(ptpSlaveRunningPods, ptpPods.Items[podIndex])
-					} else if podRole(&ptpPods.Items[podIndex], utils.PtpGrandmasterNodeLabel) {
-						waitUntilLogIsDetected(&ptpPods.Items[podIndex], timeoutIn3Minutes, "Profile Name:")
-						ptpMasterRunningPods = append(ptpMasterRunningPods, ptpPods.Items[podIndex])
-					}
-				}
-				if testconfig.GlobalConfig.DiscoveredGrandMasterPtpConfig != nil {
-					Expect(len(ptpMasterRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP master pods on Cluster")
-					Expect(len(ptpSlaveRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP slave pods on Cluster")
-				} else {
-					Expect(len(ptpSlaveRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP slave pods on Cluster")
-				}
-				ptpRunningPods = append(ptpMasterRunningPods, ptpSlaveRunningPods...)
+				ptpRunningPods = testPtpRunningPods(ptpPods)
 			})
 
 			// 25729
 			It("The interfaces support ptp can be discovered correctly", func() {
 				for podIndex := range ptpRunningPods {
-					ptpSupportedInt := getPtpMasterSlaveAttachedInterfaces(&ptpRunningPods[podIndex])
+					ptpSupportedInt := getPtpMasterSlaveAttachedInterfaces(ptpRunningPods[podIndex])
 					Expect(len(ptpSupportedInt)).To(BeNumerically(">", 0), "Fail to detect PTP Supported interfaces on slave/master pods")
 					ptpDiscoveredInterfaces := ptpDiscoveredInterfaceList(utils.NodePtpDeviceAPIPath + ptpRunningPods[podIndex].Spec.NodeName)
 					for _, intfc := range ptpSupportedInt {
@@ -209,171 +194,12 @@ var _ = Describe("[ptp]", func() {
 			// 25730
 			It("The virtual interfaces should be not discovered by ptp", func() {
 				for podIndex := range ptpRunningPods {
-					ptpNotSupportedInt := getNonPtpMasterSlaveAttachedInterfaces(&ptpRunningPods[podIndex])
+					ptpNotSupportedInt := getNonPtpMasterSlaveAttachedInterfaces(ptpRunningPods[podIndex])
 					ptpDiscoveredInterfaces := ptpDiscoveredInterfaceList(utils.NodePtpDeviceAPIPath + ptpRunningPods[podIndex].Spec.NodeName)
 					for _, inter := range ptpNotSupportedInt {
 						Expect(ptpDiscoveredInterfaces).ToNot(ContainElement(inter), "The interfaces discovered incorrectly. PTP non supported Interfaces in list")
 					}
 				}
-			})
-
-			// 25733
-			It("PTP daemon apply match rule based on nodeLabel", func() {
-				profileSlave := fmt.Sprintf("Profile Name: %s", fullConfig.DiscoveredClockUnderTestPtpConfig.Name)
-				profileMaster := ""
-				if fullConfig.DiscoveredGrandMasterPtpConfig != nil {
-					profileMaster = fmt.Sprintf("Profile Name: %s", fullConfig.DiscoveredGrandMasterPtpConfig.Name)
-				}
-
-				for podIndex := range ptpRunningPods {
-					_, err := pods.GetLog(&ptpRunningPods[podIndex], utils.PtpContainerName)
-					Expect(err).NotTo(HaveOccurred(), "Error to find needed log due to %s", err)
-					if podRole(&ptpRunningPods[podIndex], utils.PtpClockUnderTestNodeLabel) {
-						waitUntilLogIsDetected(&ptpRunningPods[podIndex], timeoutIn3Minutes, profileSlave)
-					}
-					if podRole(&ptpRunningPods[podIndex], utils.PtpGrandmasterNodeLabel) && fullConfig.DiscoveredGrandMasterPtpConfig != nil {
-						waitUntilLogIsDetected(&ptpRunningPods[podIndex], timeoutIn3Minutes, profileMaster)
-					}
-				}
-			})
-
-			// 25738
-			It("Slave can sync to master", func() {
-
-				ptpconfigName := ""
-				switch fullConfig.PtpModeDiscovered {
-				case testconfig.BoundaryClock:
-					ptpconfigName = utils.PtpBcMaster1PolicyName
-				case testconfig.OrdinaryClock:
-					ptpconfigName = utils.PtpSlave1PolicyName
-				case testconfig.DualNICBoundaryClock:
-					ptpconfigName = utils.PtpBcMaster1PolicyName
-
-				}
-				grandmasterID, err := getClockIDMaster(utils.PtpGrandMasterPolicyName, utils.PtpGrandmasterNodeLabel)
-				Expect(err).To(BeNil())
-				slaveMaster, err := getClockIDForeign(ptpconfigName, utils.PtpClockUnderTestNodeLabel)
-				Expect(err).To(BeNil())
-				logrus.Infof("grandmasterID=%s slaveMaster=%s", grandmasterID, slaveMaster)
-
-				Expect(slaveMaster).NotTo(BeNil())
-				if testconfig.GlobalConfig.DiscoveredGrandMasterPtpConfig != nil {
-					Expect(grandmasterID).NotTo(BeNil())
-					Expect(slaveMaster).Should(HavePrefix(grandmasterID), "Error match grandmasterID with the slaveMaster. Slave connected to another Master")
-				}
-				if fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock {
-					ptpconfigName = utils.PtpBcMaster2PolicyName
-					slaveMaster, err := getClockIDForeign(ptpconfigName, utils.PtpClockUnderTestNodeLabel)
-					Expect(err).To(BeNil())
-					logrus.Infof("grandmasterID=%s slaveMasterBC2=%s", grandmasterID, slaveMaster)
-
-					Expect(slaveMaster).NotTo(BeNil())
-					if testconfig.GlobalConfig.DiscoveredGrandMasterPtpConfig != nil {
-						Expect(grandmasterID).NotTo(BeNil())
-						Expect(slaveMaster).Should(HavePrefix(grandmasterID), "Error match grandmasterID with the slaveMasterBC2. Slave connected to another Master")
-					}
-				}
-
-			})
-
-			// Checking that BCSlave can sync
-			It("Downstream slave can sync to BC master", func() {
-				isSingleNode, err := nodes.IsSingleNodeCluster()
-				if err != nil {
-					Skip("cannot determine if cluster is single node")
-				}
-				if fullConfig.L2Config == nil || isSingleNode {
-					Skip("Boundary clock slave sync test is not performed in discovery or SNO mode")
-				}
-				if fullConfig.PtpModeDiscovered != testconfig.BoundaryClock &&
-					fullConfig.PtpModeDiscovered != testconfig.DualNICBoundaryClock {
-					Skip("test only valid for Boundary clock in multi-node clusters")
-				}
-				if (fullConfig.PtpModeDiscovered == testconfig.BoundaryClock &&
-					len(fullConfig.L2Config.Solutions[l2discovery.AlgoBCWithSlaves]) == 0) ||
-					(fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock &&
-						len(fullConfig.L2Config.Solutions[l2discovery.AlgoDualNicBCWithSlaves]) == 0) {
-					Skip("test only valid for Boundary clock in multi-node clusters with slaves")
-				}
-
-				masterIDBc1, err := getClockIDMaster(utils.PtpBcMaster1PolicyName, utils.PtpClockUnderTestNodeLabel)
-				Expect(err).To(BeNil())
-				slaveMasterID1, err := getClockIDForeign(utils.PtpSlave1PolicyName, utils.PtpSlave1NodeLabel)
-				Expect(err).To(BeNil())
-				logrus.Infof("masterIDBc1=%s slaveMasterID1=%s", masterIDBc1, slaveMasterID1)
-				Expect(masterIDBc1).NotTo(BeNil())
-				Expect(slaveMasterID1).NotTo(BeNil())
-				Expect(slaveMasterID1).Should(HavePrefix(masterIDBc1), "Error match MasterID1 with the SlaveID1. Slave connected to another Master")
-
-				if fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock &&
-					len(fullConfig.L2Config.Solutions[l2discovery.AlgoDualNicBCWithSlaves]) != 0 {
-
-					masterIDBc2, err := getClockIDMaster(utils.PtpBcMaster2PolicyName, utils.PtpClockUnderTestNodeLabel)
-					Expect(err).To(BeNil())
-					slaveMasterID2, err := getClockIDForeign(utils.PtpSlave2PolicyName, utils.PtpSlave2NodeLabel)
-					Expect(err).To(BeNil())
-					logrus.Infof("masterIDBc2=%s slaveMasterID2=%s", masterIDBc2, slaveMasterID2)
-					Expect(masterIDBc2).NotTo(BeNil())
-					Expect(slaveMasterID2).NotTo(BeNil())
-					Expect(slaveMasterID2).Should(HavePrefix(masterIDBc2), "Error match MasterID2 with the SlaveID2. Slave connected to another Master")
-				}
-
-			})
-			// 25743
-			It("Can provide a profile with higher priority", func() {
-				var testPtpPod v1core.Pod
-				if fullConfig.PtpModeDesired == testconfig.Discovery {
-					Skip("Skipping because adding a different profile")
-				}
-				var policyName string
-				By("Creating a config with higher priority", func() {
-
-					switch fullConfig.PtpModeDiscovered {
-					case testconfig.Discovery, testconfig.None:
-						Skip("Skipping because Discovery or None is not supported yet for this test")
-					case testconfig.OrdinaryClock:
-						policyName = utils.PtpSlave1PolicyName
-					case testconfig.BoundaryClock:
-						policyName = utils.PtpBcMaster1PolicyName
-					case testconfig.DualNICBoundaryClock:
-						policyName = utils.PtpBcMaster1PolicyName
-					}
-					ptpConfigToModify, err := client.Client.PtpV1Interface.PtpConfigs(utils.PtpLinuxDaemonNamespace).Get(context.Background(), policyName, metav1.GetOptions{})
-					Expect(err).NotTo(HaveOccurred())
-					nodes, err := client.Client.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{
-						LabelSelector: utils.PtpClockUnderTestNodeLabel,
-					})
-					Expect(err).NotTo(HaveOccurred())
-					Expect(len(nodes.Items)).To(BeNumerically(">", 0),
-						fmt.Sprintf("PTP Nodes with label %s are not deployed on cluster", utils.PtpClockUnderTestNodeLabel))
-
-					ptpConfigTest := mutateProfile(ptpConfigToModify, utils.PtpTempPolicyName, nodes.Items[0].Name)
-					_, err = client.Client.PtpV1Interface.PtpConfigs(utils.PtpLinuxDaemonNamespace).Create(context.Background(), ptpConfigTest, metav1.CreateOptions{})
-					Expect(err).NotTo(HaveOccurred())
-
-					testPtpPod, err = getPtpPodOnNode(nodes.Items[0].Name)
-					Expect(err).NotTo(HaveOccurred())
-
-					testPtpPod, err = replaceTestPod(&testPtpPod, time.Minute)
-					Expect(err).NotTo(HaveOccurred())
-				})
-
-				By("Checking if Node has Profile", func() {
-					waitUntilLogIsDetected(&testPtpPod, timeoutIn3Minutes, "Profile Name: "+utils.PtpTempPolicyName)
-				})
-
-				By("Deleting the test profile", func() {
-					err := client.Client.PtpV1Interface.PtpConfigs(utils.PtpLinuxDaemonNamespace).Delete(context.Background(), utils.PtpTempPolicyName, metav1.DeleteOptions{})
-					Expect(err).NotTo(HaveOccurred())
-					Eventually(func() bool {
-						_, err := client.Client.PtpV1Interface.PtpConfigs(utils.PtpLinuxDaemonNamespace).Get(context.Background(), utils.PtpTempPolicyName, metav1.GetOptions{})
-						return kerrors.IsNotFound(err)
-					}, 1*time.Minute, 1*time.Second).Should(BeTrue(), "Could not delete the test profile")
-				})
-
-				By("Checking the profile is reverted", func() {
-					waitUntilLogIsDetected(&testPtpPod, timeoutIn3Minutes, "Profile Name: "+policyName)
-				})
 			})
 
 			It("Should retrieve the details of hardwares for the Ptp", func() {
@@ -416,6 +242,165 @@ var _ = Describe("[ptp]", func() {
 				logrus.Infof("Discovered slave ptp config %s", ptpConfig.DiscoveredClockUnderTestPtpConfig.String())
 			})
 		})
+		Context("PTP ClockSync", func() {
+			err := metrics.InitEnvIntParamConfig("MAX_OFFSET_IN_NS", metrics.MaxOffsetDefaultNs, &metrics.MaxOffsetNs)
+			err = metrics.InitEnvIntParamConfig("MIN_OFFSET_IN_NS", metrics.MinOffsetDefaultNs, &metrics.MinOffsetNs)
+			Expect(err).NotTo(HaveOccurred(), "error getting max offset in nanoseconds %s", err)
+
+			// 25733
+			It("PTP daemon apply match rule based on nodeLabel", func() {
+				profileSlave := fmt.Sprintf("Profile Name: %s", fullConfig.DiscoveredClockUnderTestPtpConfig.Name)
+				profileMaster := ""
+				if fullConfig.DiscoveredGrandMasterPtpConfig != nil {
+					profileMaster = fmt.Sprintf("Profile Name: %s", fullConfig.DiscoveredGrandMasterPtpConfig.Name)
+				}
+
+				for podIndex := range ptpRunningPods {
+					_, err := pods.GetLog(ptpRunningPods[podIndex], utils.PtpContainerName)
+					Expect(err).NotTo(HaveOccurred(), "Error to find needed log due to %s", err)
+
+					if isClockUnderTestPod(ptpRunningPods[podIndex]) {
+						waitUntilLogIsDetected(ptpRunningPods[podIndex], timeoutIn3Minutes, profileSlave)
+					} else if isGrandMasterPod(ptpRunningPods[podIndex]) && fullConfig.DiscoveredGrandMasterPtpConfig != nil {
+						waitUntilLogIsDetected(ptpRunningPods[podIndex], timeoutIn3Minutes, profileMaster)
+					}
+				}
+			})
+
+			// Multinode clock sync test:
+			// - waits for the foreign master to appear
+			// - verifies that the foreign master has the expected grandmaster ID
+			// - use metrics to verify that the offset is below threshold
+			//
+			// Single node clock sync test:
+			// - waits for the foreign master to appear
+			// - use metrics to verify that the offset is below threshold
+			It("Slave can sync to master", func() {
+				isSingleNode, err := nodes.IsSingleNodeCluster()
+				if err != nil {
+					Skip("cannot determine if cluster is single node")
+				}
+				var grandmasterID *string
+				if fullConfig.L2Config != nil && !isSingleNode {
+					aLabel := utils.PtpGrandmasterNodeLabel
+					aString, err := getClockIDMaster(utils.PtpGrandMasterPolicyName, &aLabel, nil)
+					grandmasterID = &aString
+					Expect(err).To(BeNil())
+				}
+				BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), grandmasterID)
+
+				if fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock {
+					BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestSecondaryPtpConfig), grandmasterID)
+				}
+			})
+
+			// Multinode BCSlave clock sync
+			// - waits for the BCSlave foreign master to appear (the boundary clock)
+			// - verifies that the BCSlave foreign master has the expected boundary clock ID
+			// - use metrics to verify that the offset with boundary clock is below threshold
+			It("Downstream slave can sync to BC master", func() {
+				isSingleNode, err := nodes.IsSingleNodeCluster()
+				if err != nil {
+					Skip("cannot determine if cluster is single node")
+				}
+				if fullConfig.L2Config == nil || isSingleNode {
+					Skip("Boundary clock slave sync test is not performed in discovery or SNO mode")
+				}
+				if fullConfig.PtpModeDiscovered != testconfig.BoundaryClock &&
+					fullConfig.PtpModeDiscovered != testconfig.DualNICBoundaryClock {
+					Skip("test only valid for Boundary clock in multi-node clusters")
+				}
+				if (fullConfig.PtpModeDiscovered == testconfig.BoundaryClock &&
+					len(fullConfig.L2Config.Solutions[l2discovery.AlgoBCWithSlaves]) == 0) ||
+					(fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock &&
+						len(fullConfig.L2Config.Solutions[l2discovery.AlgoDualNicBCWithSlaves]) == 0) {
+					Skip("test only valid for Boundary clock in multi-node clusters with slaves")
+				}
+				aLabel := utils.PtpClockUnderTestNodeLabel
+				masterIDBc1, err := getClockIDMaster(utils.PtpBcMaster1PolicyName, &aLabel, nil)
+				Expect(err).To(BeNil())
+				BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredSlave1PtpConfig), &masterIDBc1)
+
+				if fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock &&
+					len(fullConfig.L2Config.Solutions[l2discovery.AlgoDualNicBCWithSlaves]) != 0 {
+
+					aLabel := utils.PtpClockUnderTestNodeLabel
+					masterIDBc2, err := getClockIDMaster(utils.PtpBcMaster2PolicyName, &aLabel, nil)
+					Expect(err).To(BeNil())
+					BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredSlave2PtpConfig), &masterIDBc2)
+				}
+
+			})
+
+			// 25743
+			It("Can provide a profile with higher priority", func() {
+				var testPtpPod v1core.Pod
+				isSingleNode, err := nodes.IsSingleNodeCluster()
+				if err != nil {
+					Skip("cannot determine if cluster is single node")
+				}
+				if fullConfig.PtpModeDesired == testconfig.Discovery {
+					Skip("Skipping because adding a different profile")
+				}
+				var policyName string
+				var modifiedPtpConfig *ptpv1.PtpConfig
+				By("Creating a config with higher priority", func() {
+
+					switch fullConfig.PtpModeDiscovered {
+					case testconfig.Discovery, testconfig.None:
+						Skip("Skipping because Discovery or None is not supported yet for this test")
+					case testconfig.OrdinaryClock:
+						policyName = utils.PtpSlave1PolicyName
+					case testconfig.BoundaryClock:
+						policyName = utils.PtpBcMaster1PolicyName
+					case testconfig.DualNICBoundaryClock:
+						policyName = utils.PtpBcMaster1PolicyName
+					}
+					ptpConfigToModify, err := client.Client.PtpV1Interface.PtpConfigs(utils.PtpLinuxDaemonNamespace).Get(context.Background(), policyName, metav1.GetOptions{})
+					Expect(err).NotTo(HaveOccurred())
+					nodes, err := client.Client.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{
+						LabelSelector: utils.PtpClockUnderTestNodeLabel,
+					})
+					Expect(err).NotTo(HaveOccurred())
+					Expect(len(nodes.Items)).To(BeNumerically(">", 0),
+						fmt.Sprintf("PTP Nodes with label %s are not deployed on cluster", utils.PtpClockUnderTestNodeLabel))
+
+					ptpConfigTest := mutateProfile(ptpConfigToModify, utils.PtpTempPolicyName, nodes.Items[0].Name)
+					modifiedPtpConfig, err = client.Client.PtpV1Interface.PtpConfigs(utils.PtpLinuxDaemonNamespace).Create(context.Background(), ptpConfigTest, metav1.CreateOptions{})
+					Expect(err).NotTo(HaveOccurred())
+
+					testPtpPod, err = getPtpPodOnNode(nodes.Items[0].Name)
+					Expect(err).NotTo(HaveOccurred())
+
+					testPtpPod, err = replaceTestPod(&testPtpPod, time.Minute)
+					Expect(err).NotTo(HaveOccurred())
+				})
+
+				By("Checking if Node has Profile and check sync", func() {
+					var grandmasterID *string
+					if fullConfig.L2Config != nil && !isSingleNode {
+						aLabel := utils.PtpGrandmasterNodeLabel
+						aString, err := getClockIDMaster(utils.PtpGrandMasterPolicyName, &aLabel, nil)
+						grandmasterID = &aString
+						Expect(err).To(BeNil())
+					}
+					BasicClockSyncCheck(fullConfig, modifiedPtpConfig, grandmasterID)
+				})
+
+				By("Deleting the test profile", func() {
+					err := client.Client.PtpV1Interface.PtpConfigs(utils.PtpLinuxDaemonNamespace).Delete(context.Background(), utils.PtpTempPolicyName, metav1.DeleteOptions{})
+					Expect(err).NotTo(HaveOccurred())
+					Eventually(func() bool {
+						_, err := client.Client.PtpV1Interface.PtpConfigs(utils.PtpLinuxDaemonNamespace).Get(context.Background(), utils.PtpTempPolicyName, metav1.GetOptions{})
+						return kerrors.IsNotFound(err)
+					}, 1*time.Minute, 1*time.Second).Should(BeTrue(), "Could not delete the test profile")
+				})
+
+				By("Checking the profile is reverted", func() {
+					waitUntilLogIsDetected(&testPtpPod, timeoutIn3Minutes, "Profile Name: "+policyName)
+				})
+			})
+		})
 
 		Context("PTP metric is present", func() {
 			BeforeEach(func() {
@@ -427,36 +412,18 @@ var _ = Describe("[ptp]", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(len(ptpPods.Items)).To(BeNumerically(">", 0), "linuxptp-daemon is not deployed on cluster")
 
-				ptpSlaveRunningPods := []v1core.Pod{}
-				ptpMasterRunningPods := []v1core.Pod{}
-
-				for podIndex := range ptpPods.Items {
-					if podRole(&ptpPods.Items[podIndex], utils.PtpClockUnderTestNodeLabel) {
-						waitUntilLogIsDetected(&ptpPods.Items[podIndex], timeoutIn3Minutes, "Profile Name:")
-						ptpSlaveRunningPods = append(ptpSlaveRunningPods, ptpPods.Items[podIndex])
-					} else if podRole(&ptpPods.Items[podIndex], utils.PtpGrandmasterNodeLabel) {
-						waitUntilLogIsDetected(&ptpPods.Items[podIndex], timeoutIn3Minutes, "Profile Name:")
-						ptpMasterRunningPods = append(ptpMasterRunningPods, ptpPods.Items[podIndex])
-					}
-				}
-				if testconfig.GlobalConfig.DiscoveredGrandMasterPtpConfig != nil {
-					Expect(len(ptpMasterRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP master pods on Cluster")
-					Expect(len(ptpSlaveRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP slave pods on Cluster")
-				} else {
-					Expect(len(ptpSlaveRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP slave pods on Cluster")
-				}
-				ptpRunningPods = append(ptpMasterRunningPods, ptpSlaveRunningPods...)
+				ptpRunningPods = testPtpRunningPods(ptpPods)
 			})
 
 			// 27324
 			It("on slave", func() {
 				slavePodDetected := false
 				for podIndex := range ptpRunningPods {
-					if podRole(&ptpRunningPods[podIndex], utils.PtpClockUnderTestNodeLabel) {
+					if isClockUnderTestPod(ptpRunningPods[podIndex]) {
 						Eventually(func() string {
-							buf, _ := pods.ExecCommand(client.Client, &ptpRunningPods[podIndex], utils.PtpContainerName, []string{"curl", metricsEndPoint})
+							buf, _ := pods.ExecCommand(client.Client, ptpRunningPods[podIndex], utils.PtpContainerName, []string{"curl", metricsEndPoint})
 							return buf.String()
-						}, timeoutIn5Minutes, 5*time.Second).Should(ContainSubstring("openshift_ptp_offset_ns"),
+						}, timeoutIn5Minutes, 5*time.Second).Should(ContainSubstring(metrics.OpenshiftPtpOffsetNs),
 							"Time metrics are not detected")
 						slavePodDetected = true
 						break
@@ -481,7 +448,7 @@ var _ = Describe("[ptp]", func() {
 				Expect(len(ptpPods.Items)).To(BeNumerically(">", 0), "linuxptp-daemon is not deployed on cluster")
 
 				for podIndex := range ptpPods.Items {
-					if podRole(&ptpPods.Items[podIndex], utils.PtpClockUnderTestNodeLabel) {
+					if role, _ := pods.PodRole(&ptpPods.Items[podIndex], utils.PtpClockUnderTestNodeLabel); role {
 						waitUntilLogIsDetected(&ptpPods.Items[podIndex], timeoutIn3Minutes, "Profile Name:")
 						ptpSlaveRunningPods = append(ptpSlaveRunningPods, ptpPods.Items[podIndex])
 					}
@@ -510,13 +477,13 @@ var _ = Describe("[ptp]", func() {
 					Eventually(func() string {
 						buf, _ := pods.ExecCommand(client.Client, &ptpSlaveRunningPods[podIndex], utils.EventProxyContainerName, []string{"curl", metricsEndPoint})
 						return buf.String()
-					}, timeoutIn5Minutes, 5*time.Second).Should(ContainSubstring("openshift_ptp_interface_role"),
+					}, timeoutIn5Minutes, 5*time.Second).Should(ContainSubstring(metrics.OpenshiftPtpInterfaceRole),
 						"Interface role metrics are not detected")
 
 					Eventually(func() string {
 						buf, _ := pods.ExecCommand(client.Client, &ptpSlaveRunningPods[podIndex], utils.EventProxyContainerName, []string{"curl", metricsEndPoint})
 						return buf.String()
-					}, timeoutIn5Minutes, 5*time.Second).Should(ContainSubstring("openshift_ptp_threshold"),
+					}, timeoutIn5Minutes, 5*time.Second).Should(ContainSubstring(metrics.OpenshiftPtpThreshold),
 						"Threshold metrics are not detected")
 				}
 
@@ -643,19 +610,6 @@ func discoveryPTPConfiguration(namespace string) (masters, slaves []*ptpv1.PtpCo
 	return masters, slaves
 }
 
-func podRole(runningPod *v1core.Pod, role string) bool {
-	nodeList, err := client.Client.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{
-		LabelSelector: role,
-	})
-	Expect(err).NotTo(HaveOccurred())
-	for NodeNumber := range nodeList.Items {
-		if runningPod.Spec.NodeName == nodeList.Items[NodeNumber].Name {
-			return true
-		}
-	}
-	return false
-}
-
 // This function parses ethtool command output and detect interfaces which supports ptp protocol
 func isPTPEnabled(ethToolOutput *bytes.Buffer) bool {
 	var RxEnabled bool
@@ -714,6 +668,27 @@ func waitUntilLogIsDetected(pod *v1core.Pod, timeout time.Duration, neededLog st
 		logrus.Debugf("wait for log = %s in pod=%s.%s", neededLog, pod.Namespace, pod.Name)
 		return logs
 	}, timeout, 1*time.Second).Should(ContainSubstring(neededLog), fmt.Sprintf("Timeout to detect log %q in pod %q", neededLog, pod.Name))
+}
+
+// looks for a given pattern in a pod's log and returns when found
+func waitUntilLogIsDetectedRegex(pod *v1core.Pod, timeout time.Duration, regex string) string {
+	var results []string
+	Eventually(func() []string {
+		podLogs, _ := pods.GetLog(pod, utils.PtpContainerName)
+		logrus.Debugf("wait for log = %s in pod=%s.%s", regex, pod.Namespace, pod.Name)
+		r := regexp.MustCompile(regex)
+		var id string
+
+		for _, submatches := range r.FindAllStringSubmatchIndex(podLogs, -1) {
+			id = string(r.ExpandString([]byte{}, "$1", podLogs, submatches))
+			results = append(results, id)
+		}
+		return results
+	}, timeout, 5*time.Second).Should(Not(HaveLen(0)), fmt.Sprintf("Timeout to detect regex %q in pod %q", regex, pod.Name))
+	if len(results) != 0 {
+		return results[len(results)-1]
+	}
+	return ""
 }
 
 func getPtpPodOnNode(nodeName string) (v1core.Pod, error) {
@@ -923,8 +898,8 @@ func ptpEventEnabled() bool {
 	return ptpConfig.Spec.EventConfig.EnableEventPublisher
 }
 
-func getNICInfo(pod v1core.Pod) map[string]string {
-	var ptpSupportedInterfaces []string = getPtpMasterSlaveAttachedInterfaces(&pod)
+func getNICInfo(pod *v1core.Pod) map[string]string {
+	var ptpSupportedInterfaces []string = getPtpMasterSlaveAttachedInterfaces(pod)
 	var stdout bytes.Buffer
 
 	var ptpInterfaceNicMapping = make(map[string]string)
@@ -934,7 +909,7 @@ func getNICInfo(pod v1core.Pod) map[string]string {
 		var err error
 
 		Eventually(func() error {
-			stdout, err = pods.ExecCommand(client.Client, &pod, utils.PtpContainerName, []string{"readlink", "-f", fmt.Sprintf("/sys/class/net/%s", interf)})
+			stdout, err = pods.ExecCommand(client.Client, pod, utils.PtpContainerName, []string{"readlink", "-f", fmt.Sprintf("/sys/class/net/%s", interf)})
 			if err != nil {
 				return err
 			}
@@ -1128,7 +1103,7 @@ func verifyAfterRebootState(rebootedNodes []string, fullConfig testconfig.TestCo
 
 		// Testing for one pod is sufficient as these pods are running on the same node that restarted
 		for _, pod := range runningPods.Items {
-			Expect(podRole(&pod, utils.PtpClockUnderTestNodeLabel)).To(BeTrue())
+			Expect(isClockUnderTestPod(&pod)).To(BeTrue())
 
 			logrus.Printf("Calling metrics endpoint for pod %s with status %s", pod.Name, pod.Status.Phase)
 
@@ -1137,7 +1112,6 @@ func verifyAfterRebootState(rebootedNodes []string, fullConfig testconfig.TestCo
 			Eventually(func() string {
 				commands := []string{
 					"curl", "-s", metricsEndPoint,
-					//"curl", "-s", `127.0.0.1:9091/metrics | grep  '^openshift_ptp_offset_ns' | cut -d ' ' -f 2`,
 				}
 				buf, err := pods.ExecCommand(client.Client, &pod, rebootDaemonSetContainerName, commands)
 				Expect(err).NotTo(HaveOccurred())
@@ -1146,7 +1120,7 @@ func verifyAfterRebootState(rebootedNodes []string, fullConfig testconfig.TestCo
 				var lines []string = make([]string, 5)
 				for scanner.Scan() {
 					text := scanner.Text()
-					if strings.Contains(text, "openshift_ptp_offset_ns{from=\"master\"") {
+					if strings.Contains(text, metrics.OpenshiftPtpOffsetNs+"{from=\"master\"") {
 						logrus.Printf("Line obtained is %s", text)
 						lines = append(lines, text)
 					}
@@ -1175,7 +1149,7 @@ func verifyAfterRebootState(rebootedNodes []string, fullConfig testconfig.TestCo
 				Expect(buf.String()).NotTo(BeEmpty())
 				Expect(offsetVal >= masterOffsetLowerBound && offsetVal < masterOffsetHigherBound).To(BeTrue())
 				return buf.String()
-			}, timeoutIn5Minutes, 5*time.Second).Should(ContainSubstring("openshift_ptp_offset_ns"),
+			}, timeoutIn5Minutes, 5*time.Second).Should(ContainSubstring(metrics.OpenshiftPtpOffsetNs),
 				"Time metrics are not detected")
 			break
 		}
@@ -1201,10 +1175,10 @@ func checkSlaveSyncWithMaster(fullConfig testconfig.TestConfig) {
 	ptpMasterRunningPods := []v1core.Pod{}
 
 	for _, pod := range ptpPods.Items {
-		if podRole(&pod, utils.PtpClockUnderTestNodeLabel) {
+		if isClockUnderTestPod(&pod) {
 			waitUntilLogIsDetected(&pod, timeoutIn5Minutes, "Profile Name:")
 			ptpSlaveRunningPods = append(ptpSlaveRunningPods, pod)
-		} else if podRole(&pod, utils.PtpGrandmasterNodeLabel) {
+		} else if isGrandMasterPod(&pod) {
 			waitUntilLogIsDetected(&pod, timeoutIn5Minutes, "Profile Name:")
 			ptpMasterRunningPods = append(ptpMasterRunningPods, pod)
 		}
@@ -1222,7 +1196,7 @@ func checkSlaveSyncWithMaster(fullConfig testconfig.TestConfig) {
 
 	for _, pod := range ptpPods.Items {
 		if utils.PtpGrandmasterNodeLabel != "" &&
-			podRole(&pod, utils.PtpGrandmasterNodeLabel) {
+			isGrandMasterPod(&pod) {
 			podLogs, err := pods.GetLog(&pod, utils.PtpContainerName)
 			Expect(err).NotTo(HaveOccurred(), "Error to find needed log due to %s", err)
 			Expect(podLogs).Should(ContainSubstring(grandMaster),
@@ -1234,7 +1208,7 @@ func checkSlaveSyncWithMaster(fullConfig testconfig.TestConfig) {
 				}
 			}
 		}
-		if podRole(&pod, utils.PtpClockUnderTestNodeLabel) {
+		if isClockUnderTestPod(&pod) {
 			podLogs, err := pods.GetLog(&pod, utils.PtpContainerName)
 			Expect(err).NotTo(HaveOccurred(), "Error to find needed log due to %s", err)
 
@@ -1267,72 +1241,70 @@ func testCaseEnabled(testCase TestCase) bool {
 	return false
 }
 
-func getProfileLogID(ptpConfigName, label string) (id string, err error) {
+func getProfileLogID(ptpConfigName string, label, nodeName *string) (id string, err error) {
 	ptpPods, err := client.Client.CoreV1().Pods(utils.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
 	if err != nil {
 		return id, err
 	}
 	for _, pod := range ptpPods.Items {
-		if podRole(&pod, label) {
-			podLogs, err := pods.GetLog(&pod, utils.PtpContainerName)
-			if err != nil {
-				return id, err
-			}
+		isPodFound, err := pods.HasPodLabelOrNodeName(&pod, label, nodeName)
+		if err != nil {
+			logrus.Errorf("could not check %s pod role, err: %s", label, err)
+			Fail(fmt.Sprintf("could not check %s pod role, err: %s", label, err))
+		}
 
-			for _, line := range strings.Split(podLogs, " daemon.go") {
-				if strings.Contains(line, `Ptp4lConf: #profile:`) && strings.Contains(line, ptpConfigName) {
-					r := regexp.MustCompile(`(?m)message_tag \[(.*)\]`)
-					for _, submatches := range r.FindAllStringSubmatchIndex(line, -1) {
-						id = string(r.ExpandString([]byte{}, "$1", line, submatches))
-						return id, nil
-					}
+		if !isPodFound {
+			continue
+		}
+		waitUntilLogIsDetected(&pod, timeoutIn10Minutes, `Ptp4lConf: #profile:`)
+
+		podLogs, err := pods.GetLog(&pod, utils.PtpContainerName)
+		if err != nil {
+			return id, err
+		}
+
+		for _, line := range strings.Split(podLogs, " daemon.go") {
+			if strings.Contains(line, `Ptp4lConf: #profile:`) && strings.Contains(line, ptpConfigName) {
+				r := regexp.MustCompile(`(?m)message_tag \[(.*)\]`)
+				for _, submatches := range r.FindAllStringSubmatchIndex(line, -1) {
+					id = string(r.ExpandString([]byte{}, "$1", line, submatches))
+					return id, nil
 				}
 			}
-
 		}
+
 	}
 	return id, nil
 }
 
-func getClockIDMaster(ptpConfigName, label string) (id string, err error) {
-	logID, err := getProfileLogID(ptpConfigName, label)
+func getClockIDMaster(ptpConfigName string, label, nodeName *string) (id string, err error) {
+	logID, err := getProfileLogID(ptpConfigName, label, nodeName)
 	if err != nil {
 		return id, err
 	}
-	var results []string
 	ptpPods, err := client.Client.CoreV1().Pods(utils.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
 	if err != nil {
 		return id, err
 	}
 	for _, pod := range ptpPods.Items {
-		if !podRole(&pod, label) {
-			continue
-		}
-		waitUntilLogIsDetected(&pod, timeoutIn3Minutes, "selected local clock")
-		podLogs, err := pods.GetLog(&pod, utils.PtpContainerName)
+		isPodFound, err := pods.HasPodLabelOrNodeName(&pod, label, nodeName)
 		if err != nil {
-			return id, err
+			logrus.Errorf("could not check %s pod role, err: %s", label, err)
+			Fail(fmt.Sprintf("could not check %s pod role, err: %s", label, err))
 		}
 
-		//for _, line := range strings.Split(podLogs, "I0802") {
-		//if strings.Contains(podLogs, `selected local clock`) && strings.Contains(line, logID ) {
-		r := regexp.MustCompile(`(?m)\[` + logID + `\] selected local clock (.*) as best master`)
-		for _, submatches := range r.FindAllStringSubmatchIndex(podLogs, -1) {
-			id = string(r.ExpandString([]byte{}, "$1", podLogs, submatches))
-			results = append(results, id)
+		if !isPodFound {
+			continue
 		}
-		//}
-		//}
-		if len(results) == 0 {
-			return id, fmt.Errorf("no match for last master clock ID")
-		}
-		return results[len(results)-1], nil
+
+		return waitUntilLogIsDetectedRegex(&pod, timeoutIn10Minutes, `(?m)\[`+logID+`\] selected local clock (.*) as best master`), nil
+
 	}
 	return id, err
 }
 
-func getClockIDForeign(ptpConfigName, label string) (id string, err error) {
-	logID, err := getProfileLogID(ptpConfigName, label)
+func getClockIDForeign(ptpConfigName string, label, nodeName *string) (id string, err error) {
+	logID, err := getProfileLogID(ptpConfigName, label, nodeName)
 	if err != nil {
 		return id, err
 	}
@@ -1342,28 +1314,136 @@ func getClockIDForeign(ptpConfigName, label string) (id string, err error) {
 		return id, err
 	}
 	for _, pod := range ptpPods.Items {
-		if !podRole(&pod, label) {
+
+		isPodFound, err := pods.HasPodLabelOrNodeName(&pod, label, nodeName)
+		if err != nil {
+			logrus.Errorf("could not check %s pod role, err: %s", label, err)
+			Fail(fmt.Sprintf("could not check %s pod role, err: %s", label, err))
+		}
+
+		if !isPodFound {
 			continue
 		}
-		waitUntilLogIsDetected(&pod, timeoutIn3Minutes, "new foreign master")
+
+		waitUntilLogIsDetected(&pod, timeoutIn10Minutes, "new foreign master")
 		podLogs, err := pods.GetLog(&pod, utils.PtpContainerName)
 		if err != nil {
 			return id, err
 		}
 
-		//for _, line := range strings.Split(podLogs, "I0802") {
-		//if strings.Contains(podLogs, `selected local clock`) && strings.Contains(line, logID ) {
 		r := regexp.MustCompile(`(?m)\[` + logID + `\].*new foreign master (.*)`)
 		for _, submatches := range r.FindAllStringSubmatchIndex(podLogs, -1) {
 			id = string(r.ExpandString([]byte{}, "$1", podLogs, submatches))
 			results = append(results, id)
 		}
-		//}
-		//}
+
 		if len(results) == 0 {
 			return id, fmt.Errorf("no match for last master clock ID")
 		}
 		return results[len(results)-1], nil
 	}
 	return id, err
+}
+
+// helper function for old interface discovery test
+func testPtpRunningPods(ptpPods *v1core.PodList) (ptpRunningPods []*v1core.Pod) {
+	ptpSlaveRunningPods := []*v1core.Pod{}
+	ptpMasterRunningPods := []*v1core.Pod{}
+	for podIndex := range ptpPods.Items {
+		isClockUnderTestPod, err := pods.PodRole(&ptpPods.Items[podIndex], utils.PtpClockUnderTestNodeLabel)
+		if err != nil {
+			logrus.Errorf("could not check clock under test pod role, err: %s", err)
+			Fail(fmt.Sprintf("could not check clock under test pod role, err: %s", err))
+		}
+
+		isGrandmaster, err := pods.PodRole(&ptpPods.Items[podIndex], utils.PtpGrandmasterNodeLabel)
+		if err != nil {
+			logrus.Errorf("could not check Grandmaster pod role, err: %s", err)
+			Fail(fmt.Sprintf("could not check Grandmaster pod role, err: %s", err))
+		}
+
+		if isClockUnderTestPod {
+			waitUntilLogIsDetected(&ptpPods.Items[podIndex], timeoutIn3Minutes, "Profile Name:")
+			ptpSlaveRunningPods = append(ptpSlaveRunningPods, &ptpPods.Items[podIndex])
+		} else if isGrandmaster {
+			waitUntilLogIsDetected(&ptpPods.Items[podIndex], timeoutIn3Minutes, "Profile Name:")
+			ptpMasterRunningPods = append(ptpMasterRunningPods, &ptpPods.Items[podIndex])
+		}
+	}
+	if testconfig.GlobalConfig.DiscoveredGrandMasterPtpConfig != nil {
+		Expect(len(ptpMasterRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP master pods on Cluster")
+		Expect(len(ptpSlaveRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP slave pods on Cluster")
+	} else {
+		Expect(len(ptpSlaveRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP slave pods on Cluster")
+	}
+	ptpRunningPods = append(ptpRunningPods, ptpSlaveRunningPods...)
+	ptpRunningPods = append(ptpRunningPods, ptpMasterRunningPods...)
+	return ptpRunningPods
+}
+
+// returns true if the pod is running a grandmaster
+func isGrandMasterPod(aPod *v1core.Pod) bool {
+
+	result, err := pods.PodRole(aPod, utils.PtpGrandmasterNodeLabel)
+	if err != nil {
+		logrus.Errorf("could not check Grandmaster pod role, err: %s", err)
+		Fail(fmt.Sprintf("could not check Grandmaster pod role, err: %s", err))
+	}
+	return result
+}
+
+// returns true if the pod is running the clock under test
+func isClockUnderTestPod(aPod *v1core.Pod) bool {
+
+	result, err := pods.PodRole(aPod, utils.PtpClockUnderTestNodeLabel)
+	if err != nil {
+		logrus.Errorf("could not check Clock under test pod role, err: %s", err)
+		Fail(fmt.Sprintf("could not check Clock under test pod role, err: %s", err))
+	}
+	return result
+}
+
+// waits for the foreign master to appear in the logs and checks the clock accuracy
+func BasicClockSyncCheck(fullConfig testconfig.TestConfig, ptpConfig *ptpv1.PtpConfig, gmID *string) {
+	if gmID != nil {
+		logrus.Infof("expected master=%s", *gmID)
+	}
+	profileName, errProfile := testconfig.GetProfileName(ptpConfig)
+
+	if fullConfig.PtpModeDesired == testconfig.Discovery {
+		if errProfile != nil {
+			logrus.Infof("profile name not detected in log (probably because of log rollover)). Remote clock ID will not be printed")
+		}
+	} else {
+		Expect(errProfile).To(BeNil())
+	}
+
+	label, err := metrics.GetLabel(ptpConfig)
+	nodeName, err := metrics.GetFirstNode(ptpConfig)
+	slaveMaster, err := getClockIDForeign(profileName, label, nodeName)
+	if errProfile == nil {
+		if fullConfig.PtpModeDesired == testconfig.Discovery {
+			if err != nil {
+				logrus.Infof("slave's Master not detected in log (probably because of log rollover))")
+			} else {
+				logrus.Infof("slave's Master=%s", slaveMaster)
+			}
+		} else {
+			Expect(err).To(BeNil())
+			Expect(slaveMaster).NotTo(BeNil())
+			logrus.Infof("slave's Master=%s", slaveMaster)
+		}
+	}
+	if gmID != nil {
+		Expect(slaveMaster).Should(HavePrefix(*gmID), "Slave connected to another (incorrect) Master")
+	}
+
+	Eventually(func() error {
+		err = metrics.CheckClockRoleAndOffset(ptpConfig, label, nodeName)
+		if err != nil {
+			logrus.Debugf(fmt.Sprintf("Failed because of err: %s", err))
+		}
+		return err
+	}, timeoutIn3Minutes, timeout10Seconds).Should(BeNil(), fmt.Sprintf("Timeout to detect metrics for ptpconfig %s"))
+
 }

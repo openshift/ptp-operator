@@ -98,6 +98,7 @@ type TestConfig struct {
 type ptpDiscoveryRes ptpv1.PtpConfig
 
 const BasePtp4lConfig = `[global]
+tx_timestamp_timeout 50
 ptp_dst_mac 01:1B:19:00:00:00
 p2p_dst_mac 01:80:C2:00:00:0E
 domainNumber 24
@@ -757,4 +758,19 @@ func IsPtpSlave(ptp4lOpts, phc2sysOpts *string) bool {
 // Checks for Grand master
 func IsPtpMaster(ptp4lOpts, phc2sysOpts *string) bool {
 	return ptp4lOpts != nil && phc2sysOpts != nil && !strings.Contains(*ptp4lOpts, "-s ") && strings.Count(*phc2sysOpts, "-a") == 1 && strings.Count(*phc2sysOpts, "-r") == 2
+}
+
+// Checks for DualNIC BC
+func GetProfileName(config *ptpv1.PtpConfig) (string, error) {
+	for _, profile := range config.Spec.Profile {
+		if profile.Name != nil && *profile.Name == utils.PtpGrandMasterPolicyName ||
+			*profile.Name == utils.PtpBcMaster1PolicyName ||
+			*profile.Name == utils.PtpBcMaster2PolicyName ||
+			*profile.Name == utils.PtpSlave1PolicyName ||
+			*profile.Name == utils.PtpSlave2PolicyName ||
+			*profile.Name == utils.PtpTempPolicyName {
+			return *profile.Name, nil
+		}
+	}
+	return "", fmt.Errorf("cannot find valid test profile name")
 }

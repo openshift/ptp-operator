@@ -444,7 +444,7 @@ func (config *L2DiscoveryConfig) PrintOneSolutionPerScenario() {
 // Recursive solver function. Creates a set of permutations and applies contraints at each step to
 // reduce the solution graph and speed up execution
 func permutationsWithConstraints(config *L2DiscoveryConfig, algo [][][]int, l []int, s, e, n int, result bool, solutions *[][]int) {
-	if !result {
+	if !result || len(l) < e {
 		return
 	}
 	if s == e {
@@ -828,6 +828,7 @@ func (config *L2DiscoveryConfig) getInterfacesReceivingPTP() {
 			config.PortsGettingPTP = append(config.PortsGettingPTP, aPortGettingPTP)
 		}
 	}
+	logrus.Infof("interfaces receiving PTP frames: %v", config.PortsGettingPTP)
 }
 
 // Creates Mapping tables between interfaces index, mac address, and graph integer indexes
