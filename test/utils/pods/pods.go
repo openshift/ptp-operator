@@ -3,14 +3,15 @@ package pods
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"os"
 
+	testclient "github.com/openshift/ptp-operator/test/utils/client"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/remotecommand"
-
-	testclient "github.com/openshift/ptp-operator/test/utils/client"
 )
 
 // GetLog connects to a pod and fetches log
@@ -63,4 +64,41 @@ func ExecCommand(cs *testclient.ClientSet, pod *corev1.Pod, containerName string
 	})
 
 	return buf, err
+}
+
+// returns true if the pod passed as paremeter is running on the node selected by the label passed as a parameter.
+// the label represent a ptp conformance test role such as: grandmaster, clock under test, slave1, slave2
+func PodRole(runningPod *corev1.Pod, label string) (bool, error) {
+	nodeList, err := testclient.Client.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{
+		LabelSelector: label,
+	})
+	if err != nil {
+		return false, fmt.Errorf("error getting node list")
+	}
+	for NodeNumber := range nodeList.Items {
+		if runningPod.Spec.NodeName == nodeList.Items[NodeNumber].Name {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// returns true if a pod has a given label or node name
+func HasPodLabelOrNodeName(pod *corev1.Pod, label, nodeName *string) (result bool, err error) {
+	if label == nil && nodeName == nil {
+		return result, fmt.Errorf("label and nodeName are nil")
+	}
+	if label != nil && nodeName != nil {
+		return result, fmt.Errorf("label or nodeName must be nil")
+	}
+	if label != nil {
+		result, err = PodRole(pod, *label)
+		if err != nil {
+			return result, fmt.Errorf("could not check %s pod role, err: %s", label, err)
+		}
+	}
+	if nodeName != nil {
+		result = pod.Spec.NodeName == *nodeName
+	}
+	return result, nil
 }
