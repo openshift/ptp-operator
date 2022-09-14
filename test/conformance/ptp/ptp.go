@@ -141,8 +141,9 @@ var _ = Describe("[ptp]", func() {
 		execute.BeforeAll(func() {
 			testconfig.CreatePtpConfigurations()
 			fullConfig = testconfig.GetFullDiscoveredConfig(utils.PtpLinuxDaemonNamespace, false)
-
-			restartPtpDaemon()
+			if fullConfig.PtpModeDesired != testconfig.Discovery {
+				restartPtpDaemon()
+			}
 
 		})
 
@@ -1407,15 +1408,32 @@ func BasicClockSyncCheck(fullConfig testconfig.TestConfig, ptpConfig *ptpv1.PtpC
 	if gmID != nil {
 		logrus.Infof("expected master=%s", *gmID)
 	}
-	profileName, err := testconfig.GetProfileName(ptpConfig)
-	Expect(err).To(BeNil())
+	profileName, errProfile := testconfig.GetProfileName(ptpConfig)
+
+	if fullConfig.PtpModeDesired == testconfig.Discovery {
+		if errProfile != nil {
+			logrus.Infof("profile name not detected in log (probably because of log rollover)). Remote clock ID will not be printed")
+		}
+	} else {
+		Expect(errProfile).To(BeNil())
+	}
+
 	label, err := metrics.GetLabel(ptpConfig)
 	nodeName, err := metrics.GetFirstNode(ptpConfig)
 	slaveMaster, err := getClockIDForeign(profileName, label, nodeName)
-	Expect(err).To(BeNil())
-	Expect(slaveMaster).NotTo(BeNil())
-	logrus.Infof("slave's Master=%s", slaveMaster)
-
+	if errProfile == nil {
+		if fullConfig.PtpModeDesired == testconfig.Discovery {
+			if err != nil {
+				logrus.Infof("slave's Master not detected in log (probably because of log rollover))")
+			} else {
+				logrus.Infof("slave's Master=%s", slaveMaster)
+			}
+		} else {
+			Expect(err).To(BeNil())
+			Expect(slaveMaster).NotTo(BeNil())
+			logrus.Infof("slave's Master=%s", slaveMaster)
+		}
+	}
 	if gmID != nil {
 		Expect(slaveMaster).Should(HavePrefix(*gmID), "Slave connected to another (incorrect) Master")
 	}
