@@ -172,7 +172,7 @@ var _ = Describe("[ptp]", func() {
 			})
 		})
 
-		XContext("PTP Interfaces discovery", func() {
+		Context("PTP Interfaces discovery", func() {
 
 			BeforeEach(func() {
 				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
@@ -207,6 +207,46 @@ var _ = Describe("[ptp]", func() {
 					}
 				}
 			})
+
+			It("Should retrieve the details of hardwares for the Ptp", func() {
+				By("Getting the version of the OCP cluster")
+
+				ocpVersion, err := getOCPVersion()
+				Expect(err).ToNot(HaveOccurred())
+				Expect(ocpVersion).ShouldNot(BeEmpty())
+
+				By("Getting the version of the PTP operator")
+
+				ptpOperatorVersion, err := getPtpOperatorVersion()
+				Expect(err).ToNot(HaveOccurred())
+				Expect(ptpOperatorVersion).ShouldNot(BeEmpty())
+
+				By("Getting the NIC details of all the PTP enabled interfaces")
+
+				var mapping = make(map[string]string)
+				for _, pod := range ptpRunningPods {
+					mapping = getNICInfo(pod)
+					Expect(mapping).ShouldNot(BeEmpty())
+				}
+
+				By("Getting the interface details of the PTP config")
+
+				ptpConfig := testconfig.GlobalConfig
+				if ptpConfig.DiscoveredGrandMasterPtpConfig != nil {
+					printInterface(ptpv1.PtpConfig(*ptpConfig.DiscoveredGrandMasterPtpConfig), mapping)
+				}
+				if ptpConfig.DiscoveredClockUnderTestPtpConfig != nil {
+					printInterface(ptpv1.PtpConfig(*ptpConfig.DiscoveredClockUnderTestPtpConfig), mapping)
+				}
+				if ptpConfig.DiscoveredClockUnderTestSecondaryPtpConfig != nil {
+					printInterface(ptpv1.PtpConfig(*ptpConfig.DiscoveredClockUnderTestSecondaryPtpConfig), mapping)
+				}
+
+				By("Getting ptp config details")
+
+				logrus.Infof("Discovered master ptp config %s", ptpConfig.DiscoveredGrandMasterPtpConfig.String())
+				logrus.Infof("Discovered slave ptp config %s", ptpConfig.DiscoveredClockUnderTestPtpConfig.String())
+			})
 		})
 		Context("PTP ClockSync", func() {
 			err := metrics.InitEnvIntParamConfig("MAX_OFFSET_IN_NS", metrics.MaxOffsetDefaultNs, &metrics.MaxOffsetNs)
@@ -215,6 +255,10 @@ var _ = Describe("[ptp]", func() {
 
 			// 25733
 			It("PTP daemon apply match rule based on nodeLabel", func() {
+
+				if fullConfig.PtpModeDesired == testconfig.Discovery {
+					Skip(fmt.Sprint("This test needs the ptp-daemon to be rebooted but it is not possible in discovery mode, skipping"))
+				}
 				profileSlave := fmt.Sprintf("Profile Name: %s", fullConfig.DiscoveredClockUnderTestPtpConfig.Name)
 				profileMaster := ""
 				if fullConfig.DiscoveredGrandMasterPtpConfig != nil {
@@ -306,7 +350,7 @@ var _ = Describe("[ptp]", func() {
 					Skip("cannot determine if cluster is single node")
 				}
 				if fullConfig.PtpModeDesired == testconfig.Discovery {
-					Skip("Skipping because adding a different profile")
+					Skip("Skipping because adding a different profile and no modifications are allowed in discovery mode")
 				}
 				var policyName string
 				var modifiedPtpConfig *ptpv1.PtpConfig
