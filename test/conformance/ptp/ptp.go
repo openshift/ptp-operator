@@ -141,6 +141,12 @@ var _ = Describe("[ptp]", func() {
 		execute.BeforeAll(func() {
 			testconfig.CreatePtpConfigurations()
 			fullConfig = testconfig.GetFullDiscoveredConfig(utils.PtpLinuxDaemonNamespace, false)
+			if fullConfig.Status != testconfig.DiscoverySuccessStatus {
+				fmt.Printf(`ptpconfigs were not properly discovered, Check:
+- the ptpconfig has a %s label only in the recommend section (no node section)
+- the node running the clock under test is label with: %s`, utils.PtpClockUnderTestNodeLabel, utils.PtpClockUnderTestNodeLabel)
+				os.Exit(1)
+			}
 			if fullConfig.PtpModeDesired != testconfig.Discovery {
 				restartPtpDaemon()
 			}
@@ -1249,8 +1255,8 @@ func getProfileLogID(ptpConfigName string, label, nodeName *string) (id string, 
 	for _, pod := range ptpPods.Items {
 		isPodFound, err := pods.HasPodLabelOrNodeName(&pod, label, nodeName)
 		if err != nil {
-			logrus.Errorf("could not check %s pod role, err: %s", label, err)
-			Fail(fmt.Sprintf("could not check %s pod role, err: %s", label, err))
+			logrus.Errorf("could not check %s pod role, err: %s", *label, err)
+			Fail(fmt.Sprintf("could not check %s pod role, err: %s", *label, err))
 		}
 
 		if !isPodFound {
@@ -1441,9 +1447,9 @@ func BasicClockSyncCheck(fullConfig testconfig.TestConfig, ptpConfig *ptpv1.PtpC
 	Eventually(func() error {
 		err = metrics.CheckClockRoleAndOffset(ptpConfig, label, nodeName)
 		if err != nil {
-			logrus.Debugf(fmt.Sprintf("Failed because of err: %s", err))
+			logrus.Infof(fmt.Sprintf("CheckClockRoleAndOffset Failed because of err: %s", err))
 		}
 		return err
-	}, timeoutIn3Minutes, timeout10Seconds).Should(BeNil(), fmt.Sprintf("Timeout to detect metrics for ptpconfig %s"))
+	}, timeoutIn3Minutes, timeout10Seconds).Should(BeNil(), fmt.Sprintf("Timeout to detect metrics for ptpconfig %s", ptpConfig.Name))
 
 }
