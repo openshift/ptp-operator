@@ -88,9 +88,10 @@ func HasPodLabelOrNodeName(pod *corev1.Pod, label, nodeName *string) (result boo
 	if label == nil && nodeName == nil {
 		return result, fmt.Errorf("label and nodeName are nil")
 	}
-	if label != nil && nodeName != nil {
+	// node name might be present and will be superseded by label
+	/*if label != nil && nodeName != nil {
 		return result, fmt.Errorf("label or nodeName must be nil")
-	}
+	}*/
 	if label != nil {
 		result, err = PodRole(pod, *label)
 		if err != nil {
