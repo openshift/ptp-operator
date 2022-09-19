@@ -927,11 +927,11 @@ func enablePTPEvent() error {
 	if ptpConfig.Spec.EventConfig == nil {
 		ptpConfig.Spec.EventConfig = &ptpv1.PtpEventConfig{
 			EnableEventPublisher: true,
-			TransportHost:        "amqp://mock",
+			TransportHost:        "http://mock",
 		}
 	}
 	if ptpConfig.Spec.EventConfig.TransportHost == "" {
-		ptpConfig.Spec.EventConfig.TransportHost = "amqp://mock"
+		ptpConfig.Spec.EventConfig.TransportHost = "http://mock"
 	}
 
 	ptpConfig.Spec.EventConfig.EnableEventPublisher = true
