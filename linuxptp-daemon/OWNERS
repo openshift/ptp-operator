@@ -9,6 +9,7 @@ reviewers:
   - SchSeba
   - josephdrichard
   - aneeshkp
+  - nishant-parekh
 approvers:
   - zshi-redhat
   - pliurh
@@ -20,5 +21,6 @@ approvers:
   - SchSeba
   - josephdrichard
   - aneeshkp
+  - nishant-parekh
 component: "Networking"
 subcomponent: "ptp"
