@@ -1291,7 +1291,7 @@ func testCaseEnabled(testCase TestCase) bool {
 	return false
 }
 
-func getProfileLogID(ptpConfigName string, label, nodeName *string) (id string, err error) {
+func getProfileLogID(ptpConfigName string, label *string, nodeName *string) (id string, err error) {
 	ptpPods, err := client.Client.CoreV1().Pods(utils.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
 	if err != nil {
 		return id, err
@@ -1327,7 +1327,7 @@ func getProfileLogID(ptpConfigName string, label, nodeName *string) (id string, 
 	return id, nil
 }
 
-func getClockIDMaster(ptpConfigName string, label, nodeName *string) (id string, err error) {
+func getClockIDMaster(ptpConfigName string, label *string, nodeName *string) (id string, err error) {
 	logID, err := getProfileLogID(ptpConfigName, label, nodeName)
 	if err != nil {
 		return id, err
@@ -1339,8 +1339,8 @@ func getClockIDMaster(ptpConfigName string, label, nodeName *string) (id string,
 	for _, pod := range ptpPods.Items {
 		isPodFound, err := pods.HasPodLabelOrNodeName(&pod, label, nodeName)
 		if err != nil {
-			logrus.Errorf("could not check %s pod role, err: %s", label, err)
-			Fail(fmt.Sprintf("could not check %s pod role, err: %s", label, err))
+			logrus.Errorf("could not check %s pod role, err: %s", *label, err)
+			Fail(fmt.Sprintf("could not check %s pod role, err: %s", *label, err))
 		}
 
 		if !isPodFound {
@@ -1353,7 +1353,7 @@ func getClockIDMaster(ptpConfigName string, label, nodeName *string) (id string,
 	return id, err
 }
 
-func getClockIDForeign(ptpConfigName string, label, nodeName *string) (id string, err error) {
+func getClockIDForeign(ptpConfigName string, label *string, nodeName *string) (id string, err error) {
 	logID, err := getProfileLogID(ptpConfigName, label, nodeName)
 	if err != nil {
 		return id, err
@@ -1367,8 +1367,8 @@ func getClockIDForeign(ptpConfigName string, label, nodeName *string) (id string
 
 		isPodFound, err := pods.HasPodLabelOrNodeName(&pod, label, nodeName)
 		if err != nil {
-			logrus.Errorf("could not check %s pod role, err: %s", label, err)
-			Fail(fmt.Sprintf("could not check %s pod role, err: %s", label, err))
+			logrus.Errorf("could not check %s pod role, err: %s", *label, err)
+			Fail(fmt.Sprintf("could not check %s pod role, err: %s", *label, err))
 		}
 
 		if !isPodFound {
