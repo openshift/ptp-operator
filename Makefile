@@ -37,8 +37,6 @@ BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:v$(VERSION)
 
 # Image URL to use all building/pushing image targets
 IMG ?= quay.io/openshift/origin-ptp-operator:$(VERSION)
-# Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
-CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -74,7 +72,7 @@ help: ## Display this help.
 ##@ Development
 
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) crd rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
@@ -130,6 +128,14 @@ CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
 controller-gen: ## Download controller-gen locally if necessary.
 	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.9.2)
 
+OPERATOR_SDK = $(shell pwd)/bin/operator-sdk
+OPERATOR_SDK_VERSION = $(shell $(OPERATOR_SDK) version 2>/dev/null | sed 's/^operator-sdk version: "\([^"]*\).*/\1/')
+OPERATOR_SDK_VERSION_REQ = v1.22.0-ocp
+operator-sdk: ## Download operator-sdk locally if necessary.
+ifneq ($(OPERATOR_SDK_VERSION_REQ),$(OPERATOR_SDK_VERSION))
+	curl https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/operator-sdk/4.11.0/operator-sdk-linux-x86_64.tar.gz? | tar -xz -C bin/
+endif
+
 KUSTOMIZE = $(shell pwd)/bin/kustomize
 kustomize: ## Download kustomize locally if necessary.
 	$(call go-install-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v4@v4.5.7)
@@ -149,11 +155,11 @@ rm -rf $$TMP_DIR ;\
 endef
 
 .PHONY: bundle ## Generate bundle manifests and metadata, then validate generated files.
-bundle: manifests kustomize
-	operator-sdk generate kustomize manifests --interactive=false -q
+bundle: operator-sdk manifests kustomize
+	$(OPERATOR_SDK) generate kustomize manifests --interactive=false -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
-	$(KUSTOMIZE) build config/manifests | operator-sdk generate bundle -q --overwrite --version $(VERSION).0 $(BUNDLE_METADATA_OPTS) --extra-service-accounts "linuxptp-daemon"
-	operator-sdk bundle validate ./bundle
+	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle -q --overwrite --version $(VERSION).0 $(BUNDLE_METADATA_OPTS) --extra-service-accounts "linuxptp-daemon"
+	$(OPERATOR_SDK) bundle validate ./bundle
 
 .PHONY: bundle-build ## Build the bundle image.
 bundle-build:
@@ -225,10 +231,6 @@ functests:
 test-validation-only:
 	SUITE=./test/validation hack/run-functests.sh
 
-# find or download controller-gen
-# download controller-gen if necessary
-operator-sdk:
-	go install ./vendor/github.com/operator-framework/operator-sdk/cmd/operator-sdk
 buildtest:
 	PATH=${PATH}:${GOBIN} ginkgo build ./test/conformance
 	cp ./test/conformance/conformance.test ./bin/testptp
