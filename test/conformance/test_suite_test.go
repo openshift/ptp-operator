@@ -17,6 +17,7 @@ import (
 	_ "github.com/openshift/ptp-operator/test/conformance/ptp"
 	"github.com/openshift/ptp-operator/test/utils/clean"
 	testclient "github.com/openshift/ptp-operator/test/utils/client"
+	"github.com/openshift/ptp-operator/test/utils/testconfig"
 )
 
 // TODO: we should refactor tests to use client from controller-runtime package
@@ -53,7 +54,8 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
-	if DeletePtpConfig {
+
+	if DeletePtpConfig && testconfig.GetDesiredConfig(false).PtpModeDesired != testconfig.Discovery {
 		clean.All()
 	}
 })

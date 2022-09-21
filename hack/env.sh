@@ -2,7 +2,7 @@ REPO_DIR="$(dirname $0)/.."
 NAMESPACE=openshift-ptp
 OPERATOR_EXEC=oc
 
-export RELEASE_VERSION=v4.10.0
+export RELEASE_VERSION=v4.12.0
 export IMAGE_TAG=latest
 export OPERATOR_NAME=ptp-operator
 

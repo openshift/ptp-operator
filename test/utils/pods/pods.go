@@ -84,17 +84,18 @@ func PodRole(runningPod *corev1.Pod, label string) (bool, error) {
 }
 
 // returns true if a pod has a given label or node name
-func HasPodLabelOrNodeName(pod *corev1.Pod, label, nodeName *string) (result bool, err error) {
+func HasPodLabelOrNodeName(pod *corev1.Pod, label *string, nodeName *string) (result bool, err error) {
 	if label == nil && nodeName == nil {
 		return result, fmt.Errorf("label and nodeName are nil")
 	}
-	if label != nil && nodeName != nil {
+	// node name might be present and will be superseded by label
+	/*if label != nil && nodeName != nil {
 		return result, fmt.Errorf("label or nodeName must be nil")
-	}
+	}*/
 	if label != nil {
 		result, err = PodRole(pod, *label)
 		if err != nil {
-			return result, fmt.Errorf("could not check %s pod role, err: %s", label, err)
+			return result, fmt.Errorf("could not check %s pod role, err: %s", *label, err)
 		}
 	}
 	if nodeName != nil {

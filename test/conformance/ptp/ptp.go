@@ -141,6 +141,12 @@ var _ = Describe("[ptp]", func() {
 		execute.BeforeAll(func() {
 			testconfig.CreatePtpConfigurations()
 			fullConfig = testconfig.GetFullDiscoveredConfig(utils.PtpLinuxDaemonNamespace, false)
+			if fullConfig.Status != testconfig.DiscoverySuccessStatus {
+				fmt.Printf(`ptpconfigs were not properly discovered, Check:
+- the ptpconfig has a %s label only in the recommend section (no node section)
+- the node running the clock under test is label with: %s`, utils.PtpClockUnderTestNodeLabel, utils.PtpClockUnderTestNodeLabel)
+				os.Exit(1)
+			}
 			if fullConfig.PtpModeDesired != testconfig.Discovery {
 				restartPtpDaemon()
 			}
@@ -166,7 +172,7 @@ var _ = Describe("[ptp]", func() {
 			})
 		})
 
-		XContext("PTP Interfaces discovery", func() {
+		Context("PTP Interfaces discovery", func() {
 
 			BeforeEach(func() {
 				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
@@ -249,6 +255,10 @@ var _ = Describe("[ptp]", func() {
 
 			// 25733
 			It("PTP daemon apply match rule based on nodeLabel", func() {
+
+				if fullConfig.PtpModeDesired == testconfig.Discovery {
+					Skip(fmt.Sprint("This test needs the ptp-daemon to be rebooted but it is not possible in discovery mode, skipping"))
+				}
 				profileSlave := fmt.Sprintf("Profile Name: %s", fullConfig.DiscoveredClockUnderTestPtpConfig.Name)
 				profileMaster := ""
 				if fullConfig.DiscoveredGrandMasterPtpConfig != nil {
@@ -340,7 +350,7 @@ var _ = Describe("[ptp]", func() {
 					Skip("cannot determine if cluster is single node")
 				}
 				if fullConfig.PtpModeDesired == testconfig.Discovery {
-					Skip("Skipping because adding a different profile")
+					Skip("Skipping because adding a different profile and no modifications are allowed in discovery mode")
 				}
 				var policyName string
 				var modifiedPtpConfig *ptpv1.PtpConfig
@@ -1241,7 +1251,7 @@ func testCaseEnabled(testCase TestCase) bool {
 	return false
 }
 
-func getProfileLogID(ptpConfigName string, label, nodeName *string) (id string, err error) {
+func getProfileLogID(ptpConfigName string, label *string, nodeName *string) (id string, err error) {
 	ptpPods, err := client.Client.CoreV1().Pods(utils.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
 	if err != nil {
 		return id, err
@@ -1249,8 +1259,8 @@ func getProfileLogID(ptpConfigName string, label, nodeName *string) (id string, 
 	for _, pod := range ptpPods.Items {
 		isPodFound, err := pods.HasPodLabelOrNodeName(&pod, label, nodeName)
 		if err != nil {
-			logrus.Errorf("could not check %s pod role, err: %s", label, err)
-			Fail(fmt.Sprintf("could not check %s pod role, err: %s", label, err))
+			logrus.Errorf("could not check %s pod role, err: %s", *label, err)
+			Fail(fmt.Sprintf("could not check %s pod role, err: %s", *label, err))
 		}
 
 		if !isPodFound {
@@ -1277,7 +1287,7 @@ func getProfileLogID(ptpConfigName string, label, nodeName *string) (id string, 
 	return id, nil
 }
 
-func getClockIDMaster(ptpConfigName string, label, nodeName *string) (id string, err error) {
+func getClockIDMaster(ptpConfigName string, label *string, nodeName *string) (id string, err error) {
 	logID, err := getProfileLogID(ptpConfigName, label, nodeName)
 	if err != nil {
 		return id, err
@@ -1289,8 +1299,8 @@ func getClockIDMaster(ptpConfigName string, label, nodeName *string) (id string,
 	for _, pod := range ptpPods.Items {
 		isPodFound, err := pods.HasPodLabelOrNodeName(&pod, label, nodeName)
 		if err != nil {
-			logrus.Errorf("could not check %s pod role, err: %s", label, err)
-			Fail(fmt.Sprintf("could not check %s pod role, err: %s", label, err))
+			logrus.Errorf("could not check %s pod role, err: %s", *label, err)
+			Fail(fmt.Sprintf("could not check %s pod role, err: %s", *label, err))
 		}
 
 		if !isPodFound {
@@ -1303,7 +1313,7 @@ func getClockIDMaster(ptpConfigName string, label, nodeName *string) (id string,
 	return id, err
 }
 
-func getClockIDForeign(ptpConfigName string, label, nodeName *string) (id string, err error) {
+func getClockIDForeign(ptpConfigName string, label *string, nodeName *string) (id string, err error) {
 	logID, err := getProfileLogID(ptpConfigName, label, nodeName)
 	if err != nil {
 		return id, err
@@ -1317,8 +1327,8 @@ func getClockIDForeign(ptpConfigName string, label, nodeName *string) (id string
 
 		isPodFound, err := pods.HasPodLabelOrNodeName(&pod, label, nodeName)
 		if err != nil {
-			logrus.Errorf("could not check %s pod role, err: %s", label, err)
-			Fail(fmt.Sprintf("could not check %s pod role, err: %s", label, err))
+			logrus.Errorf("could not check %s pod role, err: %s", *label, err)
+			Fail(fmt.Sprintf("could not check %s pod role, err: %s", *label, err))
 		}
 
 		if !isPodFound {
@@ -1441,9 +1451,9 @@ func BasicClockSyncCheck(fullConfig testconfig.TestConfig, ptpConfig *ptpv1.PtpC
 	Eventually(func() error {
 		err = metrics.CheckClockRoleAndOffset(ptpConfig, label, nodeName)
 		if err != nil {
-			logrus.Debugf(fmt.Sprintf("Failed because of err: %s", err))
+			logrus.Infof(fmt.Sprintf("CheckClockRoleAndOffset Failed because of err: %s", err))
 		}
 		return err
-	}, timeoutIn3Minutes, timeout10Seconds).Should(BeNil(), fmt.Sprintf("Timeout to detect metrics for ptpconfig %s"))
+	}, timeoutIn3Minutes, timeout10Seconds).Should(BeNil(), fmt.Sprintf("Timeout to detect metrics for ptpconfig %s", ptpConfig.Name))
 
 }
