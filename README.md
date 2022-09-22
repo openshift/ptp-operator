@@ -9,10 +9,8 @@
 ## PTP Operator
 Ptp Operator, runs in `openshift-ptp` namespace, manages cluster wide PTP configuration. It offers `PtpOperatorConfig` and `PtpConfig` CRDs and creates `linuxptp daemon` to apply node specific PTP config.
 
-
 ## PtpOperatorConfig
 Upon deployment of PTP Operator, it automatically creates a `default` custom resource of `PtpOperatorConfig` kind which contains a configurable option `daemonNodeSelector`, it is used to specify which nodes `linuxptp daemon` shall be created on. The `daemonNodeSelector` will be applied to `linuxptp daemon` DaemonSet `nodeSelector` field and trigger relaunching of `linuxptp daemon`. Ptp Operator only recognizes `default` `PtpOperatorConfig`, use `oc edit PtpOperatorConfig default -n openshift-ptp` to update the `daemonNodeSelector`.
-
 
 ```
 $ oc get ptpoperatorconfigs.ptp.openshift.io default -n openshift-ptp -o yaml
@@ -39,8 +37,9 @@ metadata:
 ### Enable PTP events via fast event framework 
 PTP Operator supports fast event publisher for events such as PTP state change, os clock out of sync, clock class change and port failure.
 Event publisher is enabled by deploying PTP operator with [cloud events framework](https://github.com/redhat-cne/cloud-event-proxy) (based on O-RAN API specifications).
-The events are published via AMQ interconnect router and available for local subscribers.
-####Enabling fast events 
+The events are published via HTTP or AMQP transport and available for local subscribers.
+
+#### Enabling fast events
 ```
 $ oc edit ptpoperatorconfigs.ptp.openshift.io default -n openshift-ptp
 
@@ -59,7 +58,8 @@ items:
   spec:
     ptpEventConfig:
       enableEventPublisher: true
-      transportHost: "amqp://amq-router.amq-router.svc.cluster.local"
+      transportHost: "http://hw-event-publisher-service.openshift-bare-metal-events.svc.cluster.local:9043"
+      # For AMQP transport, transportHost: "amqp://amq-router.amq-router.svc.cluster.local"
     daemonNodeSelector:
       node-role.kubernetes.io/worker: ""
 kind: List
