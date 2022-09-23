@@ -448,7 +448,7 @@ func extractPTP4lEventState(output string) (portId int, role ptpPortRole) {
 
 func addFlagsForMonitor(nodeProfile *ptpv1.PtpProfile, conf *ptp4lConf, stdoutToSocket bool) {
 	// If output doesn't exist we add it for the prometheus exporter
-	if nodeProfile.Phc2sysOpts != nil {
+	if nodeProfile.Phc2sysOpts != nil && *nodeProfile.Phc2sysOpts != "" {
 		if !strings.Contains(*nodeProfile.Phc2sysOpts, "-m") {
 			glog.Info("adding -m to print messages to stdout for phc2sys to use prometheus exporter")
 			*nodeProfile.Phc2sysOpts = fmt.Sprintf("%s -m", *nodeProfile.Phc2sysOpts)

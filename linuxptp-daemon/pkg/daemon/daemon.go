@@ -206,7 +206,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 	printWhenNotNil(nodeProfile.PtpSchedulingPriority, "PtpSchedulingPriority")
 	glog.Infof("------------------------------------")
 
-	if nodeProfile.Phc2sysOpts != nil {
+	if nodeProfile.Phc2sysOpts != nil && *nodeProfile.Phc2sysOpts != "" {
 		dn.processManager.process = append(dn.processManager.process, &ptpProcess{
 			name:       "phc2sys",
 			ifaces:     strings.Split(*nodeProfile.Interface, ","),
@@ -279,7 +279,7 @@ func (dn *Daemon) addProfileConfig(socketPath string, configFile string, nodePro
 
 	*nodeProfile.Ptp4lConf, *nodeProfile.Interface = output.renderPtp4lConf()
 
-	if nodeProfile.Phc2sysOpts != nil {
+	if nodeProfile.Phc2sysOpts != nil && *nodeProfile.Phc2sysOpts != "" {
 		commandLine := fmt.Sprintf("%s -z %s -t [%s]",
 			*nodeProfile.Phc2sysOpts,
 			socketPath,
