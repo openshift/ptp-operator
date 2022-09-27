@@ -12,9 +12,10 @@ import (
 	"github.com/openshift/ptp-operator/test/utils"
 	"github.com/openshift/ptp-operator/test/utils/clean"
 	"github.com/openshift/ptp-operator/test/utils/client"
-	"github.com/openshift/ptp-operator/test/utils/l2discovery"
 	"github.com/openshift/ptp-operator/test/utils/nodes"
 	"github.com/sirupsen/logrus"
+	solver "github.com/test-network-function/graphsolver-lib"
+	l2lib "github.com/test-network-function/l2discovery-lib"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 )
@@ -93,8 +94,57 @@ type TestConfig struct {
 	DiscoveredSlave2PtpConfig,
 	DiscoveredClockUnderTestPtpConfig,
 	DiscoveredClockUnderTestSecondaryPtpConfig *ptpDiscoveryRes
-	L2Config *l2discovery.L2DiscoveryConfig
+	L2Config       l2lib.L2Info
+	FoundSolutions map[string]bool
 }
+type solverData struct {
+	// Mapping between clock role and port depending on the algo
+	testClockRolesAlgoMapping map[string]*[]int
+	// map storing solutions
+	solutions map[string]*[][]int
+
+	problems map[string]*[][][]int
+}
+
+var enabledProblems = []string{AlgoOCString,
+	AlgoBCString,
+	AlgoBCWithSlavesString,
+	AlgoDualNicBCString,
+	AlgoDualNicBCWithSlavesString,
+	AlgoSNOOCString,
+	AlgoSNOBCString,
+	AlgoSNODualNicBCString,
+}
+
+const FirstSolution = 0
+
+var data solverData
+
+// indicates the clock roles in the algotithms
+type TestIfClockRoles int
+
+const NumTestClockRoles = 7
+const (
+	Grandmaster TestIfClockRoles = iota
+	Slave1
+	Slave2
+	BC1Master
+	BC1Slave
+	BC2Master
+	BC2Slave
+)
+
+const (
+	AlgoOCString                  = "OC"
+	AlgoBCString                  = "BC"
+	AlgoBCWithSlavesString        = "BCWithSlaves"
+	AlgoDualNicBCString           = "DualNicBC"
+	AlgoDualNicBCWithSlavesString = "DualNicBCWithSlaves"
+	AlgoSNOOCString               = "SNOOC"
+	AlgoSNOBCString               = "SNOBC"
+	AlgoSNODualNicBCString        = "SNODualNicBC"
+)
+
 type ptpDiscoveryRes ptpv1.PtpConfig
 
 const BasePtp4lConfig = `[global]
@@ -188,6 +238,15 @@ func Reset() {
 	GlobalConfig.PtpModeDiscovered = None
 	GlobalConfig.Status = Start
 }
+func initFoundSolutions() {
+	GlobalConfig.FoundSolutions = make(map[string]bool)
+	for _, name := range enabledProblems {
+
+		if len(*data.solutions[name]) > 0 {
+			GlobalConfig.FoundSolutions[name] = true
+		}
+	}
+}
 
 // Gets te desired configuration from the environment
 func GetDesiredConfig(forceUpdate bool) TestConfig {
@@ -225,21 +284,31 @@ func GetDesiredConfig(forceUpdate bool) TestConfig {
 
 // Create ptpconfigs
 func CreatePtpConfigurations() {
-	var err error
 	// Initialize desired ptp config for all configs
 	GetDesiredConfig(true)
 	// in multi node configuration create ptp configs
 	if GlobalConfig.PtpModeDesired != Discovery {
-		GlobalConfig.L2Config, err = l2discovery.GetL2DiscoveryConfig()
-		if err != nil {
-			logrus.Errorf("Error getting L2 discovery data, err=%s", err)
-		}
-		err = clean.All()
+		err := clean.All()
 		if err != nil {
 			logrus.Errorf("Error deleting labels and configuration, err=%s", err)
 		}
+		// Initialize l2 library
+		l2lib.GlobalL2DiscoveryConfig.SetL2Client(client.Client, client.Client.Config)
 
-		if len(GlobalConfig.L2Config.Solutions) == 0 {
+		// Collect L2 info
+		config, err := l2lib.GlobalL2DiscoveryConfig.GetL2DiscoveryConfig(true)
+		if err != nil {
+			return
+		}
+
+		// initialize L2 config in solver
+		solver.GlobalConfig.SetL2Config(config)
+
+		GlobalConfig.L2Config = config
+
+		initAndSolveProblems()
+
+		if len(data.solutions) == 0 {
 			logrus.Errorf("Could not find a solution")
 			return
 		}
@@ -247,15 +316,149 @@ func CreatePtpConfigurations() {
 		case Discovery, None:
 			logrus.Errorf("error creating ptpconfig Discovery, None not supported")
 		case OrdinaryClock:
-			PtpConfigOC(GlobalConfig.L2Config)
+			PtpConfigOC()
 
 		case BoundaryClock:
-			PtpConfigBC(GlobalConfig.L2Config)
+			PtpConfigBC()
 		case DualNICBoundaryClock:
-			PtpConfigDualNicBC(GlobalConfig.L2Config)
+			PtpConfigDualNicBC()
 		}
 
 	}
+}
+
+func initAndSolveProblems() {
+
+	// create maps
+	data.problems = make(map[string]*[][][]int)
+	data.solutions = make(map[string]*[][]int)
+	data.testClockRolesAlgoMapping = make(map[string]*[]int)
+
+	// initialize problems
+	data.problems[AlgoOCString] = &[][][]int{
+		{{int(solver.StepNil), 0, 0}},         // step1
+		{{int(solver.StepSameLan2), 2, 0, 1}}, // step2
+	}
+	data.problems[AlgoBCString] = &[][][]int{
+		{{int(solver.StepNil), 0, 0}},         // step1
+		{{int(solver.StepSameNic), 2, 0, 1}},  // step2
+		{{int(solver.StepSameLan2), 2, 1, 2}}, // step3
+
+	}
+	data.problems[AlgoBCWithSlavesString] = &[][][]int{
+		{{int(solver.StepNil), 0, 0}},         // step1
+		{{int(solver.StepSameLan2), 2, 0, 1}}, // step2
+		{{int(solver.StepSameNic), 2, 1, 2}},  // step3
+		{{int(solver.StepSameLan2), 2, 2, 3}}, // step4
+	}
+	data.problems[AlgoDualNicBCString] = &[][][]int{
+		{{int(solver.StepNil), 0, 0}},         // step1
+		{{int(solver.StepSameNic), 2, 0, 1}},  // step2
+		{{int(solver.StepSameLan2), 2, 1, 2}}, // step3
+		{{int(solver.StepSameNode), 2, 1, 3}, // step4
+			{int(solver.StepSameLan2), 2, 2, 3}}, // step4
+		{{int(solver.StepSameNic), 2, 3, 4}}, // step5
+	}
+	data.problems[AlgoDualNicBCWithSlavesString] = &[][][]int{
+		{{int(solver.StepNil), 0, 0}},         // step1
+		{{int(solver.StepSameLan2), 2, 0, 1}}, // step2
+		{{int(solver.StepSameNic), 2, 1, 2}},  // step3
+		{{int(solver.StepSameLan2), 2, 2, 3}}, // step4
+		{{int(solver.StepSameNode), 2, 2, 4}, // step5
+			{int(solver.StepSameLan2), 2, 3, 4}}, // step5
+		{{int(solver.StepSameNic), 2, 4, 5}},  // step6
+		{{int(solver.StepSameLan2), 2, 5, 6}}, // step7
+	}
+	data.problems[AlgoSNOOCString] = &[][][]int{
+		{{int(solver.StepIsPTP), 1, 0}}, // step1
+	}
+	data.problems[AlgoSNOBCString] = &[][][]int{
+		{{int(solver.StepIsPTP), 1, 0}},      // step1
+		{{int(solver.StepSameNic), 2, 0, 1}}, // step2
+	}
+	data.problems[AlgoSNODualNicBCString] = &[][][]int{
+		{{int(solver.StepIsPTP), 1, 0}},      // step1
+		{{int(solver.StepSameNic), 2, 0, 1}}, // step2
+		{{int(solver.StepIsPTP), 1, 2}, // step3
+			{int(solver.StepSameNode), 2, 0, 2}}, // step3
+		{{int(solver.StepSameNic), 2, 2, 3}}, // step4
+	}
+
+	// Initializing Solution decoding and mapping
+	// allocating all slices
+	for _, name := range enabledProblems {
+		alloc := make([]int, NumTestClockRoles)
+		data.testClockRolesAlgoMapping[name] = &alloc
+	}
+
+	// OC
+	(*data.testClockRolesAlgoMapping[AlgoOCString])[Slave1] = 0
+	(*data.testClockRolesAlgoMapping[AlgoOCString])[Grandmaster] = 1
+
+	// BC
+
+	(*data.testClockRolesAlgoMapping[AlgoBCString])[BC1Slave] = 0
+	(*data.testClockRolesAlgoMapping[AlgoBCString])[BC1Master] = 1
+	(*data.testClockRolesAlgoMapping[AlgoBCString])[Grandmaster] = 2
+
+	// BC with slaves
+
+	(*data.testClockRolesAlgoMapping[AlgoBCWithSlavesString])[Slave1] = 0
+	(*data.testClockRolesAlgoMapping[AlgoBCWithSlavesString])[BC1Master] = 1
+	(*data.testClockRolesAlgoMapping[AlgoBCWithSlavesString])[BC1Slave] = 2
+	(*data.testClockRolesAlgoMapping[AlgoBCWithSlavesString])[Grandmaster] = 3
+
+	// Dual NIC BC
+	(*data.testClockRolesAlgoMapping[AlgoDualNicBCString])[BC1Slave] = 0
+	(*data.testClockRolesAlgoMapping[AlgoDualNicBCString])[BC1Master] = 1
+	(*data.testClockRolesAlgoMapping[AlgoDualNicBCString])[Grandmaster] = 2
+	(*data.testClockRolesAlgoMapping[AlgoDualNicBCString])[BC2Master] = 3
+	(*data.testClockRolesAlgoMapping[AlgoDualNicBCString])[BC2Slave] = 4
+
+	// Dual NIC BC with slaves
+	(*data.testClockRolesAlgoMapping[AlgoDualNicBCWithSlavesString])[Slave1] = 0
+	(*data.testClockRolesAlgoMapping[AlgoDualNicBCWithSlavesString])[BC1Master] = 1
+	(*data.testClockRolesAlgoMapping[AlgoDualNicBCWithSlavesString])[BC1Slave] = 2
+	(*data.testClockRolesAlgoMapping[AlgoDualNicBCWithSlavesString])[Grandmaster] = 3
+	(*data.testClockRolesAlgoMapping[AlgoDualNicBCWithSlavesString])[BC2Slave] = 4
+	(*data.testClockRolesAlgoMapping[AlgoDualNicBCWithSlavesString])[BC2Master] = 5
+	(*data.testClockRolesAlgoMapping[AlgoDualNicBCWithSlavesString])[Slave2] = 6
+
+	// SNO OC
+	(*data.testClockRolesAlgoMapping[AlgoSNOOCString])[Slave1] = 0
+
+	// SNO BC
+	(*data.testClockRolesAlgoMapping[AlgoSNOBCString])[BC1Slave] = 0
+	(*data.testClockRolesAlgoMapping[AlgoSNOBCString])[BC1Master] = 1
+
+	// SNO Dual NIC BC
+
+	(*data.testClockRolesAlgoMapping[AlgoSNODualNicBCString])[BC1Slave] = 0
+	(*data.testClockRolesAlgoMapping[AlgoSNODualNicBCString])[BC1Master] = 1
+	(*data.testClockRolesAlgoMapping[AlgoSNODualNicBCString])[BC2Slave] = 2
+	(*data.testClockRolesAlgoMapping[AlgoSNODualNicBCString])[BC2Master] = 3
+
+	for _, name := range enabledProblems {
+
+		// Initializing problems
+		solver.GlobalConfig.InitProblem(
+			name,
+			*data.problems[name],
+			*data.testClockRolesAlgoMapping[name],
+		)
+
+		// Solve problem
+		solver.GlobalConfig.Run(name)
+	}
+
+	// print first solution
+	solver.GlobalConfig.PrintAllSolutions()
+
+	// store the solutions
+	data.solutions = solver.GlobalConfig.GetSolutions()
+
+	// update testconfig found solutions
+	initFoundSolutions()
 }
 
 // Gets the discovered configuration
@@ -365,29 +568,29 @@ func CreatePtpConfigOC(profileName, nodeName, ifSlaveName string, phc2sys bool, 
 		pointer.Int64Ptr(int65))
 }
 
-func PtpConfigOC(config *l2discovery.L2DiscoveryConfig) {
+func PtpConfigOC() {
 	var grandmaster, slave1 int
 
-	BestSolution := l2discovery.AlgoOC
+	BestSolution := AlgoOCString
 
-	if len(config.Solutions[l2discovery.AlgoOC]) == 0 &&
-		len(config.Solutions[l2discovery.AlgoSNOOC]) == 0 {
+	if len(*data.solutions[AlgoOCString]) == 0 &&
+		len(*data.solutions[AlgoSNOOCString]) == 0 {
 		logrus.Infof("Could not configure OC clock")
 		return
 	}
 
-	if len(config.Solutions[l2discovery.AlgoOC]) == 0 &&
-		len(config.Solutions[l2discovery.AlgoSNOOC]) != 0 {
-		BestSolution = l2discovery.AlgoSNOOC
+	if len(*data.solutions[AlgoOCString]) == 0 &&
+		len(*data.solutions[AlgoSNOOCString]) != 0 {
+		BestSolution = AlgoSNOOCString
 	}
 
 	switch BestSolution {
-	case l2discovery.AlgoOC:
-		grandmaster = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.Grandmaster]
-		slave1 = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.Slave1]
+	case AlgoOCString:
+		grandmaster = (*data.testClockRolesAlgoMapping[BestSolution])[Grandmaster]
+		slave1 = (*data.testClockRolesAlgoMapping[BestSolution])[Slave1]
 
-		gmIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][grandmaster]]
-		slave1If := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][slave1]]
+		gmIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][grandmaster]]
+		slave1If := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][slave1]]
 
 		err := CreatePtpConfigGrandMaster(gmIf.NodeName,
 			gmIf.IfName)
@@ -401,11 +604,11 @@ func PtpConfigOC(config *l2discovery.L2DiscoveryConfig) {
 			logrus.Errorf("Error creating Slave1 ptpconfig: %s", err)
 		}
 
-	case l2discovery.AlgoSNOOC:
+	case AlgoSNOOCString:
 
-		slave1 = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.Slave1]
+		slave1 = (*data.testClockRolesAlgoMapping[BestSolution])[Slave1]
 
-		slave1If := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][slave1]]
+		slave1If := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][slave1]]
 
 		err := CreatePtpConfigOC(utils.PtpSlave1PolicyName, slave1If.NodeName,
 			slave1If.IfName, true, utils.PtpClockUnderTestNodeLabel)
@@ -415,40 +618,40 @@ func PtpConfigOC(config *l2discovery.L2DiscoveryConfig) {
 	}
 
 }
-func PtpConfigBC(config *l2discovery.L2DiscoveryConfig) {
+func PtpConfigBC() {
 	var grandmaster, bc1Master, bc1Slave, slave1 int
 
-	BestSolution := l2discovery.AlgoBCWithSlaves
+	BestSolution := AlgoBCWithSlavesString
 
-	if len(config.Solutions[l2discovery.AlgoBCWithSlaves]) == 0 &&
-		len(config.Solutions[l2discovery.AlgoBC]) == 0 &&
-		len(config.Solutions[l2discovery.AlgoSNOBC]) == 0 {
+	if len(*data.solutions[AlgoBCWithSlavesString]) == 0 &&
+		len(*data.solutions[AlgoBCString]) == 0 &&
+		len(*data.solutions[AlgoSNOBCString]) == 0 {
 		logrus.Infof("Could not configure BC clock")
 		return
 	}
 
-	if len(config.Solutions[l2discovery.AlgoBCWithSlaves]) == 0 &&
-		len(config.Solutions[l2discovery.AlgoBC]) != 0 {
-		BestSolution = l2discovery.AlgoBC
+	if len(*data.solutions[AlgoBCWithSlavesString]) == 0 &&
+		len(*data.solutions[AlgoBCString]) != 0 {
+		BestSolution = AlgoBCString
 	}
 
-	if len(config.Solutions[l2discovery.AlgoBCWithSlaves]) == 0 &&
-		len(config.Solutions[l2discovery.AlgoBC]) == 0 &&
-		len(config.Solutions[l2discovery.AlgoSNOBC]) != 0 {
-		BestSolution = l2discovery.AlgoSNOBC
+	if len(*data.solutions[AlgoBCWithSlavesString]) == 0 &&
+		len(*data.solutions[AlgoBCString]) == 0 &&
+		len(*data.solutions[AlgoSNOBCString]) != 0 {
+		BestSolution = AlgoSNOBCString
 	}
 
 	switch BestSolution {
-	case l2discovery.AlgoBCWithSlaves:
-		grandmaster = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.Grandmaster]
-		bc1Master = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC1Master]
-		bc1Slave = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC1Slave]
-		slave1 = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.Slave1]
+	case AlgoBCWithSlavesString:
+		grandmaster = (*data.testClockRolesAlgoMapping[BestSolution])[Grandmaster]
+		bc1Master = (*data.testClockRolesAlgoMapping[BestSolution])[BC1Master]
+		bc1Slave = (*data.testClockRolesAlgoMapping[BestSolution])[BC1Slave]
+		slave1 = (*data.testClockRolesAlgoMapping[BestSolution])[Slave1]
 
-		gmIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][grandmaster]]
-		bc1MasterIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc1Master]]
-		bc1SlaveIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc1Slave]]
-		slave1If := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][slave1]]
+		gmIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][grandmaster]]
+		bc1MasterIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][bc1Master]]
+		bc1SlaveIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][bc1Slave]]
+		slave1If := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][slave1]]
 
 		err := CreatePtpConfigGrandMaster(gmIf.NodeName,
 			gmIf.IfName)
@@ -468,14 +671,14 @@ func PtpConfigBC(config *l2discovery.L2DiscoveryConfig) {
 			logrus.Errorf("Error creating Slave1 ptpconfig: %s", err)
 		}
 
-	case l2discovery.AlgoBC:
-		grandmaster = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.Grandmaster]
-		bc1Master = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC1Master]
-		bc1Slave = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC1Slave]
+	case AlgoBCString:
+		grandmaster = (*data.testClockRolesAlgoMapping[BestSolution])[Grandmaster]
+		bc1Master = (*data.testClockRolesAlgoMapping[BestSolution])[BC1Master]
+		bc1Slave = (*data.testClockRolesAlgoMapping[BestSolution])[BC1Slave]
 
-		gmIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][grandmaster]]
-		bc1MasterIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc1Master]]
-		bc1SlaveIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc1Slave]]
+		gmIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][grandmaster]]
+		bc1MasterIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][bc1Master]]
+		bc1SlaveIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][bc1Slave]]
 
 		err := CreatePtpConfigGrandMaster(gmIf.NodeName,
 			gmIf.IfName)
@@ -489,13 +692,13 @@ func PtpConfigBC(config *l2discovery.L2DiscoveryConfig) {
 			logrus.Errorf("Error creating bc1master ptpconfig: %s", err)
 		}
 
-	case l2discovery.AlgoSNOBC:
+	case AlgoSNOBCString:
 
-		bc1Master = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC1Master]
-		bc1Slave = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC1Slave]
+		bc1Master = (*data.testClockRolesAlgoMapping[BestSolution])[BC1Master]
+		bc1Slave = (*data.testClockRolesAlgoMapping[BestSolution])[BC1Slave]
 
-		bc1MasterIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc1Master]]
-		bc1SlaveIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc1Slave]]
+		bc1MasterIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][bc1Master]]
+		bc1SlaveIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][bc1Slave]]
 
 		err := CreatePtpConfigBC(utils.PtpBcMaster1PolicyName, bc1MasterIf.NodeName,
 			bc1MasterIf.IfName, bc1SlaveIf.IfName, true)
@@ -506,47 +709,47 @@ func PtpConfigBC(config *l2discovery.L2DiscoveryConfig) {
 
 }
 
-func PtpConfigDualNicBC(config *l2discovery.L2DiscoveryConfig) {
+func PtpConfigDualNicBC() {
 
 	var grandmaster, bc1Master, bc1Slave, slave1, bc2Master, bc2Slave, slave2 int
 
-	BestSolution := l2discovery.AlgoDualNicBCWithSlaves
+	BestSolution := AlgoDualNicBCWithSlavesString
 
-	if len(config.Solutions[l2discovery.AlgoDualNicBCWithSlaves]) == 0 &&
-		len(config.Solutions[l2discovery.AlgoDualNicBC]) == 0 &&
-		len(config.Solutions[l2discovery.AlgoSNODualNicBC]) == 0 {
+	if len(*data.solutions[AlgoDualNicBCWithSlavesString]) == 0 &&
+		len(*data.solutions[AlgoDualNicBCString]) == 0 &&
+		len(*data.solutions[AlgoSNODualNicBCString]) == 0 {
 		logrus.Infof("Could not configure Dual NIC BC clock")
 		return
 	}
 
-	if len(config.Solutions[l2discovery.AlgoDualNicBCWithSlaves]) == 0 &&
-		len(config.Solutions[l2discovery.AlgoDualNicBC]) != 0 {
-		BestSolution = l2discovery.AlgoDualNicBC
+	if len(*data.solutions[AlgoDualNicBCWithSlavesString]) == 0 &&
+		len(*data.solutions[AlgoDualNicBCString]) != 0 {
+		BestSolution = AlgoDualNicBCString
 	}
 
-	if len(config.Solutions[l2discovery.AlgoDualNicBCWithSlaves]) == 0 &&
-		len(config.Solutions[l2discovery.AlgoDualNicBC]) == 0 &&
-		len(config.Solutions[l2discovery.AlgoSNODualNicBC]) != 0 {
-		BestSolution = l2discovery.AlgoSNODualNicBC
+	if len(*data.solutions[AlgoDualNicBCWithSlavesString]) == 0 &&
+		len(*data.solutions[AlgoDualNicBCString]) == 0 &&
+		len(*data.solutions[AlgoSNODualNicBCString]) != 0 {
+		BestSolution = AlgoSNODualNicBCString
 	}
 
 	switch BestSolution {
-	case l2discovery.AlgoDualNicBCWithSlaves:
-		grandmaster = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.Grandmaster]
-		bc1Master = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC1Master]
-		bc1Slave = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC1Slave]
-		slave1 = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.Slave1]
-		bc2Master = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC2Master]
-		bc2Slave = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC2Slave]
-		slave2 = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.Slave2]
+	case AlgoDualNicBCWithSlavesString:
+		grandmaster = (*data.testClockRolesAlgoMapping[BestSolution])[Grandmaster]
+		bc1Master = (*data.testClockRolesAlgoMapping[BestSolution])[BC1Master]
+		bc1Slave = (*data.testClockRolesAlgoMapping[BestSolution])[BC1Slave]
+		slave1 = (*data.testClockRolesAlgoMapping[BestSolution])[Slave1]
+		bc2Master = (*data.testClockRolesAlgoMapping[BestSolution])[BC2Master]
+		bc2Slave = (*data.testClockRolesAlgoMapping[BestSolution])[BC2Slave]
+		slave2 = (*data.testClockRolesAlgoMapping[BestSolution])[Slave2]
 
-		gmIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][grandmaster]]
-		bc1MasterIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc1Master]]
-		bc1SlaveIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc1Slave]]
-		slave1If := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][slave1]]
-		bc2MasterIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc2Master]]
-		bc2SlaveIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc2Slave]]
-		slave2If := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][slave2]]
+		gmIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][grandmaster]]
+		bc1MasterIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][bc1Master]]
+		bc1SlaveIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][bc1Slave]]
+		slave1If := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][slave1]]
+		bc2MasterIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][bc2Master]]
+		bc2SlaveIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][bc2Slave]]
+		slave2If := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][slave2]]
 
 		err := CreatePtpConfigGrandMaster(gmIf.NodeName,
 			gmIf.IfName)
@@ -577,18 +780,18 @@ func PtpConfigDualNicBC(config *l2discovery.L2DiscoveryConfig) {
 			logrus.Errorf("Error creating Slave2 ptpconfig: %s", err)
 		}
 
-	case l2discovery.AlgoDualNicBC:
-		grandmaster = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.Grandmaster]
-		bc1Master = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC1Master]
-		bc1Slave = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC1Slave]
-		bc2Master = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC2Master]
-		bc2Slave = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC2Slave]
+	case AlgoDualNicBCString:
+		grandmaster = (*data.testClockRolesAlgoMapping[BestSolution])[Grandmaster]
+		bc1Master = (*data.testClockRolesAlgoMapping[BestSolution])[BC1Master]
+		bc1Slave = (*data.testClockRolesAlgoMapping[BestSolution])[BC1Slave]
+		bc2Master = (*data.testClockRolesAlgoMapping[BestSolution])[BC2Master]
+		bc2Slave = (*data.testClockRolesAlgoMapping[BestSolution])[BC2Slave]
 
-		gmIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][grandmaster]]
-		bc1MasterIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc1Master]]
-		bc1SlaveIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc1Slave]]
-		bc2MasterIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc2Master]]
-		bc2SlaveIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc2Slave]]
+		gmIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][grandmaster]]
+		bc1MasterIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][bc1Master]]
+		bc1SlaveIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][bc1Slave]]
+		bc2MasterIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][bc2Master]]
+		bc2SlaveIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][bc2Slave]]
 
 		err := CreatePtpConfigGrandMaster(gmIf.NodeName,
 			gmIf.IfName)
@@ -608,17 +811,17 @@ func PtpConfigDualNicBC(config *l2discovery.L2DiscoveryConfig) {
 			logrus.Errorf("Error creating bc2master ptpconfig: %s", err)
 		}
 
-	case l2discovery.AlgoSNODualNicBC:
+	case AlgoSNODualNicBCString:
 
-		bc1Master = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC1Master]
-		bc1Slave = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC1Slave]
-		bc2Master = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC2Master]
-		bc2Slave = config.TestClockRolesAlgoMapping[BestSolution][l2discovery.BC2Slave]
+		bc1Master = (*data.testClockRolesAlgoMapping[BestSolution])[BC1Master]
+		bc1Slave = (*data.testClockRolesAlgoMapping[BestSolution])[BC1Slave]
+		bc2Master = (*data.testClockRolesAlgoMapping[BestSolution])[BC2Master]
+		bc2Slave = (*data.testClockRolesAlgoMapping[BestSolution])[BC2Slave]
 
-		bc1MasterIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc1Master]]
-		bc1SlaveIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc1Slave]]
-		bc2MasterIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc2Master]]
-		bc2SlaveIf := config.PtpIfList[config.Solutions[BestSolution][l2discovery.FirstSolution][bc2Slave]]
+		bc1MasterIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][bc1Master]]
+		bc1SlaveIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][bc1Slave]]
+		bc2MasterIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][bc2Master]]
+		bc2SlaveIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][bc2Slave]]
 
 		err := CreatePtpConfigBC(utils.PtpBcMaster1PolicyName, bc1MasterIf.NodeName,
 			bc1MasterIf.IfName, bc1SlaveIf.IfName, true)
