@@ -60,7 +60,7 @@ metadata:
     capabilities: Basic Install
     categories: Networking
     certified: "false"
-    containerImage: quay.io/openshift/origin-ptp-operator:4.10
+    containerImage: quay.io/openshift/origin-ptp-operator:4.11
     createdAt: "2019-10-14"
     description: This software enables configuration of Precision Time Protocol(PTP)
       on Kubernetes. It detects hardware capable PTP devices on each node, and configures
