@@ -147,7 +147,7 @@ var _ = Describe("[ptp]", func() {
 				os.Exit(1)
 			}
 			if fullConfig.PtpModeDesired != testconfig.Discovery {
-				restartPtpDaemon()
+				RestartPtpDaemon()
 			}
 
 		})
@@ -572,7 +572,7 @@ var _ = Describe("[ptp]", func() {
 	})
 })
 
-func restartPtpDaemon() {
+func RestartPtpDaemon() {
 	ptpPods, err := client.Client.CoreV1().Pods(utils.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
 	Expect(err).ToNot(HaveOccurred())
 	for podIndex := range ptpPods.Items {
