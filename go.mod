@@ -1,6 +1,6 @@
 module github.com/openshift/ptp-operator
 
-go 1.19
+go 1.18
 
 require (
 	github.com/Masterminds/sprig v2.22.0+incompatible
