@@ -11,6 +11,7 @@ reviewers:
   - oribon
   - josephdrichard
   - aneeshkp
+  - nishant-parekh
 approvers:
   - zshi-redhat
   - pliurh
@@ -24,5 +25,7 @@ approvers:
   - oribon
   - josephdrichard
   - aneeshkp
+  - nishant-parekh
+
 component: "Networking"
 subcomponent: "ptp"

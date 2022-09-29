@@ -153,10 +153,10 @@ func getInterfaces(input *ptp4lConf, mode PtpRole) (interfaces []string) {
 func GetInterfaces(config PtpConfig, mode PtpRole) (interfaces []string) {
 
 	if len(config.Spec.Profile) > 1 {
-		logrus.Warnf("More than one profile detected for ptpconfig %s", &config.ObjectMeta.Name)
+		logrus.Warnf("More than one profile detected for ptpconfig %s", config.ObjectMeta.Name)
 	}
 	if len(config.Spec.Profile) == 0 {
-		logrus.Warnf("No profile detected for ptpconfig %s", &config.ObjectMeta.Name)
+		logrus.Warnf("No profile detected for ptpconfig %s", config.ObjectMeta.Name)
 		return interfaces
 	}
 	conf := &ptp4lConf{}
@@ -170,7 +170,9 @@ func GetInterfaces(config PtpConfig, mode PtpRole) (interfaces []string) {
 	var finalInterfaces []string
 	for _, aIf := range interfaces {
 		if aIf == "global" {
-			finalInterfaces = append(finalInterfaces, *config.Spec.Profile[0].Interface)
+			if config.Spec.Profile[0].Interface != nil {
+				finalInterfaces = append(finalInterfaces, *config.Spec.Profile[0].Interface)
+			}
 		} else {
 			finalInterfaces = append(finalInterfaces, aIf)
 		}

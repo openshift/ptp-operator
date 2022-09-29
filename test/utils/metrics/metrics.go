@@ -90,9 +90,9 @@ func getMetric(nodeName, aIf, metricName string) (metric string, err error) {
 		var regex string
 		if metricName == OpenshiftPtpOffsetNs {
 			aIf = aIf[:len(aIf)-1] + "x"
-			regex = metricName + `{` + fromMaster + `iface="` + aIf + `",node="` + ptpPods.Items[index].Spec.NodeName + `",process="ptp4l"} ([0-9]*)`
+			regex = metricName + `{` + fromMaster + `iface="` + aIf + `",node="` + ptpPods.Items[index].Spec.NodeName + `",process="ptp4l"} (-*[0-9]*)`
 		} else {
-			regex = metricName + `{iface="` + aIf + `",node="` + ptpPods.Items[index].Spec.NodeName + `",process="ptp4l"} ([0-9]*)`
+			regex = metricName + `{iface="` + aIf + `",node="` + ptpPods.Items[index].Spec.NodeName + `",process="ptp4l"} (-*[0-9]*)`
 		}
 		r := regexp.MustCompile(regex)
 		for _, submatches := range r.FindAllStringSubmatchIndex(metrics, -1) {
@@ -131,6 +131,17 @@ func CheckClockRoleAndOffset(ptpConfig *ptpv1.PtpConfig, label, nodeName *string
 	if nodeName == nil {
 		var name string
 		name, err = getNode(*label)
+		if err != nil ||
+			name == "" ||
+			label == nil ||
+			(*label != utils.PtpClockUnderTestNodeLabel &&
+				*label != utils.PtpSlave1NodeLabel &&
+				*label != utils.PtpSlave2NodeLabel) {
+			fmt.Printf(`error getting node name for label %s
+Did you label the node running the clock under test with the %s label?
+Only this label should be used to identify the clock under test. err:%s`, *label, utils.PtpClockUnderTestNodeLabel, err)
+			os.Exit(1)
+		}
 		nodeName = &name
 	}
 	masterIfs := ptpv1.GetInterfaces(*ptpConfig, ptpv1.Master)
@@ -143,7 +154,7 @@ func CheckClockRoleAndOffset(ptpConfig *ptpv1.PtpConfig, label, nodeName *string
 		}
 		roleInt, err := strconv.Atoi(role)
 		if err != nil {
-			return fmt.Errorf("error strconv err:%s", err)
+			return fmt.Errorf("error strconv for role=%s, err:%s", role, err)
 		}
 		logrus.Infof("nodeName=%s, aIf=%s, roleInt=%s", *nodeName, aIf, MetricRole(roleInt))
 
@@ -162,11 +173,11 @@ func CheckClockRoleAndOffset(ptpConfig *ptpv1.PtpConfig, label, nodeName *string
 		}
 		roleInt, err := strconv.Atoi(roleString)
 		if err != nil {
-			return fmt.Errorf("error strconv err:%s", err)
+			return fmt.Errorf("error strconv for roleString=%s, err:%s", roleString, err)
 		}
 		offsetInt, err := strconv.Atoi(offsetString)
 		if err != nil {
-			return fmt.Errorf("error strconv err:%s", err)
+			return fmt.Errorf("error strconv for offsetString=%s, err:%s", offsetString, err)
 		}
 		logrus.Infof("nodeName=%s, aIf=%s, offsetInt=%d ns, roleInt=%s", *nodeName, aIf, offsetInt, MetricRole(roleInt))
 		if MetricRole(roleInt) != MetricRoleSlave {
