@@ -3,6 +3,10 @@ kind: Namespace
 metadata:
   name: openshift-ptp
   labels:
+    security.openshift.io/scc.podSecurityLabelSync: "false"
+    pod-security.kubernetes.io/audit: "privileged"
+    pod-security.kubernetes.io/enforce: "privileged"
+    pod-security.kubernetes.io/warn: "privileged"
     name: openshift-ptp
     openshift.io/cluster-monitoring: "true"
 ---
