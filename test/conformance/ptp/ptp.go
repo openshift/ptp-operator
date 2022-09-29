@@ -17,7 +17,6 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/openshift/ptp-operator/test/utils"
 	"github.com/openshift/ptp-operator/test/utils/event"
-	"github.com/openshift/ptp-operator/test/utils/l2discovery"
 	"github.com/openshift/ptp-operator/test/utils/metrics"
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/apps/v1"
@@ -148,7 +147,7 @@ var _ = Describe("[ptp]", func() {
 				os.Exit(1)
 			}
 			if fullConfig.PtpModeDesired != testconfig.Discovery {
-				restartPtpDaemon()
+				RestartPtpDaemon()
 			}
 
 		})
@@ -223,31 +222,19 @@ var _ = Describe("[ptp]", func() {
 
 				By("Getting the NIC details of all the PTP enabled interfaces")
 
-				var mapping = make(map[string]string)
-				for _, pod := range ptpRunningPods {
-					mapping = getNICInfo(pod)
-					Expect(mapping).ShouldNot(BeEmpty())
-				}
+				ptpInterfacesList := fullConfig.L2Config.GetPtpIfList()
 
-				By("Getting the interface details of the PTP config")
-
-				ptpConfig := testconfig.GlobalConfig
-				if ptpConfig.DiscoveredGrandMasterPtpConfig != nil {
-					printInterface(ptpv1.PtpConfig(*ptpConfig.DiscoveredGrandMasterPtpConfig), mapping)
-				}
-				if ptpConfig.DiscoveredClockUnderTestPtpConfig != nil {
-					printInterface(ptpv1.PtpConfig(*ptpConfig.DiscoveredClockUnderTestPtpConfig), mapping)
-				}
-				if ptpConfig.DiscoveredClockUnderTestSecondaryPtpConfig != nil {
-					printInterface(ptpv1.PtpConfig(*ptpConfig.DiscoveredClockUnderTestSecondaryPtpConfig), mapping)
+				for _, ptpInterface := range ptpInterfacesList {
+					logrus.Infof("Interface Name: %s, Device: %s, Function: %s, Description: %s", ptpInterface.IfName, ptpInterface.IfPci.Device, ptpInterface.IfPci.Function, ptpInterface.IfPci.Description)
 				}
 
 				By("Getting ptp config details")
-
+				ptpConfig := testconfig.GlobalConfig
 				logrus.Infof("Discovered master ptp config %s", ptpConfig.DiscoveredGrandMasterPtpConfig.String())
 				logrus.Infof("Discovered slave ptp config %s", ptpConfig.DiscoveredClockUnderTestPtpConfig.String())
 			})
 		})
+
 		Context("PTP ClockSync", func() {
 			err := metrics.InitEnvIntParamConfig("MAX_OFFSET_IN_NS", metrics.MaxOffsetDefaultNs, &metrics.MaxOffsetNs)
 			err = metrics.InitEnvIntParamConfig("MIN_OFFSET_IN_NS", metrics.MinOffsetDefaultNs, &metrics.MinOffsetNs)
@@ -321,9 +308,9 @@ var _ = Describe("[ptp]", func() {
 					Skip("test only valid for Boundary clock in multi-node clusters")
 				}
 				if (fullConfig.PtpModeDiscovered == testconfig.BoundaryClock &&
-					len(fullConfig.L2Config.Solutions[l2discovery.AlgoBCWithSlaves]) == 0) ||
+					!fullConfig.FoundSolutions[testconfig.AlgoBCWithSlavesString]) ||
 					(fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock &&
-						len(fullConfig.L2Config.Solutions[l2discovery.AlgoDualNicBCWithSlaves]) == 0) {
+						!fullConfig.FoundSolutions[testconfig.AlgoDualNicBCWithSlavesString]) {
 					Skip("test only valid for Boundary clock in multi-node clusters with slaves")
 				}
 				aLabel := utils.PtpClockUnderTestNodeLabel
@@ -332,7 +319,7 @@ var _ = Describe("[ptp]", func() {
 				BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredSlave1PtpConfig), &masterIDBc1)
 
 				if fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock &&
-					len(fullConfig.L2Config.Solutions[l2discovery.AlgoDualNicBCWithSlaves]) != 0 {
+					fullConfig.FoundSolutions[testconfig.AlgoDualNicBCWithSlavesString] {
 
 					aLabel := utils.PtpClockUnderTestNodeLabel
 					masterIDBc2, err := getClockIDMaster(utils.PtpBcMaster2PolicyName, &aLabel, nil)
@@ -573,7 +560,7 @@ var _ = Describe("[ptp]", func() {
 	})
 })
 
-func restartPtpDaemon() {
+func RestartPtpDaemon() {
 	ptpPods, err := client.Client.CoreV1().Pods(utils.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
 	Expect(err).ToNot(HaveOccurred())
 	for podIndex := range ptpPods.Items {
@@ -908,41 +895,6 @@ func ptpEventEnabled() bool {
 	return ptpConfig.Spec.EventConfig.EnableEventPublisher
 }
 
-func getNICInfo(pod *v1core.Pod) map[string]string {
-	var ptpSupportedInterfaces []string = getPtpMasterSlaveAttachedInterfaces(pod)
-	var stdout bytes.Buffer
-
-	var ptpInterfaceNicMapping = make(map[string]string)
-
-	for _, interf := range ptpSupportedInterfaces {
-		PCIAddr := ""
-		var err error
-
-		Eventually(func() error {
-			stdout, err = pods.ExecCommand(client.Client, pod, utils.PtpContainerName, []string{"readlink", "-f", fmt.Sprintf("/sys/class/net/%s", interf)})
-			if err != nil {
-				return err
-			}
-
-			if stdout.String() == "" {
-				return errors.New("empty response from pod retrying")
-			}
-
-			pathSegments := strings.Split(stdout.String(), "/")
-			PCIAddr = pathSegments[5] // 0000:19:00.5
-			return nil
-		}, timeoutIn3Minutes, 5*time.Second).Should(BeNil())
-
-		if PCIAddr == "" {
-			continue
-		}
-
-		ptpInterfaceNicMapping[interf] = PCIAddr
-	}
-
-	return ptpInterfaceNicMapping
-}
-
 func getPtpOperatorVersion() (string, error) {
 
 	const releaseVersionStr = "RELEASE_VERSION"
@@ -996,17 +948,6 @@ func getOCPVersion() (string, error) {
 	logrus.Infof("OCP Version is %v", ocpVersion)
 
 	return ocpVersion, err
-}
-
-func printInterface(config ptpv1.PtpConfig, interfaceDetailsMap map[string]string) {
-	for _, profile := range config.Spec.Profile {
-		if (ptpv1.PtpProfile{}) == profile {
-			continue
-		}
-		if profile.Interface != nil {
-			logrus.Infof("profile name = %s, interface name = %s, interface details = %s", *profile.Name, *profile.Interface, interfaceDetailsMap[*profile.Interface])
-		}
-	}
 }
 
 func rebootSlaveNode(fullConfig testconfig.TestConfig) {
