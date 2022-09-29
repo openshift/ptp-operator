@@ -43,6 +43,7 @@ func TestGetDesiredConfig(t *testing.T) {
 				nil,
 				nil,
 				nil,
+				nil,
 			},
 		},
 		{
@@ -53,6 +54,7 @@ func TestGetDesiredConfig(t *testing.T) {
 				OrdinaryClock,
 				None,
 				InitStatus,
+				nil,
 				nil,
 				nil,
 				nil,
@@ -75,6 +77,7 @@ func TestGetDesiredConfig(t *testing.T) {
 				nil,
 				nil,
 				nil,
+				nil,
 			},
 		},
 		{
@@ -91,6 +94,7 @@ func TestGetDesiredConfig(t *testing.T) {
 				nil,
 				nil,
 				nil,
+				nil,
 			},
 		},
 		{
@@ -101,6 +105,7 @@ func TestGetDesiredConfig(t *testing.T) {
 				DualNICBoundaryClock,
 				None,
 				InitStatus,
+				nil,
 				nil,
 				nil,
 				nil,
@@ -124,6 +129,7 @@ func TestGetDesiredConfig(t *testing.T) {
 				nil,
 				nil,
 				nil,
+				nil,
 			},
 		},
 		{
@@ -135,6 +141,7 @@ func TestGetDesiredConfig(t *testing.T) {
 				OrdinaryClock,
 				None,
 				InitStatus,
+				nil,
 				nil,
 				nil,
 				nil,

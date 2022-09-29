@@ -17,7 +17,6 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/openshift/ptp-operator/test/utils"
 	"github.com/openshift/ptp-operator/test/utils/event"
-	"github.com/openshift/ptp-operator/test/utils/l2discovery"
 	"github.com/openshift/ptp-operator/test/utils/metrics"
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/apps/v1"
@@ -148,7 +147,7 @@ var _ = Describe("[ptp]", func() {
 				os.Exit(1)
 			}
 			if fullConfig.PtpModeDesired != testconfig.Discovery {
-				restartPtpDaemon()
+				RestartPtpDaemon()
 			}
 
 		})
@@ -321,9 +320,9 @@ var _ = Describe("[ptp]", func() {
 					Skip("test only valid for Boundary clock in multi-node clusters")
 				}
 				if (fullConfig.PtpModeDiscovered == testconfig.BoundaryClock &&
-					len(fullConfig.L2Config.Solutions[l2discovery.AlgoBCWithSlaves]) == 0) ||
+					!fullConfig.FoundSolutions[testconfig.AlgoBCWithSlavesString]) ||
 					(fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock &&
-						len(fullConfig.L2Config.Solutions[l2discovery.AlgoDualNicBCWithSlaves]) == 0) {
+						!fullConfig.FoundSolutions[testconfig.AlgoDualNicBCWithSlavesString]) {
 					Skip("test only valid for Boundary clock in multi-node clusters with slaves")
 				}
 				aLabel := utils.PtpClockUnderTestNodeLabel
@@ -332,7 +331,7 @@ var _ = Describe("[ptp]", func() {
 				BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredSlave1PtpConfig), &masterIDBc1)
 
 				if fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock &&
-					len(fullConfig.L2Config.Solutions[l2discovery.AlgoDualNicBCWithSlaves]) != 0 {
+					fullConfig.FoundSolutions[testconfig.AlgoDualNicBCWithSlavesString] {
 
 					aLabel := utils.PtpClockUnderTestNodeLabel
 					masterIDBc2, err := getClockIDMaster(utils.PtpBcMaster2PolicyName, &aLabel, nil)
@@ -573,7 +572,7 @@ var _ = Describe("[ptp]", func() {
 	})
 })
 
-func restartPtpDaemon() {
+func RestartPtpDaemon() {
 	ptpPods, err := client.Client.CoreV1().Pods(utils.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
 	Expect(err).ToNot(HaveOccurred())
 	for podIndex := range ptpPods.Items {
