@@ -222,27 +222,14 @@ var _ = Describe("[ptp]", func() {
 
 				By("Getting the NIC details of all the PTP enabled interfaces")
 
-				var mapping = make(map[string]string)
-				for _, pod := range ptpRunningPods {
-					mapping = getNICInfo(pod)
-					Expect(mapping).ShouldNot(BeEmpty())
-				}
+				ptpInterfacesList := fullConfig.L2Config.GetPtpIfList()
 
-				By("Getting the interface details of the PTP config")
-
-				ptpConfig := testconfig.GlobalConfig
-				if ptpConfig.DiscoveredGrandMasterPtpConfig != nil {
-					printInterface(ptpv1.PtpConfig(*ptpConfig.DiscoveredGrandMasterPtpConfig), mapping)
-				}
-				if ptpConfig.DiscoveredClockUnderTestPtpConfig != nil {
-					printInterface(ptpv1.PtpConfig(*ptpConfig.DiscoveredClockUnderTestPtpConfig), mapping)
-				}
-				if ptpConfig.DiscoveredClockUnderTestSecondaryPtpConfig != nil {
-					printInterface(ptpv1.PtpConfig(*ptpConfig.DiscoveredClockUnderTestSecondaryPtpConfig), mapping)
+				for _, ptpInterface := range ptpInterfacesList {
+					logrus.Infof("Interface Name: %s, Device: %s, Function: %s, Description: %s", ptpInterface.IfName, ptpInterface.IfPci.Device, ptpInterface.IfPci.Function, ptpInterface.IfPci.Description)
 				}
 
 				By("Getting ptp config details")
-
+				ptpConfig := testconfig.GlobalConfig
 				logrus.Infof("Discovered master ptp config %s", ptpConfig.DiscoveredGrandMasterPtpConfig.String())
 				logrus.Infof("Discovered slave ptp config %s", ptpConfig.DiscoveredClockUnderTestPtpConfig.String())
 			})
@@ -907,41 +894,6 @@ func ptpEventEnabled() bool {
 	return ptpConfig.Spec.EventConfig.EnableEventPublisher
 }
 
-func getNICInfo(pod *v1core.Pod) map[string]string {
-	var ptpSupportedInterfaces []string = getPtpMasterSlaveAttachedInterfaces(pod)
-	var stdout bytes.Buffer
-
-	var ptpInterfaceNicMapping = make(map[string]string)
-
-	for _, interf := range ptpSupportedInterfaces {
-		PCIAddr := ""
-		var err error
-
-		Eventually(func() error {
-			stdout, err = pods.ExecCommand(client.Client, pod, utils.PtpContainerName, []string{"readlink", "-f", fmt.Sprintf("/sys/class/net/%s", interf)})
-			if err != nil {
-				return err
-			}
-
-			if stdout.String() == "" {
-				return errors.New("empty response from pod retrying")
-			}
-
-			pathSegments := strings.Split(stdout.String(), "/")
-			PCIAddr = pathSegments[5] // 0000:19:00.5
-			return nil
-		}, timeoutIn3Minutes, 5*time.Second).Should(BeNil())
-
-		if PCIAddr == "" {
-			continue
-		}
-
-		ptpInterfaceNicMapping[interf] = PCIAddr
-	}
-
-	return ptpInterfaceNicMapping
-}
-
 func getPtpOperatorVersion() (string, error) {
 
 	const releaseVersionStr = "RELEASE_VERSION"
@@ -995,17 +947,6 @@ func getOCPVersion() (string, error) {
 	logrus.Infof("OCP Version is %v", ocpVersion)
 
 	return ocpVersion, err
-}
-
-func printInterface(config ptpv1.PtpConfig, interfaceDetailsMap map[string]string) {
-	for _, profile := range config.Spec.Profile {
-		if (ptpv1.PtpProfile{}) == profile {
-			continue
-		}
-		if profile.Interface != nil {
-			logrus.Infof("profile name = %s, interface name = %s, interface details = %s", *profile.Name, *profile.Interface, interfaceDetailsMap[*profile.Interface])
-		}
-	}
 }
 
 func rebootSlaveNode(fullConfig testconfig.TestConfig) {

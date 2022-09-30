@@ -369,10 +369,10 @@ github.com/test-network-function/graphsolver-exports v0.0.0-20220909223441-46e11
 github.com/test-network-function/graphsolver-exports v0.0.0-20220909223441-46e11b864674/go.mod h1:KFaKYEY+hJOfWCw8zPKgQz0pZFNm9A1ExOSRkE5MuQM=
 github.com/test-network-function/graphsolver-lib v0.0.0-20220923161551-922faf8697be h1:pxtaM2cb3WPmjkdTzeDI2E81GfTySKQiq0mAb6X/UUM=
 github.com/test-network-function/graphsolver-lib v0.0.0-20220923161551-922faf8697be/go.mod h1:KogjV2yxsmCOhgmlpfIq64X0jHtxUpvFhstBmp1zqXQ=
-github.com/test-network-function/l2discovery-exports v0.0.0-20220926190927-5f72a82c96d4 h1:j9+gxKhtniE/BML+3p+CIlUHqQc+/6OmF0BVE+C5fOw=
-github.com/test-network-function/l2discovery-exports v0.0.0-20220926190927-5f72a82c96d4/go.mod h1:LXzJLrM5Ao0j4pN/HnlYrBQDpO3TCtlfiK4HmRk2ps8=
-github.com/test-network-function/l2discovery-lib v0.0.0-20220926221213-6b4259df4506 h1:ZiKbDzcYh5DoBT45A0HJbcrmVhvIEgR2ToGg5LvZPrc=
-github.com/test-network-function/l2discovery-lib v0.0.0-20220926221213-6b4259df4506/go.mod h1:wzusp8TlifnXSMyRccosoyV8o2dr0gM0Gti3dlZKi6Q=
+github.com/test-network-function/l2discovery-exports v0.0.0-20220929081721-4e9a42510716 h1:BtDYu0HufnnH/V3jaTVtGoa7Ku4+CtGULIgIjomvoPg=
+github.com/test-network-function/l2discovery-exports v0.0.0-20220929081721-4e9a42510716/go.mod h1:LXzJLrM5Ao0j4pN/HnlYrBQDpO3TCtlfiK4HmRk2ps8=
+github.com/test-network-function/l2discovery-lib v0.0.0-20220929174146-11627aded0a2 h1:HuCjobhW1ulAJ6MVYTdTj5Rf+pTSZEhVureiGDO5/iA=
+github.com/test-network-function/l2discovery-lib v0.0.0-20220929174146-11627aded0a2/go.mod h1:wzusp8TlifnXSMyRccosoyV8o2dr0gM0Gti3dlZKi6Q=
 github.com/test-network-function/privileged-daemonset v0.0.0-20220923160818-f61f26ba4b41 h1:nbTi4bx/eHsrgqxeOgvORH0A15VPJNIR1cT9rdSLvd8=
 github.com/test-network-function/privileged-daemonset v0.0.0-20220923160818-f61f26ba4b41/go.mod h1:CuyN/5N/yKavCQ8Ba0K52Mv/YbtVSN4Snk5tBaLJR68=
 github.com/yourbasic/graph v0.0.0-20210606180040-8ecfec1c2869 h1:7v7L5lsfw4w8iqBBXETukHo4IPltmD+mWoLRYUmeGN8=
