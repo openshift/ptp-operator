@@ -134,7 +134,7 @@ func (config *L2DiscoveryConfig) GetL2DiscoveryConfig(ptpInterfacesOnly bool) (L
 		err := GlobalL2DiscoveryConfig.DiscoverL2Connectivity(ptpInterfacesOnly)
 		if err != nil {
 			GlobalL2DiscoveryConfig.refresh = false
-			return config, fmt.Errorf("could not get L2 config")
+			return nil, fmt.Errorf("failed to discover L2 connectivity: %w", err)
 		}
 	}
 	GlobalL2DiscoveryConfig.refresh = false

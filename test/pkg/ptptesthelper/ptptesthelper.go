@@ -85,7 +85,13 @@ func BasicClockSyncCheck(fullConfig testconfig.TestConfig, ptpConfig *ptpv1.PtpC
 	}
 
 	label, err := ptphelper.GetLabel(ptpConfig)
+	if err != nil {
+		logrus.Debugf("could not get label because of err: %s", err)
+	}
 	nodeName, err := ptphelper.GetFirstNode(ptpConfig)
+	if err != nil {
+		logrus.Debugf("could not get nodeName because of err: %s", err)
+	}
 	slaveMaster, err := ptphelper.GetClockIDForeign(profileName, label, nodeName)
 	if errProfile == nil {
 		if fullConfig.PtpModeDesired == testconfig.Discovery {
