@@ -245,7 +245,6 @@ func extractSummaryMetrics(configName, processName, output string) (iface string
 	// 0                1            2     3 4      5  6    7      8    9  10     11
 	//ptp4l.0.config CLOCK_REALTIME rms   31 max   31 freq -77331 +/-   0 delay  1233 +/-   0
 	if len(fields) < 8 {
-		glog.Errorf("%s failed to parse output %s: unexpected number of fields", processName, output)
 		return
 	}
 
