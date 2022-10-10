@@ -180,7 +180,7 @@ github.com/onsi/ginkgo/reporters/stenographer
 github.com/onsi/ginkgo/reporters/stenographer/support/go-colorable
 github.com/onsi/ginkgo/reporters/stenographer/support/go-isatty
 github.com/onsi/ginkgo/types
-# github.com/onsi/gomega v1.20.2
+# github.com/onsi/gomega v1.22.1
 ## explicit; go 1.18
 github.com/onsi/gomega
 github.com/onsi/gomega/format
@@ -201,7 +201,7 @@ github.com/openshift/client-go/config/applyconfigurations/config/v1
 github.com/openshift/client-go/config/applyconfigurations/internal
 github.com/openshift/client-go/config/clientset/versioned/scheme
 github.com/openshift/client-go/config/clientset/versioned/typed/config/v1
-# github.com/openshift/library-go v0.0.0-20220922140741-7772048e4447
+# github.com/openshift/library-go v0.0.0-20221011111038-5f521a3b6124
 ## explicit; go 1.18
 github.com/openshift/library-go/pkg/config/clusterstatus
 github.com/openshift/library-go/pkg/config/leaderelection
@@ -236,18 +236,18 @@ github.com/spf13/pflag
 # github.com/test-network-function/graphsolver-exports v0.0.0-20220909223441-46e11b864674
 ## explicit; go 1.18
 github.com/test-network-function/graphsolver-exports
-# github.com/test-network-function/graphsolver-lib v0.0.0-20220923161551-922faf8697be
+# github.com/test-network-function/graphsolver-lib v0.0.0-20220923194309-2492312b0d54
 ## explicit; go 1.19
 github.com/test-network-function/graphsolver-lib
 # github.com/test-network-function/l2discovery-exports v0.0.0-20220929081721-4e9a42510716
 ## explicit; go 1.19
 github.com/test-network-function/l2discovery-exports
-# github.com/test-network-function/l2discovery-lib v0.0.0-20220929174146-11627aded0a2
+# github.com/test-network-function/l2discovery-lib v0.0.0-20221013192645-73dfe1e00be5
 ## explicit; go 1.19
 github.com/test-network-function/l2discovery-lib
 github.com/test-network-function/l2discovery-lib/pkg/l2client
 github.com/test-network-function/l2discovery-lib/pkg/pods
-# github.com/test-network-function/privileged-daemonset v0.0.0-20220923160818-f61f26ba4b41
+# github.com/test-network-function/privileged-daemonset v0.0.0-20221007131241-54f0523bd810
 ## explicit; go 1.19
 github.com/test-network-function/privileged-daemonset
 # github.com/yourbasic/graph v0.0.0-20210606180040-8ecfec1c2869
@@ -708,7 +708,7 @@ k8s.io/kube-openapi/pkg/schemamutation
 k8s.io/kube-openapi/pkg/spec3
 k8s.io/kube-openapi/pkg/util/proto
 k8s.io/kube-openapi/pkg/validation/spec
-# k8s.io/utils v0.0.0-20220922133306-665eaaec4324
+# k8s.io/utils v0.0.0-20221012122500-cfd413dd9e85
 ## explicit; go 1.18
 k8s.io/utils/buffer
 k8s.io/utils/clock
