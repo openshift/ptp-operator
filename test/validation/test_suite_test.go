@@ -8,7 +8,7 @@ import (
 	"github.com/onsi/ginkgo/reporters"
 	. "github.com/onsi/gomega"
 
-	testclient "github.com/openshift/ptp-operator/test/utils/client"
+	testclient "github.com/openshift/ptp-operator/test/pkg/client"
 	_ "github.com/openshift/ptp-operator/test/validation/tests"
 )
 

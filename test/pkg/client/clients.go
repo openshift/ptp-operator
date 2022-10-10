@@ -11,8 +11,8 @@ import (
 	discovery "k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes/scheme"
 	appsv1client "k8s.io/client-go/kubernetes/typed/apps/v1"
+	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	networkv1client "k8s.io/client-go/kubernetes/typed/networking/v1"
-
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -38,6 +38,11 @@ type ClientSet struct {
 	ptpv1.PtpV1Interface
 	Config    *rest.Config
 	OcpClient clientconfigv1.ConfigV1Interface
+	corev1client.CoreV1Interface
+}
+
+func Setup() *ClientSet {
+	return New("")
 }
 
 // New returns a *ClientBuilder with the given kubeconfig.
@@ -63,6 +68,7 @@ func New(kubeconfig string) *ClientSet {
 	}
 
 	clientSet := &ClientSet{}
+	clientSet.CoreV1Interface = corev1client.NewForConfigOrDie(config)
 	clientSet.Interface = kubernetes.NewForConfigOrDie(config)
 	clientSet.AppsV1Interface = appsv1client.NewForConfigOrDie(config)
 	clientSet.DiscoveryInterface = discovery.NewDiscoveryClientForConfigOrDie(config)

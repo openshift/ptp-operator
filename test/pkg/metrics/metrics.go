@@ -9,9 +9,9 @@ import (
 	"strings"
 
 	ptpv1 "github.com/openshift/ptp-operator/api/v1"
-	"github.com/openshift/ptp-operator/test/utils"
-	"github.com/openshift/ptp-operator/test/utils/client"
-	"github.com/openshift/ptp-operator/test/utils/pods"
+	"github.com/openshift/ptp-operator/test/pkg"
+	"github.com/openshift/ptp-operator/test/pkg/client"
+	"github.com/openshift/ptp-operator/test/pkg/pods"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -70,7 +70,7 @@ func getMetric(nodeName, aIf, metricName string) (metric string, err error) {
 	const (
 		fromMaster = `from="master",`
 	)
-	ptpPods, err := client.Client.CoreV1().Pods(utils.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
+	ptpPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
 	if err != nil {
 		return metric, err
 	}
@@ -106,7 +106,7 @@ func getMetric(nodeName, aIf, metricName string) (metric string, err error) {
 
 // gets a node name based on a label
 func getNode(label string) (nodeName string, err error) {
-	ptpPods, err := client.Client.CoreV1().Pods(utils.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
+	ptpPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
 	if err != nil {
 		return nodeName, err
 	}
@@ -134,12 +134,12 @@ func CheckClockRoleAndOffset(ptpConfig *ptpv1.PtpConfig, label, nodeName *string
 		if err != nil ||
 			name == "" ||
 			label == nil ||
-			(*label != utils.PtpClockUnderTestNodeLabel &&
-				*label != utils.PtpSlave1NodeLabel &&
-				*label != utils.PtpSlave2NodeLabel) {
+			(*label != pkg.PtpClockUnderTestNodeLabel &&
+				*label != pkg.PtpSlave1NodeLabel &&
+				*label != pkg.PtpSlave2NodeLabel) {
 			fmt.Printf(`error getting node name for label %s
 Did you label the node running the clock under test with the %s label?
-Only this label should be used to identify the clock under test. err:%s`, *label, utils.PtpClockUnderTestNodeLabel, err)
+Only this label should be used to identify the clock under test. err:%s`, *label, pkg.PtpClockUnderTestNodeLabel, err)
 			os.Exit(1)
 		}
 		nodeName = &name
@@ -188,44 +188,6 @@ Only this label should be used to identify the clock under test. err:%s`, *label
 		}
 	}
 	return nil
-}
-
-// Gets the first label configured in the ptpconfig->spec->recommend
-func GetLabel(ptpConfig *ptpv1.PtpConfig) (*string, error) {
-	for _, r := range ptpConfig.Spec.Recommend {
-		for _, m := range r.Match {
-			if m.NodeLabel == nil {
-				continue
-			}
-			aLabel := ""
-			switch *m.NodeLabel {
-			case utils.PtpClockUnderTestNodeLabel:
-				aLabel = utils.PtpClockUnderTestNodeLabel
-			case utils.PtpGrandmasterNodeLabel:
-				aLabel = utils.PtpGrandmasterNodeLabel
-			case utils.PtpSlave1NodeLabel:
-				aLabel = utils.PtpSlave1NodeLabel
-			case utils.PtpSlave2NodeLabel:
-				aLabel = utils.PtpSlave2NodeLabel
-			}
-			return &aLabel, nil
-		}
-	}
-	return nil, fmt.Errorf("label not found")
-}
-
-// gets the first nodename configured in the ptpconfig->spec->recommend
-func GetFirstNode(ptpConfig *ptpv1.PtpConfig) (*string, error) {
-	for _, r := range ptpConfig.Spec.Recommend {
-		for _, m := range r.Match {
-			if m.NodeName == nil {
-				continue
-			}
-			return m.NodeName, nil
-
-		}
-	}
-	return nil, fmt.Errorf("nodeName not found")
 }
 
 // gets the user configured maximum offset in nanoseconds

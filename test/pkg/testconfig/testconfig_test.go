@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	ptpv1 "github.com/openshift/ptp-operator/api/v1"
-	"github.com/openshift/ptp-operator/test/utils"
-	testclient "github.com/openshift/ptp-operator/test/utils/client"
+	"github.com/openshift/ptp-operator/test/pkg"
+	testclient "github.com/openshift/ptp-operator/test/pkg/client"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -44,6 +44,7 @@ func TestGetDesiredConfig(t *testing.T) {
 				nil,
 				nil,
 				nil,
+				nil,
 			},
 		},
 		{
@@ -54,6 +55,7 @@ func TestGetDesiredConfig(t *testing.T) {
 				OrdinaryClock,
 				None,
 				InitStatus,
+				nil,
 				nil,
 				nil,
 				nil,
@@ -78,6 +80,7 @@ func TestGetDesiredConfig(t *testing.T) {
 				nil,
 				nil,
 				nil,
+				nil,
 			},
 		},
 		{
@@ -95,6 +98,7 @@ func TestGetDesiredConfig(t *testing.T) {
 				nil,
 				nil,
 				nil,
+				nil,
 			},
 		},
 		{
@@ -105,6 +109,7 @@ func TestGetDesiredConfig(t *testing.T) {
 				DualNICBoundaryClock,
 				None,
 				InitStatus,
+				nil,
 				nil,
 				nil,
 				nil,
@@ -130,6 +135,7 @@ func TestGetDesiredConfig(t *testing.T) {
 				nil,
 				nil,
 				nil,
+				nil,
 			},
 		},
 		{
@@ -141,6 +147,7 @@ func TestGetDesiredConfig(t *testing.T) {
 				OrdinaryClock,
 				None,
 				InitStatus,
+				nil,
 				nil,
 				nil,
 				nil,
@@ -225,7 +232,7 @@ func TestGetFullDiscoveredConfig(t *testing.T) {
 }
 func mockPtpConfig(name, namespace string, role ptpv1.PtpRole, mode PTPMode) *ptpv1.PtpConfig {
 	// Label
-	aLabel := utils.PtpClockUnderTestNodeLabel
+	aLabel := pkg.PtpClockUnderTestNodeLabel
 	// Match rule
 	aMatchRule := ptpv1.MatchRule{}
 	aMatchRule.NodeLabel = &aLabel
@@ -293,7 +300,7 @@ func mockNode(name string) *corev1.Node {
 	aNode := corev1.Node{}
 	aNode.Name = name
 	aNode.Labels = make(map[string]string)
-	aNode.Labels[utils.PtpClockUnderTestNodeLabel] = ""
+	aNode.Labels[pkg.PtpClockUnderTestNodeLabel] = ""
 	return &aNode
 }
 func GeneratePTPObjects(mode PTPMode) {

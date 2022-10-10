@@ -1,4 +1,6 @@
-package utils
+package pkg
+
+import "time"
 
 const (
 	// NamespaceTesting contains the name of the testing namespace
@@ -33,6 +35,20 @@ const (
 	PtpClockUnderTestNodeLabel = "ptp/clock-under-test"
 	PtpSlave1NodeLabel         = "ptp/test-slave1"
 	PtpSlave2NodeLabel         = "ptp/test-slave2"
+	TimeoutIn3Minutes          = 3 * time.Minute
+	TimeoutIn5Minutes          = 5 * time.Minute
+	TimeoutIn10Minutes         = 10 * time.Minute
+	Timeout10Seconds           = 10 * time.Second
+
+	MasterOffsetLowerBound  = -100
+	MasterOffsetHigherBound = 100
+
+	MetricsEndPoint       = "127.0.0.1:9091/metrics"
+	PtpConfigOperatorName = "default"
+
+	RebootDaemonSetNamespace     = "default"
+	RebootDaemonSetName          = "ptp-reboot"
+	RebootDaemonSetContainerName = "container-00"
 )
 
 const (
