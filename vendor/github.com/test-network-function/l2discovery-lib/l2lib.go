@@ -48,7 +48,7 @@ const (
 	L2DiscoveryContainerName       = "l2discovery"
 	timeoutDaemon                  = time.Second * 60
 	L2DiscoveryDuration            = time.Second * 15
-	l2DiscoveryImage               = "quay.io/testnetworkfunction/l2discovery:v4"
+	l2DiscoveryImage               = "quay.io/testnetworkfunction/l2discovery:v5"
 )
 
 type L2DaemonsetMode int64

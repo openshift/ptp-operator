@@ -239,10 +239,10 @@ github.com/test-network-function/graphsolver-exports
 # github.com/test-network-function/graphsolver-lib v0.0.0-20220923161551-922faf8697be
 ## explicit; go 1.19
 github.com/test-network-function/graphsolver-lib
-# github.com/test-network-function/l2discovery-exports v0.0.0-20220926190927-5f72a82c96d4
+# github.com/test-network-function/l2discovery-exports v0.0.0-20220929081721-4e9a42510716
 ## explicit; go 1.19
 github.com/test-network-function/l2discovery-exports
-# github.com/test-network-function/l2discovery-lib v0.0.0-20220926221213-6b4259df4506
+# github.com/test-network-function/l2discovery-lib v0.0.0-20220929174146-11627aded0a2
 ## explicit; go 1.19
 github.com/test-network-function/l2discovery-lib
 github.com/test-network-function/l2discovery-lib/pkg/l2client
