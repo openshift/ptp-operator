@@ -15,9 +15,9 @@ import (
 	"github.com/sirupsen/logrus"
 
 	_ "github.com/openshift/ptp-operator/test/conformance/ptp"
-	"github.com/openshift/ptp-operator/test/utils/clean"
-	testclient "github.com/openshift/ptp-operator/test/utils/client"
-	"github.com/openshift/ptp-operator/test/utils/testconfig"
+	"github.com/openshift/ptp-operator/test/pkg/clean"
+	testclient "github.com/openshift/ptp-operator/test/pkg/client"
+	"github.com/openshift/ptp-operator/test/pkg/testconfig"
 )
 
 // TODO: we should refactor tests to use client from controller-runtime package

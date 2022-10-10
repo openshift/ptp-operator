@@ -12,8 +12,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	goclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	testutils "github.com/openshift/ptp-operator/test/utils"
-	testclient "github.com/openshift/ptp-operator/test/utils/client"
+	testutils "github.com/openshift/ptp-operator/test/pkg"
+	testclient "github.com/openshift/ptp-operator/test/pkg/client"
 )
 
 var _ = Describe("validation", func() {
