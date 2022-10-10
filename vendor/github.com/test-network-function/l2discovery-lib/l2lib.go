@@ -173,7 +173,7 @@ func (config *L2DiscoveryConfig) DiscoverL2Connectivity(ptpInterfacesOnly bool) 
 	if err != nil {
 		return fmt.Errorf("could not get l2 discovery pods, err=%s", err)
 	}
-	err = config.getL2Disc()
+	err = config.getL2Disc(ptpInterfacesOnly)
 	if err != nil {
 		logrus.Errorf("error getting l2 discovery data, err=%s", err)
 	}
@@ -208,7 +208,7 @@ func (config *L2DiscoveryConfig) PrintAllNICs() {
 }
 
 // Gets the latest topology reports from the l2discovery pods
-func (config *L2DiscoveryConfig) getL2Disc() error {
+func (config *L2DiscoveryConfig) getL2Disc(ptpInterfacesOnly bool) error {
 	config.DiscoveryMap = make(map[string]map[string]map[string]*l2.Neighbors)
 	index := 0
 	for _, aPod := range config.L2DiscoveryPods {
@@ -225,7 +225,7 @@ func (config *L2DiscoveryConfig) getL2Disc() error {
 		}
 		config.DiscoveryMap[aPod.Spec.NodeName] = discDataPerNode
 
-		config.createMaps(discDataPerNode, aPod.Spec.NodeName, &index)
+		config.createMaps(discDataPerNode, aPod.Spec.NodeName, &index, ptpInterfacesOnly)
 	}
 	config.MaxL2GraphSize = index
 	return nil
@@ -237,19 +237,20 @@ func (config *L2DiscoveryConfig) createL2InternalGraph(ptpInterfacesOnly bool) e
 	for _, aPod := range config.L2DiscoveryPods {
 		for iface, ifaceMap := range config.DiscoveryMap[aPod.Spec.NodeName][ExperimentalEthertype] {
 			for mac := range ifaceMap.Remote {
-				v := config.ClusterIndexToInt[l2.IfClusterIndex{InterfaceName: iface, NodeName: aPod.Spec.NodeName}]
-				w := config.ClusterMacToInt[mac]
-
-				if ptpInterfacesOnly &&
-					(!config.PtpIfList[v].IfPTPCaps.HwRx ||
-						!config.PtpIfList[v].IfPTPCaps.HwTx ||
-						!config.PtpIfList[v].IfPTPCaps.HwRawClock ||
-						!config.PtpIfList[w].IfPTPCaps.HwRx ||
-						!config.PtpIfList[w].IfPTPCaps.HwTx ||
-						!config.PtpIfList[w].IfPTPCaps.HwRawClock) {
-					continue
+				if v, ok := config.ClusterIndexToInt[l2.IfClusterIndex{InterfaceName: iface, NodeName: aPod.Spec.NodeName}]; ok {
+					if w, ok := config.ClusterMacToInt[mac]; ok {
+						if ptpInterfacesOnly &&
+							(!config.PtpIfList[v].IfPTPCaps.HwRx ||
+								!config.PtpIfList[v].IfPTPCaps.HwTx ||
+								!config.PtpIfList[v].IfPTPCaps.HwRawClock ||
+								!config.PtpIfList[w].IfPTPCaps.HwRx ||
+								!config.PtpIfList[w].IfPTPCaps.HwTx ||
+								!config.PtpIfList[w].IfPTPCaps.HwRawClock) {
+							continue
+						}
+						config.L2ConnectivityMap.AddBoth(v, w)
+					}
 				}
-				config.L2ConnectivityMap.AddBoth(v, w)
 			}
 		}
 	}
@@ -264,15 +265,23 @@ func (config *L2DiscoveryConfig) createL2InternalGraph(ptpInterfacesOnly bool) e
 }
 
 // Gets the grandmaster port by using L2 discovery data for ptp ethertype
-func (config *L2DiscoveryConfig) getInterfacesReceivingPTP() {
+func (config *L2DiscoveryConfig) getInterfacesReceivingPTP(ptpInterfacesOnly bool) {
 	for _, aPod := range config.L2DiscoveryPods {
 		for _, ifaceMap := range config.DiscoveryMap[aPod.Spec.NodeName][PtpEthertype] {
 			if len(ifaceMap.Remote) == 0 {
 				continue
 			}
 			aPortGettingPTP := &l2.PtpIf{}
-			aPortGettingPTP.IfName = ifaceMap.Local.IfName
+			aPortGettingPTP.Iface = ifaceMap.Local
 			aPortGettingPTP.NodeName = aPod.Spec.NodeName
+			aPortGettingPTP.InterfaceName = aPortGettingPTP.Iface.IfName
+
+			if ptpInterfacesOnly &&
+				(!aPortGettingPTP.IfPTPCaps.HwRx ||
+					!aPortGettingPTP.IfPTPCaps.HwTx ||
+					!aPortGettingPTP.IfPTPCaps.HwRawClock) {
+				continue
+			}
 			config.PortsGettingPTP = append(config.PortsGettingPTP, aPortGettingPTP)
 		}
 	}
@@ -280,26 +289,36 @@ func (config *L2DiscoveryConfig) getInterfacesReceivingPTP() {
 }
 
 // Creates Mapping tables between interfaces index, mac address, and graph integer indexes
-func (config *L2DiscoveryConfig) createMaps(disc map[string]map[string]*l2.Neighbors, nodeName string, index *int) {
-	config.updateMaps(disc, nodeName, index, ExperimentalEthertype)
-	config.updateMaps(disc, nodeName, index, LocalInterfaces)
-	config.getInterfacesReceivingPTP()
+func (config *L2DiscoveryConfig) createMaps(disc map[string]map[string]*l2.Neighbors, nodeName string, index *int, ptpInterfacesOnly bool) {
+	config.updateMaps(disc, nodeName, index, ExperimentalEthertype, ptpInterfacesOnly)
+	config.updateMaps(disc, nodeName, index, LocalInterfaces, ptpInterfacesOnly)
+	config.getInterfacesReceivingPTP(ptpInterfacesOnly)
 }
 
 // updates Mapping tables between interfaces index, mac address, and graph integer indexes for a given ethertype
-func (config *L2DiscoveryConfig) updateMaps(disc map[string]map[string]*l2.Neighbors, nodeName string, index *int, ethertype string) {
+func (config *L2DiscoveryConfig) updateMaps(disc map[string]map[string]*l2.Neighbors, nodeName string, index *int, ethertype string, ptpInterfacesOnly bool) {
 	for _, ifaceData := range disc[ethertype] {
 		if _, ok := config.ClusterMacToInt[ifaceData.Local.IfMac.Data]; ok {
 			continue
 		}
-		config.ClusterMacToInt[ifaceData.Local.IfMac.Data] = *index
-		config.ClusterIndexToInt[l2.IfClusterIndex{InterfaceName: ifaceData.Local.IfName, NodeName: nodeName}] = *index
-		config.ClusterMacs[l2.IfClusterIndex{InterfaceName: ifaceData.Local.IfName, NodeName: nodeName}] = ifaceData.Local.IfMac.Data
-		config.ClusterIndexes[ifaceData.Local.IfMac.Data] = l2.IfClusterIndex{InterfaceName: ifaceData.Local.IfName, NodeName: nodeName}
+
 		aInterface := l2.PtpIf{}
 		aInterface.NodeName = nodeName
 		aInterface.InterfaceName = ifaceData.Local.IfName
 		aInterface.Iface = ifaceData.Local
+
+		if ptpInterfacesOnly &&
+			(!aInterface.IfPTPCaps.HwRx ||
+				!aInterface.IfPTPCaps.HwTx ||
+				!aInterface.IfPTPCaps.HwRawClock) {
+			continue
+		}
+		// create maps
+		config.ClusterMacToInt[ifaceData.Local.IfMac.Data] = *index
+		config.ClusterIndexToInt[l2.IfClusterIndex{InterfaceName: ifaceData.Local.IfName, NodeName: nodeName}] = *index
+		config.ClusterMacs[l2.IfClusterIndex{InterfaceName: ifaceData.Local.IfName, NodeName: nodeName}] = ifaceData.Local.IfMac.Data
+		config.ClusterIndexes[ifaceData.Local.IfMac.Data] = l2.IfClusterIndex{InterfaceName: ifaceData.Local.IfName, NodeName: nodeName}
+
 		config.PtpIfList = append(config.PtpIfList, &aInterface)
 		(*index)++
 	}
