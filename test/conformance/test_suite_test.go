@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	. "github.com/onsi/ginkgo"
-	"github.com/onsi/ginkgo/reporters"
 	. "github.com/onsi/gomega"
 	"github.com/sirupsen/logrus"
 
@@ -18,6 +17,8 @@ import (
 	"github.com/openshift/ptp-operator/test/pkg/clean"
 	testclient "github.com/openshift/ptp-operator/test/pkg/client"
 	"github.com/openshift/ptp-operator/test/pkg/testconfig"
+
+	ptpReporter "github.com/openshift/ptp-operator/test/pkg/ginkgo_reporter"
 )
 
 // TODO: we should refactor tests to use client from controller-runtime package
@@ -42,7 +43,9 @@ func TestTest(t *testing.T) {
 
 	rr := []Reporter{}
 	if junitPath != nil {
-		rr = append(rr, reporters.NewJUnitReporter(*junitPath))
+		// TODO: This custom ptp reporter won't be needed when this project has been
+		//       migrated to ginkgo v2, as we will use v2's AddReportEntry() instead.
+		rr = append(rr, ptpReporter.NewPTPJUnitReporter(*junitPath))
 	}
 	InitDeletePtpConfig()
 	RunSpecsWithDefaultAndCustomReporters(t, "PTP e2e integration tests", rr)
