@@ -212,6 +212,10 @@ catalog-push: ## Push a catalog image.
 
 # custom
 deps-update:
+	go get github.com/test-network-function/l2discovery-lib && \
+	go get github.com/test-network-function/l2discovery-exports && \
+	go get github.com/test-network-function/graphsolver-lib && \
+	go get github.com/test-network-function/graphsolver-exports && \
 	go mod tidy && \
 	go mod vendor
 
