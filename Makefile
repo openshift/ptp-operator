@@ -160,6 +160,9 @@ bundle: operator-sdk manifests kustomize
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle -q --overwrite --version $(VERSION).0 $(BUNDLE_METADATA_OPTS) --extra-service-accounts "linuxptp-daemon"
 	$(OPERATOR_SDK) bundle validate ./bundle
+	# Use double quotes in values of olm.skipRange to match the expected regexp in art.yaml
+	find . -type f -name "*.clusterserviceversion.yaml" -print0 | xargs -0 sed -i '/olm.skipRange:/s#'\''#"#g'
+
 
 .PHONY: bundle-build ## Build the bundle image.
 bundle-build:
