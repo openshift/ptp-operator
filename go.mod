@@ -7,21 +7,21 @@ require (
 	github.com/go-logr/logr v1.2.3
 	github.com/golang/glog v1.0.0
 	github.com/onsi/ginkgo v1.16.5
-	github.com/onsi/gomega v1.20.2
+	github.com/onsi/gomega v1.22.1
 	github.com/openshift/api v0.0.0-20220831183848-09c070622e2c
 	github.com/openshift/client-go v0.0.0-20220831193253-4950ae70c8ea
-	github.com/openshift/library-go v0.0.0-20220922140741-7772048e4447
+	github.com/openshift/library-go v0.0.0-20221011111038-5f521a3b6124
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.0
-	github.com/test-network-function/graphsolver-lib v0.0.0-20220923161551-922faf8697be
-	github.com/test-network-function/l2discovery-lib v0.0.0-20220929174146-11627aded0a2
-	github.com/test-network-function/privileged-daemonset v0.0.0-20220923160818-f61f26ba4b41
+	github.com/test-network-function/graphsolver-lib v0.0.0-20220923194309-2492312b0d54
+	github.com/test-network-function/l2discovery-lib v0.0.0-20221013192645-73dfe1e00be5
+	github.com/test-network-function/privileged-daemonset v0.0.0-20221007131241-54f0523bd810
 	k8s.io/api v0.25.2
 	k8s.io/apiextensions-apiserver v0.25.2
 	k8s.io/apimachinery v0.25.2
 	k8s.io/client-go v0.25.2
 	k8s.io/klog v1.0.0
-	k8s.io/utils v0.0.0-20220922133306-665eaaec4324
+	k8s.io/utils v0.0.0-20221012122500-cfd413dd9e85
 	sigs.k8s.io/controller-runtime v0.13.0
 )
 

@@ -9,13 +9,15 @@ import (
 	"context"
 
 	ptpv1 "github.com/openshift/ptp-operator/api/v1"
-	"github.com/openshift/ptp-operator/test/utils"
-	"github.com/openshift/ptp-operator/test/utils/clean"
-	"github.com/openshift/ptp-operator/test/utils/client"
-	"github.com/openshift/ptp-operator/test/utils/nodes"
+	"github.com/openshift/ptp-operator/test/pkg"
+	"github.com/openshift/ptp-operator/test/pkg/clean"
+	"github.com/openshift/ptp-operator/test/pkg/client"
+	"github.com/openshift/ptp-operator/test/pkg/nodes"
+	"github.com/openshift/ptp-operator/test/pkg/ptphelper"
 	"github.com/sirupsen/logrus"
 	solver "github.com/test-network-function/graphsolver-lib"
 	l2lib "github.com/test-network-function/l2discovery-lib"
+	v1core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 )
@@ -94,8 +96,9 @@ type TestConfig struct {
 	DiscoveredSlave2PtpConfig,
 	DiscoveredClockUnderTestPtpConfig,
 	DiscoveredClockUnderTestSecondaryPtpConfig *ptpDiscoveryRes
-	L2Config       l2lib.L2Info
-	FoundSolutions map[string]bool
+	DiscoveredClockUnderTestPod *v1core.Pod
+	L2Config                    l2lib.L2Info
+	FoundSolutions              map[string]bool
 }
 type solverData struct {
 	// Mapping between clock role and port depending on the algo
@@ -287,24 +290,26 @@ func CreatePtpConfigurations() {
 	// Initialize desired ptp config for all configs
 	GetDesiredConfig(true)
 	// in multi node configuration create ptp configs
+
+	// Initialize l2 library
+	l2lib.GlobalL2DiscoveryConfig.SetL2Client(client.Client, client.Client.Config)
+
+	// Collect L2 info
+	config, err := l2lib.GlobalL2DiscoveryConfig.GetL2DiscoveryConfig(true)
+	if err != nil {
+		logrus.Errorf("Getting L2 discovery info failed with err=%s", err)
+		return
+	}
+	GlobalConfig.L2Config = config
+
 	if GlobalConfig.PtpModeDesired != Discovery {
 		err := clean.All()
+
 		if err != nil {
 			logrus.Errorf("Error deleting labels and configuration, err=%s", err)
 		}
-		// Initialize l2 library
-		l2lib.GlobalL2DiscoveryConfig.SetL2Client(client.Client, client.Client.Config)
-
-		// Collect L2 info
-		config, err := l2lib.GlobalL2DiscoveryConfig.GetL2DiscoveryConfig(true)
-		if err != nil {
-			return
-		}
-
 		// initialize L2 config in solver
 		solver.GlobalConfig.SetL2Config(config)
-
-		GlobalConfig.L2Config = config
 
 		initAndSolveProblems()
 
@@ -482,7 +487,7 @@ func CreatePtpConfigGrandMaster(nodeName, ifName string) error {
 		ptpSchedulingPolicy = SCHED_FIFO
 	}
 	// Labeling the grandmaster node
-	_, err = nodes.LabelNode(nodeName, utils.PtpGrandmasterNodeLabel, "")
+	_, err = nodes.LabelNode(nodeName, pkg.PtpGrandmasterNodeLabel, "")
 	if err != nil {
 		logrus.Errorf("Error setting Grandmaster node role label: %s", err)
 	}
@@ -491,12 +496,12 @@ func CreatePtpConfigGrandMaster(nodeName, ifName string) error {
 	gmConfig := BasePtp4lConfig + "\nmasterOnly 1"
 	ptp4lsysOpts := ptp4lEthernet
 	phc2sysOpts := phc2sysGM
-	return createConfig(utils.PtpGrandMasterPolicyName,
+	return createConfig(pkg.PtpGrandMasterPolicyName,
 		&ifName,
 		&ptp4lsysOpts,
 		gmConfig,
 		&phc2sysOpts,
-		utils.PtpGrandmasterNodeLabel,
+		pkg.PtpGrandmasterNodeLabel,
 		pointer.Int64Ptr(int5),
 		ptpSchedulingPolicy,
 		pointer.Int64Ptr(int65))
@@ -509,7 +514,7 @@ func CreatePtpConfigBC(policyName, nodeName, ifMasterName, ifSlaveName string, p
 	if err == nil && configureFifo {
 		ptpSchedulingPolicy = SCHED_FIFO
 	}
-	_, err = nodes.LabelNode(nodeName, utils.PtpClockUnderTestNodeLabel, "")
+	_, err = nodes.LabelNode(nodeName, pkg.PtpClockUnderTestNodeLabel, "")
 	if err != nil {
 		logrus.Errorf("Error setting BC node role label: %s", err)
 	}
@@ -531,7 +536,7 @@ func CreatePtpConfigBC(policyName, nodeName, ifMasterName, ifSlaveName string, p
 		&ptp4lsysOpts,
 		bcConfig,
 		phc2sysOpts,
-		utils.PtpClockUnderTestNodeLabel,
+		pkg.PtpClockUnderTestNodeLabel,
 		pointer.Int64Ptr(int5),
 		ptpSchedulingPolicy,
 		pointer.Int64Ptr(int65))
@@ -598,8 +603,8 @@ func PtpConfigOC() {
 			logrus.Errorf("Error creating Grandmaster ptpconfig: %s", err)
 		}
 
-		err = CreatePtpConfigOC(utils.PtpSlave1PolicyName, slave1If.NodeName,
-			slave1If.IfName, true, utils.PtpClockUnderTestNodeLabel)
+		err = CreatePtpConfigOC(pkg.PtpSlave1PolicyName, slave1If.NodeName,
+			slave1If.IfName, true, pkg.PtpClockUnderTestNodeLabel)
 		if err != nil {
 			logrus.Errorf("Error creating Slave1 ptpconfig: %s", err)
 		}
@@ -610,8 +615,8 @@ func PtpConfigOC() {
 
 		slave1If := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][slave1]]
 
-		err := CreatePtpConfigOC(utils.PtpSlave1PolicyName, slave1If.NodeName,
-			slave1If.IfName, true, utils.PtpClockUnderTestNodeLabel)
+		err := CreatePtpConfigOC(pkg.PtpSlave1PolicyName, slave1If.NodeName,
+			slave1If.IfName, true, pkg.PtpClockUnderTestNodeLabel)
 		if err != nil {
 			logrus.Errorf("Error creating Slave1 ptpconfig: %s", err)
 		}
@@ -659,14 +664,14 @@ func PtpConfigBC() {
 			logrus.Errorf("Error creating Grandmaster ptpconfig: %s", err)
 		}
 
-		err = CreatePtpConfigBC(utils.PtpBcMaster1PolicyName, bc1MasterIf.NodeName,
+		err = CreatePtpConfigBC(pkg.PtpBcMaster1PolicyName, bc1MasterIf.NodeName,
 			bc1MasterIf.IfName, bc1SlaveIf.IfName, true)
 		if err != nil {
 			logrus.Errorf("Error creating bc1master ptpconfig: %s", err)
 		}
 
-		err = CreatePtpConfigOC(utils.PtpSlave1PolicyName, slave1If.NodeName,
-			slave1If.IfName, false, utils.PtpSlave1NodeLabel)
+		err = CreatePtpConfigOC(pkg.PtpSlave1PolicyName, slave1If.NodeName,
+			slave1If.IfName, false, pkg.PtpSlave1NodeLabel)
 		if err != nil {
 			logrus.Errorf("Error creating Slave1 ptpconfig: %s", err)
 		}
@@ -686,7 +691,7 @@ func PtpConfigBC() {
 			logrus.Errorf("Error creating Grandmaster ptpconfig: %s", err)
 		}
 
-		err = CreatePtpConfigBC(utils.PtpBcMaster1PolicyName, bc1MasterIf.NodeName,
+		err = CreatePtpConfigBC(pkg.PtpBcMaster1PolicyName, bc1MasterIf.NodeName,
 			bc1MasterIf.IfName, bc1SlaveIf.IfName, true)
 		if err != nil {
 			logrus.Errorf("Error creating bc1master ptpconfig: %s", err)
@@ -700,7 +705,7 @@ func PtpConfigBC() {
 		bc1MasterIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][bc1Master]]
 		bc1SlaveIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][bc1Slave]]
 
-		err := CreatePtpConfigBC(utils.PtpBcMaster1PolicyName, bc1MasterIf.NodeName,
+		err := CreatePtpConfigBC(pkg.PtpBcMaster1PolicyName, bc1MasterIf.NodeName,
 			bc1MasterIf.IfName, bc1SlaveIf.IfName, true)
 		if err != nil {
 			logrus.Errorf("Error creating bc1master ptpconfig: %s", err)
@@ -757,25 +762,25 @@ func PtpConfigDualNicBC() {
 			logrus.Errorf("Error creating Grandmaster ptpconfig: %s", err)
 		}
 
-		err = CreatePtpConfigBC(utils.PtpBcMaster1PolicyName, bc1MasterIf.NodeName,
+		err = CreatePtpConfigBC(pkg.PtpBcMaster1PolicyName, bc1MasterIf.NodeName,
 			bc1MasterIf.IfName, bc1SlaveIf.IfName, true)
 		if err != nil {
 			logrus.Errorf("Error creating bc1master ptpconfig: %s", err)
 		}
 
-		err = CreatePtpConfigBC(utils.PtpBcMaster2PolicyName, bc2MasterIf.NodeName,
+		err = CreatePtpConfigBC(pkg.PtpBcMaster2PolicyName, bc2MasterIf.NodeName,
 			bc2MasterIf.IfName, bc2SlaveIf.IfName, false)
 		if err != nil {
 			logrus.Errorf("Error creating bc2master ptpconfig: %s", err)
 		}
 
-		err = CreatePtpConfigOC(utils.PtpSlave1PolicyName, slave1If.NodeName,
-			slave1If.IfName, false, utils.PtpSlave1NodeLabel)
+		err = CreatePtpConfigOC(pkg.PtpSlave1PolicyName, slave1If.NodeName,
+			slave1If.IfName, false, pkg.PtpSlave1NodeLabel)
 		if err != nil {
 			logrus.Errorf("Error creating Slave1 ptpconfig: %s", err)
 		}
-		err = CreatePtpConfigOC(utils.PtpSlave2PolicyName, slave2If.NodeName,
-			slave2If.IfName, false, utils.PtpSlave2NodeLabel)
+		err = CreatePtpConfigOC(pkg.PtpSlave2PolicyName, slave2If.NodeName,
+			slave2If.IfName, false, pkg.PtpSlave2NodeLabel)
 		if err != nil {
 			logrus.Errorf("Error creating Slave2 ptpconfig: %s", err)
 		}
@@ -799,13 +804,13 @@ func PtpConfigDualNicBC() {
 			logrus.Errorf("Error creating Grandmaster ptpconfig: %s", err)
 		}
 
-		err = CreatePtpConfigBC(utils.PtpBcMaster1PolicyName, bc1MasterIf.NodeName,
+		err = CreatePtpConfigBC(pkg.PtpBcMaster1PolicyName, bc1MasterIf.NodeName,
 			bc1MasterIf.IfName, bc1SlaveIf.IfName, true)
 		if err != nil {
 			logrus.Errorf("Error creating bc1master ptpconfig: %s", err)
 		}
 
-		err = CreatePtpConfigBC(utils.PtpBcMaster2PolicyName, bc2MasterIf.NodeName,
+		err = CreatePtpConfigBC(pkg.PtpBcMaster2PolicyName, bc2MasterIf.NodeName,
 			bc2MasterIf.IfName, bc2SlaveIf.IfName, false)
 		if err != nil {
 			logrus.Errorf("Error creating bc2master ptpconfig: %s", err)
@@ -823,13 +828,13 @@ func PtpConfigDualNicBC() {
 		bc2MasterIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][bc2Master]]
 		bc2SlaveIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][bc2Slave]]
 
-		err := CreatePtpConfigBC(utils.PtpBcMaster1PolicyName, bc1MasterIf.NodeName,
+		err := CreatePtpConfigBC(pkg.PtpBcMaster1PolicyName, bc1MasterIf.NodeName,
 			bc1MasterIf.IfName, bc1SlaveIf.IfName, true)
 		if err != nil {
 			logrus.Errorf("Error creating bc1master ptpconfig: %s", err)
 		}
 
-		err = CreatePtpConfigBC(utils.PtpBcMaster2PolicyName, bc2MasterIf.NodeName,
+		err = CreatePtpConfigBC(pkg.PtpBcMaster2PolicyName, bc2MasterIf.NodeName,
 			bc2MasterIf.IfName, bc2SlaveIf.IfName, false)
 		if err != nil {
 			logrus.Errorf("Error creating bc2master ptpconfig: %s", err)
@@ -874,19 +879,19 @@ func discoverPTPConfiguration(namespace string) {
 				if m.NodeLabel == nil {
 					continue
 				}
-				if *m.NodeLabel == utils.PtpClockUnderTestNodeLabel {
+				if *m.NodeLabel == pkg.PtpClockUnderTestNodeLabel {
 					ptpConfigClockUnderTest = append(ptpConfigClockUnderTest, &configList.Items[profileIndex])
 				}
 
 				// Grand master, slave 1 and slave 2 are checked as they are always created by the test program
 				if GlobalConfig.PtpModeDesired != Discovery && GlobalConfig.PtpModeDesired != None {
-					if *m.NodeLabel == utils.PtpGrandmasterNodeLabel {
+					if *m.NodeLabel == pkg.PtpGrandmasterNodeLabel {
 						GlobalConfig.DiscoveredGrandMasterPtpConfig = (*ptpDiscoveryRes)(&configList.Items[profileIndex])
 					}
-					if *m.NodeLabel == utils.PtpSlave1NodeLabel {
+					if *m.NodeLabel == pkg.PtpSlave1NodeLabel {
 						GlobalConfig.DiscoveredSlave1PtpConfig = (*ptpDiscoveryRes)(&configList.Items[profileIndex])
 					}
-					if *m.NodeLabel == utils.PtpSlave2NodeLabel {
+					if *m.NodeLabel == pkg.PtpSlave2NodeLabel {
 						GlobalConfig.DiscoveredSlave2PtpConfig = (*ptpDiscoveryRes)(&configList.Items[profileIndex])
 					}
 				}
@@ -927,7 +932,7 @@ func discoverMode(ptpConfigClockUnderTest []*ptpv1.PtpConfig) {
 				GlobalConfig.DiscoveredClockUnderTestSecondaryPtpConfig = (*ptpDiscoveryRes)(ptpConfig)
 			}
 			numBc++
-			if isSecondaryBc(ptpConfig) {
+			if ptphelper.IsSecondaryBc(ptpConfig) {
 				numSecondaryBC++
 			}
 		}
@@ -940,40 +945,9 @@ func discoverMode(ptpConfigClockUnderTest []*ptpv1.PtpConfig) {
 		GlobalConfig.PtpModeDiscovered = DualNICBoundaryClock
 		GlobalConfig.Status = DiscoverySuccessStatus
 	}
-}
-
-// Checks for DualNIC BC
-func isSecondaryBc(config *ptpv1.PtpConfig) bool {
-	for _, profile := range config.Spec.Profile {
-		if profile.Phc2sysOpts != nil {
-			return false
-		}
+	pod, err := ptphelper.GetPTPPodWithPTPConfig((*ptpv1.PtpConfig)(GlobalConfig.DiscoveredClockUnderTestPtpConfig))
+	if err != nil {
+		logrus.Error("Could not determine ptp daemon pod selected by ptpconfig")
 	}
-	return true
-}
-
-// Checks for OC
-func IsPtpSlave(ptp4lOpts, phc2sysOpts *string) bool {
-	return /*strings.Contains(*ptp4lOpts, "-s") &&*/ ((phc2sysOpts != nil && (strings.Count(*phc2sysOpts, "-a") == 1 && strings.Count(*phc2sysOpts, "-r") == 1)) ||
-		phc2sysOpts == nil)
-}
-
-// Checks for Grand master
-func IsPtpMaster(ptp4lOpts, phc2sysOpts *string) bool {
-	return ptp4lOpts != nil && phc2sysOpts != nil && !strings.Contains(*ptp4lOpts, "-s ") && strings.Count(*phc2sysOpts, "-a") == 1 && strings.Count(*phc2sysOpts, "-r") == 2
-}
-
-// Checks for DualNIC BC
-func GetProfileName(config *ptpv1.PtpConfig) (string, error) {
-	for _, profile := range config.Spec.Profile {
-		if profile.Name != nil && *profile.Name == utils.PtpGrandMasterPolicyName ||
-			*profile.Name == utils.PtpBcMaster1PolicyName ||
-			*profile.Name == utils.PtpBcMaster2PolicyName ||
-			*profile.Name == utils.PtpSlave1PolicyName ||
-			*profile.Name == utils.PtpSlave2PolicyName ||
-			*profile.Name == utils.PtpTempPolicyName {
-			return *profile.Name, nil
-		}
-	}
-	return "", fmt.Errorf("cannot find valid test profile name")
+	GlobalConfig.DiscoveredClockUnderTestPod = pod
 }

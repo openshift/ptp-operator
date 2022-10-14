@@ -15,8 +15,9 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/openshift/ptp-operator/test/utils"
-	"github.com/openshift/ptp-operator/test/utils/client"
+	"github.com/openshift/ptp-operator/test/pkg"
+	"github.com/openshift/ptp-operator/test/pkg/client"
+	"github.com/openshift/ptp-operator/test/pkg/pods"
 )
 
 // NodesSelector represent the label selector used to filter impacted nodes.
@@ -34,7 +35,7 @@ type NodeTopology struct {
 
 // PtpEnabled returns the topology of a given node, filtering using the given selector.
 func PtpEnabled(aclient *client.ClientSet) ([]*NodeTopology, error) {
-	nodeDevicesList, err := aclient.NodePtpDevices(utils.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{})
+	nodeDevicesList, err := aclient.NodePtpDevices(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -180,4 +181,24 @@ func ExecAndLogCommand(logCommand bool, timeout time.Duration, name string, arg 
 	}
 
 	return out, err
+}
+
+func RebootNode(pod corev1.Pod, node corev1.Node) {
+	pods.CheckRestart(pod)
+	// Wait for the node to be unreachable
+	const unrechable = false
+	WaitForNodeReachability(&node, pkg.TimeoutIn10Minutes, unrechable)
+
+	// Wait for all nodes to be reachable now after the restart
+	const reachable = true
+	WaitForNodeReachability(&node, pkg.TimeoutIn10Minutes, reachable)
+}
+
+// LabeledNodesCount return the number of nodes with the given label.
+func LabeledNodesCount(label string) (int, error) {
+	nodeList, err := client.Client.Nodes().List(context.Background(), metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=", label)})
+	if err != nil {
+		return 0, err
+	}
+	return len(nodeList.Items), nil
 }

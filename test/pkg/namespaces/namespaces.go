@@ -2,6 +2,7 @@ package namespaces
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	k8sv1 "k8s.io/api/core/v1"
@@ -11,7 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/utils/pointer"
 
-	testclient "github.com/openshift/ptp-operator/test/utils/client"
+	testclient "github.com/openshift/ptp-operator/test/pkg/client"
 )
 
 // WaitForDeletion waits until the namespace will be removed from the cluster
@@ -42,39 +43,58 @@ func Create(namespace string, cs *testclient.ClientSet) error {
 }
 
 // Clean cleans all dangling objects from the given namespace.
-func Clean(namespace string, cs *testclient.ClientSet) error {
-	_, err := cs.CoreV1().Namespaces().Get(context.Background(), namespace, metav1.GetOptions{})
+func Clean(namespace string, prefix string, cs *testclient.ClientSet) error {
+	_, err := cs.Namespaces().Get(context.Background(), namespace, metav1.GetOptions{})
 	if err != nil && k8serrors.IsNotFound(err) {
 		return nil
 	}
 
-	err = cs.NetworkPolicies(namespace).DeleteCollection(context.Background(), metav1.DeleteOptions{
-		GracePeriodSeconds: pointer.Int64Ptr(0),
-	}, metav1.ListOptions{})
+	policies, err := cs.NetworkPolicies(namespace).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
+	for _, p := range policies.Items {
+		if strings.HasPrefix(p.Name, prefix) {
+			err = cs.NetworkPolicies(namespace).Delete(context.Background(), p.Name, metav1.DeleteOptions{
+				GracePeriodSeconds: pointer.Int64Ptr(0),
+			})
+			if err != nil && !k8serrors.IsNotFound(err) {
+				return err
+			}
+		}
+	}
 
-	err = cs.CoreV1().Pods(namespace).DeleteCollection(context.Background(), metav1.DeleteOptions{
-		GracePeriodSeconds: pointer.Int64Ptr(0),
-	}, metav1.ListOptions{})
+	pods, err := cs.Pods(namespace).List(context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, pod := range pods.Items {
+		if strings.HasPrefix(pod.Name, prefix) {
+			err = cs.Pods(namespace).Delete(context.Background(), pod.Name, metav1.DeleteOptions{
+				GracePeriodSeconds: pointer.Int64Ptr(0),
+			})
+			if err != nil && !k8serrors.IsNotFound(err) {
+				return err
+			}
+		}
+	}
 
-	allServices, err := cs.CoreV1().Services(namespace).List(context.Background(), metav1.ListOptions{})
+	allServices, err := cs.Services(namespace).List(context.Background(), metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 
 	for _, s := range allServices.Items {
-		if isPlatformService(namespace, s.Name) {
-			continue
-		}
-		err = cs.CoreV1().Services(namespace).Delete(context.Background(), s.Name, metav1.DeleteOptions{
-			GracePeriodSeconds: pointer.Int64Ptr(0)})
-		if err != nil && k8serrors.IsNotFound(err) {
-			continue
-		}
-		if err != nil {
-			return err
+		if strings.HasPrefix(s.Name, prefix) {
+
+			err = cs.Services(namespace).Delete(context.Background(), s.Name, metav1.DeleteOptions{
+				GracePeriodSeconds: pointer.Int64Ptr(0)})
+			if err != nil && k8serrors.IsNotFound(err) {
+				continue
+			}
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return err
