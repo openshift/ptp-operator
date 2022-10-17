@@ -41,8 +41,8 @@ type ClientSet struct {
 	corev1client.CoreV1Interface
 }
 
-func Setup() *ClientSet {
-	return New("")
+func Setup() {
+	Client = New("")
 }
 
 // New returns a *ClientBuilder with the given kubeconfig.
