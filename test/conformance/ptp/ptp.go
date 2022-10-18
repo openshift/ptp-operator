@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -168,25 +169,20 @@ var _ = Describe("[ptp]", func() {
 				}
 			})
 
-			// 25729
-			It("The interfaces support ptp can be discovered correctly", func() {
+			It("The interfaces supporting ptp can be discovered correctly", func() {
 				for podIndex := range ptpRunningPods {
-					ptpSupportedInt := ptphelper.GetPtpMasterSlaveAttachedInterfaces(ptpRunningPods[podIndex])
-					Expect(len(ptpSupportedInt)).To(BeNumerically(">", 0), "Fail to detect PTP Supported interfaces on slave/master pods")
-					ptpDiscoveredInterfaces := ptphelper.PtpDiscoveredInterfaceList(pkg.NodePtpDeviceAPIPath + ptpRunningPods[podIndex].Spec.NodeName)
-					for _, intfc := range ptpSupportedInt {
-						Expect(ptpDiscoveredInterfaces).To(ContainElement(intfc))
-					}
-				}
-			})
+					ptpNodeIfacesDiscoveredByL2 := ptphelper.GetPtpInterfacePerNode(ptpRunningPods[podIndex].Spec.NodeName, fullConfig.L2Config.GetPtpIfList())
+					Expect(len(ptpNodeIfacesDiscoveredByL2)).To(BeNumerically(">", 0), "Fail to detect PTP Supported interfaces on slave/master pods")
+					ptpNodeIfacesFromPtpApi := ptphelper.PtpDiscoveredInterfaceList(ptpRunningPods[podIndex].Spec.NodeName)
+					sort.Strings(ptpNodeIfacesDiscoveredByL2)
+					sort.Strings(ptpNodeIfacesFromPtpApi)
+					logrus.Infof("Interfaces supporting ptp for node        %s: %v", ptpRunningPods[podIndex].Spec.NodeName, ptpNodeIfacesDiscoveredByL2)
+					logrus.Infof("Interfaces discovered by ptp API for node %s: %v", ptpRunningPods[podIndex].Spec.NodeName, ptpNodeIfacesFromPtpApi)
 
-			// 25730
-			It("The virtual interfaces should be not discovered by ptp", func() {
-				for podIndex := range ptpRunningPods {
-					ptpNotSupportedInt := ptphelper.GetNonPtpMasterSlaveAttachedInterfaces(ptpRunningPods[podIndex])
-					ptpDiscoveredInterfaces := ptphelper.PtpDiscoveredInterfaceList(pkg.NodePtpDeviceAPIPath + ptpRunningPods[podIndex].Spec.NodeName)
-					for _, inter := range ptpNotSupportedInt {
-						Expect(ptpDiscoveredInterfaces).ToNot(ContainElement(inter), "The interfaces discovered incorrectly. PTP non supported Interfaces in list")
+					// The discovered PTP interfaces should match exactly the list of interfaces calculated by test
+					Expect(len(ptpNodeIfacesDiscoveredByL2)).To(Equal(len(ptpNodeIfacesFromPtpApi)))
+					for index := range ptpNodeIfacesDiscoveredByL2 {
+						Expect(ptpNodeIfacesDiscoveredByL2[index]).To(Equal(ptpNodeIfacesFromPtpApi[index]))
 					}
 				}
 			})
@@ -220,8 +216,9 @@ var _ = Describe("[ptp]", func() {
 		})
 		Context("PTP ClockSync", func() {
 			err := metrics.InitEnvIntParamConfig("MAX_OFFSET_IN_NS", metrics.MaxOffsetDefaultNs, &metrics.MaxOffsetNs)
-			err = metrics.InitEnvIntParamConfig("MIN_OFFSET_IN_NS", metrics.MinOffsetDefaultNs, &metrics.MinOffsetNs)
 			Expect(err).NotTo(HaveOccurred(), "error getting max offset in nanoseconds %s", err)
+			err = metrics.InitEnvIntParamConfig("MIN_OFFSET_IN_NS", metrics.MinOffsetDefaultNs, &metrics.MinOffsetNs)
+			Expect(err).NotTo(HaveOccurred(), "error getting min offset in nanoseconds %s", err)
 
 			BeforeEach(func() {
 				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
@@ -232,7 +229,7 @@ var _ = Describe("[ptp]", func() {
 			It("PTP daemon apply match rule based on nodeLabel", func() {
 
 				if fullConfig.PtpModeDesired == testconfig.Discovery {
-					Skip(fmt.Sprint("This test needs the ptp-daemon to be rebooted but it is not possible in discovery mode, skipping"))
+					Skip("This test needs the ptp-daemon to be rebooted but it is not possible in discovery mode, skipping")
 				}
 				profileSlave := fmt.Sprintf("Profile Name: %s", fullConfig.DiscoveredClockUnderTestPtpConfig.Name)
 				profileMaster := ""

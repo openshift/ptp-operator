@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -24,6 +23,7 @@ import (
 	"github.com/openshift/ptp-operator/test/pkg/client"
 	"github.com/openshift/ptp-operator/test/pkg/nodes"
 	"github.com/openshift/ptp-operator/test/pkg/pods"
+	l2exports "github.com/test-network-function/l2discovery-exports"
 )
 
 func GetProfileLogID(ptpConfigName string, label *string, nodeName *string) (id string, err error) {
@@ -322,17 +322,17 @@ func IsPTPEnabled(ethToolOutput *bytes.Buffer) bool {
 	return RxEnabled && TxEnabled && RawEnabled
 }
 
-func PtpDiscoveredInterfaceList(path string) []string {
+func PtpDiscoveredInterfaceList(nodeName string) []string {
 	var ptpInterfaces []string
 	var nodePtpDevice ptpv1.NodePtpDevice
-	fg, err := client.Client.CoreV1().RESTClient().Get().AbsPath(path).DoRaw(context.Background())
+	fg, err := client.Client.PtpV1Interface.NodePtpDevices(nodePtpDevice.Namespace).List(context.Background(), metav1.ListOptions{})
 	Expect(err).ToNot(HaveOccurred())
-
-	err = json.Unmarshal(fg, &nodePtpDevice)
-	Expect(err).ToNot(HaveOccurred())
-
-	for _, intConf := range nodePtpDevice.Status.Devices {
-		ptpInterfaces = append(ptpInterfaces, intConf.Name)
+	for _, aNodePtpDevice := range fg.Items {
+		if aNodePtpDevice.Name == nodeName {
+			for _, aIfName := range aNodePtpDevice.Status.Devices {
+				ptpInterfaces = append(ptpInterfaces, aIfName.Name)
+			}
+		}
 	}
 	return ptpInterfaces
 }
@@ -369,35 +369,6 @@ func ReplaceTestPod(pod *v1core.Pod, timeout time.Duration) (v1core.Pod, error) 
 	}, timeout, 1*time.Second).Should(BeNil())
 
 	return newPod, nil
-}
-
-func GetNonPtpMasterSlaveAttachedInterfaces(pod *v1core.Pod) []string {
-	var ptpSupportedInterfaces []string
-	var err error
-	var stdout bytes.Buffer
-
-	intList := GetMasterSlaveAttachedInterfaces(pod)
-	for _, interf := range intList {
-		Eventually(func() error {
-			stdout, err = pods.ExecCommand(client.Client, pod, pkg.PtpContainerName, []string{"ethtool", "-T", interf})
-			if err != nil && !strings.Contains(stdout.String(), "No such device") {
-				return err
-			}
-			if stdout.String() == "" {
-				return errors.New("empty response from pod retrying")
-			}
-			return nil
-		}, pkg.TimeoutIn3Minutes, 2*time.Second).Should(BeNil())
-
-		if strings.Contains(stdout.String(), "No such device") {
-			continue
-		}
-
-		if !IsPTPEnabled(&stdout) {
-			ptpSupportedInterfaces = append(ptpSupportedInterfaces, interf)
-		}
-	}
-	return ptpSupportedInterfaces
 }
 
 func RestartPTPDaemon() {
@@ -621,4 +592,13 @@ func GetFirstNode(ptpConfig *ptpv1.PtpConfig) (*string, error) {
 		}
 	}
 	return nil, fmt.Errorf("nodeName not found")
+}
+
+func GetPtpInterfacePerNode(nodeName string, ifList []*l2exports.PtpIf) (out []string) {
+	for _, aIf := range ifList {
+		if aIf.NodeName == nodeName {
+			out = append(out, aIf.IfName)
+		}
+	}
+	return out
 }

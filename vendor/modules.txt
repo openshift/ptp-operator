@@ -233,8 +233,8 @@ github.com/sirupsen/logrus
 # github.com/spf13/pflag v1.0.5
 ## explicit; go 1.12
 github.com/spf13/pflag
-# github.com/test-network-function/graphsolver-exports v0.0.0-20220909223441-46e11b864674
-## explicit; go 1.18
+# github.com/test-network-function/graphsolver-exports v0.0.0-20220923162751-f4b1b33a6eff
+## explicit; go 1.19
 github.com/test-network-function/graphsolver-exports
 # github.com/test-network-function/graphsolver-lib v0.0.0-20220923194309-2492312b0d54
 ## explicit; go 1.19
@@ -242,7 +242,7 @@ github.com/test-network-function/graphsolver-lib
 # github.com/test-network-function/l2discovery-exports v0.0.0-20220929081721-4e9a42510716
 ## explicit; go 1.19
 github.com/test-network-function/l2discovery-exports
-# github.com/test-network-function/l2discovery-lib v0.0.0-20221013192645-73dfe1e00be5
+# github.com/test-network-function/l2discovery-lib v0.0.0-20221017141500-ab5454f9e565
 ## explicit; go 1.19
 github.com/test-network-function/l2discovery-lib
 github.com/test-network-function/l2discovery-lib/pkg/l2client
@@ -389,7 +389,7 @@ gopkg.in/yaml.v2
 # gopkg.in/yaml.v3 v3.0.1
 ## explicit
 gopkg.in/yaml.v3
-# k8s.io/api v0.25.2
+# k8s.io/api v0.25.3
 ## explicit; go 1.19
 k8s.io/api/admission/v1
 k8s.io/api/admission/v1beta1
@@ -443,7 +443,7 @@ k8s.io/api/storage/v1beta1
 ## explicit; go 1.19
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions
 k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1
-# k8s.io/apimachinery v0.25.2
+# k8s.io/apimachinery v0.25.3
 ## explicit; go 1.19
 k8s.io/apimachinery/pkg/api/equality
 k8s.io/apimachinery/pkg/api/errors
@@ -494,7 +494,7 @@ k8s.io/apimachinery/pkg/watch
 k8s.io/apimachinery/third_party/forked/golang/json
 k8s.io/apimachinery/third_party/forked/golang/netutil
 k8s.io/apimachinery/third_party/forked/golang/reflect
-# k8s.io/client-go v0.25.2
+# k8s.io/client-go v0.25.3
 ## explicit; go 1.19
 k8s.io/client-go/applyconfigurations/admissionregistration/v1
 k8s.io/client-go/applyconfigurations/admissionregistration/v1beta1
