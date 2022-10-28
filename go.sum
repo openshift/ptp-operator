@@ -375,6 +375,8 @@ github.com/test-network-function/l2discovery-lib v0.0.0-20221017141500-ab5454f9e
 github.com/test-network-function/l2discovery-lib v0.0.0-20221017141500-ab5454f9e565/go.mod h1:9097jN5R2Q1nZfLK9+ccs1VwtNHuG5E/qbslrou8MnY=
 github.com/test-network-function/privileged-daemonset v0.0.0-20221007131241-54f0523bd810 h1:fKEfoo3Ld/F30ACZRLg2TDN6C9ChtKLqrskG4NIcGnU=
 github.com/test-network-function/privileged-daemonset v0.0.0-20221007131241-54f0523bd810/go.mod h1:CuyN/5N/yKavCQ8Ba0K52Mv/YbtVSN4Snk5tBaLJR68=
+github.com/test-network-function/privileged-daemonset v0.0.1 h1:rkUULsr1lcw2dPhAOzNusVQ/O8fCLxA6fTr/YLmGl08=
+github.com/test-network-function/privileged-daemonset v0.0.1/go.mod h1:c5m+hDVcPkn+pMYUNqGhB8N2ezc1mtxTOt/e7PCU94A=
 github.com/yourbasic/graph v0.0.0-20210606180040-8ecfec1c2869 h1:7v7L5lsfw4w8iqBBXETukHo4IPltmD+mWoLRYUmeGN8=
 github.com/yourbasic/graph v0.0.0-20210606180040-8ecfec1c2869/go.mod h1:Rfzr+sqaDreiCaoQbFCu3sTXxeFq/9kXRuyOoSlGQHE=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
