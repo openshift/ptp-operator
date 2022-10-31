@@ -77,10 +77,12 @@ func BasicClockSyncCheck(fullConfig testconfig.TestConfig, ptpConfig *ptpv1.PtpC
 	profileName, errProfile := ptphelper.GetProfileName(ptpConfig)
 
 	if fullConfig.PtpModeDesired == testconfig.Discovery {
+		// Only for ptp mode == discovery, if errProfile is not nil just log a info message
 		if errProfile != nil {
 			logrus.Infof("profile name not detected in log (probably because of log rollover)). Remote clock ID will not be printed")
 		}
-	} else {
+	} else if errProfile != nil {
+		// Otherwise, for other non-discovery modes, report an error
 		return errors.Errorf("expects errProfile to be nil, errProfile=%s", errProfile)
 	}
 
