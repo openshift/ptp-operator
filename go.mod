@@ -13,9 +13,10 @@ require (
 	github.com/openshift/library-go v0.0.0-20221011111038-5f521a3b6124
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.0
-	github.com/test-network-function/graphsolver-lib v0.0.0-20220923194309-2492312b0d54
-	github.com/test-network-function/l2discovery-lib v0.0.0-20221017141500-ab5454f9e565
-	github.com/test-network-function/privileged-daemonset v0.0.1
+	github.com/test-network-function/graphsolver-lib v0.0.1
+	github.com/test-network-function/l2discovery-exports v0.0.1
+	github.com/test-network-function/l2discovery-lib v0.0.2
+	github.com/test-network-function/privileged-daemonset v0.0.4
 	k8s.io/api v0.25.3
 	k8s.io/apiextensions-apiserver v0.25.2
 	k8s.io/apimachinery v0.25.3
@@ -74,8 +75,7 @@ require (
 	github.com/prometheus/common v0.32.1 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/test-network-function/graphsolver-exports v0.0.0-20220923162751-f4b1b33a6eff // indirect
-	github.com/test-network-function/l2discovery-exports v0.0.0-20220929081721-4e9a42510716 // indirect
+	github.com/test-network-function/graphsolver-exports v0.0.1 // indirect
 	github.com/yourbasic/graph v0.0.0-20210606180040-8ecfec1c2869 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect

@@ -282,7 +282,8 @@ func RebootSlaveNode(fullConfig testconfig.TestConfig) {
 	// Create the client of Priviledged Daemonset
 	k8sPriviledgedDs.SetDaemonSetClient(client.Client.Interface)
 	// 1. create a daemon set for the node reboot
-	rebootDaemonSetRunningPods, err := k8sPriviledgedDs.CreateDaemonSet(pkg.RebootDaemonSetName, pkg.RebootDaemonSetNamespace, pkg.RebootDaemonSetContainerName, imageWithVersion, pkg.TimeoutIn5Minutes)
+	dummyLabels := map[string]string{}
+	rebootDaemonSetRunningPods, err := k8sPriviledgedDs.CreateDaemonSet(pkg.RebootDaemonSetName, pkg.RebootDaemonSetNamespace, pkg.RebootDaemonSetContainerName, imageWithVersion, dummyLabels, pkg.TimeoutIn5Minutes)
 	if err != nil {
 		logrus.Errorf("error : +%v\n", err.Error())
 	}

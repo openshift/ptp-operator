@@ -233,21 +233,21 @@ github.com/sirupsen/logrus
 # github.com/spf13/pflag v1.0.5
 ## explicit; go 1.12
 github.com/spf13/pflag
-# github.com/test-network-function/graphsolver-exports v0.0.0-20220923162751-f4b1b33a6eff
+# github.com/test-network-function/graphsolver-exports v0.0.1
 ## explicit; go 1.19
 github.com/test-network-function/graphsolver-exports
-# github.com/test-network-function/graphsolver-lib v0.0.0-20220923194309-2492312b0d54
+# github.com/test-network-function/graphsolver-lib v0.0.1
 ## explicit; go 1.19
 github.com/test-network-function/graphsolver-lib
-# github.com/test-network-function/l2discovery-exports v0.0.0-20220929081721-4e9a42510716
+# github.com/test-network-function/l2discovery-exports v0.0.1
 ## explicit; go 1.19
 github.com/test-network-function/l2discovery-exports
-# github.com/test-network-function/l2discovery-lib v0.0.0-20221017141500-ab5454f9e565
+# github.com/test-network-function/l2discovery-lib v0.0.2
 ## explicit; go 1.19
 github.com/test-network-function/l2discovery-lib
 github.com/test-network-function/l2discovery-lib/pkg/l2client
 github.com/test-network-function/l2discovery-lib/pkg/pods
-# github.com/test-network-function/privileged-daemonset v0.0.1
+# github.com/test-network-function/privileged-daemonset v0.0.4
 ## explicit; go 1.19
 github.com/test-network-function/privileged-daemonset
 # github.com/yourbasic/graph v0.0.0-20210606180040-8ecfec1c2869
