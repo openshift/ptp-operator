@@ -13,7 +13,7 @@ require (
 	github.com/openshift/library-go v0.0.0-20221011111038-5f521a3b6124
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.0
-	github.com/test-network-function/graphsolver-lib v0.0.1
+	github.com/test-network-function/graphsolver-lib v0.0.2
 	github.com/test-network-function/l2discovery-exports v0.0.1
 	github.com/test-network-function/l2discovery-lib v0.0.2
 	github.com/test-network-function/privileged-daemonset v0.0.4
