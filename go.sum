@@ -367,8 +367,8 @@ github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/
 github.com/stretchr/testify v1.8.0 h1:pSgiaMZlXftHpm5L7V1+rVB+AZJydKsMxsQBIJw4PKk=
 github.com/test-network-function/graphsolver-exports v0.0.1 h1:27zhW/1fiKf3+NJsevl+jvuJu9t/MqOs1wmAkcmp8ng=
 github.com/test-network-function/graphsolver-exports v0.0.1/go.mod h1:Zo5bUPq3s1KWfz6MtMHzHQh1mSiW4DOpBbZ03TG2zIw=
-github.com/test-network-function/graphsolver-lib v0.0.1 h1:xdBuvt9qiZ6QmF4VkuVzREkj1YMwoInPAblv8hs30yo=
-github.com/test-network-function/graphsolver-lib v0.0.1/go.mod h1:X9HIBAST5obDb8YMWykMIOU9iwouT2wrR1yLpTRmXQM=
+github.com/test-network-function/graphsolver-lib v0.0.2 h1:s/2petXZPAlG7Gh7ra7hi8Y2W0jv83LQMVJEUScwiYk=
+github.com/test-network-function/graphsolver-lib v0.0.2/go.mod h1:X9HIBAST5obDb8YMWykMIOU9iwouT2wrR1yLpTRmXQM=
 github.com/test-network-function/l2discovery-exports v0.0.1 h1:4/49T2Js92JyOAO8T+0vnV8zy5z6WaV1GCfLGmEgs7g=
 github.com/test-network-function/l2discovery-exports v0.0.1/go.mod h1:LXzJLrM5Ao0j4pN/HnlYrBQDpO3TCtlfiK4HmRk2ps8=
 github.com/test-network-function/l2discovery-lib v0.0.2 h1:bEdF16r4bxN9SEJqvUBl9QVDb+VB6CJS7tli6cGaFDw=

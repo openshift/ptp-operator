@@ -236,7 +236,7 @@ github.com/spf13/pflag
 # github.com/test-network-function/graphsolver-exports v0.0.1
 ## explicit; go 1.19
 github.com/test-network-function/graphsolver-exports
-# github.com/test-network-function/graphsolver-lib v0.0.1
+# github.com/test-network-function/graphsolver-lib v0.0.2
 ## explicit; go 1.19
 github.com/test-network-function/graphsolver-lib
 # github.com/test-network-function/l2discovery-exports v0.0.1
