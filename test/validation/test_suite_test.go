@@ -4,8 +4,7 @@ import (
 	"flag"
 	"testing"
 
-	. "github.com/onsi/ginkgo"
-	"github.com/onsi/ginkgo/reporters"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	testclient "github.com/openshift/ptp-operator/test/pkg/client"
@@ -20,12 +19,7 @@ func init() {
 
 func TestTest(t *testing.T) {
 	RegisterFailHandler(Fail)
-
-	rr := []Reporter{}
-	if junitPath != nil {
-		rr = append(rr, reporters.NewJUnitReporter(*junitPath))
-	}
-	RunSpecsWithDefaultAndCustomReporters(t, "PTP Operator validation tests", rr)
+	RunSpecs(t, "PTP Operator validation tests")
 }
 
 var _ = BeforeSuite(func() {
