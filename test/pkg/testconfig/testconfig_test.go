@@ -251,7 +251,7 @@ func mockPtpConfig(name, namespace string, role ptpv1.PtpRole, mode PTPMode) *pt
 	if role == ptpv1.Master {
 		aStringPtp4l := "-s"
 		aProfile.Ptp4lOpts = &aStringPtp4l
-		aStringPhc2sys := "-a -r -r"
+		aStringPhc2sys := "-a -r -r -n 24"
 		aProfile.Phc2sysOpts = &aStringPhc2sys
 	} else {
 
@@ -259,14 +259,14 @@ func mockPtpConfig(name, namespace string, role ptpv1.PtpRole, mode PTPMode) *pt
 		case OrdinaryClock:
 			aStringPtp4l := "-s -2"
 			aProfile.Ptp4lOpts = &aStringPtp4l
-			aStringPhc2sys := "-a -r"
+			aStringPhc2sys := "-a -r -n 24"
 			aProfile.Phc2sysOpts = &aStringPhc2sys
 			aStringInterface := "eth0"
 			aProfile.Interface = &aStringInterface
 		case BoundaryClock:
 			aStringPtp4l := "-2"
 			aProfile.Ptp4lOpts = &aStringPtp4l
-			aStringPhc2sys := "-a -r"
+			aStringPhc2sys := "-a -r -n 24"
 			aProfile.Phc2sysOpts = &aStringPhc2sys
 			aStringInterface := "eth0"
 			aProfile.Interface = &aStringInterface
