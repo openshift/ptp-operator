@@ -1,0 +1,18 @@
+---
+global:
+ maxoffset: -100
+ minoffset: 100
+soaktest:
+  enable: false
+  masteroffset:
+   enable: true
+   failfast: true
+   duration: 10
+  testa:
+   enable: true
+   failfast: true
+   duration: 10
+  testb:
+   enable: true
+   failfast: true
+   duration: 10
