@@ -1,5 +1,10 @@
 
 # Conformance tests
+
+## Prerequisite(s)
+
+Install Ginkgo v2 CLI following the [Migration Guide](https://onsi.github.io/ginkgo/MIGRATING_TO_V2)
+
 ## Running the tests
 To run the conformance tests, first set the following environment variables:
 - **KUBECONFIG**: this is the path to the openshift kubeconfig 
@@ -33,6 +38,20 @@ for example:
 ```
 docker run -e PTP_TEST_MODE=OC -e ENABLE_TEST_CASE=reboot -v /home/usr/.kube/config.3nodes:/tmp/config:Z -v .:/output:Z quay.io/redhat-cne/ptp-operator-test:latest
 ```
+
+## Run SOAK test
+
+Soak tests are configurable through the test configuration file as YAML file stored at location `test/conformance/config/ptptestconfig.yaml`. These tests run in parallel.
+
+Manually the config can be passed also with the environment parameter (with absolute path of the config file) this way.
+```
+  PTP_TEST_CONFIG_FILE=ptptestconfig.yaml make functests
+```
+
+`global` field `enablecontinuous` controls whether the parallel test suite would execute or not.
+Each test can be configured separately and can be enabled or disabled, however `enablecontinuous` field overrides that configuration.
+
+
 
 ## Labelling test nodes manually in discovery mode
 In Discovery mode, the node holding the clock under test is indicated via a label
