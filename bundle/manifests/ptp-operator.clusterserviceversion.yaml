@@ -359,6 +359,7 @@ spec:
                   readOnly: true
               nodeSelector:
                 node-role.kubernetes.io/master: ""
+              priorityClassName: "system-node-critical"
               serviceAccountName: ptp-operator
               tolerations:
               - effect: NoSchedule

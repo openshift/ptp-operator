@@ -35,6 +35,7 @@ spec:
         key: node-role.kubernetes.io/master
         operator: Exists
       serviceAccountName: ptp-operator
+      priorityClassName: "system-node-critical"
       containers:
         - name: ptp-operator
           # Replaces this with the image name
