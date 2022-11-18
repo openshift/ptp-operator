@@ -594,7 +594,7 @@ func GetFirstNode(ptpConfig *ptpv1.PtpConfig) (*string, error) {
 	return nil, fmt.Errorf("nodeName not found")
 }
 
-func GetPtpInterfacePerNode(nodeName string, ifList []*l2exports.PtpIf) (out []string) {
+func GetPtpInterfacePerNode(nodeName string, ifList map[string]*l2exports.PtpIf) (out []string) {
 	for _, aIf := range ifList {
 		if aIf.NodeName == nodeName {
 			out = append(out, aIf.IfName)
