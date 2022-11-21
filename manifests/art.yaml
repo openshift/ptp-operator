@@ -3,7 +3,7 @@ updates:
     update_list:
     # replace metadata.name value
     - search: "ptp-operator.v{MAJOR}.{MINOR}.0"
-      replace: "ptp-operator.{FULL_VER}"
+      replace: "ptp-operator.v{FULL_VER}"
     - search: "version: {MAJOR}.{MINOR}.0"
       replace: "version: {FULL_VER}"
     - search: 'olm.skipRange: ">=4.3.0-0 <{MAJOR}.{MINOR}.0"'
