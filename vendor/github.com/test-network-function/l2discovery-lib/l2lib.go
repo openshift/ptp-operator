@@ -249,7 +249,8 @@ func (config *L2DiscoveryConfig) createL2InternalGraph(ptpInterfacesOnly bool) e
 				if v, ok := config.ClusterIndexToInt[l2.IfClusterIndex{InterfaceName: iface, NodeName: aPod.Spec.NodeName}]; ok {
 					if w, ok := config.ClusterMacToInt[mac]; ok {
 						if ptpInterfacesOnly &&
-							(!config.PtpIfList[v].IfPTPCaps.HwRx ||
+							(strings.Contains(config.PtpIfList[v].IfPci.Description, "Virtual") ||
+								!config.PtpIfList[v].IfPTPCaps.HwRx ||
 								!config.PtpIfList[v].IfPTPCaps.HwTx ||
 								!config.PtpIfList[v].IfPTPCaps.HwRawClock ||
 								!config.PtpIfList[w].IfPTPCaps.HwRx ||
@@ -286,7 +287,8 @@ func (config *L2DiscoveryConfig) getInterfacesReceivingPTP(ptpInterfacesOnly boo
 			aPortGettingPTP.InterfaceName = aPortGettingPTP.Iface.IfName
 
 			if ptpInterfacesOnly &&
-				(!aPortGettingPTP.IfPTPCaps.HwRx ||
+				(strings.Contains(aPortGettingPTP.IfPci.Description, "Virtual") ||
+					!aPortGettingPTP.IfPTPCaps.HwRx ||
 					!aPortGettingPTP.IfPTPCaps.HwTx ||
 					!aPortGettingPTP.IfPTPCaps.HwRawClock) {
 				continue
@@ -340,7 +342,8 @@ func (config *L2DiscoveryConfig) updateMaps(disc map[string]map[string]*l2.Neigh
 		aInterface.Iface = ifaceData.Local
 
 		if ptpInterfacesOnly &&
-			(!aInterface.IfPTPCaps.HwRx ||
+			(strings.Contains(aInterface.IfPci.Description, "Virtual") ||
+				!aInterface.IfPTPCaps.HwRx ||
 				!aInterface.IfPTPCaps.HwTx ||
 				!aInterface.IfPTPCaps.HwRawClock) {
 			continue

@@ -16,7 +16,7 @@ require (
 	github.com/stretchr/testify v1.8.0
 	github.com/test-network-function/graphsolver-lib v0.0.2
 	github.com/test-network-function/l2discovery-exports v0.0.1
-	github.com/test-network-function/l2discovery-lib v0.0.4
+	github.com/test-network-function/l2discovery-lib v0.0.5
 	github.com/test-network-function/privileged-daemonset v0.0.5
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.25.4
