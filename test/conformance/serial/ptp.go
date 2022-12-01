@@ -172,7 +172,7 @@ var _ = Describe("[ptp]", Serial, func() {
 
 			It("The interfaces supporting ptp can be discovered correctly", func() {
 				for podIndex := range ptpRunningPods {
-					ptpNodeIfacesDiscoveredByL2 := ptphelper.GetPtpInterfacePerNode(ptpRunningPods[podIndex].Spec.NodeName, fullConfig.L2Config.GetPtpIfList())
+					ptpNodeIfacesDiscoveredByL2 := ptphelper.GetPtpInterfacePerNode(ptpRunningPods[podIndex].Spec.NodeName, fullConfig.L2Config.GetPtpIfListUnfiltered())
 					Expect(len(ptpNodeIfacesDiscoveredByL2)).To(BeNumerically(">", 0), "Fail to detect PTP Supported interfaces on slave/master pods")
 					ptpNodeIfacesFromPtpApi := ptphelper.PtpDiscoveredInterfaceList(ptpRunningPods[podIndex].Spec.NodeName)
 					sort.Strings(ptpNodeIfacesDiscoveredByL2)
