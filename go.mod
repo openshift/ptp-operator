@@ -26,6 +26,12 @@ require (
 	sigs.k8s.io/controller-runtime v0.13.0
 )
 
+replace (
+	k8s.io/api => k8s.io/api v0.25.3
+	k8s.io/apimachinery => k8s.io/apimachinery v0.25.3
+	k8s.io/client-go => k8s.io/client-go v0.25.3
+)
+
 require (
 	cloud.google.com/go v0.97.0 // indirect
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
