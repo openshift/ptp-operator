@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -47,6 +48,7 @@ type ptpProcess struct {
 	exitCh          chan bool
 	execMutex       sync.Mutex
 	stopped         bool
+	logFilterRegex  string
 	cmd             *exec.Cmd
 }
 
@@ -187,6 +189,15 @@ func (dn *Daemon) applyNodePTPProfiles() error {
 	return nil
 }
 
+func getLogFilterRegex(nodeProfile *ptpv1.PtpProfile) string {
+	logFilterRegex := "^$"
+	if filter, ok := (*nodeProfile).PtpSettings["stdoutFilter"]; ok {
+		logFilterRegex = filter
+		glog.Infof("%s stdoutFilter='%s'\n", *nodeProfile.Name, logFilterRegex)
+	}
+	return logFilterRegex
+}
+
 func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) error {
 	socketPath := fmt.Sprintf("/var/run/ptp4l.%d.socket", runID)
 	configFile := fmt.Sprintf("ptp4l.%d.config", runID)
@@ -209,12 +220,13 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 
 	if nodeProfile.Phc2sysOpts != nil && *nodeProfile.Phc2sysOpts != "" {
 		dn.processManager.process = append(dn.processManager.process, &ptpProcess{
-			name:       "phc2sys",
-			ifaces:     strings.Split(*nodeProfile.Interface, ","),
-			configName: configFile,
-			exitCh:     make(chan bool),
-			stopped:    false,
-			cmd:        phc2sysCreateCmd(nodeProfile)})
+			name:           "phc2sys",
+			ifaces:         strings.Split(*nodeProfile.Interface, ","),
+			configName:     configFile,
+			exitCh:         make(chan bool),
+			stopped:        false,
+			logFilterRegex: getLogFilterRegex(nodeProfile),
+			cmd:            phc2sysCreateCmd(nodeProfile)})
 	} else {
 		glog.Infof("applyNodePtpProfile: not starting phc2sys, phc2sysOpts is empty")
 	}
@@ -233,6 +245,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 		configName:      configFile,
 		exitCh:          make(chan bool),
 		stopped:         false,
+		logFilterRegex:  getLogFilterRegex(nodeProfile),
 		cmd:             ptp4lCreateCmd(nodeProfile, configPath)})
 
 	return nil
@@ -356,6 +369,11 @@ func cmdRun(p *ptpProcess, stdoutToSocket bool) {
 		}
 		p.exitCh <- true
 	}()
+
+	logFilterRegex, regexErr := regexp.Compile(p.logFilterRegex)
+	if regexErr != nil {
+		glog.Infof("Failed parsing regex %s for %s: %d.  Defaulting to accept all", p.logFilterRegex, p.configName, regexErr)
+	}
 	for {
 		glog.Infof("Starting %s...", p.name)
 		glog.Infof("%s cmd: %+v", p.name, p.cmd)
@@ -375,7 +393,9 @@ func cmdRun(p *ptpProcess, stdoutToSocket bool) {
 			go func() {
 				for scanner.Scan() {
 					output := scanner.Text()
-					fmt.Printf("%s\n", output)
+					if regexErr != nil || !logFilterRegex.MatchString(output) {
+						fmt.Printf("%s\n", output)
+					}
 					extractMetrics(p.configName, p.name, p.ifaces, output)
 				}
 				done <- struct{}{}
@@ -398,8 +418,10 @@ func cmdRun(p *ptpProcess, stdoutToSocket bool) {
 				processStatus(&c, p.name, p.configName, PtpProcessUp)
 				for scanner.Scan() {
 					output := scanner.Text()
+					if regexErr != nil || !logFilterRegex.MatchString(output) {
+						fmt.Printf("%s\n", output)
+					}
 					out := fmt.Sprintf("%s\n", output)
-					fmt.Printf("%s", out)
 					if p.name == ptp4lProcessName {
 						if strings.Contains(output, ClockClassChangeIndicator) {
 							go func(c *net.Conn, cfgName string) {
