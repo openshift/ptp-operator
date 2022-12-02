@@ -232,7 +232,7 @@ github.com/test-network-function/graphsolver-lib
 # github.com/test-network-function/l2discovery-exports v0.0.1
 ## explicit; go 1.19
 github.com/test-network-function/l2discovery-exports
-# github.com/test-network-function/l2discovery-lib v0.0.4
+# github.com/test-network-function/l2discovery-lib v0.0.5
 ## explicit; go 1.19
 github.com/test-network-function/l2discovery-lib
 github.com/test-network-function/l2discovery-lib/pkg/l2client
