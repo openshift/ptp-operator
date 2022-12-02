@@ -204,6 +204,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 	printWhenNotNil(nodeProfile.Phc2sysOpts, "Phc2sysOpts")
 	printWhenNotNil(nodeProfile.PtpSchedulingPolicy, "PtpSchedulingPolicy")
 	printWhenNotNil(nodeProfile.PtpSchedulingPriority, "PtpSchedulingPriority")
+	printWhenNotNil(nodeProfile.PtpSettings, "PtpSettings")
 	glog.Infof("------------------------------------")
 
 	if nodeProfile.Phc2sysOpts != nil && *nodeProfile.Phc2sysOpts != "" {
