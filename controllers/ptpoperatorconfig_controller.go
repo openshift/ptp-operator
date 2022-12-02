@@ -111,7 +111,7 @@ func (r *PtpOperatorConfigReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		return reconcile.Result{}, err
 	}
 
-	if err = r.syncLinuxptpDaemon(ctx, defaultCfg); err != nil {
+	if err = r.syncLinuxptpDaemon(ctx, defaultCfg, nodeList); err != nil {
 		glog.Errorf("failed to sync linux ptp daemon: %v", err)
 		return reconcile.Result{}, err
 	}
@@ -171,7 +171,7 @@ func (r *PtpOperatorConfigReconciler) setDaemonNodeSelector(
 }
 
 // syncLinuxptpDaemon synchronizes Linuxptp DaemonSet
-func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, defaultCfg *ptpv1.PtpOperatorConfig) error {
+func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, defaultCfg *ptpv1.PtpOperatorConfig, nodeList *corev1.NodeList) error {
 	var err error
 	objs := []*uns.Unstructured{}
 
@@ -181,6 +181,7 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 	data.Data["ReleaseVersion"] = os.Getenv("RELEASEVERSION")
 	data.Data["KubeRbacProxy"] = os.Getenv("KUBE_RBAC_PROXY_IMAGE")
 	data.Data["SideCar"] = os.Getenv("SIDECAR_EVENT_IMAGE")
+	data.Data["NodeName"] = os.Getenv("NODE_NAME")
 	// configure EventConfig
 	if defaultCfg.Spec.EventConfig == nil {
 		data.Data["EnableEventPublisher"] = false
@@ -205,8 +206,7 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 			r.checkAmqStatus(&data, amq[0], amq[1])
 		}
 	}
-
-	objs, err = render.RenderDir(filepath.Join(names.ManifestDir, "linuxptp"), &data)
+	objs, err = render.RenderTemplate(filepath.Join(names.ManifestDir, "linuxptp/ptp-daemon.yaml"), &data)
 	if err != nil {
 		return fmt.Errorf("failed to render linuxptp daemon manifest: %v", err)
 	}
@@ -217,10 +217,27 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 			return err
 		}
 		if err = controllerutil.SetControllerReference(defaultCfg, obj, r.Scheme); err != nil {
-			return fmt.Errorf("failed to set owner reference: %v", err)
+			return fmt.Errorf("failed to set owner reference for daemon: %v", err)
 		}
 		if err = apply.ApplyObject(ctx, r.Client, obj); err != nil {
 			return fmt.Errorf("failed to apply object %v with err: %v", obj, err)
+		}
+	}
+
+	if defaultCfg.Spec.EventConfig == nil {
+		return nil
+	}
+
+	for _, node := range nodeList.Items {
+		data.Data["NodeName"] = strings.Split(node.Name, ".")[0]
+		objs, err = render.RenderTemplate(filepath.Join(names.ManifestDir, "linuxptp/event-service.yaml"), &data)
+		if err != nil {
+			return fmt.Errorf("failed to render event service manifest: %v", err)
+		}
+		for _, obj := range objs {
+			if err = apply.ApplyObject(ctx, r.Client, obj); err != nil {
+				return fmt.Errorf("failed to apply service object %v with err: %v", obj, err)
+			}
 		}
 	}
 	return nil

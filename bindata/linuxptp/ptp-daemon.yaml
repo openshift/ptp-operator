@@ -100,6 +100,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
             - name: LOGS_TO_SOCKET
               value: "{{ .EnableEventPublisher }}"
           volumeMounts:
@@ -173,28 +177,6 @@ spec:
       targetPort: https
   sessionAffinity: None
   type: ClusterIP
-  {{ if (eq .EnableEventPublisher true) }}
----
-apiVersion: v1
-kind: Service
-metadata:
-  annotations:
-    prometheus.io/scrape: "false"
-    service.beta.openshift.io/serving-cert-secret-name: linuxptp-daemon-secret
-  labels:
-    app: linuxptp-daemon
-  name:  ptp-event-publisher-service
-  namespace: openshift-ptp
-spec:
-  selector:
-    app: linuxptp-daemon
-  clusterIP: None
-  ports:
-    - name: publisher-port
-      port: 9043
-  sessionAffinity: None
-  type: ClusterIP
-  {{ end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
