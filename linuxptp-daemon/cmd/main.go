@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"flag"
 	"io/ioutil"
 	"os"
@@ -16,6 +18,8 @@ import (
 	"github.com/openshift/linuxptp-daemon/pkg/config"
 	"github.com/openshift/linuxptp-daemon/pkg/daemon"
 	ptpclient "github.com/openshift/ptp-operator/pkg/client/clientset/versioned"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 type cliParams struct {
@@ -60,6 +64,7 @@ func main() {
 
 	// The name of NodePtpDevice CR for this node is equal to the node name
 	nodeName := os.Getenv("NODE_NAME")
+	podName := os.Getenv("POD_NAME")
 	if nodeName == "" {
 		glog.Error("cannot find NODE_NAME environment variable")
 		return
@@ -84,6 +89,9 @@ func main() {
 		glog.Errorf("failed to create a ptp config update: %v", err)
 		return
 	}
+
+	// label the current linux-ptp-daemon pod with a nodeName label
+	labelPod(kubeClient, nodeName, podName)
 
 	go daemon.New(
 		nodeName,
@@ -133,5 +141,36 @@ func main() {
 			glog.Info("signal received, shutting down", sig)
 			return
 		}
+	}
+}
+
+type patchStringValue struct {
+	Op    string `json:"op"`
+	Path  string `json:"path"`
+	Value string `json:"value"`
+}
+
+func labelPod(kubeClient *kubernetes.Clientset, nodeName, podName string) {
+	pod, err := kubeClient.CoreV1().Pods(daemon.PtpNamespace).Get(context.TODO(), podName, metav1.GetOptions{})
+	glog.Info(pod)
+	if err != nil {
+		glog.Error(err)
+	}
+	if pod == nil {
+		glog.Info("Could not find linux-ptp-daemon pod to label")
+		return
+	}
+	payload := []patchStringValue{{
+		Op:    "replace",
+		Path:  "/metadata/labels/nodeName",
+		Value: nodeName,
+	}}
+	payloadBytes, _ := json.Marshal(payload)
+
+	_, err = kubeClient.CoreV1().Pods(pod.GetNamespace()).Patch(context.TODO(), pod.GetName(), types.JSONPatchType, payloadBytes, metav1.PatchOptions{})
+	if err == nil {
+		glog.Infof("Pod %s labelled successfully.", pod.GetName())
+	} else {
+		glog.Error(err)
 	}
 }
