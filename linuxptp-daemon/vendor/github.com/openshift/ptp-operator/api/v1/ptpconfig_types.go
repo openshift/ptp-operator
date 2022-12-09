@@ -61,14 +61,18 @@ type PtpConfigList struct {
 }
 
 type PtpProfile struct {
-	Name                  *string            `json:"name"`
-	Interface             *string            `json:"interface,omitempty"`
-	Ptp4lOpts             *string            `json:"ptp4lOpts,omitempty"`
-	Phc2sysOpts           *string            `json:"phc2sysOpts,omitempty"`
-	Ptp4lConf             *string            `json:"ptp4lConf,omitempty"`
-	PtpSchedulingPolicy   *string            `json:"ptpSchedulingPolicy,omitempty"`
+	Name        *string `json:"name"`
+	Interface   *string `json:"interface,omitempty"`
+	Ptp4lOpts   *string `json:"ptp4lOpts,omitempty"`
+	Phc2sysOpts *string `json:"phc2sysOpts,omitempty"`
+	Ptp4lConf   *string `json:"ptp4lConf,omitempty"`
+	// +kubebuilder:validation:Enum=SCHED_OTHER;SCHED_FIFO;
+	PtpSchedulingPolicy *string `json:"ptpSchedulingPolicy,omitempty"`
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65
 	PtpSchedulingPriority *int64             `json:"ptpSchedulingPriority,omitempty"`
 	PtpClockThreshold     *PtpClockThreshold `json:"ptpClockThreshold,omitempty"`
+	PtpSettings           map[string]string  `json:"ptpSettings,omitempty"`
 }
 
 type PtpClockThreshold struct {

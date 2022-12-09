@@ -13,7 +13,8 @@ import (
 )
 
 var (
-	cacheOnlyTrue = true
+	ERR_NO_DB = fmt.Errorf("No pci-ids DB files found (and network fetch disabled)")
+	trueVar   = true
 )
 
 // ProgrammingInterface is the PCI programming interface for a class of PCI
@@ -87,6 +88,12 @@ type WithOption struct {
 	// looking for any non ~/.cache/pci.ids filepaths (which is useful when we
 	// want to test the fetch-from-network code paths
 	CacheOnly *bool
+	// Enables fetching a pci-ids from a known location on the network if no
+	// local pci-ids DB files can be found.
+	EnableNetworkFetch *bool
+	// Path points to the absolute path of a pci.ids file in a non-standard
+	// location.
+	Path *string
 }
 
 func WithChroot(dir string) *WithOption {
@@ -94,7 +101,15 @@ func WithChroot(dir string) *WithOption {
 }
 
 func WithCacheOnly() *WithOption {
-	return &WithOption{CacheOnly: &cacheOnlyTrue}
+	return &WithOption{CacheOnly: &trueVar}
+}
+
+func WithDirectPath(path string) *WithOption {
+	return &WithOption{Path: &path}
+}
+
+func WithEnableNetworkFetch() *WithOption {
+	return &WithOption{EnableNetworkFetch: &trueVar}
 }
 
 func mergeOptions(opts ...*WithOption) *WithOption {
@@ -102,6 +117,10 @@ func mergeOptions(opts ...*WithOption) *WithOption {
 	defaultChroot := "/"
 	if val, exists := os.LookupEnv("PCIDB_CHROOT"); exists {
 		defaultChroot = val
+	}
+	path := ""
+	if val, exists := os.LookupEnv("PCIDB_PATH"); exists {
+		path = val
 	}
 	defaultCacheOnly := false
 	if val, exists := os.LookupEnv("PCIDB_CACHE_ONLY"); exists {
@@ -116,6 +135,20 @@ func mergeOptions(opts ...*WithOption) *WithOption {
 			defaultCacheOnly = parsed
 		}
 	}
+	defaultEnableNetworkFetch := false
+	if val, exists := os.LookupEnv("PCIDB_ENABLE_NETWORK_FETCH"); exists {
+		if parsed, err := strconv.ParseBool(val); err != nil {
+			fmt.Fprintf(
+				os.Stderr,
+				"Failed parsing a bool from PCIDB_ENABLE_NETWORK_FETCH "+
+					"environ value of %s",
+				val,
+			)
+		} else if parsed {
+			defaultEnableNetworkFetch = parsed
+		}
+	}
+
 	merged := &WithOption{}
 	for _, opt := range opts {
 		if opt.Chroot != nil {
@@ -124,6 +157,12 @@ func mergeOptions(opts ...*WithOption) *WithOption {
 		if opt.CacheOnly != nil {
 			merged.CacheOnly = opt.CacheOnly
 		}
+		if opt.EnableNetworkFetch != nil {
+			merged.EnableNetworkFetch = opt.EnableNetworkFetch
+		}
+		if opt.Path != nil {
+			merged.Path = opt.Path
+		}
 	}
 	// Set the default value if missing from merged
 	if merged.Chroot == nil {
@@ -131,6 +170,12 @@ func mergeOptions(opts ...*WithOption) *WithOption {
 	}
 	if merged.CacheOnly == nil {
 		merged.CacheOnly = &defaultCacheOnly
+	}
+	if merged.EnableNetworkFetch == nil {
+		merged.EnableNetworkFetch = &defaultEnableNetworkFetch
+	}
+	if merged.Path == nil {
+		merged.Path = &path
 	}
 	return merged
 }
@@ -144,6 +189,8 @@ func mergeOptions(opts ...*WithOption) *WithOption {
 func New(opts ...*WithOption) (*PCIDB, error) {
 	ctx := contextFromOptions(mergeOptions(opts...))
 	db := &PCIDB{}
-	err := db.load(ctx)
-	return db, err
+	if err := db.load(ctx); err != nil {
+		return nil, err
+	}
+	return db, nil
 }
