@@ -72,6 +72,7 @@ type PtpProfile struct {
 	// +kubebuilder:validation:Maximum=65
 	PtpSchedulingPriority *int64             `json:"ptpSchedulingPriority,omitempty"`
 	PtpClockThreshold     *PtpClockThreshold `json:"ptpClockThreshold,omitempty"`
+	PtpSettings           map[string]string  `json:"ptpSettings,omitempty"`
 }
 
 type PtpClockThreshold struct {
