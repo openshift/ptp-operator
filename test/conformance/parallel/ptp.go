@@ -11,7 +11,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -76,115 +75,43 @@ var _ = Describe("[ptp-long-running]", func() {
 			//ptpRunningPods = append(ptpMasterRunningPods, ptpSlaveRunningPods...)
 		})
 
-		It("Execute TestCase A", func() {
-			done := make(chan interface{})
-			go func() {
-				logrus.Info("start: TestCase A")
-				time.Sleep(100 * time.Millisecond)
-				logrus.Info("end: TestCase A")
-				close(done)
-			}()
-			Eventually(done, pkg.TimeoutIn5Minutes).Should(BeClosed())
-		})
-		It("Execute TestCase B", func() {
-			done := make(chan interface{})
-			go func() {
-				logrus.Info("start: Testing TestCase B")
-				time.Sleep(500 * time.Millisecond)
-				logrus.Info("end: Testing TestCase B")
-				close(done)
-			}()
-			Eventually(done, pkg.TimeoutIn10Minutes).Should(BeClosed())
-		})
-
-		It("Execute TestCase C", func() {
-			done := make(chan interface{})
-			go func() {
-				logrus.Info("start: Testing TestCase C")
-				time.Sleep(500 * time.Millisecond)
-				logrus.Info("end: Testing TestCase C")
-				close(done)
-			}()
-			Eventually(done, pkg.TimeoutIn3Minutes).Should(BeClosed())
-		})
-
-		It("PTP Offset testing", func() {
-
-			Expect(testclient.Client).NotTo(BeNil())
-
-			logrus.Info("config=", testParameters)
-			//
-			if fullConfig.Status == testconfig.DiscoveryFailureStatus {
-				Fail("failed to find a valid ptp slave configuration")
-			}
-			// Get All PTP pods
-			slaveNodes, err := testclient.Client.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{
-				LabelSelector: pkg.PtpClockUnderTestNodeLabel,
-			})
-			if err != nil {
-				logrus.Error("cannot list slave nodes")
-				Fail("Can't list slave nodes")
-			}
-
-			var slavePods []v1.Pod
-
-			for _, s := range slaveNodes.Items {
-				ptpPods, err := testclient.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(),
-					metav1.ListOptions{LabelSelector: "app=linuxptp-daemon", FieldSelector: fmt.Sprintf("spec.nodeName=%s", s.Name)})
-				if err != nil {
-					logrus.Error("error in getting ptp pods")
-					Fail("can't find ptp pods, test skipped")
-				}
-				slavePods = append(slavePods, ptpPods.Items...)
-			}
-
-			if len(slavePods) == 0 {
-				logrus.Error("no slave pod found")
-				Fail("no slave pods found")
-			}
-			messages := make(chan string)
-			duration := time.Duration(testParameters.SoakTestConfig.MasterOffsetConfig.Duration) * time.Minute
-			ticker := time.NewTicker(duration)
-			var wg sync.WaitGroup
-			ctx, cancel := context.WithTimeout(context.Background(), duration)
-			for _, p := range slavePods {
-				logrus.Debug("node=", p.Spec.NodeName, ", pod=", p.Name, " label=", p.Labels)
-				wg.Add(1)
-				go func(namespace, pod, container string, min, max int, messages chan string, ctx context.Context) {
-					defer wg.Done()
-					GetPodLogs(namespace, pod, container, min, max, messages, ctx)
-				}(p.Namespace, p.Name, pkg.PtpContainerName,
-					testParameters.GlobalConfig.MinOffset,
-					testParameters.GlobalConfig.MaxOffset,
-					messages, ctx)
-			}
-			asyncCounter := 0
-		L1:
-			for {
-				select {
-				case msg := <-messages:
-					if testParameters.SoakTestConfig.MasterOffsetConfig.FailFast {
-						cancel()
-						Fail(msg)
-						break L1
-					} else {
-						logrus.Error(msg)
-						asyncCounter++
-					}
-				case <-ticker.C:
-					logrus.Info("test duration ended")
-					cancel()
-					break L1
-				}
-			}
-			wg.Wait()
-			if asyncCounter != 0 {
-				Fail("error found in master offset sync, please check the logs")
-			}
+		It("PTP Slave Clock Sync", func() {
+			testPtpSlaveClockSync(fullConfig, testParameters) // Implementation of the test case
 		})
 	})
-
 })
+
+func testPtpSlaveClockSync(fullConfig testconfig.TestConfig, testParameters ptptestconfig.PtpTestConfig) {
+	Expect(testclient.Client).NotTo(BeNil())
+
+	if fullConfig.Status == testconfig.DiscoveryFailureStatus {
+		Fail("failed to find a valid ptp slave configuration")
+	}
+
+	if testParameters.SoakTestConfig.DisableSoakTest {
+		Skip("skip the test as the entire suite is disabled")
+	}
+
+	soakTestConfig := testParameters.SoakTestConfig
+	slaveClockSyncTestSpec := testParameters.SoakTestConfig.SlaveClockSyncConfig.TestSpec
+
+	if !slaveClockSyncTestSpec.Enable {
+		Skip("skip the test - the test is disabled")
+	}
+
+	logrus.Info("Test description ", soakTestConfig.SlaveClockSyncConfig.Description)
+
+	// populate failure threshold
+	failureThreshold := slaveClockSyncTestSpec.FailureThreshold
+	if failureThreshold == 0 {
+		failureThreshold = soakTestConfig.FailureThreshold
+	}
+	if failureThreshold == 0 {
+		failureThreshold = 1
+	}
+	logrus.Info("Failure threshold = ", failureThreshold)
+	// Actual implementation
+}
 
 func GetPodLogs(namespace, podName, containerName string, min, max int, messages chan string, ctx context.Context) {
 	var re = regexp.MustCompile(`(?ms)rms\s*\d*\smax`)

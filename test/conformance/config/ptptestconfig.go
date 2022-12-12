@@ -6,8 +6,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/creasty/defaults"
 	"github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 type yamlTimeDur time.Duration
@@ -17,33 +18,50 @@ type GlobalConfig struct {
 	MaxOffset int `yaml:"maxoffset"`
 }
 
+type TestSpec struct {
+	Enable           bool  `default:"true"`
+	FailureThreshold int   `yaml:"failure_threshold"`
+	Duration         int64 `yaml:"duration"`
+}
+
+func (t *TestSpec) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	defaults.Set(t)
+
+	type plain TestSpec
+	if err := unmarshal((*plain)(t)); err != nil {
+		return err
+	}
+	return nil
+}
+
 type SoakTestConfig struct {
-	EnableSoakTest     bool               `yaml:"enable"`
-	MasterOffsetConfig MasterOffsetConfig `yaml:"masteroffset"`
-	TestCaseAConfig    TestCaseA          `yaml:"testa"`
-	TestCaseBConfig    TestCaseB          `yaml:"testb"`
-}
-type MasterOffsetConfig struct {
-	Enable   bool  `yaml:"enable"`
-	FailFast bool  `yaml:"failfast"`
-	Duration int64 `yaml:"duration"`
+	DisableSoakTest  bool  `yaml:"disable_all"`
+	FailureThreshold int   `default:"1"`
+	Duration         int64 `yaml:"duration"`
+
+	SlaveClockSyncConfig SlaveClockSync `yaml:"slave_clock_sync"`
 }
 
-type TestCaseA struct {
-	Enable   bool  `yaml:"enable"`
-	FailFast bool  `yaml:"failfast"`
-	Duration int64 `yaml:"duration"`
-}
+func (t *SoakTestConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	defaults.Set(t)
 
-type TestCaseB struct {
-	Enable   bool  `yaml:"enable"`
-	FailFast bool  `yaml:"failfast"`
-	Duration int64 `yaml:"duration"`
+	type plain SoakTestConfig
+	if err := unmarshal((*plain)(t)); err != nil {
+		return err
+	}
+	return nil
 }
 
 type PtpTestConfig struct {
 	GlobalConfig   GlobalConfig   `yaml:"global"`
 	SoakTestConfig SoakTestConfig `yaml:"soaktest"`
+}
+
+// Individual test configuration
+
+type SlaveClockSync struct {
+	TestSpec    TestSpec `yaml:"spec"`
+	Description string   `yaml:"desc"`
 }
 
 var ptpTestConfig PtpTestConfig
