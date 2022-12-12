@@ -1,11 +1,12 @@
 ---
 global:
- minoffset: -100
  maxoffset: 100
-
+ minoffset: -100
 soaktest:
-  enable: true
-  masteroffset:
-   enable: true
-   failfast: true
-   duration: 5
+  disable_all: false
+  slave_clock_sync:
+    spec:
+      failure_threshold: 10
+      duration: 5
+    desc: "some-description"
+    

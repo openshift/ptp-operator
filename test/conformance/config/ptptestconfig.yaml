@@ -1,18 +1,24 @@
 ---
 global:
- maxoffset: -100
- minoffset: 100
+ maxoffset: 100
+ minoffset: -100
 soaktest:
-  enable: false
-  masteroffset:
-   enable: true
-   failfast: true
-   duration: 10
-  testa:
-   enable: true
-   failfast: true
-   duration: 10
-  testb:
-   enable: true
-   failfast: true
-   duration: 10
+  disable_all: false
+  duration: 10
+  failure_threshold: 2
+  master_offset:
+    spec:
+      enable: true
+      duration: 10
+      failure_threshold: 20
+    desc: "This test measures the master offset check"
+  slave_clock_sync:
+    spec:
+      failure_threshold: 10
+    desc: "The test measures number of PTP time sync faults, and fails if >0"
+  cpu_utilization:
+    spec:
+      enable: true
+      duration: 10
+      failure_threshold: 10
+    desc: "The test measures PTP CPU usage and fails if >15mcores"

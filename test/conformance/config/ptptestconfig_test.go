@@ -11,17 +11,21 @@ import (
 func TestLoadConfiguration(t *testing.T) {
 	cfg := PtpTestConfig{}
 	path, _ := os.Getwd()
+
 	cfg.loadPtpTestConfig(fmt.Sprintf("%s/%s", path, "testdata/cfg1.yaml"))
-	assert.Equal(t, int64(5), cfg.SoakTestConfig.MasterOffsetConfig.Duration)
+	assert.Equal(t, int64(5), cfg.SoakTestConfig.SlaveClockSyncConfig.TestSpec.Duration)
 	assert.Equal(t, 100, cfg.GlobalConfig.MaxOffset)
 	assert.Equal(t, -100, cfg.GlobalConfig.MinOffset)
-	assert.Equal(t, true, cfg.SoakTestConfig.MasterOffsetConfig.Enable)
-	assert.Equal(t, true, cfg.SoakTestConfig.MasterOffsetConfig.FailFast)
+	assert.Equal(t, true, cfg.SoakTestConfig.SlaveClockSyncConfig.TestSpec.Enable)
+	assert.Equal(t, 10, cfg.SoakTestConfig.SlaveClockSyncConfig.TestSpec.FailureThreshold)
+
 	cfg = PtpTestConfig{}
 	cfg.loadPtpTestConfig(fmt.Sprintf("%s/%s", path, "testdata/cfg2.yaml"))
-	assert.Equal(t, int64(9), cfg.SoakTestConfig.MasterOffsetConfig.Duration)
+	assert.Equal(t, int64(9), cfg.SoakTestConfig.SlaveClockSyncConfig.TestSpec.Duration)
 	assert.Equal(t, 19, cfg.GlobalConfig.MaxOffset)
 	assert.Equal(t, -15, cfg.GlobalConfig.MinOffset)
-	assert.Equal(t, false, cfg.SoakTestConfig.MasterOffsetConfig.Enable)
-	assert.Equal(t, false, cfg.SoakTestConfig.MasterOffsetConfig.FailFast)
+
+	assert.Equal(t, 1, cfg.SoakTestConfig.FailureThreshold)
+	assert.Equal(t, true, cfg.SoakTestConfig.SlaveClockSyncConfig.TestSpec.Enable)
+	assert.Equal(t, "some-description", cfg.SoakTestConfig.SlaveClockSyncConfig.Description)
 }
