@@ -23,7 +23,10 @@ import (
 	"github.com/sirupsen/logrus"
 	k8sPriviledgedDs "github.com/test-network-function/privileged-daemonset"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
+	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/metrics/pkg/apis/metrics/v1beta1"
 )
 
 // helper function for old interface discovery test
@@ -321,4 +324,115 @@ func RebootSlaveNode(fullConfig testconfig.TestConfig) {
 	CheckSlaveSyncWithMaster(fullConfig)
 
 	logrus.Info("Rebooting system ends ..............")
+}
+
+func IsPtpDaemonPodsCpuUsageHigherThan(milliCoresThreshold int64) (bool, error) {
+	ptpDaemonsetPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: pkg.PtpLinuxDaemonPodsLabel})
+	if err != nil {
+		return false, fmt.Errorf("failed to get linux-ptp daemonset's pods: %w", err)
+	}
+
+	if len(ptpDaemonsetPods.Items) == 0 {
+		return false, fmt.Errorf("no linux-ptp daemonset's pods found")
+	}
+
+	return isAnyPodCpuUsageHigherThan(ptpDaemonsetPods.Items, milliCoresThreshold)
+}
+
+func IsPtpOperatorPodsCpuUsageHigherThan(milliCoresThreshold int64) (bool, error) {
+	ptpOperatorPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: pkg.PtPOperatorPodsLabel})
+	if err != nil {
+		return false, fmt.Errorf("failed to get operator pods: %w", err)
+	}
+
+	if len(ptpOperatorPods.Items) == 0 {
+		return false, fmt.Errorf("no ptp-operator pods found")
+	}
+
+	return isAnyPodCpuUsageHigherThan(ptpOperatorPods.Items, milliCoresThreshold)
+}
+
+// isAnyPodCpuUsageHigherThan is a helper function to check whether the cpu usage in any
+// of the pods is higher than the threshold in milliCores.
+func isAnyPodCpuUsageHigherThan(pods []v1.Pod, milliCoresThreshold int64) (bool, error) {
+	thresholdReached := false
+	// Get Metrics for each of the pods of the ptp-operator.
+	for i := range pods {
+		pod := &pods[i]
+		logrus.Debugf("Getting CPU usage from pod: %s ns: %s", pod.Name, pod.Namespace)
+		milliCores, err := GetPodTotalCpuUsage(pod.Name, pod.Namespace)
+		if err != nil {
+			return false, err
+		}
+
+		logrus.Infof("Pod %s (ns %s): cpu usage=%d mC", pod.Name, pod.Namespace, milliCores)
+		if milliCores > milliCoresThreshold {
+			thresholdReached = true
+			logrus.Warnf("Pod %s (ns %s) usage is higher (%d mC) than expected (%d mC).", pod.Name, pod.Namespace, int(milliCores), int(milliCoresThreshold))
+		}
+	}
+
+	return thresholdReached, nil
+}
+
+// GetPodTotalCpuUsage gets the cpu usage (in milliCores) of a pod, accumulating
+// the cpu usage of each of its containers. Uses PodMetrics API to get the cpu usage.
+func GetPodTotalCpuUsage(podName, namespace string) (int64, error) {
+	var podMetrics *v1beta1.PodMetrics
+
+	// Try to get the PodMetrics associated with the pod.
+	podMetrics, err := getPodMetricsResource(podName, namespace, pkg.TimeoutIn5Minutes)
+	if err != nil {
+		return 0, err
+	}
+
+	// Accumulate metrics from all pod's containers, except the "POD" one.
+	totalCpuUsage := int64(0)
+	for i := range podMetrics.Containers {
+		container := &podMetrics.Containers[i]
+
+		// Filter out internal container called "POD".
+		if container.Name == "POD" {
+			continue
+		}
+
+		milliCores := container.Usage.Cpu().MilliValue()
+
+		logrus.Debugf("Pod %s (ns %s), container=%s, cpu usage=%s (milis=%d)", podName, namespace,
+			container.Name, container.Usage.Cpu().String(), milliCores)
+
+		totalCpuUsage += milliCores
+	}
+
+	return totalCpuUsage, nil
+}
+
+// getPodMetricsResource is a helper function to return the PodMetrics resource associated
+// with a pod. Has a retry mechanism as PodMetrics could take a while to appear after the
+// pod has been restarted.
+func getPodMetricsResource(name, namespace string, timeout time.Duration) (*v1beta1.PodMetrics, error) {
+	var podMetrics *v1beta1.PodMetrics
+
+	timeStart := time.Now()
+
+	for time.Since(timeStart) < timeout {
+		var err error
+		podMetrics, err = client.Client.PodMetricses(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+		if err == nil {
+			break
+		}
+
+		if !k8sErrors.IsNotFound(err) {
+			logrus.Warnf("Failed to get PodMetrics name %s (ns %s): %v", name, namespace, err)
+		}
+
+		logrus.Infof("PodMetrics %s (ns %s) not found yet. Retrying...", name, namespace)
+		time.Sleep(5 * time.Second)
+	}
+
+	if podMetrics != nil {
+		return podMetrics, nil
+	}
+
+	return nil, fmt.Errorf("failed to get podMetrics %s (ns %s)", name, namespace)
 }

@@ -12,7 +12,9 @@ const (
 	ETHTOOL_TX_HARDWARE_FLAG       = "(SOF_TIMESTAMPING_TX_HARDWARE)"
 	ETHTOOL_RAW_HARDWARE_FLAG      = "(SOF_TIMESTAMPING_RAW_HARDWARE)"
 	PtpLinuxDaemonNamespace        = "openshift-ptp"
+	PtpLinuxDaemonPodsLabel        = "app=linuxptp-daemon"
 	PtpOperatorDeploymentName      = "ptp-operator"
+	PtPOperatorPodsLabel           = "name=ptp-operator"
 	PtpDaemonsetName               = "linuxptp-daemon"
 
 	PtpResourcesGroupVersionPrefix  = "ptp.openshift.io/v"

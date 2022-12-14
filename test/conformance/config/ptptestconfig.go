@@ -11,6 +11,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const (
+	// Default cpu usage threshold in milliCpus.
+	PtpDefaultMilliCoresUsageThreshold = 15
+)
+
 type yamlTimeDur time.Duration
 
 type GlobalConfig struct {
@@ -40,6 +45,7 @@ type SoakTestConfig struct {
 	Duration         int64 `yaml:"duration"`
 
 	SlaveClockSyncConfig SlaveClockSync `yaml:"slave_clock_sync"`
+	CpuUtilization       CpuUtilization `yaml:"cpu_utilization"`
 }
 
 func (t *SoakTestConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -58,6 +64,11 @@ type PtpTestConfig struct {
 }
 
 // Individual test configuration
+
+type CpuUtilization struct {
+	TestSpec    TestSpec `yaml:"spec"`
+	Description string   `yaml:"desc"`
+}
 
 type SlaveClockSync struct {
 	TestSpec    TestSpec `yaml:"spec"`
