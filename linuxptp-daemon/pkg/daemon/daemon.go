@@ -193,7 +193,14 @@ func getLogFilterRegex(nodeProfile *ptpv1.PtpProfile) string {
 	logFilterRegex := "^$"
 	if filter, ok := (*nodeProfile).PtpSettings["stdoutFilter"]; ok {
 		logFilterRegex = filter
-		glog.Infof("%s stdoutFilter='%s'\n", *nodeProfile.Name, logFilterRegex)
+	}
+	if logReduce, ok := (*nodeProfile).PtpSettings["logReduce"]; ok {
+		if strings.ToLower(logReduce) == "true" {
+			logFilterRegex = fmt.Sprintf("%s|^.*master offset.*$", logFilterRegex)
+		}
+	}
+	if logFilterRegex != "^$" {
+		glog.Infof("%s logFilterRegex='%s'\n", *nodeProfile.Name, logFilterRegex)
 	}
 	return logFilterRegex
 }
