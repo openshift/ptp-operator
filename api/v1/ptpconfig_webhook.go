@@ -125,6 +125,11 @@ func (r *PtpConfig) validate() error {
 					if err != nil {
 						return errors.New("stdoutFilter='" + v + "' is invalid; " + err.Error())
 					}
+				case k == "logReduce":
+					v = strings.ToLower(v)
+					if v != "true" && v != "false" {
+						return errors.New("logReduce='" + v + "' is invalid; must be in 'true' or 'false'")
+					}
 				default:
 					return errors.New("profile.PtpSettings '" + k + "' is not a configurable setting")
 				}
