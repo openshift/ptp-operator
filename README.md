@@ -155,7 +155,7 @@ spec:
     - nodeLabel: "node-role.kubernetes.io/worker"
     
 ```
-#### ptpConfig to filter master offset logs
+#### ptpConfig to filter 'master offset' and 'delay   filtered' logs
 ```
 apiVersion: ptp.openshift.io/v1
 kind: PtpConfig
@@ -169,7 +169,8 @@ spec:
     ...
     ......   
     ptpSettings:
-      stdoutFilter: "^.*master offset.*$"
+      stdoutFilter: "^.*delay   filtered.*$"
+      logReduce: "true"
   recommend:
   - profile: "profile1"
     priority: 4
