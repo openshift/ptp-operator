@@ -49,6 +49,10 @@ const (
 	RebootDaemonSetNamespace     = "default"
 	RebootDaemonSetName          = "ptp-reboot"
 	RebootDaemonSetContainerName = "container-00"
+
+	RecoveryNetworkOutageDaemonSetNamespace     = "default"
+	RecoveryNetworkOutageDaemonSetName          = "ptp-network-outage-recovery"
+	RecoveryNetworkOutageDaemonSetContainerName = "container-00"
 )
 
 const (
