@@ -4,9 +4,10 @@ go 1.18
 
 require (
 	github.com/Masterminds/sprig v2.22.0+incompatible
+	github.com/creasty/defaults v1.6.0
 	github.com/go-logr/logr v1.2.3
 	github.com/golang/glog v1.0.0
-	github.com/onsi/ginkgo/v2 v2.5.0
+	github.com/onsi/ginkgo/v2 v2.5.1
 	github.com/onsi/gomega v1.24.0
 	github.com/openshift/api v0.0.0-20220831183848-09c070622e2c
 	github.com/openshift/client-go v0.0.0-20220831193253-4950ae70c8ea
@@ -18,7 +19,7 @@ require (
 	github.com/test-network-function/l2discovery-exports v0.0.1
 	github.com/test-network-function/l2discovery-lib v0.0.5
 	github.com/test-network-function/privileged-daemonset v0.0.5
-	gopkg.in/yaml.v2 v2.4.0
+	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.25.4
 	k8s.io/apiextensions-apiserver v0.25.2
 	k8s.io/apimachinery v0.25.4
@@ -85,7 +86,7 @@ require (
 	golang.org/x/crypto v0.0.0-20220331220935-ae2d96664a29 // indirect
 	golang.org/x/net v0.1.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5 // indirect
-	golang.org/x/sys v0.1.0 // indirect
+	golang.org/x/sys v0.2.0 // indirect
 	golang.org/x/term v0.1.0 // indirect
 	golang.org/x/text v0.4.0 // indirect
 	golang.org/x/time v0.0.0-20220609170525-579cf78fd858 // indirect
@@ -93,7 +94,7 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/component-base v0.25.2 // indirect
 	k8s.io/klog/v2 v2.80.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20220803162953-67bda5d908f1 // indirect

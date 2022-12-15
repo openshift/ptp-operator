@@ -35,7 +35,7 @@ func TestTest(t *testing.T) {
 var _ = SynchronizedBeforeSuite(func() []byte {
 	// Get the test config parameters
 	testParameters := ptptestconfig.GetPtpTestConfig()
-	if !testParameters.SoakTestConfig.EnableSoakTest {
+	if testParameters.SoakTestConfig.DisableSoakTest {
 		Skip("Soak testing is disabled at the configuration file. Hence, skipping!")
 	}
 
