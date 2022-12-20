@@ -129,6 +129,10 @@ func testPtpCpuUtilization(fullConfig testconfig.TestConfig, testParameters ptpt
 
 	logrus.Debugf("CPU Utilization TC Config: %+v", testParameters.SoakTestConfig.CpuUtilization)
 
+	if testParameters.SoakTestConfig.DisableSoakTest {
+		Skip("skip the test as the entire suite is disabled")
+	}
+
 	params := testParameters.SoakTestConfig.CpuUtilization.TestSpec
 	if !params.Enable {
 		Skip("skip the test - the test is disabled")
@@ -148,7 +152,7 @@ func testPtpCpuUtilization(fullConfig testconfig.TestConfig, testParameters ptpt
 		failureThreshold = params.FailureThreshold
 	}
 
-	logrus.Infof("Running TC for %s (failure threshold: %d)", testCaseDuration.String(), failureThreshold)
+	logrus.Infof("Running test for %s (failure threshold: %d)", testCaseDuration.String(), failureThreshold)
 
 	failureCounter := 0
 	for {
