@@ -155,6 +155,29 @@ spec:
     - nodeLabel: "node-role.kubernetes.io/worker"
     
 ```
+#### ptpConfig to filter 'master offset' and 'delay   filtered' logs
+```
+apiVersion: ptp.openshift.io/v1
+kind: PtpConfig
+metadata:
+  name: suppress-logs-ptpconfig
+  namespace: ptp
+spec:
+  profile:
+  - name: "profile1"
+    ...
+    ...
+    ......   
+    ptpSettings:
+      stdoutFilter: "^.*delay   filtered.*$"
+      logReduce: "true"
+  recommend:
+  - profile: "profile1"
+    priority: 4
+    match:
+    - nodeLabel: "node-role.kubernetes.io/worker"
+    
+```
 
 In above examples, `profile1` will be applied by `linuxptp-daemon` to nodes labeled with `node-role.kubernetes.io/worker`.
 

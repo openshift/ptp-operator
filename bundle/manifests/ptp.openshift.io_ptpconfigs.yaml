@@ -75,6 +75,10 @@ spec:
                       maximum: 65
                       minimum: 1
                       type: integer
+                    ptpSettings:
+                      additionalProperties:
+                        type: string
+                      type: object
                   required:
                   - name
                   type: object
