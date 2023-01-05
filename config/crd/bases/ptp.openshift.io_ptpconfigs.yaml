@@ -42,6 +42,8 @@ spec:
                       type: string
                     name:
                       type: string
+                    phc2sysConf:
+                      type: string
                     phc2sysOpts:
                       type: string
                     ptp4lConf:
@@ -80,6 +82,10 @@ spec:
                       additionalProperties:
                         type: string
                       type: object
+                    ts2phcConf:
+                      type: string
+                    ts2phcOpts:
+                      type: string
                   required:
                   - name
                   type: object
