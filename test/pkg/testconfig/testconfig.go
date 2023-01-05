@@ -9,6 +9,7 @@ import (
 	"context"
 
 	ptpv1 "github.com/openshift/ptp-operator/api/v1"
+	ptptestconfig "github.com/openshift/ptp-operator/test/conformance/config"
 	"github.com/openshift/ptp-operator/test/pkg"
 	"github.com/openshift/ptp-operator/test/pkg/clean"
 	"github.com/openshift/ptp-operator/test/pkg/client"
@@ -49,10 +50,10 @@ const (
 	BoundaryClockString = "BC"
 	// DualNICBoundaryClockString matches the DualNICBC clock mode in Environement
 	DualNICBoundaryClockString = "DualNICBC"
-	ptp4lEthernet              = "-2"
-	ptp4lEthernetSlave         = "-2 -s"
-	phc2sysGM                  = "-a -r -r -n 24"
-	phc2sysSlave               = "-a -r -n 24"
+	ptp4lEthernet              = "-2 --summary_interval -4"
+	ptp4lEthernetSlave         = "-2 -s --summary_interval -4"
+	phc2sysGM                  = "" // do not autoconfigure phc2sys, use local IF clock as clock source for grandmaster
+	phc2sysSlave               = "-a -r -n 24 -m -N 8 -R 16"
 	SCHED_OTHER                = "SCHED_OTHER"
 	SCHED_FIFO                 = "SCHED_FIFO"
 )
@@ -99,6 +100,7 @@ type TestConfig struct {
 	DiscoveredClockUnderTestPod *v1core.Pod
 	L2Config                    l2lib.L2Info
 	FoundSolutions              map[string]bool
+	PtpEventsIsSidecarReady     bool
 }
 type solverData struct {
 	// Mapping between clock role and port depending on the algo
@@ -163,11 +165,11 @@ func (obj *ptpDiscoveryRes) String() string {
 	}
 	return obj.Name
 }
-func (obj *TestConfig) String() string {
+func (obj *TestConfig) String() (out string) {
 	if obj == nil {
 		return "nil"
 	}
-	return fmt.Sprintf("PtpModeDesired=%s, PtpModeDiscovered=%s, Status=%s, DiscoveredClockUnderTestPtpConfig=%s, DiscoveredClockUnderTestSecondaryPtpConfig=%s, DiscoveredGrandMasterPtpConfig=%s, DiscoveredSlave1PtpConfig=%s, DiscoveredSlave2PtpConfig=%s",
+	out += fmt.Sprintf("PtpModeDesired= %s, PtpModeDiscovered= %s, Status= %s, DiscoveredClockUnderTestPtpConfig= %s, DiscoveredClockUnderTestSecondaryPtpConfig= %s, DiscoveredGrandMasterPtpConfig= %s, DiscoveredSlave1PtpConfig= %s, DiscoveredSlave2PtpConfig= %s, PtpEventsIsSidecarReady= %t, ",
 		obj.PtpModeDesired,
 		obj.PtpModeDiscovered,
 		obj.Status,
@@ -175,7 +177,15 @@ func (obj *TestConfig) String() string {
 		obj.DiscoveredClockUnderTestSecondaryPtpConfig,
 		obj.DiscoveredGrandMasterPtpConfig,
 		obj.DiscoveredSlave1PtpConfig,
-		obj.DiscoveredSlave2PtpConfig)
+		obj.DiscoveredSlave2PtpConfig,
+		obj.PtpEventsIsSidecarReady)
+	if obj.DiscoveredClockUnderTestPod != nil {
+		out += fmt.Sprintf("DiscoveredClockUnderTestPodName=%s, DiscoveredClockUnderTestNodeName=%s",
+			obj.DiscoveredClockUnderTestPod.Name,
+			obj.DiscoveredClockUnderTestPod.Spec.NodeName)
+	}
+
+	return out
 }
 
 func (status ConfigStatus) String() string {
@@ -244,7 +254,6 @@ func Reset() {
 func initFoundSolutions() {
 	GlobalConfig.FoundSolutions = make(map[string]bool)
 	for _, name := range enabledProblems {
-
 		if len(*data.solutions[name]) > 0 {
 			GlobalConfig.FoundSolutions[name] = true
 		}
@@ -329,7 +338,6 @@ func CreatePtpConfigurations() error {
 		case DualNICBoundaryClock:
 			return PtpConfigDualNicBC(isSingleNode)
 		}
-
 	}
 	return nil
 }
@@ -356,7 +364,8 @@ func initAndSolveProblems() {
 		{{int(solver.StepNil), 0, 0}},         // step1
 		{{int(solver.StepSameLan2), 2, 0, 1}}, // step2
 		{{int(solver.StepSameNic), 2, 1, 2}},  // step3
-		{{int(solver.StepSameLan2), 2, 2, 3}}, // step4
+		{{int(solver.StepSameLan2), 2, 2, 3}, // step4
+			{int(solver.StepDifferentNic), 2, 0, 3}}, // step4 - downstream slaves and grandmaster must be on different nics
 	}
 	data.problems[AlgoDualNicBCString] = &[][][]int{
 		{{int(solver.StepNil), 0, 0}},         // step1
@@ -373,8 +382,10 @@ func initAndSolveProblems() {
 		{{int(solver.StepSameLan2), 2, 2, 3}}, // step4
 		{{int(solver.StepSameNode), 2, 2, 4}, // step5
 			{int(solver.StepSameLan2), 2, 3, 4}}, // step5
-		{{int(solver.StepSameNic), 2, 4, 5}},  // step6
-		{{int(solver.StepSameLan2), 2, 5, 6}}, // step7
+		{{int(solver.StepSameNic), 2, 4, 5}},      // step6
+		{{int(solver.StepSameLan2), 2, 5, 6}},     // step7
+		{{int(solver.StepDifferentNic), 2, 0, 6}}, // step8 - downstream slaves and grandmaster must be on different nics
+		{{int(solver.StepDifferentNic), 2, 0, 3}}, // step9 - downstream slaves and grandmaster must be on different nics
 	}
 	data.problems[AlgoSNOOCString] = &[][][]int{
 		{{int(solver.StepIsPTP), 1, 0}}, // step1
@@ -446,7 +457,6 @@ func initAndSolveProblems() {
 	(*data.testClockRolesAlgoMapping[AlgoSNODualNicBCString])[BC2Master] = 3
 
 	for _, name := range enabledProblems {
-
 		// Initializing problems
 		solver.GlobalConfig.InitProblem(
 			name,
@@ -507,7 +517,6 @@ func CreatePtpConfigGrandMaster(nodeName, ifName string) error {
 		pointer.Int64Ptr(int5),
 		ptpSchedulingPolicy,
 		pointer.Int64Ptr(int65))
-
 }
 
 func CreatePtpConfigBC(policyName, nodeName, ifMasterName, ifSlaveName string, phc2sys bool) (err error) {
@@ -542,7 +551,6 @@ func CreatePtpConfigBC(policyName, nodeName, ifMasterName, ifSlaveName string, p
 		pointer.Int64Ptr(int5),
 		ptpSchedulingPolicy,
 		pointer.Int64Ptr(int65))
-
 }
 
 func CreatePtpConfigOC(profileName, nodeName, ifSlaveName string, phc2sys bool, label string) (err error) {
@@ -854,15 +862,20 @@ func AddInterface(ptpConfig, iface string, masterOnly int) (updatedPtpConfig str
 
 // helper function to create a ptpconfig
 func createConfig(profileName string, ifaceName, ptp4lOpts *string, ptp4lConfig string, phc2sysOpts *string, nodeLabel string, priority *int64, ptpSchedulingPolicy string, ptpSchedulingPriority *int64) error {
-
-	ptpProfile := ptpv1.PtpProfile{Name: &profileName, Interface: ifaceName, Phc2sysOpts: phc2sysOpts, Ptp4lOpts: ptp4lOpts, PtpSchedulingPolicy: &ptpSchedulingPolicy, PtpSchedulingPriority: ptpSchedulingPriority}
+	thresholds := ptpv1.PtpClockThreshold{}
+	thresholds.MaxOffsetThreshold = int64(ptptestconfig.GetPtpTestConfig().GlobalConfig.MaxOffset)
+	thresholds.MinOffsetThreshold = int64(ptptestconfig.GetPtpTestConfig().GlobalConfig.MinOffset)
+	ptpProfile := ptpv1.PtpProfile{Name: &profileName, Interface: ifaceName, Phc2sysOpts: phc2sysOpts, Ptp4lOpts: ptp4lOpts, PtpSchedulingPolicy: &ptpSchedulingPolicy, PtpSchedulingPriority: ptpSchedulingPriority,
+		PtpClockThreshold: &thresholds}
 	if ptp4lConfig != "" {
 		ptpProfile.Ptp4lConf = &ptp4lConfig
 	}
 	matchRule := ptpv1.MatchRule{NodeLabel: &nodeLabel}
 	ptpRecommend := ptpv1.PtpRecommend{Profile: &profileName, Priority: priority, Match: []ptpv1.MatchRule{matchRule}}
+
 	policy := ptpv1.PtpConfig{ObjectMeta: metav1.ObjectMeta{Name: profileName, Namespace: PtpLinuxDaemonNamespace},
-		Spec: ptpv1.PtpConfigSpec{Profile: []ptpv1.PtpProfile{ptpProfile}, Recommend: []ptpv1.PtpRecommend{ptpRecommend}}}
+		Spec: ptpv1.PtpConfigSpec{Profile: []ptpv1.PtpProfile{ptpProfile},
+			Recommend: []ptpv1.PtpRecommend{ptpRecommend}}}
 
 	_, err := client.Client.PtpConfigs(PtpLinuxDaemonNamespace).Create(context.Background(), &policy, metav1.CreateOptions{})
 	return err

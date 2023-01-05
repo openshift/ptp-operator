@@ -4,6 +4,7 @@ global:
  minoffset: -100
 soaktest:
   disable_all: false
+  event_output_file: "./event-output.csv"
   duration: 10
   failure_threshold: 2
   master_offset:
@@ -14,8 +15,10 @@ soaktest:
     desc: "This test measures the master offset check"
   slave_clock_sync:
     spec:
+      enable: true
+      duration: 5
       failure_threshold: 10
-    desc: "The test measures number of PTP time sync faults, and fails if >0"
+    desc: "The test measures number of PTP time sync faults, and fails if > failure_threshold"
   cpu_utilization:
     spec:
       enable: true

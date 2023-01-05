@@ -11,6 +11,7 @@ import (
 
 	"github.com/openshift/ptp-operator/test/pkg/clean"
 	testclient "github.com/openshift/ptp-operator/test/pkg/client"
+	"github.com/openshift/ptp-operator/test/pkg/logging"
 	"github.com/openshift/ptp-operator/test/pkg/testconfig"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -33,6 +34,7 @@ func InitDeletePtpConfig() {
 }
 
 func TestTest(t *testing.T) {
+	logging.InitLogLevel()
 	RegisterFailHandler(Fail)
 	InitDeletePtpConfig()
 	RunSpecs(t, "PTP e2e integration tests")
