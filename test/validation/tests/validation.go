@@ -14,6 +14,7 @@ import (
 
 	testutils "github.com/openshift/ptp-operator/test/pkg"
 	testclient "github.com/openshift/ptp-operator/test/pkg/client"
+	"github.com/openshift/ptp-operator/test/pkg/ptphelper"
 )
 
 var _ = Describe("validation", func() {
@@ -24,22 +25,34 @@ var _ = Describe("validation", func() {
 		})
 
 		It("should have the ptp operator deployment in running state", func() {
-			deploy, err := testclient.Client.Deployments(testutils.PtpNamespace).Get(context.Background(), testutils.PtpOperatorDeploymentName, metav1.GetOptions{})
-			Expect(err).ToNot(HaveOccurred())
-			Expect(deploy.Status.Replicas).To(Equal(deploy.Status.ReadyReplicas))
+			Eventually(func() error {
+				deploy, err := testclient.Client.Deployments(testutils.PtpNamespace).Get(context.Background(), testutils.PtpOperatorDeploymentName, metav1.GetOptions{})
+				if err != nil {
+					return err
+				}
 
-			pods, err := testclient.Client.CoreV1().Pods(testutils.PtpNamespace).List(context.Background(), metav1.ListOptions{
-				LabelSelector: fmt.Sprintf("name=%s", testutils.PtpOperatorDeploymentName)})
-			Expect(err).ToNot(HaveOccurred())
+				pods, err := testclient.Client.CoreV1().Pods(testutils.PtpNamespace).List(context.Background(), metav1.ListOptions{
+					LabelSelector: fmt.Sprintf("name=%s", testutils.PtpOperatorDeploymentName)})
+				if err != nil {
+					return err
+				}
 
-			Expect(len(pods.Items)).To(Equal(1))
-			Expect(pods.Items[0].Status.Phase).To(Equal(corev1.PodRunning))
+				if len(pods.Items) != int(deploy.Status.Replicas) {
+					return fmt.Errorf("deployment %s pods are not ready, expected %d replicas got %d pods", testutils.PtpOperatorDeploymentName, deploy.Status.Replicas, len(pods.Items))
+				}
+
+				for _, pod := range pods.Items {
+					if pod.Status.Phase != corev1.PodRunning {
+						return fmt.Errorf("deployment %s pod %s is not running, expected status %s got %s", testutils.PtpOperatorDeploymentName, pod.Name, corev1.PodRunning, pod.Status.Phase)
+					}
+				}
+
+				return nil
+			}, testutils.TimeoutIn10Minutes, testutils.TimeoutInterval2Seconds).ShouldNot(HaveOccurred())
 		})
 
 		It("should have the linuxptp daemonset in running state", func() {
-			daemonset, err := testclient.Client.DaemonSets(testutils.PtpNamespace).Get(context.Background(), testutils.PtpDaemonsetName, metav1.GetOptions{})
-			Expect(err).ToNot(HaveOccurred())
-			Expect(daemonset.Status.NumberReady).To(Equal(daemonset.Status.DesiredNumberScheduled))
+			ptphelper.WaitForPtpDaemonToBeReady()
 		})
 
 		It("should have the ptp CRDs available in the cluster", func() {

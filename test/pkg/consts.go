@@ -39,6 +39,7 @@ const (
 	TimeoutIn5Minutes          = 5 * time.Minute
 	TimeoutIn10Minutes         = 10 * time.Minute
 	Timeout10Seconds           = 10 * time.Second
+	TimeoutInterval2Seconds    = 2 * time.Second
 
 	MasterOffsetLowerBound  = -100
 	MasterOffsetHigherBound = 100
