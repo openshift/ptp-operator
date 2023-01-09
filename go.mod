@@ -15,7 +15,7 @@ require (
 	github.com/sirupsen/logrus v1.9.0
 	github.com/test-network-function/graphsolver-lib v0.0.2
 	github.com/test-network-function/l2discovery-exports v0.0.1
-	github.com/test-network-function/l2discovery-lib v0.0.4
+	github.com/test-network-function/l2discovery-lib v0.0.5
 	github.com/test-network-function/privileged-daemonset v0.0.5
 	k8s.io/api v0.25.4
 	k8s.io/apiextensions-apiserver v0.25.2
