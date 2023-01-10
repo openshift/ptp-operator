@@ -4,7 +4,7 @@ COPY . .
 ENV GO111MODULE=off
 RUN make
 
-FROM quay.io/openshift/origin-base:4.12
+FROM quay.io/openshift/origin-base:4.13
 COPY --from=builder /go/src/github.com/openshift/ptp-operator/build/_output/bin/ptp-operator /usr/local/bin/
 COPY --from=builder /go/src/github.com/openshift/ptp-operator/manifests /manifests
 COPY bindata /bindata
