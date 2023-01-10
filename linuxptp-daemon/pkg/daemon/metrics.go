@@ -14,7 +14,6 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	utilwait "k8s.io/apimachinery/pkg/util/wait"
 
-	ptpv1 "github.com/openshift/ptp-operator/api/v1"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -445,43 +444,48 @@ func extractPTP4lEventState(output string) (portId int, role ptpPortRole) {
 	return
 }
 
-func addFlagsForMonitor(nodeProfile *ptpv1.PtpProfile, conf *ptp4lConf, stdoutToSocket bool) {
-	// If output doesn't exist we add it for the prometheus exporter
-	if nodeProfile.Phc2sysOpts != nil && *nodeProfile.Phc2sysOpts != "" {
-		if !strings.Contains(*nodeProfile.Phc2sysOpts, "-m") {
-			glog.Info("adding -m to print messages to stdout for phc2sys to use prometheus exporter")
-			*nodeProfile.Phc2sysOpts = fmt.Sprintf("%s -m", *nodeProfile.Phc2sysOpts)
-		}
-		// stdoutToSocket is for sidecar to consume events, -u  will not generate logs with offset and clock state.
-		// disable -u for  events
-		if stdoutToSocket && strings.Contains(*nodeProfile.Phc2sysOpts, "-u") {
-			glog.Error("-u option will not generate clock state events,  remove -u option")
-		} else if !stdoutToSocket && !strings.Contains(*nodeProfile.Phc2sysOpts, "-u") {
-			glog.Info("adding -u 1 to print summary messages to stdout for phc2sys to use prometheus exporter")
-			*nodeProfile.Phc2sysOpts = fmt.Sprintf("%s -u 1", *nodeProfile.Phc2sysOpts)
-		}
-	}
+func addFlagsForMonitor(process string, configOpts *string, conf *ptp4lConf, stdoutToSocket bool) {
+	switch process {
+	case "ptp4l":
+		// If output doesn't exist we add it for the prometheus exporter
+		if configOpts != nil {
+			if !strings.Contains(*configOpts, "-m") {
+				glog.Info("adding -m to print messages to stdout for ptp4l to use prometheus exporter")
+				*configOpts = fmt.Sprintf("%s -m", *configOpts)
+			}
 
-	// If output doesn't exist we add it for the prometheus exporter
-	if nodeProfile.Ptp4lOpts != nil {
-		if !strings.Contains(*nodeProfile.Ptp4lOpts, "-m") {
-			glog.Info("adding -m to print messages to stdout for ptp4l to use prometheus exporter")
-			*nodeProfile.Ptp4lOpts = fmt.Sprintf("%s -m", *nodeProfile.Ptp4lOpts)
-		}
-
-		if !strings.Contains(*nodeProfile.Ptp4lOpts, "--summary_interval") {
-			for index, section := range conf.sections {
-				if section.sectionName == "[global]" {
-					_, exist := section.options["summary_interval"]
-					if !exist {
-						glog.Info("adding summary_interval 1 to print summary messages to stdout for ptp4l to use prometheus exporter")
-						section.options["summary_interval"] = "1"
+			if !strings.Contains(*configOpts, "--summary_interval") {
+				for index, section := range conf.sections {
+					if section.sectionName == "[global]" {
+						_, exist := section.options["summary_interval"]
+						if !exist {
+							glog.Info("adding summary_interval 1 to print summary messages to stdout for ptp4l to use prometheus exporter")
+							section.options["summary_interval"] = "1"
+						}
+						conf.sections[index] = section
 					}
-					conf.sections[index] = section
 				}
 			}
 		}
+	case "phc2sys":
+		// If output doesn't exist we add it for the prometheus exporter
+		if configOpts != nil && *configOpts != "" {
+			if !strings.Contains(*configOpts, "-m") {
+				glog.Info("adding -m to print messages to stdout for phc2sys to use prometheus exporter")
+				*configOpts = fmt.Sprintf("%s -m", *configOpts)
+			}
+			// stdoutToSocket is for sidecar to consume events, -u  will not generate logs with offset and clock state.
+			// disable -u for  events
+			if stdoutToSocket && strings.Contains(*configOpts, "-u") {
+				glog.Error("-u option will not generate clock state events,  remove -u option")
+			} else if !stdoutToSocket && !strings.Contains(*configOpts, "-u") {
+				glog.Info("adding -u 1 to print summary messages to stdout for phc2sys to use prometheus exporter")
+				*configOpts = fmt.Sprintf("%s -u 1", *configOpts)
+			}
+		}
+	case "ts2phc":
 	}
+
 }
 
 // StartMetricsServer runs the prometheus listner so that metrics can be collected

@@ -206,13 +206,6 @@ func getLogFilterRegex(nodeProfile *ptpv1.PtpProfile) string {
 }
 
 func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) error {
-	socketPath := fmt.Sprintf("/var/run/ptp4l.%d.socket", runID)
-	configFile := fmt.Sprintf("ptp4l.%d.config", runID)
-	// This will create the configuration needed to run the ptp4l and phc2sys
-	err := dn.addProfileConfig(socketPath, configFile, nodeProfile)
-	if err != nil {
-		return fmt.Errorf("failed to add profile config %s: %v", configFile, err)
-	}
 
 	glog.Infof("------------------------------------")
 	printWhenNotNil(nodeProfile.Name, "Profile Name")
@@ -220,92 +213,124 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 	printWhenNotNil(nodeProfile.Ptp4lOpts, "Ptp4lOpts")
 	printWhenNotNil(nodeProfile.Ptp4lConf, "Ptp4lConf")
 	printWhenNotNil(nodeProfile.Phc2sysOpts, "Phc2sysOpts")
+	printWhenNotNil(nodeProfile.Phc2sysConf, "Phc2sysConf")
+	printWhenNotNil(nodeProfile.Ts2PhcOpts, "Ts2PhcOpts")
+	printWhenNotNil(nodeProfile.Ts2PhcConf, "Ts2PhcConf")
 	printWhenNotNil(nodeProfile.PtpSchedulingPolicy, "PtpSchedulingPolicy")
 	printWhenNotNil(nodeProfile.PtpSchedulingPriority, "PtpSchedulingPriority")
 	printWhenNotNil(nodeProfile.PtpSettings, "PtpSettings")
 	glog.Infof("------------------------------------")
 
-	if nodeProfile.Phc2sysOpts != nil && *nodeProfile.Phc2sysOpts != "" {
-		dn.processManager.process = append(dn.processManager.process, &ptpProcess{
-			name:           "phc2sys",
-			ifaces:         strings.Split(*nodeProfile.Interface, ","),
-			configName:     configFile,
-			exitCh:         make(chan bool),
-			stopped:        false,
-			logFilterRegex: getLogFilterRegex(nodeProfile),
-			cmd:            phc2sysCreateCmd(nodeProfile)})
-	} else {
-		glog.Infof("applyNodePtpProfile: not starting phc2sys, phc2sysOpts is empty")
+	ptp_processes := []string{
+		"ptp4l",
+		"phc2sys",
+		"ts2phc",
 	}
 
-	configPath := fmt.Sprintf("/var/run/%s", configFile)
-	err = ioutil.WriteFile(configPath, []byte(*nodeProfile.Ptp4lConf), 0644)
-	if err != nil {
-		return fmt.Errorf("failed to write the configuration file named %s: %v", configPath, err)
-	}
+	var err error
+	var cmdLine string
+	var configPath string
+	var socketPath string
+	var configFile string
+	var configOutput string
+	var configInput *string
+	var configOpts *string
+	var messageTag string
+	var cmd *exec.Cmd
+	var ifaces string
 
-	dn.processManager.process = append(dn.processManager.process, &ptpProcess{
-		name:            "ptp4l",
-		ifaces:          strings.Split(*nodeProfile.Interface, ","),
-		ptp4lConfigPath: configPath,
-		ptp4lSocketPath: socketPath,
-		configName:      configFile,
-		exitCh:          make(chan bool),
-		stopped:         false,
-		logFilterRegex:  getLogFilterRegex(nodeProfile),
-		cmd:             ptp4lCreateCmd(nodeProfile, configPath)})
-
-	return nil
-}
-
-func (dn *Daemon) addProfileConfig(socketPath string, configFile string, nodeProfile *ptpv1.PtpProfile) error {
-	// TODO: later implement a merge capability
-	if nodeProfile.Ptp4lConf == nil || *nodeProfile.Ptp4lConf == "" {
-		// We need to copy this to another variable because is a pointer
-		config := string(dn.ptpUpdate.defaultPTP4lConfig)
-		nodeProfile.Ptp4lConf = &config
-	}
-
-	if nodeProfile.Ptp4lOpts == nil || *nodeProfile.Ptp4lOpts == "" {
-		// We need to copy this to another variable because is a pointer
-		opts := string("")
-		nodeProfile.Ptp4lOpts = &opts
-	}
-
-	output := &ptp4lConf{}
-	err := output.populatePtp4lConf(nodeProfile.Ptp4lConf)
-	if err != nil {
-		return err
-	}
-
-	output.profile_name = *nodeProfile.Name
-
-	if nodeProfile.Interface != nil && *nodeProfile.Interface != "" {
-		output.sections = append([]ptp4lConfSection{{options: map[string]string{}, sectionName: fmt.Sprintf("[%s]", *nodeProfile.Interface)}}, output.sections...)
-	} else {
-		iface := string("")
-		nodeProfile.Interface = &iface
-	}
-
-	for index, section := range output.sections {
-		if section.sectionName == "[global]" {
-			section.options["message_tag"] = fmt.Sprintf("[%s]", configFile)
-			section.options["uds_address"] = socketPath
-			output.sections[index] = section
+	for _, p := range ptp_processes {
+		switch p {
+		case "ptp4l":
+			configInput = nodeProfile.Ptp4lConf
+			configOpts = nodeProfile.Ptp4lOpts
+			if configOpts == nil {
+				_configOpts := ""
+				configOpts = &_configOpts
+			}
+			socketPath = fmt.Sprintf("/var/run/ptp4l.%d.socket", runID)
+			configFile = fmt.Sprintf("ptp4l.%d.config", runID)
+			configPath = fmt.Sprintf("/var/run/%s", configFile)
+			messageTag = fmt.Sprintf("[ptp4l.%d.config]", runID)
+		case "phc2sys":
+			configInput = nodeProfile.Phc2sysConf
+			configOpts = nodeProfile.Phc2sysOpts
+			socketPath = fmt.Sprintf("/var/run/ptp4l.%d.socket", runID)
+			configFile = fmt.Sprintf("phc2sys.%d.config", runID)
+			configPath = fmt.Sprintf("/var/run/%s", configFile)
+			messageTag = fmt.Sprintf("[ptp4l.%d.config]", runID)
+		case "ts2phc":
+			configInput = nodeProfile.Ts2PhcConf
+			configOpts = nodeProfile.Ts2PhcOpts
+			socketPath = fmt.Sprintf("/var/run/ptp4l.%d.socket", runID)
+			configFile = fmt.Sprintf("ts2phc.%d.config", runID)
+			configPath = fmt.Sprintf("/var/run/%s", configFile)
+			messageTag = fmt.Sprintf("[ts2phc.%d.config]", runID)
 		}
-	}
 
-	// This add the flags needed for monitor
-	addFlagsForMonitor(nodeProfile, output, dn.stdoutToSocket)
+		if configOpts == nil {
+			continue
+		}
 
-	*nodeProfile.Ptp4lConf, *nodeProfile.Interface = output.renderPtp4lConf()
+		output := &ptp4lConf{}
+		err = output.populatePtp4lConf(configInput)
+		if err != nil {
+			return err
+		}
 
-	if nodeProfile.Phc2sysOpts != nil && *nodeProfile.Phc2sysOpts != "" {
-		commandLine := fmt.Sprintf("%s -z %s -t [%s]",
-			*nodeProfile.Phc2sysOpts,
-			socketPath,
-			configFile)
-		nodeProfile.Phc2sysOpts = &commandLine
+		output.profile_name = *nodeProfile.Name
+
+		if nodeProfile.Interface != nil && *nodeProfile.Interface != "" {
+			output.sections = append([]ptp4lConfSection{{options: map[string]string{}, sectionName: fmt.Sprintf("[%s]", *nodeProfile.Interface)}}, output.sections...)
+		} else {
+			iface := string("")
+			nodeProfile.Interface = &iface
+		}
+
+		for index, section := range output.sections {
+			if section.sectionName == "[global]" {
+				section.options["message_tag"] = messageTag
+				section.options["uds_address"] = socketPath
+				output.sections[index] = section
+			}
+		}
+
+		// This add the flags needed for monitor
+		addFlagsForMonitor(p, configOpts, output, dn.stdoutToSocket)
+
+		configOutput, ifaces = output.renderPtp4lConf()
+
+		if configInput != nil {
+			*configInput = configOutput
+		}
+
+		cmdLine = fmt.Sprintf("/usr/sbin/%s -f %s  %s ", p, configPath, *configOpts)
+		cmdLine = addScheduling(nodeProfile, cmdLine)
+		args := strings.Split(cmdLine, " ")
+		cmd = exec.Command(args[0], args[1:]...)
+
+		//end rendering
+
+		ifacesList := strings.Split(ifaces, ",")
+
+		process := ptpProcess{
+			name:            p,
+			ifaces:          ifacesList,
+			ptp4lConfigPath: configPath,
+			ptp4lSocketPath: socketPath,
+			configName:      configFile,
+			exitCh:          make(chan bool),
+			stopped:         false,
+			logFilterRegex:  getLogFilterRegex(nodeProfile),
+			cmd:             cmd,
+		}
+
+		err = ioutil.WriteFile(configPath, []byte(configOutput), 0644)
+		if err != nil {
+			return fmt.Errorf("failed to write the configuration file named %s: %v", configPath, err)
+		}
+
+		dn.processManager.process = append(dn.processManager.process, &process)
 	}
 
 	return nil
@@ -328,26 +353,6 @@ func addScheduling(nodeProfile *ptpv1.PtpProfile, cmdLine string) string {
 		return cmdLine
 	}
 	return cmdLine
-}
-
-// phc2sysCreateCmd generate phc2sys command
-func phc2sysCreateCmd(nodeProfile *ptpv1.PtpProfile) *exec.Cmd {
-	cmdLine := fmt.Sprintf("/usr/sbin/phc2sys %s", *nodeProfile.Phc2sysOpts)
-	cmdLine = addScheduling(nodeProfile, cmdLine)
-
-	args := strings.Split(cmdLine, " ")
-	return exec.Command(args[0], args[1:]...)
-}
-
-// ptp4lCreateCmd generate ptp4l command
-func ptp4lCreateCmd(nodeProfile *ptpv1.PtpProfile, confFilePath string) *exec.Cmd {
-	cmdLine := fmt.Sprintf("/usr/sbin/ptp4l -f %s %s",
-		confFilePath,
-		*nodeProfile.Ptp4lOpts)
-	cmdLine = addScheduling(nodeProfile, cmdLine)
-
-	args := strings.Split(cmdLine, " ")
-	return exec.Command(args[0], args[1:]...)
 }
 
 func processStatus(c *net.Conn, processName, cfgName string, status int64) {

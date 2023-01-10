@@ -106,44 +106,45 @@ func tryToLoadOldConfig(nodeProfilesJson []byte) ([]ptpv1.PtpProfile, bool) {
 	return []ptpv1.PtpProfile{*ptpConfig}, true
 }
 
+// Takes as input a PtpProfile.Ptp4lConf and outputs as ptp4lConf struct
 func (output *ptp4lConf) populatePtp4lConf(config *string) error {
-	lines := strings.Split(*config, "\n")
 	var currentSectionName string
 	var currentSection ptp4lConfSection
 	output.sections = make([]ptp4lConfSection, 0)
 	globalIsDefined := false
 
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "#") {
-			continue
-		} else if strings.HasPrefix(line, "[") {
-			if currentSectionName != "" {
-				output.sections = append(output.sections, currentSection)
-			}
-			currentSectionName = line
-			currentLine := strings.Split(line, "]")
+	if config != nil {
+		for _, line := range strings.Split(*config, "\n") {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "#") {
+				continue
+			} else if strings.HasPrefix(line, "[") {
+				if currentSectionName != "" {
+					output.sections = append(output.sections, currentSection)
+				}
+				currentLine := strings.Split(line, "]")
 
-			if len(currentLine) < 2 {
-				return errors.New("Section missing closing ']'")
-			}
+				if len(currentLine) < 2 {
+					return errors.New("Section missing closing ']': " + line)
+				}
 
-			currentSectionName = fmt.Sprintf("%s]", currentLine[0])
-			if currentSectionName == "[global]" {
-				globalIsDefined = true
+				currentSectionName = fmt.Sprintf("%s]", currentLine[0])
+				if currentSectionName == "[global]" {
+					globalIsDefined = true
+				}
+				currentSection = ptp4lConfSection{options: map[string]string{}, sectionName: currentSectionName}
+			} else if currentSectionName != "" {
+				split := strings.IndexByte(line, ' ')
+				if split > 0 {
+					currentSection.options[line[:split]] = line[split:]
+				}
+			} else {
+				return errors.New("Config option not in section: " + line)
 			}
-			currentSection = ptp4lConfSection{options: map[string]string{}, sectionName: currentSectionName}
-		} else if currentSectionName != "" {
-			split := strings.IndexByte(line, ' ')
-			if split > 0 {
-				currentSection.options[line[:split]] = line[split:]
-			}
-		} else {
-			return errors.New("Config option not in section")
 		}
-	}
-	if currentSectionName != "" {
-		output.sections = append(output.sections, currentSection)
+		if currentSectionName != "" {
+			output.sections = append(output.sections, currentSection)
+		}
 	}
 	if !globalIsDefined {
 		output.sections = append(output.sections, ptp4lConfSection{options: map[string]string{}, sectionName: "[global]"})
