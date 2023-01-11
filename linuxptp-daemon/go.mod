@@ -2,7 +2,7 @@ module github.com/openshift/linuxptp-daemon
 
 go 1.18
 
-require github.com/openshift/ptp-operator v0.0.0-20221209162128-1fb219ffe8bb
+require github.com/openshift/ptp-operator v0.0.0-20230111073246-e26172f6d0ed
 
 require (
 	github.com/golang/glog v1.0.0
@@ -56,7 +56,7 @@ require (
 	golang.org/x/crypto v0.0.0-20220331220935-ae2d96664a29 // indirect
 	golang.org/x/net v0.1.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5 // indirect
-	golang.org/x/sys v0.1.0 // indirect
+	golang.org/x/sys v0.2.0 // indirect
 	golang.org/x/term v0.1.0 // indirect
 	golang.org/x/text v0.4.0 // indirect
 	golang.org/x/time v0.0.0-20220609170525-579cf78fd858 // indirect
