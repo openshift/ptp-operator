@@ -10,6 +10,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	"github.com/openshift/ptp-operator/test/pkg"
 	"github.com/openshift/ptp-operator/test/pkg/event"
 	"github.com/openshift/ptp-operator/test/pkg/metrics"
@@ -24,11 +25,12 @@ import (
 
 	ptpv1 "github.com/openshift/ptp-operator/api/v1"
 
+	"github.com/openshift/ptp-operator/test/pkg/nodes"
+	"github.com/openshift/ptp-operator/test/pkg/pods"
+
 	"github.com/openshift/ptp-operator/test/pkg/client"
 	"github.com/openshift/ptp-operator/test/pkg/execute"
 
-	"github.com/openshift/ptp-operator/test/pkg/nodes"
-	"github.com/openshift/ptp-operator/test/pkg/pods"
 	"github.com/openshift/ptp-operator/test/pkg/testconfig"
 )
 
@@ -135,6 +137,33 @@ var _ = Describe("[ptp]", Serial, func() {
 
 		})
 
+		Context("PTP Outage recovery", func() {
+			BeforeEach(func() {
+				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
+					Skip("Failed to find a valid ptp slave configuration")
+				}
+			})
+
+			It("The slave node network interface is taken down and up", func() {
+				By("toggling network interfaces and syncing", func() {
+
+					skippedInterfacesStr, isSet := os.LookupEnv("SKIP_INTERFACES")
+
+					if !isSet {
+						Skip("Mandatory to provide skipped interface to avoid making a node disconnected from the cluster")
+					} else {
+						skipInterfaces := make(map[string]bool)
+						separated := strings.Split(skippedInterfacesStr, ",")
+						for _, val := range separated {
+							skipInterfaces[val] = true
+						}
+						logrus.Info("skipINterfaces", skipInterfaces)
+						ptptesthelper.RecoverySlaveNetworkOutage(fullConfig, skipInterfaces)
+					}
+				})
+			})
+		})
+
 		Context("PTP Reboot discovery", func() {
 
 			BeforeEach(func() {
@@ -227,6 +256,7 @@ var _ = Describe("[ptp]", Serial, func() {
 				AddReportEntry("slave-ptp-config", slavePtpConfigStr)
 			})
 		})
+
 		Context("PTP ClockSync", func() {
 			err := metrics.InitEnvIntParamConfig("MAX_OFFSET_IN_NS", metrics.MaxOffsetDefaultNs, &metrics.MaxOffsetNs)
 			Expect(err).NotTo(HaveOccurred(), "error getting max offset in nanoseconds %s", err)
