@@ -313,6 +313,8 @@ spec:
               containers:
               - args:
                 - --enable-leader-election
+                - --logtostderr
+                - --stderrthreshold=INFO
                 command:
                 - ptp-operator
                 env:
