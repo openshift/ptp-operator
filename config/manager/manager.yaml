@@ -44,6 +44,8 @@ spec:
           - ptp-operator
           args:
           - --enable-leader-election
+          - --logtostderr
+          - --stderrthreshold=INFO
           imagePullPolicy: IfNotPresent
           resources:
             requests:
@@ -51,9 +53,6 @@ spec:
               memory: 100Mi
           env:
             - name: WATCH_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
             - name: POD_NAME
               valueFrom:
                 fieldRef:
