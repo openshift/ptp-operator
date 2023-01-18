@@ -321,6 +321,8 @@ spec:
               containers:
               - args:
                 - --enable-leader-election
+                - --logtostderr
+                - --stderrthreshold=INFO
                 command:
                 - ptp-operator
                 env:
@@ -359,7 +361,7 @@ spec:
                   readOnly: true
               nodeSelector:
                 node-role.kubernetes.io/master: ""
-              priorityClassName: "system-node-critical"
+              priorityClassName: system-node-critical
               serviceAccountName: ptp-operator
               tolerations:
               - effect: NoSchedule
