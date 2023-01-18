@@ -23,10 +23,7 @@ import (
 	"github.com/sirupsen/logrus"
 	k8sPriviledgedDs "github.com/test-network-function/privileged-daemonset"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
-	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/metrics/pkg/apis/metrics/v1beta1"
 )
 
 // helper function for old interface discovery test
@@ -421,113 +418,99 @@ func RebootSlaveNode(fullConfig testconfig.TestConfig) {
 	logrus.Info("Rebooting system ends ..............")
 }
 
-func IsPtpDaemonPodsCpuUsageHigherThan(milliCoresThreshold int64) (bool, error) {
+// GetPtpPodsPerNode is a helper method to get a map of ptp-related pods (daemonset + operator)
+// that are deployed on each node.
+func GetPtpPodsPerNode() (map[string][]*corev1.Pod, error) {
 	ptpDaemonsetPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: pkg.PtpLinuxDaemonPodsLabel})
 	if err != nil {
-		return false, fmt.Errorf("failed to get linux-ptp daemonset's pods: %w", err)
+		return nil, fmt.Errorf("failed to get linux-ptp daemonset's pods: %w", err)
 	}
 
-	if len(ptpDaemonsetPods.Items) == 0 {
-		return false, fmt.Errorf("no linux-ptp daemonset's pods found")
-	}
-
-	return isAnyPodCpuUsageHigherThan(ptpDaemonsetPods.Items, milliCoresThreshold)
-}
-
-func IsPtpOperatorPodsCpuUsageHigherThan(milliCoresThreshold int64) (bool, error) {
 	ptpOperatorPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: pkg.PtPOperatorPodsLabel})
 	if err != nil {
-		return false, fmt.Errorf("failed to get operator pods: %w", err)
+		return nil, fmt.Errorf("failed to get operator pods: %w", err)
 	}
 
-	if len(ptpOperatorPods.Items) == 0 {
-		return false, fmt.Errorf("no ptp-operator pods found")
+	// helper list with all ptp pods
+	allPtpPods := []*corev1.Pod{}
+	for i := range ptpDaemonsetPods.Items {
+		allPtpPods = append(allPtpPods, &ptpDaemonsetPods.Items[i])
+	}
+	for i := range ptpOperatorPods.Items {
+		allPtpPods = append(allPtpPods, &ptpOperatorPods.Items[i])
 	}
 
-	return isAnyPodCpuUsageHigherThan(ptpOperatorPods.Items, milliCoresThreshold)
-}
-
-// isAnyPodCpuUsageHigherThan is a helper function to check whether the cpu usage in any
-// of the pods is higher than the threshold in milliCores.
-func isAnyPodCpuUsageHigherThan(pods []v1.Pod, milliCoresThreshold int64) (bool, error) {
-	thresholdReached := false
-	// Get Metrics for each of the pods of the ptp-operator.
-	for i := range pods {
-		pod := &pods[i]
-		logrus.Debugf("Getting CPU usage from pod: %s ns: %s", pod.Name, pod.Namespace)
-		milliCores, err := GetPodTotalCpuUsage(pod.Name, pod.Namespace)
-		if err != nil {
-			return false, err
-		}
-
-		logrus.Infof("Pod %s (ns %s): cpu usage=%d mC", pod.Name, pod.Namespace, milliCores)
-		if milliCores > milliCoresThreshold {
-			thresholdReached = true
-			logrus.Warnf("Pod %s (ns %s) usage is higher (%d mC) than expected (%d mC).", pod.Name, pod.Namespace, int(milliCores), int(milliCoresThreshold))
+	podsPerNode := map[string][]*corev1.Pod{}
+	// Fill in the map for the ptp daemon pods.
+	for _, pod := range allPtpPods {
+		if pods, nodeExist := podsPerNode[pod.Spec.NodeName]; nodeExist {
+			pods = append(pods, pod)
+			podsPerNode[pod.Spec.NodeName] = pods
+		} else {
+			podsPerNode[pod.Spec.NodeName] = []*corev1.Pod{pod}
 		}
 	}
 
-	return thresholdReached, nil
+	return podsPerNode, nil
 }
 
-// GetPodTotalCpuUsage gets the cpu usage (in milliCores) of a pod, accumulating
-// the cpu usage of each of its containers. Uses PodMetrics API to get the cpu usage.
-func GetPodTotalCpuUsage(podName, namespace string) (int64, error) {
-	var podMetrics *v1beta1.PodMetrics
+// GetPodsTotalCpuUsage uses prometheus metric "container_cpu_usage_seconds_total"
+// to return the total cpu usage by all the given pods.
+// As each query needs to be done inside one of the prometheus pods, an optional
+// param prometheusPod can be set for that purpose. If it's nil, the function
+// will try to get it on every call.
+func GetPodsTotalCpuUsage(pods []*corev1.Pod, prometheusPod *corev1.Pod) (float64, error) {
+	const (
+		// To make sure that prometheus can use rate() with at least two samples,
+		// we should use at least two sampling periods (2 * 30s = 60). We'll add 10
+		// extra seconds as a safeguard.
+		timeWindow = 70 * time.Second
+		// queryFormat params: pod name & time window.
+		queryFormat = `rate(container_cpu_usage_seconds_total{container="", pod="%s"}[%s])`
 
-	// Try to get the PodMetrics associated with the pod.
-	podMetrics, err := getPodMetricsResource(podName, namespace, pkg.TimeoutIn5Minutes)
-	if err != nil {
-		return 0, err
-	}
+		prometheusQueryRetries       = 3
+		prometheusQueryRetryInterval = 1 * time.Second
+	)
 
-	// Accumulate metrics from all pod's containers, except the "POD" one.
-	totalCpuUsage := int64(0)
-	for i := range podMetrics.Containers {
-		container := &podMetrics.Containers[i]
-
-		// Filter out internal container called "POD".
-		if container.Name == "POD" {
-			continue
-		}
-
-		milliCores := container.Usage.Cpu().MilliValue()
-
-		logrus.Debugf("Pod %s (ns %s), container=%s, cpu usage=%s (milis=%d)", podName, namespace,
-			container.Name, container.Usage.Cpu().String(), milliCores)
-
-		totalCpuUsage += milliCores
-	}
-
-	return totalCpuUsage, nil
-}
-
-// getPodMetricsResource is a helper function to return the PodMetrics resource associated
-// with a pod. Has a retry mechanism as PodMetrics could take a while to appear after the
-// pod has been restarted.
-func getPodMetricsResource(name, namespace string, timeout time.Duration) (*v1beta1.PodMetrics, error) {
-	var podMetrics *v1beta1.PodMetrics
-
-	timeStart := time.Now()
-
-	for time.Since(timeStart) < timeout {
+	if prometheusPod == nil {
+		logrus.Debugf("Getting prometheus pod...")
 		var err error
-		podMetrics, err = client.Client.PodMetricses(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-		if err == nil {
-			break
+		prometheusPod, err = GetPrometheusPod()
+		if err != nil {
+			return 0, fmt.Errorf("failed to get prometheus pod: %w", err)
 		}
-
-		if !k8sErrors.IsNotFound(err) {
-			logrus.Warnf("Failed to get PodMetrics name %s (ns %s): %v", name, namespace, err)
-		}
-
-		logrus.Infof("PodMetrics %s (ns %s) not found yet. Retrying...", name, namespace)
-		time.Sleep(5 * time.Second)
 	}
 
-	if podMetrics != nil {
-		return podMetrics, nil
+	queryTimeWindow := time.Duration(timeWindow).String()
+	totalCpu := float64(0)
+	for _, pod := range pods {
+		query := fmt.Sprintf(queryFormat, pod.Name, queryTimeWindow)
+
+		// Preparing the result part so the unmarshaller can set it accordingly.
+		resultVector := PrometheusVectorResult{}
+		promResponse := PrometheusQueryResponse{}
+		promResponse.Data.Result = &resultVector
+
+		err := RunPrometheusQueryWithRetries(prometheusPod, query, prometheusQueryRetries, prometheusQueryRetryInterval, &promResponse)
+		if err != nil {
+			return 0, fmt.Errorf("prometheus query failure: %w", err)
+		}
+
+		// Make sure the result's value is not empty
+		if len(resultVector) == 0 {
+			return 0, fmt.Errorf("prometheus query response has no data results: %+v", promResponse)
+		}
+
+		// The rate query should return only one metric, so it's safe to access the first result.
+		podCpuUsage, tsMillis, err := GetPrometheusResultFloatValue(resultVector[0].Value)
+		if err != nil {
+			return 0, fmt.Errorf("failed to get value from prometheus response from pod %s (ns %s): %w", pod.Name, pod.Namespace, err)
+		}
+
+		logrus.Debugf("Pod %s (ns %s) cpu usage: %v (ts: %s)", pod.Name, pod.Namespace, podCpuUsage, time.UnixMilli(tsMillis).String())
+
+		totalCpu += podCpuUsage
 	}
 
-	return nil, fmt.Errorf("failed to get podMetrics %s (ns %s)", name, namespace)
+	return totalCpu, nil
 }
