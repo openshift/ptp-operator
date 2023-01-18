@@ -118,8 +118,9 @@ func testPtpSlaveClockSync(fullConfig testconfig.TestConfig, testParameters ptpt
 
 // This test will run for configured minutes or until failure_threshold reached,
 // whatever comes first. A failure_threshold is reached each time the cpu usage
-// of any of the ptp pods (daemonset & operator) is higher than the expected one,
-// which is hardcoded to 15milliCores. The cpu usage is retrieved once per minute.
+// of the sum of the cpu usage of all the ptp pods (daemonset & operator) deployed
+// in the same node is higher than the expected one. The cpu usage check for each
+// node is once per minute.
 func testPtpCpuUtilization(fullConfig testconfig.TestConfig, testParameters ptptestconfig.PtpTestConfig) {
 	const (
 		minimumFailureThreshold  = 1
@@ -139,18 +140,28 @@ func testPtpCpuUtilization(fullConfig testconfig.TestConfig, testParameters ptpt
 		return
 	}
 
+	// Set failureThresold limit number.
+	failureThreshold := minimumFailureThreshold
+	if params.FailureThreshold > minimumFailureThreshold {
+		failureThreshold = params.FailureThreshold
+	}
+
+	prometheusPod, err := ptptesthelper.GetPrometheusPod()
+	Expect(err).To(BeNil(), "failed to get prometheus pod")
+
+	ptpPodsPerNode, err := ptptesthelper.GetPtpPodsPerNode()
+	Expect(err).To(BeNil(), "failed to get ptp pods per node")
+
+	// White until prometheus can scrape a couple of cpu samples from ptp pods.
+	By("Waiting two minutes so prometheus can get at least 2 metricssamples from the ptp pods.")
+	time.Sleep(2 * time.Minute)
+
 	// Create timer channel for test case timeout.
 	testCaseDuration := time.Duration(params.Duration) * time.Minute
 	tcEndChan := time.After(testCaseDuration)
 
 	// Create ticker for cpu usage checker function.
 	cpuUsageCheckTicker := time.NewTicker(cpuUsageCheckingInterval)
-
-	// Set failureThresold limit number.
-	failureThreshold := minimumFailureThreshold
-	if params.FailureThreshold > minimumFailureThreshold {
-		failureThreshold = params.FailureThreshold
-	}
 
 	logrus.Infof("Running test for %s (failure threshold: %d)", testCaseDuration.String(), failureThreshold)
 
@@ -164,8 +175,8 @@ func testPtpCpuUtilization(fullConfig testconfig.TestConfig, testParameters ptpt
 		case <-cpuUsageCheckTicker.C:
 			logrus.Infof("Retrieving cpu usage of the ptp pods.")
 
-			thresholdReached, err := isCpuUsageThresholdReachedInPtpPods(milliCoresThreshold)
-			Expect(err).To(BeNil(), "failed to get cpu usage: ", err)
+			thresholdReached, err := isCpuUsageThresholdReachedInPtpPods(prometheusPod, ptpPodsPerNode, milliCoresThreshold)
+			Expect(err).To(BeNil(), "failed to get cpu usage")
 
 			if thresholdReached {
 				failureCounter++
@@ -176,20 +187,29 @@ func testPtpCpuUtilization(fullConfig testconfig.TestConfig, testParameters ptpt
 	}
 }
 
-// isCpuUsageThresholdReachedInPtpPods is a helper that checks whether the usage on each
-// ptp-daemonset's pods is lower than a given threshold in milliCores.
-func isCpuUsageThresholdReachedInPtpPods(milliCoresThreshold int64) (bool, error) {
-	daemonsetPodsCpuUsageThresholdReached, err := ptptesthelper.IsPtpDaemonPodsCpuUsageHigherThan(milliCoresThreshold)
-	if err != nil {
-		return false, fmt.Errorf("failed to get linux-ptp daemonset pods cpu usage: %v", err)
+// isCpuUsageThresholdReachedInPtpPods is a helper that checks whether the total cpu usage
+// of ptp pod on each node is lower than a given threshold in milliCores. Params:
+//   - ptpPodsPerNode maps a node name to the list of pods whose total cpu usage wants to be checked.
+//   - milliCoresThreshold is the per-node cpu usage threshold in millicores.
+func isCpuUsageThresholdReachedInPtpPods(prometheusPod *v1core.Pod, ptpPodsPerNode map[string][]*v1core.Pod, milliCoresThreshold int64) (bool, error) {
+	cpuUsageThreshold := float64(milliCoresThreshold) / 1000
+	thresholdReached := false
+
+	for nodeName, ptpPods := range ptpPodsPerNode {
+		cpuUsage, err := ptptesthelper.GetPodsTotalCpuUsage(ptpPods, prometheusPod)
+		if err != nil {
+			return false, fmt.Errorf("failed to get total cpu usage for ptp pods on node %s: %w", nodeName, err)
+		}
+
+		logrus.Infof("Node %s: ptp pods cpu usage: %.5f", nodeName, cpuUsage)
+
+		if cpuUsage > cpuUsageThreshold {
+			logrus.Infof("Node %s: ptp pods cpu usage %.5f is higher than threshold %v", nodeName, cpuUsage, cpuUsageThreshold)
+			thresholdReached = true
+		}
 	}
 
-	operatorPodsCpuUsageThresholdReached, err := ptptesthelper.IsPtpOperatorPodsCpuUsageHigherThan(milliCoresThreshold)
-	if err != nil {
-		return false, fmt.Errorf("failed to get ptp operator pods cpu usage: %v", err)
-	}
-
-	return (daemonsetPodsCpuUsageThresholdReached || operatorPodsCpuUsageThresholdReached), nil
+	return thresholdReached, nil
 }
 
 func GetPodLogs(namespace, podName, containerName string, min, max int, messages chan string, ctx context.Context) {

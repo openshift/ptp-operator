@@ -66,14 +66,18 @@ func ExecCommand(cs *testclient.ClientSet, pod *corev1.Pod, containerName string
 		return buf, err
 	}
 
+	var bufErr bytes.Buffer
 	err = exec.Stream(remotecommand.StreamOptions{
 		Stdin:  os.Stdin,
 		Stdout: &buf,
-		Stderr: os.Stderr,
+		Stderr: &bufErr,
 		Tty:    true,
 	})
+	if err != nil {
+		return bytes.Buffer{}, fmt.Errorf("exec.Stream failure. Stdout: %s, Stderr: %s, Err: %w", buf.String(), bufErr.String(), err)
+	}
 
-	return buf, err
+	return buf, nil
 }
 
 // returns true if the pod passed as paremeter is running on the node selected by the label passed as a parameter.
