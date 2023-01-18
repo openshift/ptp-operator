@@ -84,9 +84,10 @@ func main() {
 	}
 
 	if err = (&controllers.PtpOperatorConfigReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("PtpOperatorConfig"),
-		Scheme: mgr.GetScheme(),
+		Client:        mgr.GetClient(),
+		Log:           ctrl.Log.WithName("controllers").WithName("PtpOperatorConfig"),
+		Scheme:        mgr.GetScheme(),
+		IsInitialSync: true,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PtpOperatorConfig")
 		os.Exit(1)
