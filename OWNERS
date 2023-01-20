@@ -12,6 +12,7 @@ reviewers:
   - josephdrichard
   - aneeshkp
   - nishant-parekh
+  - jzding
 approvers:
   - zshi-redhat
   - pliurh
@@ -26,6 +27,7 @@ approvers:
   - josephdrichard
   - aneeshkp
   - nishant-parekh
+  - jzding
 
 component: "Networking"
 subcomponent: "ptp"
