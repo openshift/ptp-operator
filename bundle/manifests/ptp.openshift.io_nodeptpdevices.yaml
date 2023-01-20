@@ -52,14 +52,12 @@ spec:
               hwconfig:
                 items:
                   properties:
+                    config:
+                      x-kubernetes-preserve-unknown-fields: true
                     deviceID:
                       type: string
                     failed:
                       type: boolean
-                    profile:
-                      additionalProperties:
-                        type: string
-                      type: object
                     status:
                       type: string
                     vendorID:

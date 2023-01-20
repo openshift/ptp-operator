@@ -45,6 +45,10 @@ spec:
                       type: string
                     phc2sysOpts:
                       type: string
+                    plugins:
+                      additionalProperties:
+                        x-kubernetes-preserve-unknown-fields: true
+                      type: object
                     ptp4lConf:
                       type: string
                     ptp4lOpts:
