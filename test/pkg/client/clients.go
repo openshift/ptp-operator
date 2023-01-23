@@ -15,7 +15,6 @@ import (
 	networkv1client "k8s.io/client-go/kubernetes/typed/networking/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	k8sMetricsclientv1 "k8s.io/metrics/pkg/client/clientset/versioned/typed/metrics/v1beta1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	ptpv1api "github.com/openshift/ptp-operator/api/v1"
@@ -40,7 +39,6 @@ type ClientSet struct {
 	Config    *rest.Config
 	OcpClient clientconfigv1.ConfigV1Interface
 	corev1client.CoreV1Interface
-	k8sMetricsclientv1.MetricsV1beta1Interface
 }
 
 func Setup() {
@@ -74,7 +72,6 @@ func New(kubeconfig string) *ClientSet {
 	clientSet.Interface = kubernetes.NewForConfigOrDie(config)
 	clientSet.AppsV1Interface = appsv1client.NewForConfigOrDie(config)
 	clientSet.DiscoveryInterface = discovery.NewDiscoveryClientForConfigOrDie(config)
-	clientSet.MetricsV1beta1Interface = k8sMetricsclientv1.NewForConfigOrDie(config)
 	clientSet.NetworkingV1Client = *networkv1client.NewForConfigOrDie(config)
 	clientSet.PtpV1Interface = ptpv1.NewForConfigOrDie(config)
 	clientSet.OcpClient = clientconfigv1.NewForConfigOrDie(config)
