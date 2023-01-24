@@ -68,7 +68,7 @@ func GetPrometheusPod() (*corev1.Pod, error) {
 	}
 
 	if len(prometheusPods.Items) == 0 {
-		return nil, errors.New("no prometehus pod found")
+		return nil, errors.New("no prometheus pod found")
 	}
 
 	// Return the first pod from the statefulset.
