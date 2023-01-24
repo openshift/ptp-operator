@@ -126,6 +126,7 @@ func testPtpCpuUtilization(fullConfig testconfig.TestConfig, testParameters ptpt
 		minimumFailureThreshold  = 1
 		cpuUsageCheckingInterval = 1 * time.Minute
 		milliCoresThreshold      = ptptestconfig.PtpDefaultMilliCoresUsageThreshold
+		warmupTime               = 2 * time.Minute
 	)
 
 	logrus.Debugf("CPU Utilization TC Config: %+v", testParameters.SoakTestConfig.CpuUtilization)
@@ -152,9 +153,9 @@ func testPtpCpuUtilization(fullConfig testconfig.TestConfig, testParameters ptpt
 	ptpPodsPerNode, err := ptptesthelper.GetPtpPodsPerNode()
 	Expect(err).To(BeNil(), "failed to get ptp pods per node")
 
-	// White until prometheus can scrape a couple of cpu samples from ptp pods.
-	By("Waiting two minutes so prometheus can get at least 2 metricssamples from the ptp pods.")
-	time.Sleep(2 * time.Minute)
+	// Wait until prometheus can scrape a couple of cpu samples from ptp pods.
+	By(fmt.Sprintf("Waiting %s so prometheus can get at least 2 metric samples from the ptp pods.", warmupTime))
+	time.Sleep(warmupTime)
 
 	// Create timer channel for test case timeout.
 	testCaseDuration := time.Duration(params.Duration) * time.Minute
