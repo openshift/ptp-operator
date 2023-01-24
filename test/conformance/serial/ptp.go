@@ -121,7 +121,11 @@ var _ = Describe("[ptp]", Serial, func() {
 		var fifoPriorities map[string]int64
 		var fullConfig testconfig.TestConfig
 		execute.BeforeAll(func() {
-			testconfig.CreatePtpConfigurations()
+			err := testconfig.CreatePtpConfigurations()
+			if err != nil {
+				fullConfig.Status = testconfig.DiscoveryFailureStatus
+				Fail(fmt.Sprintf("Could not create a ptp config, err=%s", err))
+			}
 			fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, false)
 			if fullConfig.Status != testconfig.DiscoverySuccessStatus {
 				logrus.Printf(`ptpconfigs were not properly discovered, Check:

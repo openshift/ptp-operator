@@ -5,6 +5,7 @@ package test
 
 import (
 	"flag"
+	"fmt"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -44,7 +45,11 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	testclient.Client = testclient.New("")
 	Expect(testclient.Client).NotTo(BeNil())
 
-	testconfig.CreatePtpConfigurations()
+	err := testconfig.CreatePtpConfigurations()
+	if err != nil {
+		Fail(fmt.Sprintf("Could not create a ptp config, err=%s", err))
+	}
+
 	ptphelper.RestartPTPDaemon()
 	_ = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
 	// _ = GetPtpTestConfig()
