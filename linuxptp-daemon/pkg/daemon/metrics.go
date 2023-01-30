@@ -22,10 +22,11 @@ const (
 	PTPNamespace = "openshift"
 	PTPSubsystem = "ptp"
 
-	ptp4lProcessName = "ptp4l"
-	phcProcessName   = "phc2sys"
-	clockRealTime    = "CLOCK_REALTIME"
-	master           = "master"
+	ptp4lProcessName  = "ptp4l"
+	phcProcessName    = "phc2sys"
+	ts2phcProcessName = "ts2phc"
+	clockRealTime     = "CLOCK_REALTIME"
+	master            = "master"
 
 	faultyOffset = 999999
 
@@ -60,9 +61,10 @@ const (
 )
 
 var (
-	masterOffsetIfaceName map[string]string // by slave iface with masked index
-	slaveIfaceName        map[string]string // current slave iface name
-	NodeName              = ""
+	masterOffsetIfaceName     map[string]string // by slave iface with masked index
+	slaveIfaceName            map[string]string // current slave iface name
+	masterOffsetSourceProfile map[string]string // which profile and source is used for master offset
+	NodeName                  = ""
 
 	Offset = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -179,6 +181,7 @@ func extractMetrics(configName, processName string, ifaces []string, output stri
 				updatePTPMetrics(phc, processName, ifaceName, ptpOffset, maxPtpOffset, frequencyAdjustment, delay)
 			} else {
 				updatePTPMetrics(master, processName, ifaceName, ptpOffset, maxPtpOffset, frequencyAdjustment, delay)
+				masterOffsetSourceProfile[configName] = processName
 			}
 		}
 	} else if strings.Contains(output, " offset ") {
@@ -193,6 +196,9 @@ func extractMetrics(configName, processName string, ifaces []string, output stri
 			} else if strings.Contains(output, "phc offset") {
 				offsetSource = phc
 			}
+			if offsetSource == master {
+				masterOffsetSourceProfile[configName] = processName
+			}
 			updatePTPMetrics(offsetSource, processName, ifaceName, ptpOffset, maxPtpOffset, frequencyAdjustment, delay)
 			updateClockStateMetrics(processName, ifaceName, clockstate)
 		}
@@ -205,8 +211,9 @@ func extractMetrics(configName, processName string, ifaces []string, output stri
 					r := []rune(ifaces[portId-1])
 					masterOffsetIfaceName[configName] = string(r[:len(r)-1]) + "x"
 					slaveIfaceName[configName] = ifaces[portId-1]
-				} else if role == FAULTY {
-					if isSlaveFaulty(configName, ifaces[portId-1]) {
+				} else if role == FAULTY { // only if ptp4l is processing offset, ts2phc offset won't effect by port faulty
+					if isSlaveFaulty(configName, ifaces[portId-1]) &&
+						getMasterSourceProcess(configName) == ptp4lProcessName {
 						updatePTPMetrics(master, processName, getMasterOffsetIfaceName(configName), faultyOffset, faultyOffset, 0, 0)
 						updatePTPMetrics(phc, phcProcessName, clockRealTime, faultyOffset, faultyOffset, 0, 0)
 						masterOffsetIfaceName[configName] = ""
@@ -225,7 +232,9 @@ func extractSummaryMetrics(configName, processName, output string) (iface string
 	// ptp4l[74737.942]: [ptp4l.0.config] rms  53 max   74 freq -16642 +/-  40 delay  1089 +/-  20
 	// or
 	// ptp4l[365195.391]: [ptp4l.0.config] master offset         -1 s2 freq   -3972 path delay        89
-
+	// ts2phc[82674.465]: [ts2phc.0.cfg] nmea delay: 88403525 ns
+	// ts2phc[82674.465]: [ts2phc.0.cfg] ens2f1 extts index 0 at 1673031129.000000000 corr 0 src 1673031129.911642976 diff 0
+	// ts2phc[82674.465]: [ts2phc.0.cfg] ens2f1 master offset          0 s2 freq      -0
 	rmsIndex := strings.Index(output, rms)
 	if rmsIndex < 0 {
 		return
@@ -309,8 +318,23 @@ func extractRegularMetrics(configName, processName, output string) (err error, i
 	output = output[index:]
 	fields := strings.Fields(output)
 
+	//       0         1      2          3     4   5    6          7     8
+	// ptp4l.0.config master offset   -2162130 s2 freq +22451884  delay 374976
+	// ts2phc.0.cfg  ens2f1  master    offset          0 s2 freq      -0
+	// (ts2phc.0.cfg  master  offset      0    s2 freq     -0)
+	if len(fields) < 7 {
+		return
+	}
+	if fields[2] != offset && processName == ts2phcProcessName {
+		// Remove the element at index 1 from fields.
+		copy(fields[1:], fields[2:])
+		// ts2phc.0.cfg  master    offset          0 s2 freq      -0
+		fields = fields[:len(fields)-1] // Truncate slice.
+	}
+
 	//       0         1      2          3    4   5    6          7     8
 	//ptp4l.0.config master offset          4 s2 freq   -3964 path delay        91
+	//ts2phc.0.cfg  ens2f1  master    offset          0 s2 freq      -0
 	if len(fields) < 7 {
 		err = fmt.Errorf("%s failed to parse output %s: unexpected number of fields", processName, output)
 		return
@@ -515,4 +539,10 @@ func isSlaveFaulty(configName string, iface string) bool {
 		}
 	}
 	return false
+}
+func getMasterSourceProcess(configName string) string {
+	if s, found := masterOffsetSourceProfile[configName]; found {
+		return s
+	}
+	return ptp4lProcessName // default is ptp4l
 }
