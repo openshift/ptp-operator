@@ -53,6 +53,7 @@ spec:
               memory: 100Mi
           env:
             - name: WATCH_NAMESPACE
+              value: ""
             - name: POD_NAME
               valueFrom:
                 fieldRef:
