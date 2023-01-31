@@ -162,6 +162,8 @@ bundle: operator-sdk manifests kustomize
 	$(OPERATOR_SDK) bundle validate ./bundle
 	# Use double quotes in values of olm.skipRange to match the expected regexp in art.yaml
 	find . -type f -name "*.clusterserviceversion.yaml" -print0 | xargs -0 sed -i '/olm.skipRange:/s#'\''#"#g'
+	# Set WATCH_NAMESPACE to "" to enable the operator to moniter resources in other namespaces e.g. watch pod status in amq-router namespace.
+	find . -type f -name "*.clusterserviceversion.yaml" -print0 | xargs -0 sed -i '/name: WATCH_NAMESPACE/{:a;N;/name: POD_NAME/!ba;s/valueFrom.*\n/value: ""\n/};'
 
 
 .PHONY: bundle-build ## Build the bundle image.
