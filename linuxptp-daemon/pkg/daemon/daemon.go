@@ -45,6 +45,7 @@ type ptpProcess struct {
 	ptp4lSocketPath string
 	ptp4lConfigPath string
 	configName      string
+	messageTag      string
 	exitCh          chan bool
 	execMutex       sync.Mutex
 	stopped         bool
@@ -319,6 +320,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 			ptp4lConfigPath: configPath,
 			ptp4lSocketPath: socketPath,
 			configName:      configFile,
+			messageTag:      messageTag,
 			exitCh:          make(chan bool),
 			stopped:         false,
 			logFilterRegex:  getLogFilterRegex(nodeProfile),
@@ -408,7 +410,7 @@ func cmdRun(p *ptpProcess, stdoutToSocket bool) {
 					if regexErr != nil || !logFilterRegex.MatchString(output) {
 						fmt.Printf("%s\n", output)
 					}
-					extractMetrics(p.configName, p.name, p.ifaces, output)
+					extractMetrics(p.messageTag, p.name, p.ifaces, output)
 				}
 				done <- struct{}{}
 			}()

@@ -155,6 +155,7 @@ func RegisterMetrics(nodeName string) {
 
 	masterOffsetIfaceName = map[string]string{}
 	slaveIfaceName = map[string]string{}
+	masterOffsetSourceProfile = map[string]string{}
 }
 
 // updatePTPMetrics ...
@@ -173,7 +174,8 @@ func updatePTPMetrics(from, process, iface string, ptpOffset, maxPtpOffset, freq
 }
 
 // extractMetrics ...
-func extractMetrics(configName, processName string, ifaces []string, output string) {
+func extractMetrics(messageTag string, processName string, ifaces []string, output string) {
+	configName := strings.Replace(strings.Replace(messageTag, "]", "", 1), "[", "", 1)
 	if strings.Contains(output, " max ") {
 		ifaceName, ptpOffset, maxPtpOffset, frequencyAdjustment, delay := extractSummaryMetrics(configName, processName, output)
 		if ifaceName != "" {
@@ -307,7 +309,7 @@ func extractRegularMetrics(configName, processName, output string) (err error, i
 	}
 
 	output = strings.Replace(output, "path", "", 1)
-	replacer := strings.NewReplacer("[", " ", "]", " ", ":", " ", "phc", "", "sys", "")
+	replacer := strings.NewReplacer("[", " ", "]", " ", ":", " ", " phc ", " ", " sys ", "")
 	output = replacer.Replace(output)
 
 	index := strings.Index(output, configName)
@@ -325,11 +327,13 @@ func extractRegularMetrics(configName, processName, output string) (err error, i
 	if len(fields) < 7 {
 		return
 	}
-	if fields[2] != offset && processName == ts2phcProcessName {
+	if fields[3] == offset && processName == ts2phcProcessName {
 		// Remove the element at index 1 from fields.
+		masterOffsetIfaceName[configName] = fields[1]
 		copy(fields[1:], fields[2:])
 		// ts2phc.0.cfg  master    offset          0 s2 freq      -0
 		fields = fields[:len(fields)-1] // Truncate slice.
+		delay = 0
 	}
 
 	//       0         1      2          3    4   5    6          7     8
@@ -384,7 +388,10 @@ func extractRegularMetrics(configName, processName, output string) (err error, i
 		return
 	}
 
-	if len(fields) > 8 {
+	if processName == ts2phcProcessName {
+		// ts2phc acts as GM so no path delay
+		delay = 0
+	} else if len(fields) > 8 {
 		delay, err = strconv.ParseFloat(fields[8], 64)
 		if err != nil {
 			err = fmt.Errorf("%s failed to parse delay from the output %s error %v", processName, fields[8], err)
