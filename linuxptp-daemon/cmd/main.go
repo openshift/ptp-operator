@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -78,6 +79,12 @@ func main() {
 		}
 	}
 
+	plugins := make([]string, 0)
+
+	if val, ok := os.LookupEnv("PLUGINS"); ok && val != "" {
+		plugins = strings.Split(val, ",")
+	}
+
 	// Run a loop to update the device status
 	go daemon.RunDeviceStatusUpdate(ptpClient, nodeName)
 
@@ -100,6 +107,7 @@ func main() {
 		kubeClient,
 		ptpConfUpdate,
 		stopCh,
+		plugins,
 	).Run()
 
 	tickerPull := time.NewTicker(time.Second * time.Duration(cp.updateInterval))

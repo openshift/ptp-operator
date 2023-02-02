@@ -85,6 +85,9 @@ type Daemon struct {
 	// channel ensure LinuxPTP.Run() exit when main function exits.
 	// stopCh is created by main function and passed by Daemon via NewLinuxPTP()
 	stopCh <-chan struct{}
+
+	// Allow vendors to include plugins
+	pluginManager PluginManager
 }
 
 // New LinuxPTP is called by daemon to generate new linuxptp instance
@@ -95,10 +98,12 @@ func New(
 	kubeClient *kubernetes.Clientset,
 	ptpUpdate *LinuxPTPConfUpdate,
 	stopCh <-chan struct{},
+	plugins []string,
 ) *Daemon {
 	if !stdoutToSocket {
 		RegisterMetrics(nodeName)
 	}
+	pluginManager := registerPlugins(plugins)
 	return &Daemon{
 		nodeName:       nodeName,
 		namespace:      namespace,
@@ -107,6 +112,7 @@ func New(
 		ptpUpdate:      ptpUpdate,
 		processManager: &ProcessManager{},
 		stopCh:         stopCh,
+		pluginManager:  pluginManager,
 	}
 }
 
@@ -221,6 +227,8 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 	printWhenNotNil(nodeProfile.PtpSchedulingPriority, "PtpSchedulingPriority")
 	printWhenNotNil(nodeProfile.PtpSettings, "PtpSettings")
 	glog.Infof("------------------------------------")
+
+	dn.pluginManager.OnPTPConfigChange(nodeProfile)
 
 	ptp_processes := []string{
 		"ptp4l",
