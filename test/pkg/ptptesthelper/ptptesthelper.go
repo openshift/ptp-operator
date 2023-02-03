@@ -312,16 +312,18 @@ func RecoverySlaveNetworkOutage(fullConfig testconfig.TestConfig, skippedInterfa
 
 	// Get the pod from ptp test daemonset set on the slave node
 	outageRecoveryDaemonSetRunningPods := CreatePtpTestPrivilegedDaemonSet(pkg.RecoveryNetworkOutageDaemonSetName, pkg.RecoveryNetworkOutageDaemonSetNamespace, pkg.RecoveryNetworkOutageDaemonSetContainerName)
-	var outageRecoveryDaemonsetPod corev1.Pod
-
 	Expect(len(outageRecoveryDaemonSetRunningPods.Items)).To(BeNumerically(">", 0), "no damonset pods found in the namespace "+pkg.RecoveryNetworkOutageDaemonSetNamespace)
+
+	var outageRecoveryDaemonsetPod corev1.Pod
+	var isOutageRecoveryPodFound bool
 	for _, dsPod := range outageRecoveryDaemonSetRunningPods.Items {
 		if dsPod.Spec.NodeName == slavePodNodeName {
 			outageRecoveryDaemonsetPod = dsPod
+			isOutageRecoveryPodFound = true
 			break
 		}
 	}
-	Expect(outageRecoveryDaemonsetPod).NotTo(BeEmpty())
+	Expect(isOutageRecoveryPodFound).To(BeTrue())
 	logrus.Infof("outage recovery pod name is %s", outageRecoveryDaemonsetPod.Name)
 
 	// Get the list of network interfaces on the slave node
