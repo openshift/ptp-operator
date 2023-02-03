@@ -2,7 +2,7 @@ module github.com/openshift/linuxptp-daemon
 
 go 1.18
 
-require github.com/openshift/ptp-operator v0.0.0-20230111073246-e26172f6d0ed
+require github.com/openshift/ptp-operator v0.0.0-20230207052655-ede9197d99ca
 
 require (
 	github.com/golang/glog v1.0.0

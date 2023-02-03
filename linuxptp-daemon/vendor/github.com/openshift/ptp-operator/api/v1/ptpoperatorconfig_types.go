@@ -30,7 +30,8 @@ type PtpOperatorConfigSpec struct {
 
 	DaemonNodeSelector map[string]string `json:"daemonNodeSelector"`
 	// EventConfig to configure event sidecar
-	EventConfig *PtpEventConfig `json:"ptpEventConfig,omitempty"`
+	EventConfig    *PtpEventConfig `json:"ptpEventConfig,omitempty"`
+	EnabledPlugins []string        `json:"plugins,omitempty"`
 }
 
 // PtpOperatorConfigStatus defines the observed state of PtpOperatorConfig
