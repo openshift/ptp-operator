@@ -19,8 +19,10 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -47,10 +49,15 @@ type PtpOperatorConfigReconciler struct {
 	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
+	// IsInitialSync tracks if it is initial run of syncLinuxptpDaemon
+	// and only retry checking amq status during the initial sync
+	IsInitialSync bool
 }
 
 const (
-	ResyncPeriod = 2 * time.Minute
+	ResyncPeriod  = 2 * time.Minute
+	retryTimeout  = 500 * time.Millisecond
+	cancelTimeout = 3 * time.Minute
 )
 
 //+kubebuilder:rbac:groups=ptp.openshift.io,resources=ptpoperatorconfigs,verbs=get;list;watch;create;update;patch;delete
@@ -180,12 +187,25 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 	} else {
 		data.Data["EnableEventPublisher"] = defaultCfg.Spec.EventConfig.EnableEventPublisher
 		data.Data["EventTransportHost"] = defaultCfg.Spec.EventConfig.TransportHost
+		var transportUrl *url.URL
 		if defaultCfg.Spec.EventConfig.EnableEventPublisher {
-			if defaultCfg.Spec.EventConfig.TransportHost == "" {
-				return fmt.Errorf("ptp operator config spec, transportHost under ptpEventConfig is required for events to publish: %#v", defaultCfg.Spec.EventConfig)
+			// example transportHost: "amqp://amq-router.amq-router.svc.cluster.local"
+			// if transportHost is "amqp://nohup", ignore any validation and print events to log
+			transportUrl, err = url.Parse(defaultCfg.Spec.EventConfig.TransportHost)
+			if err != nil || defaultCfg.Spec.EventConfig.TransportHost == "" {
+				glog.Warningf("ptp operator config Spec, ptpEventConfig.transportHost=%v is not valid, proceed as amqp://nohup", defaultCfg.Spec.EventConfig.TransportHost)
+				data.Data["EventTransportHost"] = "amqp://nohup"
 			}
+
+		}
+
+		if transportUrl.Scheme == "amqp" && transportUrl.Host != "nohup" {
+			amq := strings.Split(transportUrl.Host, ".")
+			glog.Infof("check AMQP service %v in namespace %v before deploying linuxptp daemon", amq[0], amq[1])
+			r.checkAmqStatus(&data, amq[0], amq[1])
 		}
 	}
+
 	objs, err = render.RenderDir(filepath.Join(names.ManifestDir, "linuxptp"), &data)
 	if err != nil {
 		return fmt.Errorf("failed to render linuxptp daemon manifest: %v", err)
@@ -237,4 +257,57 @@ func (r *PtpOperatorConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&ptpv1.PtpOperatorConfig{}).
 		Owns(&appsv1.DaemonSet{}).
 		Complete(r)
+}
+
+func (r *PtpOperatorConfigReconciler) getAmqStatus(svcName string, namespace string) bool {
+
+	podList := &corev1.PodList{}
+	opts := []client.ListOption{
+		client.InNamespace(namespace),
+	}
+	err := r.List(context.TODO(), podList, opts...)
+	if err != nil {
+		return false
+	}
+	for _, p := range podList.Items {
+		if p.Spec.ServiceAccountName == svcName && p.Status.Phase == "Running" {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *PtpOperatorConfigReconciler) checkAmqStatus(data *render.RenderData, amqSvc string, amqNamespace string) {
+	var timeout time.Duration
+	if r.IsInitialSync {
+		timeout = cancelTimeout
+		r.IsInitialSync = false
+	} else {
+		// no need to retry if it is not initial sync
+		timeout = retryTimeout * 2
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+
+	defer cancel()
+	isFirstFail := true
+	for {
+		select {
+		case <-ctx.Done():
+			glog.Infof("time out checking for AMQP service")
+			data.Data["EventTransportHost"] = "amqp://nohup"
+			return
+		default:
+		}
+		if !r.getAmqStatus(amqSvc, amqNamespace) {
+			if isFirstFail {
+				glog.Infof("AMQP service %v in namespace %v is NOT running, retry every %s for %s",
+					amqSvc, amqNamespace, retryTimeout, timeout)
+				isFirstFail = false
+			}
+			time.Sleep(retryTimeout)
+			continue
+		}
+		glog.Infof("AMQP service %v in namespace %v is running", amqSvc, amqNamespace)
+		break
+	}
 }
