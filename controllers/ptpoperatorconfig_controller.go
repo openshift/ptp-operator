@@ -206,6 +206,11 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 			r.checkAmqStatus(&data, amq[0], amq[1])
 		}
 	}
+
+	enabledPlugins := strings.Join(defaultCfg.Spec.EnabledPlugins, ",")
+	glog.Infof("ptp operator enabled plugins: %s", enabledPlugins)
+	data.Data["EnabledPlugins"] = enabledPlugins
+
 	objs, err = render.RenderTemplate(filepath.Join(names.ManifestDir, "linuxptp/ptp-daemon.yaml"), &data)
 	if err != nil {
 		return fmt.Errorf("failed to render linuxptp daemon manifest: %v", err)

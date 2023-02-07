@@ -106,6 +106,9 @@ spec:
                   fieldPath: metadata.name
             - name: LOGS_TO_SOCKET
               value: "{{ .EnableEventPublisher }}"
+            - name: PLUGINS
+              value: "{{ .EnabledPlugins }}"
+
           volumeMounts:
             - name: config-volume
               mountPath: /etc/linuxptp
