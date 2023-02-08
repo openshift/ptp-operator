@@ -160,7 +160,6 @@ type patchStringValue struct {
 
 func labelPod(kubeClient *kubernetes.Clientset, nodeName, podName string) {
 	pod, err := kubeClient.CoreV1().Pods(daemon.PtpNamespace).Get(context.TODO(), podName, metav1.GetOptions{})
-	glog.Info(pod)
 	if err != nil {
 		glog.Error(err)
 	}
@@ -178,7 +177,5 @@ func labelPod(kubeClient *kubernetes.Clientset, nodeName, podName string) {
 	_, err = kubeClient.CoreV1().Pods(pod.GetNamespace()).Patch(context.TODO(), pod.GetName(), types.JSONPatchType, payloadBytes, metav1.PatchOptions{})
 	if err == nil {
 		glog.Infof("Pod %s labelled successfully.", pod.GetName())
-	} else {
-		glog.Error(err)
 	}
 }
