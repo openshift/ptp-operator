@@ -370,7 +370,8 @@ func addScheduling(nodeProfile *ptpv1.PtpProfile, cmdLine string) string {
 	return cmdLine
 }
 
-func processStatus(c *net.Conn, processName, cfgName string, status int64) {
+func processStatus(c *net.Conn, processName, messageTag string, status int64) {
+	cfgName := strings.Replace(strings.Replace(messageTag, "]", "", 1), "[", "", 1)
 	// ptp4l[5196819.100]: [ptp4l.0.config] PTP_PROCESS_STOPPED:0/1
 	deadProcessMsg := fmt.Sprintf("%s[%d]:[%s] PTP_PROCESS_STATUS:%d\n", processName, time.Now().Unix(), cfgName, status)
 	UpdateProcessStatusMetrics(processName, cfgName, status)
@@ -416,7 +417,7 @@ func cmdRun(p *ptpProcess, stdoutToSocket bool) {
 		}
 		if !stdoutToSocket {
 			scanner := bufio.NewScanner(cmdReader)
-			processStatus(nil, p.name, p.configName, PtpProcessUp)
+			processStatus(nil, p.name, p.messageTag, PtpProcessUp)
 			go func() {
 				for scanner.Scan() {
 					output := scanner.Text()
@@ -442,7 +443,7 @@ func cmdRun(p *ptpProcess, stdoutToSocket bool) {
 					}
 				}
 				scanner := bufio.NewScanner(cmdReader)
-				processStatus(&c, p.name, p.configName, PtpProcessUp)
+				processStatus(&c, p.name, p.messageTag, PtpProcessUp)
 				for scanner.Scan() {
 					output := scanner.Text()
 					if regexErr != nil || !logFilterRegex.MatchString(output) {
@@ -502,9 +503,9 @@ func cmdRun(p *ptpProcess, stdoutToSocket bool) {
 			glog.Errorf("cmdRun() error waiting for %s: %v", p.name, err)
 		}
 		if stdoutToSocket && c != nil {
-			processStatus(&c, p.name, p.configName, PtpProcessDown)
+			processStatus(&c, p.name, p.messageTag, PtpProcessDown)
 		} else {
-			processStatus(nil, p.name, p.configName, PtpProcessDown)
+			processStatus(nil, p.name, p.messageTag, PtpProcessDown)
 		}
 
 		time.Sleep(connectionRetryInterval) // Delay to prevent flooding restarts if startup fails
