@@ -212,8 +212,7 @@ func getLogFilterRegex(nodeProfile *ptpv1.PtpProfile) string {
 	return logFilterRegex
 }
 
-func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) error {
-
+func printNodeProfile(nodeProfile *ptpv1.PtpProfile) {
 	glog.Infof("------------------------------------")
 	printWhenNotNil(nodeProfile.Name, "Profile Name")
 	printWhenNotNil(nodeProfile.Interface, "Interface")
@@ -227,6 +226,9 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 	printWhenNotNil(nodeProfile.PtpSchedulingPriority, "PtpSchedulingPriority")
 	printWhenNotNil(nodeProfile.PtpSettings, "PtpSettings")
 	glog.Infof("------------------------------------")
+}
+
+func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) error {
 
 	dn.pluginManager.OnPTPConfigChange(nodeProfile)
 
@@ -284,6 +286,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 		output := &ptp4lConf{}
 		err = output.populatePtp4lConf(configInput)
 		if err != nil {
+			printNodeProfile(nodeProfile)
 			return err
 		}
 
@@ -337,12 +340,14 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 
 		err = ioutil.WriteFile(configPath, []byte(configOutput), 0644)
 		if err != nil {
+			printNodeProfile(nodeProfile)
 			return fmt.Errorf("failed to write the configuration file named %s: %v", configPath, err)
 		}
 
 		dn.processManager.process = append(dn.processManager.process, &process)
 	}
 
+	printNodeProfile(nodeProfile)
 	return nil
 }
 
