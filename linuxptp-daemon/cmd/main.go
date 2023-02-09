@@ -167,6 +167,10 @@ func labelPod(kubeClient *kubernetes.Clientset, nodeName, podName string) {
 		glog.Info("Could not find linux-ptp-daemon pod to label")
 		return
 	}
+	if nodeName != "" && strings.Contains(nodeName, ".") {
+		nodeName = strings.Split(nodeName, ".")[0]
+	}
+
 	payload := []patchStringValue{{
 		Op:    "replace",
 		Path:  "/metadata/labels/nodeName",

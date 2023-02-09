@@ -329,7 +329,9 @@ func extractRegularMetrics(configName, processName, output string) (err error, i
 	}
 	if fields[3] == offset && processName == ts2phcProcessName {
 		// Remove the element at index 1 from fields.
-		masterOffsetIfaceName[configName] = fields[1]
+		r := []rune(fields[1])
+		masterOffsetIfaceName[configName] = string(r[:len(r)-1]) + "x"
+		slaveIfaceName[configName] = fields[1]
 		copy(fields[1:], fields[2:])
 		// ts2phc.0.cfg  master    offset          0 s2 freq      -0
 		fields = fields[:len(fields)-1] // Truncate slice.
