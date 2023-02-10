@@ -417,3 +417,100 @@ func RebootSlaveNode(fullConfig testconfig.TestConfig) {
 
 	logrus.Info("Rebooting system ends ..............")
 }
+
+// GetPtpPodsPerNode is a helper method to get a map of ptp-related pods (daemonset + operator)
+// that are deployed on each node.
+func GetPtpPodsPerNode() (map[string][]*corev1.Pod, error) {
+	ptpDaemonsetPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: pkg.PtpLinuxDaemonPodsLabel})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get linux-ptp daemonset's pods: %w", err)
+	}
+
+	ptpOperatorPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: pkg.PtPOperatorPodsLabel})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get operator pods: %w", err)
+	}
+
+	// helper list with all ptp pods
+	allPtpPods := []*corev1.Pod{}
+	for i := range ptpDaemonsetPods.Items {
+		allPtpPods = append(allPtpPods, &ptpDaemonsetPods.Items[i])
+	}
+	for i := range ptpOperatorPods.Items {
+		allPtpPods = append(allPtpPods, &ptpOperatorPods.Items[i])
+	}
+
+	podsPerNode := map[string][]*corev1.Pod{}
+	// Fill in the map for the ptp daemon pods.
+	for _, pod := range allPtpPods {
+		if pods, nodeExist := podsPerNode[pod.Spec.NodeName]; nodeExist {
+			pods = append(pods, pod)
+			podsPerNode[pod.Spec.NodeName] = pods
+		} else {
+			podsPerNode[pod.Spec.NodeName] = []*corev1.Pod{pod}
+		}
+	}
+
+	return podsPerNode, nil
+}
+
+// GetPodsTotalCpuUsage uses prometheus metric "container_cpu_usage_seconds_total"
+// to return the total cpu usage by all the given pods.
+// As each query needs to be done inside one of the prometheus pods, an optional
+// param prometheusPod can be set for that purpose. If it's nil, the function
+// will try to get it on every call.
+func GetPodsTotalCpuUsage(pods []*corev1.Pod, prometheusPod *corev1.Pod) (float64, error) {
+	const (
+		// To make sure that prometheus can use rate() with at least two samples,
+		// we should use at least two sampling periods (2 * 30s = 60). We'll add 10
+		// extra seconds as a safeguard.
+		timeWindow = 70 * time.Second
+		// queryFormat params: pod name & time window.
+		queryFormat = `rate(container_cpu_usage_seconds_total{container="", pod="%s"}[%s])`
+
+		prometheusQueryRetries       = 3
+		prometheusQueryRetryInterval = 1 * time.Second
+	)
+
+	if prometheusPod == nil {
+		logrus.Debugf("Getting prometheus pod...")
+		var err error
+		prometheusPod, err = GetPrometheusPod()
+		if err != nil {
+			return 0, fmt.Errorf("failed to get prometheus pod: %w", err)
+		}
+	}
+
+	queryTimeWindow := time.Duration(timeWindow).String()
+	totalCpu := float64(0)
+	for _, pod := range pods {
+		query := fmt.Sprintf(queryFormat, pod.Name, queryTimeWindow)
+
+		// Preparing the result part so the unmarshaller can set it accordingly.
+		resultVector := PrometheusVectorResult{}
+		promResponse := PrometheusQueryResponse{}
+		promResponse.Data.Result = &resultVector
+
+		err := RunPrometheusQueryWithRetries(prometheusPod, query, prometheusQueryRetries, prometheusQueryRetryInterval, &promResponse)
+		if err != nil {
+			return 0, fmt.Errorf("prometheus query failure: %w", err)
+		}
+
+		// Make sure the result's value is not empty
+		if len(resultVector) == 0 {
+			return 0, fmt.Errorf("prometheus query response has no data results: %+v", promResponse)
+		}
+
+		// The rate query should return only one metric, so it's safe to access the first result.
+		podCpuUsage, tsMillis, err := GetPrometheusResultFloatValue(resultVector[0].Value)
+		if err != nil {
+			return 0, fmt.Errorf("failed to get value from prometheus response from pod %s (ns %s): %w", pod.Name, pod.Namespace, err)
+		}
+
+		logrus.Debugf("Pod %s (ns %s) cpu usage: %v (ts: %s)", pod.Name, pod.Namespace, podCpuUsage, time.UnixMilli(tsMillis).String())
+
+		totalCpu += podCpuUsage
+	}
+
+	return totalCpu, nil
+}

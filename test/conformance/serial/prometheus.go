@@ -2,8 +2,6 @@ package test
 
 import (
 	"bytes"
-	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -11,14 +9,13 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/openshift/ptp-operator/test/pkg/client"
 	"github.com/openshift/ptp-operator/test/pkg/pods"
+	"github.com/openshift/ptp-operator/test/pkg/ptptesthelper"
 
 	k8sv1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const openshiftPtpNamespace = "openshift-ptp"
 const openshiftPtpMetricPrefix = "openshift_ptp_"
-const openshiftMonitoringNamespace = "openshift-monitoring"
 
 // Needed to deserialize prometheus query output.
 // Sample output (omiting irrelevant fields):
@@ -45,29 +42,25 @@ type metric struct {
 }
 
 func collectPrometheusMetrics(uniqueMetricKeys []string) map[string][]string {
-	prometheusPods, err := client.Client.Pods(openshiftMonitoringNamespace).List(context.Background(), metav1.ListOptions{
-		LabelSelector: "app.kubernetes.io/name=prometheus",
-	})
-	Expect(err).ToNot(HaveOccurred())
-	Expect(len(prometheusPods.Items)).NotTo(BeZero())
+	prometheusPod, err := ptptesthelper.GetPrometheusPod()
+	Expect(err).ToNot(HaveOccurred(), "failed to get prometheus pod")
 
 	podsPerPrometheusMetricKey := map[string][]string{}
 	for _, metricsKey := range uniqueMetricKeys {
+		promResult := []result{}
+		promResponse := ptptesthelper.PrometheusQueryResponse{}
+		promResponse.Data.Result = &promResult
+
+		err := ptptesthelper.RunPrometheusQuery(prometheusPod, metricsKey, &promResponse)
+		Expect(err).ToNot(HaveOccurred(), "failed to run prometheus query")
+
 		podsPerKey := []string{}
-		command := []string{
-			"curl",
-			"localhost:9090/api/v1/query?query=" + metricsKey,
-		}
-		stdout, err := pods.ExecCommand(client.Client, &prometheusPods.Items[0], prometheusPods.Items[0].Spec.Containers[0].Name, command)
-		Expect(err).ToNot(HaveOccurred())
-		var queryOutput queryOutput
-		err = json.Unmarshal([]byte(stdout.String()), &queryOutput)
-		Expect(err).ToNot(HaveOccurred())
-		for _, result := range queryOutput.Data.Result {
+		for _, result := range promResult {
 			podsPerKey = append(podsPerKey, result.Metric.Pod)
 		}
 		podsPerPrometheusMetricKey[metricsKey] = podsPerKey
 	}
+
 	return podsPerPrometheusMetricKey
 }
 
@@ -110,7 +103,7 @@ func containSameMetrics(ptpMetricsByPod map[string][]string, prometheusMetrics m
 					continue
 				}
 			}
-			return fmt.Errorf("Metric %s on pod %s was not reported", podName, podName)
+			return fmt.Errorf("metric %s on pod %s was not reported", podName, podName)
 		}
 	}
 	return nil
