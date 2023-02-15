@@ -41,8 +41,14 @@ spec:
                       type: string
                     name:
                       type: string
+                    phc2sysConf:
+                      type: string
                     phc2sysOpts:
                       type: string
+                    plugins:
+                      additionalProperties:
+                        x-kubernetes-preserve-unknown-fields: true
+                      type: object
                     ptp4lConf:
                       type: string
                     ptp4lOpts:
@@ -75,6 +81,14 @@ spec:
                       maximum: 65
                       minimum: 1
                       type: integer
+                    ptpSettings:
+                      additionalProperties:
+                        type: string
+                      type: object
+                    ts2phcConf:
+                      type: string
+                    ts2phcOpts:
+                      type: string
                   required:
                   - name
                   type: object
@@ -133,5 +147,5 @@ status:
   acceptedNames:
     kind: ""
     plural: ""
-  conditions: []
-  storedVersions: []
+  conditions: null
+  storedVersions: null

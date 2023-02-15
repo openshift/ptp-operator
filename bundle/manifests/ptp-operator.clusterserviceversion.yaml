@@ -155,6 +155,12 @@ spec:
           - subjectaccessreviews
           verbs:
           - create
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          verbs:
+          - '*'
         serviceAccountName: linuxptp-daemon
       - rules:
         - apiGroups:
