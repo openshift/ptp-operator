@@ -522,7 +522,7 @@ var _ = Describe("[ptp]", Serial, func() {
 				By("Checking event api is healthy")
 				for podIndex := range ptpSlaveRunningPods {
 					Eventually(func() string {
-						buf, _ := pods.ExecCommand(client.Client, &ptpSlaveRunningPods[podIndex], pkg.EventProxyContainerName, []string{"curl", "127.0.0.1:9085/api/cloudNotifications/v1/health"})
+						buf, _ := pods.ExecCommand(client.Client, &ptpSlaveRunningPods[podIndex], pkg.EventProxyContainerName, []string{"curl", "127.0.0.1:9085/api/ocloudNotifications/v1/health"})
 						return buf.String()
 					}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring("OK"),
 						"Event API is not in healthy state")
@@ -531,7 +531,7 @@ var _ = Describe("[ptp]", Serial, func() {
 				By("Checking ptp publisher is created")
 				for podIndex := range ptpSlaveRunningPods {
 					Eventually(func() string {
-						buf, _ := pods.ExecCommand(client.Client, &ptpSlaveRunningPods[podIndex], pkg.EventProxyContainerName, []string{"curl", "127.0.0.1:9085/api/cloudNotifications/v1/publishers"})
+						buf, _ := pods.ExecCommand(client.Client, &ptpSlaveRunningPods[podIndex], pkg.EventProxyContainerName, []string{"curl", "127.0.0.1:9085/api/ocloudNotifications/v1/publishers"})
 						return buf.String()
 					}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring("endpointUri"),
 						"Event API  did not return publishers")
