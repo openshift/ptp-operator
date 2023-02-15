@@ -249,14 +249,16 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 	var messageTag string
 	var cmd *exec.Cmd
 	var ifaces string
+	var process string
 
 	for _, p := range ptp_processes {
-		switch p {
+		process = p
+		switch process {
 		case "ptp4l":
 			configInput = nodeProfile.Ptp4lConf
 			configOpts = nodeProfile.Ptp4lOpts
 			if configOpts == nil {
-				_configOpts := ""
+				_configOpts := " "
 				configOpts = &_configOpts
 			}
 			socketPath = fmt.Sprintf("/var/run/ptp4l.%d.socket", runID)
@@ -279,7 +281,8 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 			messageTag = fmt.Sprintf("[ts2phc.%d.config]", runID)
 		}
 
-		if configOpts == nil {
+		if configOpts == nil || *configOpts == "" {
+			glog.Infof("configOpts empty, skipping: %s", process)
 			continue
 		}
 
