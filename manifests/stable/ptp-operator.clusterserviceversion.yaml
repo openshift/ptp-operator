@@ -92,6 +92,14 @@ spec:
       displayName: Ptp Operator Config
       kind: PtpOperatorConfig
       name: ptpoperatorconfigs.ptp.openshift.io
+      specDescriptors:
+      - description: 'TransportHost format is <protocol>://<transport-service>.<namespace>.svc.cluster.local:<transport-port>"
+          Example HTTP transport: "http://ptp-event-publisher-service.openshift-ptp.svc.cluster.local:9043"
+          Example AMQP transport: "amqp://amq-router-service-name.amq-namespace.svc.cluster.local"'
+        displayName: Transport Host
+        path: ptpEventConfig.transportHost
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
       version: v1
   description: |
     # Precision Time Protocol (PTP) Operator for Openshift
@@ -147,6 +155,12 @@ spec:
           - subjectaccessreviews
           verbs:
           - create
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          verbs:
+          - '*'
         serviceAccountName: linuxptp-daemon
       - rules:
         - apiGroups:
@@ -351,7 +365,7 @@ spec:
                   readOnly: true
               nodeSelector:
                 node-role.kubernetes.io/master: ""
-              priorityClassName: "system-node-critical"
+              priorityClassName: system-node-critical
               serviceAccountName: ptp-operator
               tolerations:
               - effect: NoSchedule
