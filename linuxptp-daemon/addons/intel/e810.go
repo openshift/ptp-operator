@@ -9,7 +9,7 @@ import (
 )
 
 type E810Opts struct {
-	EnableDefaultPTPConfig bool `json:"enableDefaultPTPConfig"`
+	EnableDefaultConfig bool `json:"enableDefaultConfig"`
 }
 
 // Sourced from https://github.com/RHsyseng/oot-ice/blob/main/ptp-config.sh
@@ -38,7 +38,7 @@ func OnPTPConfigChangeE810(nodeProfile *ptpv1.PtpProfile) error {
 	var optsByteArray []byte
 	var stdout []byte
 
-	e810Opts.EnableDefaultPTPConfig = false
+	e810Opts.EnableDefaultConfig = false
 
 	for name, opts := range (*nodeProfile).Plugins {
 		if name == "e810" {
@@ -47,7 +47,7 @@ func OnPTPConfigChangeE810(nodeProfile *ptpv1.PtpProfile) error {
 			if err != nil {
 				glog.Error("exec failed to unmarshal opts: " + err.Error())
 			}
-			if e810Opts.EnableDefaultPTPConfig {
+			if e810Opts.EnableDefaultConfig {
 				stdout, err = exec.Command("/usr/bin/bash", "-c", EnableE810PTPConfig).Output()
 				glog.Infof(string(stdout))
 			}
