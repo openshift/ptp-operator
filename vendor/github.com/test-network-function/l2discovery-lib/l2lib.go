@@ -212,7 +212,7 @@ func (config *L2DiscoveryConfig) PrintAllNICs() {
 		for _, aIf := range island {
 			aLog += fmt.Sprintf("%s **** ", config.PtpIfList[aIf])
 		}
-		logrus.Info(aLog)
+		logrus.Debug(aLog)
 	}
 }
 
@@ -296,7 +296,7 @@ func (config *L2DiscoveryConfig) getInterfacesReceivingPTP(ptpInterfacesOnly boo
 			config.PortsGettingPTP = append(config.PortsGettingPTP, aPortGettingPTP)
 		}
 	}
-	logrus.Infof("interfaces receiving PTP frames: %v", config.PortsGettingPTP)
+	logrus.Debugf("interfaces receiving PTP frames: %v", config.PortsGettingPTP)
 }
 
 // Creates Mapping tables between interfaces index, mac address, and graph integer indexes
