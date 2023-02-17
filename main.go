@@ -88,6 +88,11 @@ func main() {
 		Log:           ctrl.Log.WithName("controllers").WithName("PtpOperatorConfig"),
 		Scheme:        mgr.GetScheme(),
 		IsInitialSync: true,
+		TransportHostStatus: &controllers.EventTransportHostStatus{
+			TransportHostRetryCount: 0,
+			LastTransportHostValue:  "",
+			Success:                 false,
+		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PtpOperatorConfig")
 		os.Exit(1)

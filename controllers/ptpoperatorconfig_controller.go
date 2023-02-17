@@ -51,13 +51,26 @@ type PtpOperatorConfigReconciler struct {
 	Scheme *runtime.Scheme
 	// IsInitialSync tracks if it is initial run of syncLinuxptpDaemon
 	// and only retry checking amq status during the initial sync
-	IsInitialSync bool
+	IsInitialSync       bool
+	TransportHostStatus *EventTransportHostStatus
+}
+
+// EventTransportHostStatus ... identify transport host status ( for amq only)
+type EventTransportHostStatus struct {
+	TransportHostRetryCount int
+	LastTransportHostValue  string
+	Success                 bool
 }
 
 const (
-	ResyncPeriod  = 2 * time.Minute
-	retryTimeout  = 500 * time.Millisecond
-	cancelTimeout = 3 * time.Minute
+	ResyncPeriod = 2 * time.Minute
+	// AmqReadyStateError Event related transport protocol const
+	AmqReadyStateError         = "AMQ not ready"
+	TransportRetryMaxCount     = 12 // max 3 minutes
+	RsyncTransportRetryPeriod  = 10 * time.Second
+	DefaultTransportHostScheme = "amqp"
+	DefaultTransportHostName   = "nohup"
+	AmqDefaultHost             = DefaultTransportHostScheme + "://" + DefaultTransportHostName
 )
 
 //+kubebuilder:rbac:groups=ptp.openshift.io,resources=ptpoperatorconfigs,verbs=get;list;watch;create;update;patch;delete
@@ -113,6 +126,9 @@ func (r *PtpOperatorConfigReconciler) Reconcile(ctx context.Context, req ctrl.Re
 
 	if err = r.syncLinuxptpDaemon(ctx, defaultCfg); err != nil {
 		glog.Errorf("failed to sync linux ptp daemon: %v", err)
+		if err.Error() == AmqReadyStateError {
+			return reconcile.Result{RequeueAfter: RsyncTransportRetryPeriod}, nil
+		}
 		return reconcile.Result{}, err
 	}
 
@@ -187,22 +203,13 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 	} else {
 		data.Data["EnableEventPublisher"] = defaultCfg.Spec.EventConfig.EnableEventPublisher
 		data.Data["EventTransportHost"] = defaultCfg.Spec.EventConfig.TransportHost
-		var transportUrl *url.URL
+
 		if defaultCfg.Spec.EventConfig.EnableEventPublisher {
-			// example transportHost: "amqp://amq-router.amq-router.svc.cluster.local"
-			// if transportHost is "amqp://nohup", ignore any validation and print events to log
-			transportUrl, err = url.Parse(defaultCfg.Spec.EventConfig.TransportHost)
-			if err != nil || defaultCfg.Spec.EventConfig.TransportHost == "" {
-				glog.Warningf("ptp operator config Spec, ptpEventConfig.transportHost=%v is not valid, proceed as amqp://nohup", defaultCfg.Spec.EventConfig.TransportHost)
-				data.Data["EventTransportHost"] = "amqp://nohup"
+			transportHost, e := r.EventTransportHostAvailabilityCheck(defaultCfg.Spec.EventConfig.TransportHost)
+			if e != nil {
+				return e
 			}
-
-		}
-
-		if transportUrl.Scheme == "amqp" && transportUrl.Host != "nohup" {
-			amq := strings.Split(transportUrl.Host, ".")
-			glog.Infof("check AMQP service %v in namespace %v before deploying linuxptp daemon", amq[0], amq[1])
-			r.checkAmqStatus(&data, amq[0], amq[1])
+			data.Data["EventTransportHost"] = transportHost
 		}
 	}
 
@@ -217,7 +224,7 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 			return err
 		}
 		if err = controllerutil.SetControllerReference(defaultCfg, obj, r.Scheme); err != nil {
-			return fmt.Errorf("failed to set owner reference: %v", err)
+			return fmt.Errorf("failed to set owner reference for daemon: %v", err)
 		}
 		if err = apply.ApplyObject(ctx, r.Client, obj); err != nil {
 			return fmt.Errorf("failed to apply object %v with err: %v", obj, err)
@@ -270,44 +277,89 @@ func (r *PtpOperatorConfigReconciler) getAmqStatus(svcName string, namespace str
 		return false
 	}
 	for _, p := range podList.Items {
-		if p.Spec.ServiceAccountName == svcName && p.Status.Phase == "Running" {
-			return true
+		for _, c := range p.Spec.Containers {
+			if c.Name == svcName && p.Status.Phase == "Running" {
+				return true
+			}
 		}
 	}
 	return false
 }
 
-func (r *PtpOperatorConfigReconciler) checkAmqStatus(data *render.RenderData, amqSvc string, amqNamespace string) {
-	var timeout time.Duration
-	if r.IsInitialSync {
-		timeout = cancelTimeout
-		r.IsInitialSync = false
-	} else {
-		// no need to retry if it is not initial sync
-		timeout = retryTimeout * 2
+// EventTransportHostAvailabilityCheck ... check availability for transporthost (for amq only )
+func (r *PtpOperatorConfigReconciler) EventTransportHostAvailabilityCheck(transportHost string) (string, error) {
+	var transportUrl *url.URL
+	if transportHost == "" {
+		glog.Warningf("ptp operator config Spec, ptpEventConfig.transportHost=%v is not valid, proceed as %s",
+			transportHost, AmqDefaultHost)
+		return AmqDefaultHost, nil
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
-	defer cancel()
-	isFirstFail := true
-	for {
-		select {
-		case <-ctx.Done():
-			glog.Infof("time out checking for AMQP service")
-			data.Data["EventTransportHost"] = "amqp://nohup"
-			return
-		default:
+	// if new transport has been applied reset everything
+	r.TransportHostStatus.ResetOnChange(transportHost)
+
+	// example transportHost: "amqp://amq-router.amq-router.svc.cluster.local"
+	// if transportHost is "amqp://nohup", ignore any validation and print events to log
+	transportUrl, err := url.Parse(transportHost)
+	if err != nil {
+		glog.Warningf("ptp operator config Spec, ptpEventConfig.transportHost=%v is not valid, proceed as %s",
+			transportHost, AmqDefaultHost)
+		return AmqDefaultHost, nil
+	} else if r.TransportHostStatus.RetryThisHost(transportUrl.Scheme, transportUrl.Host) { // not set to nohup and last try was not success
+		if r.TransportHostStatus.RetryOnCount() {
+			if amq := strings.Split(transportUrl.Host, "."); len(amq) > 1 { // check for availability if its amq
+				glog.Infof("check AMQP service %v in namespace %v before deploying linuxptp daemon (%d of %d attempts)", amq[0], amq[1],
+					r.TransportHostStatus.TransportHostRetryCount+1, TransportRetryMaxCount)
+				if !r.getAmqStatus(amq[0], amq[1]) {
+					r.TransportHostStatus.Inc()
+					return transportHost, fmt.Errorf("%s", AmqReadyStateError) // failed then try again
+				}
+			} // else continue as it is
+		} else {
+			glog.Infof("Max retry reached for amqp connection. Set transport host to %s", AmqDefaultHost)
+			return AmqDefaultHost, nil
 		}
-		if !r.getAmqStatus(amqSvc, amqNamespace) {
-			if isFirstFail {
-				glog.Infof("AMQP service %v in namespace %v is NOT running, retry every %s for %s",
-					amqSvc, amqNamespace, retryTimeout, timeout)
-				isFirstFail = false
-			}
-			time.Sleep(retryTimeout)
-			continue
-		}
-		glog.Infof("AMQP service %v in namespace %v is running", amqSvc, amqNamespace)
-		break
+	} // else not checking for amq://localhost:5672 or http
+	r.TransportHostStatus.Exit()
+	return transportHost, nil
+}
+
+// Inc count
+func (e *EventTransportHostStatus) Inc() {
+	e.TransportHostRetryCount++
+	e.Success = false
+}
+
+// ResetOnChange count
+func (e *EventTransportHostStatus) ResetOnChange(newHost string) {
+	if e.LastTransportHostValue != newHost {
+		e.TransportHostRetryCount = 0
+		e.Success = false
+		e.LastTransportHostValue = newHost
 	}
+}
+
+// RetryOnCount connecting to transport host
+func (e *EventTransportHostStatus) RetryOnCount() bool {
+	if e.TransportHostRetryCount >= TransportRetryMaxCount {
+		return false
+	}
+	return true
+}
+
+// Exit from retry
+func (e *EventTransportHostStatus) Exit() {
+	e.Success = true
+	e.TransportHostRetryCount = 0
+}
+
+// RetryThisHost ... check if retry  needed for this host
+func (e *EventTransportHostStatus) RetryThisHost(scheme, host string) bool {
+	if scheme == DefaultTransportHostScheme &&
+		host != DefaultTransportHostName &&
+		!e.Success {
+		return true
+	}
+	return false
+
 }
