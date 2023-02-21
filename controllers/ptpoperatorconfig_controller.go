@@ -270,11 +270,11 @@ func (r *PtpOperatorConfigReconciler) syncNodePtpDevice(ctx context.Context, nod
 				ptpDev.Namespace = names.Namespace
 				err = r.Create(ctx, ptpDev)
 				if err != nil {
-					return fmt.Errorf("failed to create NodePtpDevice for node: %v", node.Name)
+					return fmt.Errorf("failed to create NodePtpDevice for node %v: %v", node.Name, err)
 				}
 				glog.Infof("create NodePtpDevice successfully for node: %v", node.Name)
 			} else {
-				return fmt.Errorf("failed to get NodePtpDevice for node: %v", node.Name)
+				return fmt.Errorf("failed to get NodePtpDevice for node %v: %v", node.Name, err)
 			}
 		} else {
 			glog.Infof("NodePtpDevice exists for node: %v, skipping", node.Name)
