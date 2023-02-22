@@ -428,8 +428,22 @@ func (in *PtpOperatorConfigSpec) DeepCopyInto(out *PtpOperatorConfigSpec) {
 	}
 	if in.EnabledPlugins != nil {
 		in, out := &in.EnabledPlugins, &out.EnabledPlugins
-		*out = make([]string, len(*in))
-		copy(*out, *in)
+		*out = new(map[string]*apiextensionsv1.JSON)
+		if **in != nil {
+			in, out := *in, *out
+			*out = make(map[string]*apiextensionsv1.JSON, len(*in))
+			for key, val := range *in {
+				var outVal *apiextensionsv1.JSON
+				if val == nil {
+					(*out)[key] = nil
+				} else {
+					in, out := &val, &outVal
+					*out = new(apiextensionsv1.JSON)
+					(*in).DeepCopyInto(*out)
+				}
+				(*out)[key] = outVal
+			}
+		}
 	}
 }
 

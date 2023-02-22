@@ -45,9 +45,9 @@ spec:
                   type: string
                 type: object
               plugins:
-                items:
-                  type: string
-                type: array
+                additionalProperties:
+                  x-kubernetes-preserve-unknown-fields: true
+                type: object
               ptpEventConfig:
                 description: EventConfig to configure event sidecar
                 properties:

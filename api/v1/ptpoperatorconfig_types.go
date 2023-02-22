@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -30,8 +31,8 @@ type PtpOperatorConfigSpec struct {
 
 	DaemonNodeSelector map[string]string `json:"daemonNodeSelector"`
 	// EventConfig to configure event sidecar
-	EventConfig    *PtpEventConfig `json:"ptpEventConfig,omitempty"`
-	EnabledPlugins []string        `json:"plugins,omitempty"`
+	EventConfig    *PtpEventConfig                 `json:"ptpEventConfig,omitempty"`
+	EnabledPlugins *map[string]*apiextensions.JSON `json:"plugins,omitempty"`
 }
 
 // PtpOperatorConfigStatus defines the observed state of PtpOperatorConfig
