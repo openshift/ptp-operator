@@ -32,7 +32,7 @@ echo "Disabled all SMA and U.FL Connections"
 `
 
 func OnPTPConfigChangeE810(nodeProfile *ptpv1.PtpProfile) error {
-	glog.Info("calling onPTPConfigChange for exec plugin")
+	glog.Info("calling onPTPConfigChange for e810 plugin")
 	var e810Opts E810Opts
 	var err error
 	var optsByteArray []byte
@@ -45,7 +45,7 @@ func OnPTPConfigChangeE810(nodeProfile *ptpv1.PtpProfile) error {
 			optsByteArray, _ = json.Marshal(opts)
 			err = json.Unmarshal(optsByteArray, &e810Opts)
 			if err != nil {
-				glog.Error("exec failed to unmarshal opts: " + err.Error())
+				glog.Error("e810 failed to unmarshal opts: " + err.Error())
 			}
 			if e810Opts.EnableDefaultConfig {
 				stdout, err = exec.Command("/usr/bin/bash", "-c", EnableE810PTPConfig).Output()
