@@ -214,7 +214,17 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 		}
 	}
 
-	enabledPlugins := strings.Join(defaultCfg.Spec.EnabledPlugins, ",")
+	var pluginList []string
+
+	if defaultCfg.Spec.EnabledPlugins != nil {
+		for k := range *defaultCfg.Spec.EnabledPlugins {
+			pluginList = append(pluginList, k)
+		}
+	} else {
+		pluginList = []string{"e810"} // Enable e810 by default if plugins not specified
+	}
+
+	enabledPlugins := strings.Join(pluginList, ",")
 	data.Data["EnabledPlugins"] = enabledPlugins
 	if enabledPlugins != "" {
 		glog.Infof("ptp operator enabled plugins: %s", enabledPlugins)
