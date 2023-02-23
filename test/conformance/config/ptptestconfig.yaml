@@ -22,6 +22,24 @@ soaktest:
   cpu_utilization:
     spec:
       enable: true
-      duration: 10
-      failure_threshold: 10
+      duration: 5
+      failure_threshold: 3
+      custom_params:
+        prometheus_rate_time_window: "60s"
+        node:
+          cpu_threshold_mcores: 100
+        pod:
+          - pod_type: "ptp-operator"
+            cpu_threshold_mcores: 30
+
+          - pod_type: "linuxptp-daemon"
+            cpu_threshold_mcores: 80
+
+          - pod_type: "linuxptp-daemon"
+            container: "cloud-event-proxy"
+            cpu_threshold_mcores: 30
+
+          - pod_type: "linuxptp-daemon"
+            container: "linuxptp-daemon-container"
+            cpu_threshold_mcores: 40
     desc: "The test measures PTP CPU usage and fails if >15mcores"
