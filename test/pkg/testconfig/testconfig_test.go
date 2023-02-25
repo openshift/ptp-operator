@@ -45,6 +45,7 @@ func TestGetDesiredConfig(t *testing.T) {
 				nil,
 				nil,
 				nil,
+				false,
 			},
 		},
 		{
@@ -63,6 +64,7 @@ func TestGetDesiredConfig(t *testing.T) {
 				nil,
 				nil,
 				nil,
+				false,
 			},
 		},
 		{
@@ -81,6 +83,7 @@ func TestGetDesiredConfig(t *testing.T) {
 				nil,
 				nil,
 				nil,
+				false,
 			},
 		},
 		{
@@ -99,6 +102,7 @@ func TestGetDesiredConfig(t *testing.T) {
 				nil,
 				nil,
 				nil,
+				false,
 			},
 		},
 		{
@@ -117,6 +121,7 @@ func TestGetDesiredConfig(t *testing.T) {
 				nil,
 				nil,
 				nil,
+				false,
 			},
 		},
 		{
@@ -136,6 +141,7 @@ func TestGetDesiredConfig(t *testing.T) {
 				nil,
 				nil,
 				nil,
+				false,
 			},
 		},
 		{
@@ -155,6 +161,7 @@ func TestGetDesiredConfig(t *testing.T) {
 				nil,
 				nil,
 				nil,
+				false,
 			},
 		},
 	}

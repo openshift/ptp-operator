@@ -4,35 +4,36 @@
 package test
 
 import (
-	"context"
 	"fmt"
-	"io"
-	"os"
-	"regexp"
-	"strconv"
-	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
-	v1 "k8s.io/api/core/v1"
 
-	ptptestconfig "github.com/openshift/ptp-operator/test/conformance/config"
-	"github.com/openshift/ptp-operator/test/pkg"
-	"github.com/openshift/ptp-operator/test/pkg/client"
 	testclient "github.com/openshift/ptp-operator/test/pkg/client"
+	"github.com/openshift/ptp-operator/test/pkg/event"
 	"github.com/openshift/ptp-operator/test/pkg/execute"
-	"github.com/openshift/ptp-operator/test/pkg/pods"
+	"github.com/openshift/ptp-operator/test/pkg/ptphelper"
 	"github.com/openshift/ptp-operator/test/pkg/ptptesthelper"
 	"github.com/openshift/ptp-operator/test/pkg/testconfig"
 	v1core "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	. "github.com/onsi/gomega"
+	ptptestconfig "github.com/openshift/ptp-operator/test/conformance/config"
+	exports "github.com/redhat-cne/ptp-listener-exports"
+	lib "github.com/redhat-cne/ptp-listener-lib"
+	ptpEvent "github.com/redhat-cne/sdk-go/pkg/event/ptp"
 	"github.com/sirupsen/logrus"
 )
 
+const (
+	clockSyncStateLocalForwardPort = 8901
+	clockSyncStateLocalHttpPort    = 8902
+)
+
+// this full config is one per thread
+var fullConfig = testconfig.TestConfig{}
 var _ = Describe("[ptp-long-running]", func() {
-	var fullConfig testconfig.TestConfig
+
 	var testParameters ptptestconfig.PtpTestConfig
 
 	execute.BeforeAll(func() {
@@ -42,51 +43,52 @@ var _ = Describe("[ptp-long-running]", func() {
 	})
 
 	Context("Soak testing", func() {
-
 		BeforeEach(func() {
 			if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 				Skip("Failed to find a valid ptp slave configuration")
 			}
-
-			ptpPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: pkg.PtpLinuxDaemonPodsLabel})
-			Expect(err).NotTo(HaveOccurred())
-			Expect(len(ptpPods.Items)).To(BeNumerically(">", 0), "linuxptp-daemon is not deployed on cluster")
-
-			ptpSlaveRunningPods := []v1core.Pod{}
-			ptpMasterRunningPods := []v1core.Pod{}
-
-			for podIndex := range ptpPods.Items {
-				if role, _ := pods.PodRole(&ptpPods.Items[podIndex], pkg.PtpClockUnderTestNodeLabel); role {
-					pods.WaitUntilLogIsDetected(&ptpPods.Items[podIndex], pkg.TimeoutIn3Minutes, "Profile Name:")
-					ptpSlaveRunningPods = append(ptpSlaveRunningPods, ptpPods.Items[podIndex])
-				} else if role, _ := pods.PodRole(&ptpPods.Items[podIndex], pkg.PtpGrandmasterNodeLabel); role {
-					pods.WaitUntilLogIsDetected(&ptpPods.Items[podIndex], pkg.TimeoutIn3Minutes, "Profile Name:")
-					ptpMasterRunningPods = append(ptpMasterRunningPods, ptpPods.Items[podIndex])
-				}
-			}
-
-			if testconfig.GlobalConfig.DiscoveredGrandMasterPtpConfig != nil {
-				Expect(len(ptpMasterRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP master pods on Cluster")
-				Expect(len(ptpSlaveRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP slave pods on Cluster")
-			} else {
-				Expect(len(ptpSlaveRunningPods)).To(BeNumerically(">=", 1), "Fail to detect PTP slave pods on Cluster")
-			}
-			//ptpRunningPods = append(ptpMasterRunningPods, ptpSlaveRunningPods...)
 		})
-
-		It("PTP Slave Clock Sync", func() {
-			testPtpSlaveClockSync(fullConfig, testParameters) // Implementation of the test case
-		})
-
 		It("PTP CPU Utilization", func() {
 			testPtpCpuUtilization(fullConfig, testParameters)
 		})
 	})
+
+	Context("Event based tests", func() {
+		BeforeEach(func() {
+			logrus.Debugf("fullConfig=%s", fullConfig.String())
+			if fullConfig.Status == testconfig.DiscoveryFailureStatus {
+				Skip("Failed to find a valid ptp slave configuration")
+			}
+		})
+
+		It("PTP Slave Clock Sync", func() {
+			useSideCar := false
+			if event.IsDeployConsumerSidecar() {
+				if fullConfig.PtpEventsIsSidecarReady {
+					useSideCar = true
+				}
+			}
+
+			event.InitEvents(&fullConfig, clockSyncStateLocalHttpPort, clockSyncStateLocalForwardPort, useSideCar)
+			testPtpSlaveClockSync(fullConfig, testParameters) // Implementation of the test case
+
+		})
+		AfterEach(func() {
+			// closing internal pubsub
+			lib.Ps.Close()
+
+			// unsubscribing all supported events
+			lib.UnsubscribeAllEvents(
+				fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName, // this is the remote end of the port forwarding tunnel (pod's node name))
+			)
+		})
+	})
 })
 
+// test case for continuous testing of clock synchronization of the clock under test
 func testPtpSlaveClockSync(fullConfig testconfig.TestConfig, testParameters ptptestconfig.PtpTestConfig) {
 	Expect(testclient.Client).NotTo(BeNil())
-
+	logrus.Debugf("sync test fullConfig=%s", fullConfig.String())
 	if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 		Fail("failed to find a valid ptp slave configuration")
 	}
@@ -114,6 +116,7 @@ func testPtpSlaveClockSync(fullConfig testconfig.TestConfig, testParameters ptpt
 	}
 	logrus.Info("Failure threshold = ", failureThreshold)
 	// Actual implementation
+	testSyncState(soakTestConfig)
 }
 
 // This test will run for configured minutes or until failure_threshold reached,
@@ -213,64 +216,74 @@ func isCpuUsageThresholdReachedInPtpPods(prometheusPod *v1core.Pod, ptpPodsPerNo
 	return thresholdReached, nil
 }
 
-func GetPodLogs(namespace, podName, containerName string, min, max int, messages chan string, ctx context.Context) {
-	var re = regexp.MustCompile(`(?ms)rms\s*\d*\smax`)
-	count := int64(100)
-	podLogOptions := v1.PodLogOptions{
-		Container: containerName,
-		Follow:    true,
-		TailLines: &count,
-	}
-	id := fmt.Sprintf("%s/%s:%s", namespace, podName, containerName)
-	podLogRequest := testclient.Client.CoreV1().
-		Pods(namespace).
-		GetLogs(podName, &podLogOptions)
-	stream, err := podLogRequest.Stream(context.TODO())
-	if err != nil {
-		messages <- fmt.Sprintf("error streaming logs from %s", id)
-		return
-	}
-	file, _ := os.Create(podName)
-	ticker := time.NewTicker(time.Minute)
-	seen := false
-	defer stream.Close()
-	buf := make([]byte, 2000)
+// Implementation for continuous testing of clock synchronization of the clock under test
+func testSyncState(soakTestConfig ptptestconfig.SoakTestConfig) {
+
+	slaveClockSyncTestSpec := soakTestConfig.SlaveClockSyncConfig.TestSpec
+	logrus.Infof("%+v", slaveClockSyncTestSpec)
+	syncEvents := ""
+	// Create timer channel for test case timeout.
+	testCaseDuration := time.Duration(slaveClockSyncTestSpec.Duration) * time.Minute
+	tcEndChan := time.After(testCaseDuration)
+	// registers channel to receive OsClockSyncStateChange events using the ptp-listener-lib
+	tcEventChan, subscriberID := lib.Ps.Subscribe(string(ptpEvent.OsClockSyncStateChange))
+	// unsubscribe event type when finished
+	defer lib.Ps.Unsubscribe(string(ptpEvent.OsClockSyncStateChange), subscriberID)
+	// creates and push an initial event indicating the initial state of the clock
+	// otherwise no events would be received as long as the clock is not changing states
+	lib.PushInitialEvent(string(ptpEvent.OsClockSyncState))
+	// counts number of times the clock state looses LOCKED state
+	failureCounter := 0
+	wasLocked := false
 	for {
 		select {
-		case <-ctx.Done():
+		case <-tcEndChan:
+			// The os clock never reach LOCKED status and the test has timed out
+			if !wasLocked {
+				Fail("OS Clock was never LOCKED and test timed out")
+			}
+			// Test case timeout, pushing metrics
+			logrus.Infof("Clock Sync failed %d times.", failureCounter)
+			logrus.Infof("%s", syncEvents)
+			ptphelper.SaveStoreEventsToFile(syncEvents, soakTestConfig.EventOutputFile)
 			return
-		case <-ticker.C:
-			if !seen {
-				messages <- fmt.Sprintf("can't find master offset logs %s", id)
+		case singleEvent := <-tcEventChan:
+			// New OsClockSyncStateChange event received
+			logrus.Infof("Received a new OsClockSyncStateChange event")
+			logrus.Infof("got %v\n", singleEvent)
+			// get event values
+			values, _ := singleEvent[exports.EventValues].(exports.StoredEventValues)
+			state, _ := values["notification"].(string)
+			clockOffset, _ := values["metric"].(float64)
+			// create a pseudo value mapping a state to an integer (for vizualization)
+			eventString := fmt.Sprintf("%s,%f,%s,%d\n", ptpEvent.OsClockSyncStateChange, clockOffset, state, exports.ToLockStateValue[state])
+			// start counting loss of LOCK only after the clock was locked once
+			logrus.Infof("clockOffset=%f", clockOffset)
+			if state != "LOCKED" && wasLocked {
+				failureCounter++
 			}
-			seen = false
-		default:
-			numBytes, err := stream.Read(buf)
-			if numBytes == 0 {
-				continue
+
+			// Wait for the clock to be locked at least once before stating to count failures
+			if !wasLocked && state == "LOCKED" {
+				wasLocked = true
+				logrus.Info("Clock is locked, starting to monitor status now")
 			}
-			file.Write(buf[:numBytes])
-			if err == io.EOF {
-				break
+
+			// wait before the clock was locked once before starting to record metrics
+			if wasLocked {
+				syncEvents += eventString
 			}
-			if err != nil {
-				messages <- fmt.Sprintf("error streaming logs from %s", id)
-				return
+
+			// if the number of loss of lock events exceed test threshold, fail the test and end immediately
+			if failureCounter >= slaveClockSyncTestSpec.FailureThreshold {
+				// add the events to the junit report
+				AddReportEntry(fmt.Sprintf("%v", syncEvents))
+				// save events to file
+				ptphelper.SaveStoreEventsToFile(syncEvents, soakTestConfig.EventOutputFile)
+				// fail the test
+				Expect(failureCounter).To(BeNumerically("<", slaveClockSyncTestSpec.FailureThreshold),
+					fmt.Sprintf("Failure threshold (%d) reached", slaveClockSyncTestSpec.FailureThreshold))
 			}
-			message := string(buf[:numBytes])
-			match := re.FindAllString(message, -1)
-			if len(match) != 0 {
-				seen = true
-				expression := strings.Fields(match[0])
-				offset, err := strconv.Atoi(expression[1])
-				if err != nil {
-					messages <- fmt.Sprintf("can't parse log from %s %s", id, message)
-				}
-				if offset > max || offset < min {
-					messages <- fmt.Sprintf("bad offset found at  %s value=%d", id, offset)
-				}
-			}
-			logrus.Debug(id, message)
 		}
 	}
 }

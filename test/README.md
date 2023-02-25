@@ -7,6 +7,7 @@ Install Ginkgo v2 CLI following the [Migration Guide](https://onsi.github.io/gin
 
 ## Running the tests
 To run the conformance tests, first set the following environment variables:
+- **PTP_LOG_LEVEL**: sets the log level (defaults to info), valid values are:  trace, debug, info, warn, error, fatal, panic
 - **KUBECONFIG**: this is the path to the openshift kubeconfig 
 - **PTP_TEST_MODE**: this is the desired mode to run the tests. Choose between: Discovery, OC and BC. See below for an explanation for each mode.
 - **DISCOVERY_MODE**: This is a legacy option and is equivalent to setting "Discovery" option in the PTP_TEST_MODE environment variable
@@ -51,8 +52,26 @@ Manually the config can be passed also with the environment parameter (with abso
 `global` field `enablecontinuous` controls whether the parallel test suite would execute or not.
 Each test can be configured separately and can be enabled or disabled, however `enablecontinuous` field overrides that configuration.
 
+### Event monitoring: OS Clock state monitoring
+This test monitors the state of the os clock synchronized by the clock under test using the PTP fast event framework.
+The following parameters in the PTP test config file (PTP_TEST_CONFIG_FILE=ptptestconfig.yaml) customize this test:
+- setting the min and max os clock offsets. Dipping below the min offset or juimping above the max offset should trigger a FREERUN event. Staying between min and max offset should trigger a LOCKED event to be sent: 
+```
+global:
+ maxoffset: 500
+ minoffset: -500
+```
 
-
+- The `slave_clock_sync` section configures the test enable status (enable), duration (duration field) and max tolerated number of loss of sync (failure_threshold)
+```
+  slave_clock_sync:
+    spec:
+      enable: true
+      duration: 5
+      failure_threshold: 10
+    desc: "The test measures number of PTP time sync faults, and fails if >0"
+```
+The test suite deploys a ptp events consumer sidecar by default and directly connects to it to access ptp events. It is also possible to access the ptp-events api without a side car by using the cloud-events-proxy publisher sidecar directly for debugging. The `USE_PTP_EVENT_CONSUMER_SIDECAR` should be set to false in this case.
 ## Labelling test nodes manually in discovery mode
 In Discovery mode, the node holding the clock under test is indicated via a label
 To indicate a node with a BC configuration, label it with 

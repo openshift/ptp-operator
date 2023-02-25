@@ -84,7 +84,7 @@ func RunPrometheusQuery(prometheusPod *corev1.Pod, query string, response *Prome
 		"curl -s http://localhost:9090/api/v1/query --data-urlencode " + fmt.Sprintf("'query=%s'", query),
 	}
 
-	stdout, err := pods.ExecCommand(client.Client, prometheusPod, prometheusPod.Spec.Containers[0].Name, command)
+	stdout, _, err := pods.ExecCommand(client.Client, prometheusPod, prometheusPod.Spec.Containers[0].Name, command)
 	if err != nil {
 		return fmt.Errorf("failed to exec command (%v) on pod %s (ns %s): %w",
 			command, prometheusPod.Name, prometheusPod.Namespace, err)

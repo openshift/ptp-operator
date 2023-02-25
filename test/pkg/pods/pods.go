@@ -24,27 +24,8 @@ import (
 	"k8s.io/utils/pointer"
 )
 
-// GetLog connects to a pod and fetches log
-func GetLog(p *corev1.Pod, containerName string) (string, error) {
-	req := testclient.Client.CoreV1().Pods(p.Namespace).GetLogs(p.Name, &corev1.PodLogOptions{Container: containerName})
-	log, err := req.Stream(context.Background())
-	if err != nil {
-		return "", err
-	}
-	defer log.Close()
-
-	buf := new(bytes.Buffer)
-	_, err = io.Copy(buf, log)
-
-	if err != nil {
-		return "", err
-	}
-
-	return buf.String(), nil
-}
-
 // ExecCommand runs command in the pod and returns buffer output
-func ExecCommand(cs *testclient.ClientSet, pod *corev1.Pod, containerName string, command []string) (bytes.Buffer, error) {
+func ExecCommand(cs *testclient.ClientSet, pod *corev1.Pod, containerName string, command []string) (stdoutBuf, stderrBuf bytes.Buffer, err error) {
 	var buf bytes.Buffer
 	req := testclient.Client.CoreV1().RESTClient().
 		Post().
@@ -63,21 +44,23 @@ func ExecCommand(cs *testclient.ClientSet, pod *corev1.Pod, containerName string
 
 	exec, err := remotecommand.NewSPDYExecutor(cs.Config, "POST", req.URL())
 	if err != nil {
-		return buf, err
+		return stdoutBuf, stderrBuf, err
 	}
 
 	var bufErr bytes.Buffer
 	err = exec.Stream(remotecommand.StreamOptions{
 		Stdin:  os.Stdin,
-		Stdout: &buf,
-		Stderr: &bufErr,
+		Stdout: &stdoutBuf,
+		Stderr: &stderrBuf,
 		Tty:    true,
 	})
+
+	logrus.Trace("ExecCommand stdout=%s stderr=%s err/status=%s", stdoutBuf, stderrBuf, err)
 	if err != nil {
-		return bytes.Buffer{}, fmt.Errorf("exec.Stream failure. Stdout: %s, Stderr: %s, Err: %w", buf.String(), bufErr.String(), err)
+		return stdoutBuf, stderrBuf, fmt.Errorf("exec.Stream failure. Stdout: %s, Stderr: %s, Err: %w", buf.String(), bufErr.String(), err)
 	}
 
-	return buf, nil
+	return stdoutBuf, stderrBuf, nil
 }
 
 // returns true if the pod passed as paremeter is running on the node selected by the label passed as a parameter.
@@ -147,33 +130,52 @@ func WaitForPhase(cs *testclient.ClientSet, pod *corev1.Pod, phaseType corev1.Po
 	})
 }
 
-func WaitUntilLogIsDetected(pod *corev1.Pod, timeout time.Duration, neededLog string) {
-	gomega.Eventually(func() string {
-		logs, _ := GetLog(pod, pkg.PtpContainerName)
-		logrus.Debugf("wait for log = %s in pod=%s.%s", neededLog, pod.Namespace, pod.Name)
-		return logs
-	}, timeout, 1*time.Second).Should(gomega.ContainSubstring(neededLog), fmt.Sprintf("Timeout to detect log %q in pod %q", neededLog, pod.Name))
-}
-
-// looks for a given pattern in a pod's log and returns when found
-func WaitUntilLogIsDetectedRegex(pod *corev1.Pod, timeout time.Duration, regex string) string {
-	var results []string
-	gomega.Eventually(func() []string {
-		podLogs, _ := pods.GetLog(pod, pkg.PtpContainerName)
-		logrus.Debugf("wait for log = %s in pod=%s.%s", regex, pod.Namespace, pod.Name)
-		r := regexp.MustCompile(regex)
-		var id string
-
-		for _, submatches := range r.FindAllStringSubmatchIndex(podLogs, -1) {
-			id = string(r.ExpandString([]byte{}, "$1", podLogs, submatches))
-			results = append(results, id)
-		}
-		return results
-	}, timeout, 5*time.Second).Should(gomega.Not(gomega.HaveLen(0)), fmt.Sprintf("Timeout to detect regex %q in pod %q", regex, pod.Name))
-	if len(results) != 0 {
-		return results[len(results)-1]
+// returns last Regex match in the logs for a given pod
+func GetPodLogsRegex(namespace string, podName string, containerName, regex string, isLiteralText bool, timeout time.Duration) (matches [][]string, err error) {
+	if isLiteralText {
+		regex = regexp.QuoteMeta(regex)
 	}
-	return ""
+	//count := int64(100)
+	podLogOptions := corev1.PodLogOptions{
+		Container: containerName,
+		Follow:    true,
+		//TailLines: &count,
+	}
+
+	podLogRequest := testclient.Client.CoreV1().Pods(namespace).GetLogs(podName, &podLogOptions)
+	stream, err := podLogRequest.Stream(context.TODO())
+	if err != nil {
+		return matches, fmt.Errorf("could not retrieve log in ns=%s pod=%s, err=%s", namespace, podName, err)
+	}
+	defer stream.Close()
+	start := time.Now()
+	message := ""
+	for {
+		t := time.Now()
+		elapsed := t.Sub(start)
+		if elapsed > timeout {
+			return matches, fmt.Errorf("timedout waiting for log in ns=%s pod=%s, looking for = %s", namespace, podName, regex)
+		}
+		buf := make([]byte, 2000)
+		numBytes, err := stream.Read(buf)
+		if numBytes == 0 {
+			continue
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return matches, fmt.Errorf("error getting log stream in ns=%s pod=%s, err=%s", namespace, podName, err)
+		}
+		message += string(buf[:numBytes])
+		r := regexp.MustCompile(regex)
+		matches = r.FindAllStringSubmatch(message, -1)
+		if len(matches) > 0 {
+			return matches, nil
+		}
+
+	}
+	return matches, nil
 }
 
 func ExecutePtpInterfaceCommand(pod corev1.Pod, interfaceName string, command string) {
@@ -241,6 +243,7 @@ func RedefineAsPrivileged(pod *corev1.Pod, containerName string) (*corev1.Pod, e
 
 	return pod, nil
 }
+
 func containerByName(pod *corev1.Pod, containerName string) *corev1.Container {
 	if containerName == "" {
 		return &pod.Spec.Containers[0]

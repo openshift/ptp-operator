@@ -1,4 +1,4 @@
-GOLANGCI_VERSION=v1.50.1
+GOLANGCI_VERSION=v1.51.1
 
 lint:
 	golangci-lint run

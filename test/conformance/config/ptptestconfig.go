@@ -40,10 +40,10 @@ func (t *TestSpec) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 type SoakTestConfig struct {
-	DisableSoakTest  bool  `yaml:"disable_all"`
-	FailureThreshold int   `default:"1"`
-	Duration         int64 `yaml:"duration"`
-
+	DisableSoakTest      bool           `yaml:"disable_all"`
+	FailureThreshold     int            `default:"1"`
+	Duration             int64          `yaml:"duration"`
+	EventOutputFile      string         `yaml:"event_output_file" default:"./event-output.csv"`
 	SlaveClockSyncConfig SlaveClockSync `yaml:"slave_clock_sync"`
 	CpuUtilization       CpuUtilization `yaml:"cpu_utilization"`
 }
@@ -102,6 +102,6 @@ func GetPtpTestConfig() PtpTestConfig {
 	}
 
 	ptpTestConfig.loadPtpTestConfig(path)
-	logrus.Info("config=", ptpTestConfig)
+	logrus.Infof("config=%+v", ptpTestConfig)
 	return ptpTestConfig
 }
