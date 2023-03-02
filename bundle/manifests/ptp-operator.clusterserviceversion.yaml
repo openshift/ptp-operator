@@ -242,6 +242,18 @@ spec:
           verbs:
           - '*'
         - apiGroups:
+          - ""
+          resources:
+          - persistentvolumeclaims
+          verbs:
+          - '*'
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          verbs:
+          - '*'
+        - apiGroups:
           - config.openshift.io
           resources:
           - infrastructures
