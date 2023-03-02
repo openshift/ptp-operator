@@ -543,13 +543,6 @@ func cmdStop(p *ptpProcess) {
 		p.cmd.Process.Signal(syscall.SIGTERM)
 	}
 
-	if p.ptp4lSocketPath != "" {
-		err := os.Remove(p.ptp4lSocketPath)
-		if err != nil {
-			glog.Errorf("failed to remove ptp4l socket path %s: %v", p.ptp4lSocketPath, err)
-		}
-	}
-
 	if p.ptp4lConfigPath != "" {
 		err := os.Remove(p.ptp4lConfigPath)
 		if err != nil {
