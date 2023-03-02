@@ -8,8 +8,8 @@ import (
 
 	. "github.com/onsi/gomega"
 	"github.com/openshift/ptp-operator/test/pkg/client"
+	"github.com/openshift/ptp-operator/test/pkg/metrics"
 	"github.com/openshift/ptp-operator/test/pkg/pods"
-	"github.com/openshift/ptp-operator/test/pkg/ptptesthelper"
 
 	k8sv1 "k8s.io/api/core/v1"
 )
@@ -42,16 +42,16 @@ type metric struct {
 }
 
 func collectPrometheusMetrics(uniqueMetricKeys []string) map[string][]string {
-	prometheusPod, err := ptptesthelper.GetPrometheusPod()
+	prometheusPod, err := metrics.GetPrometheusPod()
 	Expect(err).ToNot(HaveOccurred(), "failed to get prometheus pod")
 
 	podsPerPrometheusMetricKey := map[string][]string{}
 	for _, metricsKey := range uniqueMetricKeys {
 		promResult := []result{}
-		promResponse := ptptesthelper.PrometheusQueryResponse{}
+		promResponse := metrics.PrometheusQueryResponse{}
 		promResponse.Data.Result = &promResult
 
-		err := ptptesthelper.RunPrometheusQuery(prometheusPod, metricsKey, &promResponse)
+		err := metrics.RunPrometheusQuery(prometheusPod, metricsKey, &promResponse)
 		Expect(err).ToNot(HaveOccurred(), "failed to run prometheus query")
 
 		podsPerKey := []string{}
