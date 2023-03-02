@@ -23,9 +23,8 @@ export PATH=$PATH:$GOPATH/bin
 VALIDATION_SUIT_SUBSTR="validation"
 
 if [[ $SUITE == *"$VALIDATION_SUIT_SUBSTR"* ]]
-then 
+then
 	GOFLAGS=-mod=vendor ginkgo --output-dir=$JUNIT_OUTPUT_DIR --junit-report=$JUNIT_OUTPUT_FILE -v -p "$SUITE"
-else 
+else
 	GOFLAGS=-mod=vendor ginkgo --output-dir=$JUNIT_OUTPUT_DIR --junit-report=$JUNIT_OUTPUT_FILE -v -p "$SUITE"/serial "$SUITE"/parallel
-	# GOFLAGS=-mod=vendor ginkgo -v -p "$SUITE"/parallel  --junit-report=$JUNIT_OUTPUT
 fi
