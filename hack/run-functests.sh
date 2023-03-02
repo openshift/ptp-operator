@@ -16,15 +16,16 @@ if [ $? -ne 0 ]; then
 fi
 
 GOPATH="${GOPATH:-~/go}"
-JUNIT_OUTPUT="${JUNIT_OUTPUT:-/tmp/artifacts/unit_report.xml}"
+JUNIT_OUTPUT_DIR="${JUNIT_OUTPUT_DIR:-/tmp/artifacts}"
+JUNIT_OUTPUT_FILE="${JUNIT_OUTPUT_FILE:-unit_report.xml}"
 export PATH=$PATH:$GOPATH/bin
 
 VALIDATION_SUIT_SUBSTR="validation"
 
 if [[ $SUITE == *"$VALIDATION_SUIT_SUBSTR"* ]]
 then 
-	GOFLAGS=-mod=vendor ginkgo -v -p "$SUITE" --junit-report=$JUNIT_OUTPUT
+	GOFLAGS=-mod=vendor ginkgo --output-dir=$JUNIT_OUTPUT_DIR --junit-report=$JUNIT_OUTPUT_FILE -v -p "$SUITE"
 else 
-	GOFLAGS=-mod=vendor ginkgo -v -p "$SUITE"/serial  "$SUITE"/parallel  --junit-report=$JUNIT_OUTPUT
+	GOFLAGS=-mod=vendor ginkgo --output-dir=$JUNIT_OUTPUT_DIR --junit-report=$JUNIT_OUTPUT_FILE -v -p "$SUITE"/serial "$SUITE"/parallel
 	# GOFLAGS=-mod=vendor ginkgo -v -p "$SUITE"/parallel  --junit-report=$JUNIT_OUTPUT
 fi

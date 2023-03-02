@@ -244,13 +244,13 @@ func testSyncState(soakTestConfig ptptestconfig.SoakTestConfig) {
 			}
 			// Test case timeout, pushing metrics
 			logrus.Infof("Clock Sync failed %d times.", failureCounter)
-			logrus.Infof("%s", syncEvents)
+			logrus.Infof("Collected sync events during soak test period= %s", syncEvents)
 			ptphelper.SaveStoreEventsToFile(syncEvents, soakTestConfig.EventOutputFile)
 			return
 		case singleEvent := <-tcEventChan:
 			// New OsClockSyncStateChange event received
-			logrus.Infof("Received a new OsClockSyncStateChange event")
-			logrus.Infof("got %v\n", singleEvent)
+			logrus.Debugf("Received a new OsClockSyncStateChange event")
+			logrus.Debugf("got %v\n", singleEvent)
 			// get event values
 			values, _ := singleEvent[exports.EventValues].(exports.StoredEventValues)
 			state, _ := values["notification"].(string)
@@ -258,7 +258,7 @@ func testSyncState(soakTestConfig ptptestconfig.SoakTestConfig) {
 			// create a pseudo value mapping a state to an integer (for vizualization)
 			eventString := fmt.Sprintf("%s,%f,%s,%d\n", ptpEvent.OsClockSyncStateChange, clockOffset, state, exports.ToLockStateValue[state])
 			// start counting loss of LOCK only after the clock was locked once
-			logrus.Infof("clockOffset=%f", clockOffset)
+			logrus.Debugf("clockOffset=%f", clockOffset)
 			if state != "LOCKED" && wasLocked {
 				failureCounter++
 			}
