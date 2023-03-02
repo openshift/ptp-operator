@@ -127,7 +127,12 @@ spec:
             secretName: linuxptp-daemon-secret
         {{ if (eq .EnableEventPublisher true) }}
         - name: pubsubstore
+          {{ if not (hasPrefix "amqp" .EventTransportHost) }}
+          persistentVolumeClaim:
+            claimName: cloud-event-proxy-store
+          {{ else }}
           emptyDir: {}
+          {{ end }}
         - name: event-bus-socket
           emptyDir: {}
         {{ end }}
@@ -246,3 +251,24 @@ spec:
           labels:
             severity: warning
         {{ end }}
+
+{{ if and (eq .EnableEventPublisher true) (not (hasPrefix "amqp" .EventTransportHost)) }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cloud-event-proxy-store
+  namespace: openshift-ptp
+spec:
+  # By default use the (default) storageClass.
+  # Use the following command to patch a storageClass as default.
+  # oc patch storageclass example-storage-class -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+  # To use a specific storageClass, uncomment the following line and replace the place holder
+  # with the name of storage class.
+  # storageClassName: <storage-class-name>
+  resources:
+    requests:
+      storage: 10Mi
+  accessModes:
+  - ReadWriteOnce
+{{ end }}
