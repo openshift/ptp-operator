@@ -1,10 +1,8 @@
 package test
 
 import (
-	"io/ioutil"
-	"log"
+	"fmt"
 	"os"
-	"time"
 
 	"github.com/creasty/defaults"
 	"github.com/sirupsen/logrus"
@@ -15,8 +13,6 @@ const (
 	// Default cpu usage threshold in milliCpus.
 	PtpDefaultMilliCoresUsageThreshold = 15
 )
-
-type yamlTimeDur time.Duration
 
 type GlobalConfig struct {
 	MinOffset int `yaml:"minoffset"`
@@ -65,11 +61,6 @@ type PtpTestConfig struct {
 
 // Individual test configuration
 
-type CpuUtilization struct {
-	TestSpec    TestSpec `yaml:"spec"`
-	Description string   `yaml:"desc"`
-}
-
 type SlaveClockSync struct {
 	TestSpec    TestSpec `yaml:"spec"`
 	Description string   `yaml:"desc"`
@@ -78,22 +69,23 @@ type SlaveClockSync struct {
 var ptpTestConfig PtpTestConfig
 var loaded bool
 
-func (conf *PtpTestConfig) loadPtpTestConfig(filename string) {
-	yamlFile, err := ioutil.ReadFile(filename)
+func (conf *PtpTestConfig) loadPtpTestConfig(filename string) error {
+	yamlFile, err := os.ReadFile(filename)
 	if err != nil {
-		log.Printf("yamlFile.Get err   #%v ", err)
+		return fmt.Errorf("failed to read ptp test config file %s: %v", filename, err)
 	}
+
 	err = yaml.Unmarshal(yamlFile, &conf)
 	if err != nil {
-		log.Fatalf("Unmarshal: %v", err)
+		return fmt.Errorf("failed to unmarshal file %s: %v", filename, err)
 	}
+	return nil
 }
 
-func GetPtpTestConfig() PtpTestConfig {
+func GetPtpTestConfig() (*PtpTestConfig, error) {
 	if loaded {
-		return ptpTestConfig
+		return &ptpTestConfig, nil
 	}
-	loaded = true
 
 	// If config file path is provided, use that, otherwise continue with the provided config file
 	path, ok := os.LookupEnv("PTP_TEST_CONFIG_FILE")
@@ -101,7 +93,12 @@ func GetPtpTestConfig() PtpTestConfig {
 		path = "../config/ptptestconfig.yaml"
 	}
 
-	ptpTestConfig.loadPtpTestConfig(path)
-	logrus.Infof("config=%+v", ptpTestConfig)
-	return ptpTestConfig
+	err := ptpTestConfig.loadPtpTestConfig(path)
+	if err != nil {
+		return nil, err
+	}
+
+	logrus.Infof("PTP Test Config: %+v", ptpTestConfig)
+	loaded = true
+	return &ptpTestConfig, nil
 }

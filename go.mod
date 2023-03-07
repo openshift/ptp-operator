@@ -13,6 +13,8 @@ require (
 	github.com/openshift/client-go v0.0.0-20220831193253-4950ae70c8ea
 	github.com/openshift/library-go v0.0.0-20221011111038-5f521a3b6124
 	github.com/pkg/errors v0.9.1
+	github.com/prometheus-operator/prometheus-operator/pkg/client v0.57.0
+	github.com/prometheus/common v0.32.1
 	github.com/redhat-cne/ptp-listener-exports v0.0.7
 	github.com/redhat-cne/ptp-listener-lib v0.1.5
 	github.com/redhat-cne/sdk-go v0.1.1-0.20221202175356-6d25e1b3c0be
@@ -95,9 +97,9 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.57.0 // indirect
 	github.com/prometheus/client_golang v1.12.2 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
-	github.com/prometheus/common v0.32.1 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/redhat-cne/channel-pubsub v0.0.6 // indirect
 	github.com/spf13/cobra v1.4.0 // indirect

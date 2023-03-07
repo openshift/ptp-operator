@@ -516,12 +516,12 @@ func GetPTPPodWithPTPConfig(ptpConfig *ptpv1.PtpConfig) (aPtpPod *v1core.Pod, er
 
 	label, err := GetLabel(ptpConfig)
 	if err != nil {
-		logrus.Debugf("GetLabel err=", err)
+		logrus.Debugf("GetLabel err=%s", err)
 	}
 
 	nodeName, err := GetFirstNode(ptpConfig)
 	if err != nil {
-		logrus.Debug("GetFirstNode err=%s", err)
+		logrus.Debugf("GetFirstNode err=%s", err)
 	}
 
 	for _, pod := range ptpPods.Items {

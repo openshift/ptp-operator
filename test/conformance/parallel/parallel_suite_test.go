@@ -41,7 +41,9 @@ func TestTest(t *testing.T) {
 
 var _ = SynchronizedBeforeSuite(func() []byte {
 	// Get the test config parameters
-	testParameters := ptptestconfig.GetPtpTestConfig()
+	testParameters, err := ptptestconfig.GetPtpTestConfig()
+	Expect(err).To(BeNil(), "Failed to get Test Config")
+
 	if testParameters.SoakTestConfig.DisableSoakTest {
 		Skip("Soak testing is disabled at the configuration file. Hence, skipping!")
 	}
@@ -52,10 +54,9 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	Expect(testclient.Client).NotTo(BeNil())
 
 	// discovers valid ptp configurations based on clock type
-	err := testconfig.CreatePtpConfigurations()
-	if err != nil {
-		Fail(fmt.Sprintf("Could not create a ptp config, err=%s", err))
-	}
+	err = testconfig.CreatePtpConfigurations()
+	Expect(err).To(BeNil(), "Could not create a ptp config")
+
 	By("Refreshing configuration", func() {
 		ptphelper.WaitForPtpDaemonToBeReady()
 		fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)

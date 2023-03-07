@@ -34,10 +34,13 @@ const (
 var fullConfig = testconfig.TestConfig{}
 var _ = Describe("[ptp-long-running]", func() {
 
-	var testParameters ptptestconfig.PtpTestConfig
+	var testParameters *ptptestconfig.PtpTestConfig
 
 	execute.BeforeAll(func() {
-		testParameters = ptptestconfig.GetPtpTestConfig()
+		var err error
+		testParameters, err = ptptestconfig.GetPtpTestConfig()
+		Expect(err).To(BeNil(), "Failed to get Test Config")
+
 		testclient.Client = testclient.New("")
 		Expect(testclient.Client).NotTo(BeNil())
 	})
@@ -86,7 +89,7 @@ var _ = Describe("[ptp-long-running]", func() {
 })
 
 // test case for continuous testing of clock synchronization of the clock under test
-func testPtpSlaveClockSync(fullConfig testconfig.TestConfig, testParameters ptptestconfig.PtpTestConfig) {
+func testPtpSlaveClockSync(fullConfig testconfig.TestConfig, testParameters *ptptestconfig.PtpTestConfig) {
 	Expect(testclient.Client).NotTo(BeNil())
 	logrus.Debugf("sync test fullConfig=%s", fullConfig.String())
 	if fullConfig.Status == testconfig.DiscoveryFailureStatus {
@@ -124,30 +127,28 @@ func testPtpSlaveClockSync(fullConfig testconfig.TestConfig, testParameters ptpt
 // of the sum of the cpu usage of all the ptp pods (daemonset & operator) deployed
 // in the same node is higher than the expected one. The cpu usage check for each
 // node is once per minute.
-func testPtpCpuUtilization(fullConfig testconfig.TestConfig, testParameters ptptestconfig.PtpTestConfig) {
+func testPtpCpuUtilization(fullConfig testconfig.TestConfig, testParameters *ptptestconfig.PtpTestConfig) {
 	const (
 		minimumFailureThreshold  = 1
 		cpuUsageCheckingInterval = 1 * time.Minute
-		milliCoresThreshold      = ptptestconfig.PtpDefaultMilliCoresUsageThreshold
-		warmupTime               = 2 * time.Minute
 	)
 
-	logrus.Debugf("CPU Utilization TC Config: %+v", testParameters.SoakTestConfig.CpuUtilization)
+	logrus.Infof("CPU Utilization TC Config: %+v", testParameters.SoakTestConfig.CpuUtilization)
 
 	if testParameters.SoakTestConfig.DisableSoakTest {
 		Skip("skip the test as the entire suite is disabled")
 	}
 
-	params := testParameters.SoakTestConfig.CpuUtilization.TestSpec
-	if !params.Enable {
+	params := testParameters.SoakTestConfig.CpuUtilization
+	if !params.CpuTestSpec.Enable {
 		Skip("skip the test - the test is disabled")
 		return
 	}
 
 	// Set failureThresold limit number.
 	failureThreshold := minimumFailureThreshold
-	if params.FailureThreshold > minimumFailureThreshold {
-		failureThreshold = params.FailureThreshold
+	if params.CpuTestSpec.FailureThreshold > minimumFailureThreshold {
+		failureThreshold = params.CpuTestSpec.FailureThreshold
 	}
 
 	prometheusPod, err := ptptesthelper.GetPrometheusPod()
@@ -156,12 +157,28 @@ func testPtpCpuUtilization(fullConfig testconfig.TestConfig, testParameters ptpt
 	ptpPodsPerNode, err := ptptesthelper.GetPtpPodsPerNode()
 	Expect(err).To(BeNil(), "failed to get ptp pods per node")
 
-	// Wait until prometheus can scrape a couple of cpu samples from ptp pods.
+	prometheusRateTimeWindow, err := params.PromRateTimeWindow()
+	Expect(err).To(BeNil(), "Invalid prometheus time window for prometheus' rate function.")
+
+	cadvisorScrapeInterval, err := ptptesthelper.GetCadvisorScrapeInterval()
+	Expect(err).To(BeNil(), "failed to get cadvisor's prometheus scrape interval")
+
+	logrus.Infof("Configured rate timeWindow: %s, cadvisor scrape interval: %d secs.", prometheusRateTimeWindow, cadvisorScrapeInterval)
+	// Make sure the configured time interval for prometheus's rate() func is at least twice
+	// the current scrape interval for the kubelet's cadvisor endpoint. Otherwise, rate() will
+	// never get the minimum samples number (2) to work.
+	Expect(int(prometheusRateTimeWindow.Seconds())).To(BeNumerically(">=", 2*cadvisorScrapeInterval),
+		fmt.Sprintf("configured time window (%s) is lower than twice the cadvisor scraping interval (%d secs)",
+			prometheusRateTimeWindow, cadvisorScrapeInterval))
+
+	// Warmup: waiting until prometheus can scrape a couple of cpu samples from ptp pods.
+	warmupTime := time.Duration(2*cadvisorScrapeInterval) * time.Second
 	By(fmt.Sprintf("Waiting %s so prometheus can get at least 2 metric samples from the ptp pods.", warmupTime))
+
 	time.Sleep(warmupTime)
 
 	// Create timer channel for test case timeout.
-	testCaseDuration := time.Duration(params.Duration) * time.Minute
+	testCaseDuration := time.Duration(params.CpuTestSpec.Duration) * time.Minute
 	tcEndChan := time.After(testCaseDuration)
 
 	// Create ticker for cpu usage checker function.
@@ -179,7 +196,8 @@ func testPtpCpuUtilization(fullConfig testconfig.TestConfig, testParameters ptpt
 		case <-cpuUsageCheckTicker.C:
 			logrus.Infof("Retrieving cpu usage of the ptp pods.")
 
-			thresholdReached, err := isCpuUsageThresholdReachedInPtpPods(prometheusPod, ptpPodsPerNode, milliCoresThreshold)
+			thresholdReached, err := isCpuUsageThresholdReachedInPtpPods(prometheusPod, ptpPodsPerNode, &params)
+			logrus.Infof("Cpu usage threshold reached: %v", thresholdReached)
 			Expect(err).To(BeNil(), "failed to get cpu usage")
 
 			if thresholdReached {
@@ -191,25 +209,74 @@ func testPtpCpuUtilization(fullConfig testconfig.TestConfig, testParameters ptpt
 	}
 }
 
-// isCpuUsageThresholdReachedInPtpPods is a helper that checks whether the total cpu usage
-// of ptp pod on each node is lower than a given threshold in milliCores. Params:
-//   - ptpPodsPerNode maps a node name to the list of pods whose total cpu usage wants to be checked.
-//   - milliCoresThreshold is the per-node cpu usage threshold in millicores.
-func isCpuUsageThresholdReachedInPtpPods(prometheusPod *v1core.Pod, ptpPodsPerNode map[string][]*v1core.Pod, milliCoresThreshold int64) (bool, error) {
-	cpuUsageThreshold := float64(milliCoresThreshold) / 1000
+// isCpuUsageThresholdReachedInPtpPods is a helper that checks whether the cpu usage of
+// each node, pod and or container is below preconfigured (via yaml) threshold/s.
+func isCpuUsageThresholdReachedInPtpPods(prometheusPod *v1core.Pod, ptpPodsPerNode map[string][]*v1core.Pod, cpuTestConfig *ptptestconfig.CpuUtilization) (bool, error) {
 	thresholdReached := false
 
+	// No need to check error for the rateTimeWindow: it was already checked.
+	rateTimeWindow, _ := cpuTestConfig.PromRateTimeWindow()
+
+	checkNodeTotalCpuUsage, nodeCpuUsageThreshold := cpuTestConfig.ShouldCheckNodeTotalCpuUsage()
+
 	for nodeName, ptpPods := range ptpPodsPerNode {
-		cpuUsage, err := ptptesthelper.GetPodsTotalCpuUsage(ptpPods, prometheusPod)
-		if err != nil {
-			return false, fmt.Errorf("failed to get total cpu usage for ptp pods on node %s: %w", nodeName, err)
+		nodeTotalCpuUsage := float64(0)
+
+		for i := range ptpPods {
+			pod := ptpPods[i]
+
+			cpuUsage, err := ptptesthelper.GetPodTotalCpuUsage(pod.Name, pod.Namespace, rateTimeWindow, prometheusPod)
+			if err != nil {
+				return false, fmt.Errorf("failed to get total cpu usage for ptp pods on node %s: %w", nodeName, err)
+			}
+
+			logrus.Infof("Node %s: pod: %s (ns:%s) cpu usage: %.5f", nodeName, pod.Name, pod.Namespace, cpuUsage)
+
+			// Accumulate ptp pod cpu usage for this node.
+			nodeTotalCpuUsage += cpuUsage
+
+			// Should we check the total cpu usage for this pod?
+			checkCpuUsage, cpuUsageThreshold := cpuTestConfig.ShouldCheckPodCpuUsage(pod.Name)
+			if checkCpuUsage {
+				logrus.Debugf("Checking cpu usage of pod %s. Cpu Usage: %.5f - Threshold: %.5f", pod.Name, cpuUsage, cpuUsageThreshold)
+				if cpuUsage > cpuUsageThreshold {
+					logrus.Warnf("Node %s: ptp pod %s cpu usage %.5f is higher than threshold %v", nodeName, pod.Name, cpuUsage, cpuUsageThreshold)
+					thresholdReached = true
+				}
+			}
+
+			for i := range pod.Spec.Containers {
+				container := &pod.Spec.Containers[i]
+				cpuUsage, err := ptptesthelper.GetContainerCpuUsage(pod.Name, container.Name, pod.Namespace, rateTimeWindow, prometheusPod)
+				if err != nil {
+					return false, fmt.Errorf("failed to get total cpu usage for ptp pods on node %s: %w", nodeName, err)
+				}
+
+				logrus.Infof("Node %s: pod: %s, container: %s (ns:%s) cpu usage: %.5f", nodeName, pod.Name, container.Name, pod.Namespace, cpuUsage)
+
+				// Should we check the total cpu usage for this container?
+				checkCpuUsage, cpuUsageThreshold := cpuTestConfig.ShouldCheckContainerCpuUsage(pod.Name, container.Name)
+				if !checkCpuUsage {
+					continue
+				}
+
+				logrus.Debugf("Checking cpu usage of container %s (pod %s). Cpu Usage: %.5f - Threshold: %.5f", container.Name, pod.Name, cpuUsage, cpuUsageThreshold)
+				if cpuUsage > cpuUsageThreshold {
+					logrus.Warnf("Node %s: ptp container %s (pod %s) cpu usage %.5f is higher than threshold %v",
+						nodeName, container.Name, pod.Name, cpuUsage, cpuUsageThreshold)
+					thresholdReached = true
+				}
+			}
 		}
 
-		logrus.Infof("Node %s: ptp pods cpu usage: %.5f", nodeName, cpuUsage)
-
-		if cpuUsage > cpuUsageThreshold {
-			logrus.Infof("Node %s: ptp pods cpu usage %.5f is higher than threshold %v", nodeName, cpuUsage, cpuUsageThreshold)
-			thresholdReached = true
+		logrus.Infof("Node %s: total cpu usage: %.5f", nodeName, nodeTotalCpuUsage)
+		if checkNodeTotalCpuUsage {
+			logrus.Debugf("Checking cpu usage of node %s, cpu:%v, threshold:%v", nodeName, nodeTotalCpuUsage, nodeCpuUsageThreshold)
+			if nodeTotalCpuUsage > nodeCpuUsageThreshold {
+				logrus.Warnf("Node %s: ptp pods cpu usage %.5f is higher than threshold %v",
+					nodeName, nodeTotalCpuUsage, nodeCpuUsageThreshold)
+				thresholdReached = true
+			}
 		}
 	}
 

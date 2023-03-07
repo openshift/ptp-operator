@@ -72,6 +72,119 @@ global:
     desc: "The test measures number of PTP time sync faults, and fails if >0"
 ```
 The test suite deploys a ptp events consumer sidecar by default and directly connects to it to access ptp events. It is also possible to access the ptp-events api without a side car by using the cloud-events-proxy publisher sidecar directly for debugging. The `USE_PTP_EVENT_CONSUMER_SIDECAR` should be set to false in this case.
+
+### Cpu Usage test case configuration
+The CPU usage test case will run for the "duration" minutes or until a number (`failure_threshold`) of cpu usage threshold has been reached.
+These are the parameters that can be configured for the cpu usage soak test case:
+```
+  cpu_utilization:
+    spec:
+      enable: true
+      duration: 60
+      failure_threshold: 3
+      custom_params:
+        prometheus_rate_time_window: "60s"
+        node:
+          cpu_threshold_mcores: 100
+        pod:
+          - pod_type: "ptp-operator"
+            cpu_threshold_mcores: 60
+
+          - pod_type: "linuxptp-daemon"
+            cpu_threshold_mcores: 10
+
+          - pod_type: "linuxptp-daemon"
+            container: "cloud-event-proxy"
+            cpu_threshold_mcores: 30
+```
+`<pod-type>` must be either `"ptp-operator"` or `"linuxptp-daemon"`, and at least one of "node" or "pod" cpu thresholds must be configured, but it's also possible to set both.
++ `prometheus_rate_time_window` is a string with a duration for the prometheus' rate function. Examples: "60s", "1m30s", "5m"...
++ `node` allows to set the maximum cpu usage for all ptp pods deployed on each node.
++ `pod` allows two types of configs:
+  - If no "container" is set, the threshold applies to the sum of the cpu usage of all the containers of each pod of that type.
+  - If "container" is set, the cpu threshold will be applied only for that specific container on each pod (type). The other containers' cpu usage of that pod type will be ignored/won't be checked.
+
+It's important to note that there's no way to target individual pods here, so these thresholds will apply to every pod/container of that type deployed in the cluster.
+This means that if there are two ptp-capable nodes in the cluster, there will be one pod of the linuxptp-daemon on each. Thus, the threshold (30mC) for the "cloud-event-proxy" will apply to that container on both pods.
+
+Config examples:
+
+Example 1: The sum of cpu usages of all ptp pods deployed on each node must be lower than 100mC during 60 minutes. Test case fails if the cpu usage threshold has been reached/surpassed 3 times.
+```
+  cpu_utilization:
+    spec:
+      enable: true
+      duration: 60
+      failure_threshold: 3
+      custom_params:
+        prometheus_rate_time_window: "60s"
+        node:
+          cpu_threshold_mcores: 100
+```
+
+Example 2: The sum of cpu usage of all the containers of the ptp-linuxptp-daemon pod should be lower than 80mC. The ptp-operator pod cpu usage is ignored. There's no check of per-node cpu usage either.
+```
+  cpu_utilization:
+    spec:
+      enable: true
+      duration: 60
+      failure_threshold: 3
+      custom_params:
+        prometheus_rate_time_window: "60s"
+        pod:
+          - pod_type: "linuxptp-daemon"
+            cpu_threshold_mcores: 80
+```
+
+Example 3: On each ptp-linuxptp-daemon pod deployed in the cluster, the cpu usage of the cloud-event-proxy and linuxptp-daemon-container containers must be lower than 30 and 40 respectively.
+```
+  cpu_utilization:
+    spec:
+      enable: true
+      duration: 60
+      failure_threshold: 3
+      custom_params:
+        prometheus_rate_time_window: "60s"
+        pod:
+          - pod_type: "linuxptp-daemon"
+            container: "cloud-event-proxy"
+            cpu_threshold_mcores: 30
+          - pod_type: "linuxptp-daemon"
+            container: "linuxptp-daemon-container"
+            cpu_threshold_mcores: 40
+```
+
+Example 4: All possible combinations.
+Max cpu usage per node: 100mC
+Max cpu usage for the ptp-operator's pod: 30mC
+Max cpu usage for the linuxptp-daemon pod: 80mC
+Max cpu usage for the cloud-event-proxy on each linuxptp-daemon pod: 30mC
+Max cpu usage for the linuxptp-daemon-container on each linuxptp-daemon pod: 40mC
+```
+  cpu_utilization:
+    spec:
+      enable: true
+      duration: 60
+      failure_threshold: 3
+      custom_params:
+        prometheus_rate_time_window: "60s"
+        node:
+          cpu_threshold_mcores: 100
+        pod:
+          - pod_type: "ptp-operator"
+            cpu_threshold_mcores: 30
+
+          - pod_type: "linuxptp-daemon"
+            cpu_threshold_mcores: 80
+
+          - pod_type: "linuxptp-daemon"
+            container: "cloud-event-proxy"
+            cpu_threshold_mcores: 30
+
+          - pod_type: "linuxptp-daemon"
+            container: "linuxptp-daemon-container"
+            cpu_threshold_mcores: 40
+```
 ## Labelling test nodes manually in discovery mode
 In Discovery mode, the node holding the clock under test is indicated via a label
 To indicate a node with a BC configuration, label it with 
@@ -275,3 +388,4 @@ each step in the algorithm means:
 {<constraint to check>, <number of parameters to the function>, <interface0>, ..., interfaceN}}
 ```
 note: parameter0 ... parameterN are integers representing an interface. 0 means p0, 1 means p1, etc...
+

@@ -863,8 +863,13 @@ func AddInterface(ptpConfig, iface string, masterOnly int) (updatedPtpConfig str
 // helper function to create a ptpconfig
 func createConfig(profileName string, ifaceName, ptp4lOpts *string, ptp4lConfig string, phc2sysOpts *string, nodeLabel string, priority *int64, ptpSchedulingPolicy string, ptpSchedulingPriority *int64) error {
 	thresholds := ptpv1.PtpClockThreshold{}
-	thresholds.MaxOffsetThreshold = int64(ptptestconfig.GetPtpTestConfig().GlobalConfig.MaxOffset)
-	thresholds.MinOffsetThreshold = int64(ptptestconfig.GetPtpTestConfig().GlobalConfig.MinOffset)
+
+	testParameters, err := ptptestconfig.GetPtpTestConfig()
+	if err != nil {
+		return fmt.Errorf("failed to get test config: %v", err)
+	}
+	thresholds.MaxOffsetThreshold = int64(testParameters.GlobalConfig.MaxOffset)
+	thresholds.MinOffsetThreshold = int64(testParameters.GlobalConfig.MinOffset)
 	ptpProfile := ptpv1.PtpProfile{Name: &profileName, Interface: ifaceName, Phc2sysOpts: phc2sysOpts, Ptp4lOpts: ptp4lOpts, PtpSchedulingPolicy: &ptpSchedulingPolicy, PtpSchedulingPriority: ptpSchedulingPriority,
 		PtpClockThreshold: &thresholds}
 	if ptp4lConfig != "" {
@@ -877,7 +882,7 @@ func createConfig(profileName string, ifaceName, ptp4lOpts *string, ptp4lConfig 
 		Spec: ptpv1.PtpConfigSpec{Profile: []ptpv1.PtpProfile{ptpProfile},
 			Recommend: []ptpv1.PtpRecommend{ptpRecommend}}}
 
-	_, err := client.Client.PtpConfigs(PtpLinuxDaemonNamespace).Create(context.Background(), &policy, metav1.CreateOptions{})
+	_, err = client.Client.PtpConfigs(PtpLinuxDaemonNamespace).Create(context.Background(), &policy, metav1.CreateOptions{})
 	return err
 }
 

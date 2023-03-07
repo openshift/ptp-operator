@@ -55,7 +55,7 @@ func ExecCommand(cs *testclient.ClientSet, pod *corev1.Pod, containerName string
 		Tty:    true,
 	})
 
-	logrus.Trace("ExecCommand stdout=%s stderr=%s err/status=%s", stdoutBuf, stderrBuf, err)
+	logrus.Tracef("ExecCommand stdout=%s stderr=%s err/status=%s", stdoutBuf, stderrBuf, err)
 	if err != nil {
 		return stdoutBuf, stderrBuf, fmt.Errorf("exec.Stream failure. Stdout: %s, Stderr: %s, Err: %w", buf.String(), bufErr.String(), err)
 	}
