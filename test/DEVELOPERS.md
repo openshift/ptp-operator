@@ -40,7 +40,7 @@ A primary Boundary clock receives synchronization from a master clock and a seco
 │   │   ├── parallel_suite_test.go: go main for parallel suite 
 │   │   └── ptp.go: parallel test cases 
 │   ├── serial: serial test cases(can make use of gomega/ginkgo)
-│       ├── prometheus.go: function related to supporting testcases using Prometeus metrics
+│       ├── prometheus.go: function related to supporting testcases using Prometheus metrics
 │       ├── ptp.go: serial test cases 
 │       ├── serial_suite_test.go: go main for serial suite 
 ├── DEVELOPERS.md: this file
@@ -102,7 +102,7 @@ Checks that the "openshift-ptp" namespace is created in the configured cluster. 
 #### should have the ptp operator deployment in running state
 Checks that the "ptp-operator" deployment is deployed and ready. Expected replica are matching available replicas. Fails if the deployment fails to be ready after a 10 minute timeout.
 #### should have the linuxptp daemonset in running state
-Checks that the "linuxptp-daemon" daemonset is in running state meaning that expected replicas match avialable replicas and all pods are in a ready state. Fails if the "linuxptp-daemon" fails to become ready after 5 minutes.
+Checks that the "linuxptp-daemon" daemonset is in running state meaning that expected replicas match available replicas and all pods are in a ready state. Fails if the "linuxptp-daemon" fails to become ready after 5 minutes.
 #### should have the ptp CRDs available in the cluster
 Check that all 3 CRDs created by the ptp-operator are created in the cluster: 
 - "nodeptpdevices.ptp.openshift.io"
@@ -333,7 +333,46 @@ Checks that metrics reported using the metrics api in the linuxptp-daemon pod ar
     - run a promql query in the prometheus pod to get all the metrics `curl -s http://localhost:9090/api/v1/query --data-urlencode 'query=<ptp-metric>'`, where `<ptp-metric>` is a metric retrieved in the previous step with the metrics API, for instance "openshift_ptp_interface_role"
 ### Soak tests
 #### PTP CPU Utilization
-TBD
+Checks that the cpu usage of all the ptp resources remains under configured (millicores) thresholds. For the duration of the soak test, every minute the cpu usage of each ptp pod/container will be retrieved and compared against its corresponding threshold, in case its configured. For that check cycle, if any of the configured thresholds is surpassed, the failure counter is increased. The test case runs for the configured duration minutes or until the failure counter reaches the configured limit.
+
+The cpu usage of each pod/container is retrieved using the prometheus metric "container_cpu_usage_seconds_total", using the `rate` function for the configured time-window. The `rate` function uses the last and the first samples in that period, substracts them, and divides the result by the time difference between them.  
+To get this prometheus metric per pod/container, the test case first gets the first of the prometheus statefulset's pods int he cluster:
+```
+$ get pods -n openshift-monitoring
+...
+prometheus-k8s-0                               6/6     Running   12         25d
+prometheus-k8s-1                               6/6     Running   21         106d
+...
+```
+Once the prometheus pod is found, the test cases uses it to run "curl" commands inside, similar to this one:
+```
+oc exec -n openshift-monitoring prometheus-k8s-0 -- curl -s http://localhost:9090/api/v1/query --data-urlencode 'query=rate(container_cpu_usage_seconds_total{container="", pod="linuxptp-daemon-gdzhf", namespace="openshift-ptp"}[60s])'
+```
+The previous command would get the rate for the cpu usage secs for the pod "linuxptp-daemon-gdzhf" for the last 60 seconds.
+
+This is the test case procedure:
+1. Gets all the ptp pods per node found in the cluster.
+2. For each node, iterates over its deployed ptp pods to:
+	1. Get the total ptp pod usage.
+	2. Checks the config and compares the ptp pod usage against the configured cpu threshold for that pod type.
+	3. Accumulates that pod's cpu usage to the total node's one.
+	4. For each container of that ptp pod:
+		1. Gets its cpu usage.
+		2. Checks the config and compares the container usage against the configured cpu threshold for that pod type and container name.
+
+Some helper functions were created for this test case:
+  - `RunPrometheusQueryWithRetries`: Runs a prometheus query and retries it in case the "curl" command fails or the result is not the expected. The function accepts a callback function that will be called with the response obtained. If the function is not nil and it returns false, there will be a new attempt. For this test case, the query has the template `rate(container_cpu_usage_seconds_total{namespace="%s", container="%s", pod="%s"}[%s])`
+  - `GetContainerCpuUsage`: Gets the cpu usage of a ptp container. Calls "RunPrometheusQueryWithRetries" with the corresponding pod and container names and the ptp namespace "openshift-ptp".
+  - `GetPodTotalCpuUsage`: Gets the total cpu usage of a ptp pod. Calls "RunPrometheusQueryWithRetries" with the corresponding pod name and the ptp namespace "openshift-ptp". The container name is set to empty string "".
+  - `GetCadvisorScrapeInterval`: As the `rate` function needs at least two samples to work, this function is used to get the current scrape interval that is used to scrape the kubelet's cadvisor, which is the module that exposes the cpu usage metric we're looking for. The test case won't run if the configured time-window is lower than twice the cadvisor scrape interval. The scrape interval is configured in the prometheus ServiceMonitor resource, so the prometheus go-client is used to get this value:
+	```
+	$ oc get servicemonitors.monitoring.coreos.com -n openshift-monitoring kubelet
+	NAME      AGE
+	kubelet   234d
+	```
+
+As the ptp configuration is created at the beginning of the test suite, it is not possible to know in advance the full name of the ptp daemonset/operator pods names. This implies that it is not possible to configure a threshold for this individual pods. Instead, a per "pod type" (ptp-operator/linuxptp-daemon) configuration was created. See the [README.md](README.md) for more information on how to setup cpu usage thresholds for these two pod types.
+
 #### PTP Slave Clock Sync
 Checks that the OS clock stays within configured min/max offset values (configurable) for the duration of the soak test
 Steps:
@@ -434,7 +473,7 @@ This is the meaning of each lines:
 {{int(solver.<constraint_function>), <constraint_funtion_parameters_number>, <list of parameters>}},         // step1
 ```
 where `<constraint_function>` is a function validating if a single constraint is satisfied
-`<constraint_funtion_parameters_number>` is the number of interfaces parameters of the contraint function. 2 meants that the function is taking 2 interfaces parameters.
+`<constraint_funtion_parameters_number>` is the number of interfaces parameters of the contraint function. 2 means that the function is taking 2 interfaces parameters.
 `<list of parameters>` is the list of interface parameters that the constraint function is using. for instance 0 means p0 and 1 means p1. 
 ```
 {{int(solver.StepNil), 0, 0}},         // step1
