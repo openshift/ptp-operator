@@ -248,6 +248,12 @@ spec:
           verbs:
           - '*'
         - apiGroups:
+          - ""
+          resources:
+          - persistentvolumeclaims
+          verbs:
+          - '*'
+        - apiGroups:
           - config.openshift.io
           resources:
           - infrastructures
