@@ -1,9 +1,9 @@
-FROM registry.ci.openshift.org/ocp/builder:rhel-8-golang-1.19-openshift-4.13 AS builder
+FROM registry.ci.openshift.org/ocp/builder:rhel-8-golang-1.19-openshift-4.14 AS builder
 WORKDIR /go/src/github.com/openshift/linuxptp-daemon
 COPY . .
 RUN make clean && make
 
-FROM registry.ci.openshift.org/ocp/4.13:base
+FROM registry.ci.openshift.org/ocp/4.14:base
 RUN yum -y update && yum --setopt=skip_missing_names_on_install=False -y install linuxptp ethtool hwdata && yum clean all
 COPY --from=builder /go/src/github.com/openshift/linuxptp-daemon/bin/ptp /usr/local/bin/
 COPY ./extra/leap-seconds.list /usr/share/zoneinfo/leap-seconds.list
