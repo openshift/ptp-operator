@@ -22,7 +22,7 @@ Boundary clocks (BC) also synchronize to a master clock , just like an ordinary 
 ### Dual NIC Boundary Clock
 Dual NIC BC are similar to boundary clocks except that their provide more master ports to synchronize more ordinary/boundary clocks. Network cards are usually limited to a maximum of 4 ports sharing a PTP Hardware clock. If more than 4 downstream clocks need to received synchronization 2 NIC can be configured together using the Dual NIC BC pattern. 
 
-A primary Boundary clock receives synchronization from a master clock and a secondary boundary clock also receives updates from a Master clock which synchronizes its PHC. However, the secondary BC does not run phc2sys to synchronize its PHC with the OS clock. If the Primary connection to the Grandmaster is lost, the secondary BC acts as the primary.
+A primary Boundary clock receives synchronization from a master clock and a secondary boundary clock also receives updates from a Master clock which synchronizes its PHC. However, the secondary BC does not run phc2sys to synchronize its PHC with the OS clock. Note: this is not a high availability configuration. If the Primary connection to the Grandmaster is lost, the secondary BC will not take over its role. The interfaces served by the primary card will just loose lock.
 ![overview_duanicbc](doc/dualnicbcoverview.svg)
 
 ## Project organization
@@ -244,7 +244,7 @@ spec:
   - profile: "profile1"
     priority: 0
     match:
-    - nodeLabel: "node-role.kubernetes.io/worker"
+    - nodeLabel: "ptp/clock-under-test"
 ```
 #### Should check for ptp events
 checks that ptp events are operating properly by testing the following:
@@ -384,7 +384,7 @@ Steps:
       maxOffsetThreshold: 100
       minOffsetThreshold: -100
 ```
-- instantiate a consumer sidecar and configure it to connect to the right ptp event service: `ptp-event-publisher-service-<nodename>`. where `<nodename>` is the nodename where the clock under test is configured.
+- instantiate a consumer sidecar and configure it to connect to the right ptp event service: `ptp-event-publisher-service-<nodename>.<publisher_namespace>.svc.cluster.local:9043`. where `<nodename>` is the nodename where the clock under test is configured and `<publisher_namespace>` is the openshift-ptp namespace
 Example side car configuration:
 ```
 Args: []string{"--metrics-addr=127.0.0.1:9091",
@@ -393,7 +393,6 @@ Args: []string{"--metrics-addr=127.0.0.1:9091",
 						"--http-event-publishers=ptp-event-publisher-service-<nodename>.<publisher_namespace>.svc.cluster.local:9043",
 						"--api-port=8089"},
 ```
-where `<publisher_namespace>` is the openshift-ptp namespace
 - use the ptp-events-api or some other mean to register the OsClockSyncStateChange event 
 - retrieve the initial state of the OsClockSyncStateChange resource monitored by the event. This is because the events
 only indicate changes to the state of the resource
