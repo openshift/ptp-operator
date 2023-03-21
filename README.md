@@ -88,7 +88,7 @@ apiVersion: ptp.openshift.io/v1
 kind: PtpConfig
 metadata:
   name: ordinary-clock-ptpconfig
-  namespace: ptp
+  namespace: openshift-ptp
 spec:
   profile:
   - name: "profile1"
@@ -112,7 +112,7 @@ apiVersion: ptp.openshift.io/v1
 kind: PtpConfig
 metadata:
   name: boundary-clock-ptpconfig
-  namespace: ptp
+  namespace: openshift-ptp
 spec:
   profile:
   - name: "profile1"
@@ -137,7 +137,7 @@ apiVersion: ptp.openshift.io/v1
 kind: PtpConfig
 metadata:
   name: event-support-ptpconfig
-  namespace: ptp
+  namespace: openshift-ptp
 spec:
   profile:
   - name: "profile1"
@@ -161,7 +161,7 @@ apiVersion: ptp.openshift.io/v1
 kind: PtpConfig
 metadata:
   name: suppress-logs-ptpconfig
-  namespace: ptp
+  namespace: openshift-ptp
 spec:
   profile:
   - name: "profile1"
@@ -171,6 +171,44 @@ spec:
     ptpSettings:
       stdoutFilter: "^.*delay   filtered.*$"
       logReduce: "true"
+  recommend:
+  - profile: "profile1"
+    priority: 4
+    match:
+    - nodeLabel: "node-role.kubernetes.io/worker"
+    
+```
+#### ptpConfig to configure as WPC NIC as GM
+```
+apiVersion: ptp.openshift.io/v1
+kind: PtpConfig
+metadata:
+  name: ptpconfig-gm
+  namespace: openshift-ptp
+spec:
+  profile:
+  - name: "profile1"
+    ...
+    ...
+    ......   
+    plugins:
+      e810:
+        enableDefaultConfig: true
+    ts2phcOpts: " "
+    ts2phcConf: |
+      [nmea]
+      ts2phc.master 1
+      [global]
+      use_syslog  0
+      verbose 1
+      logging_level 7
+      ts2phc.pulsewidth 100000000
+      #GNSS module s /dev/ttyGNSS* -al use _0
+      ts2phc.nmea_serialport  /dev/ttyGNSS_1700_0
+      leapfile  /usr/share/zoneinfo/leap-seconds.list
+      [ens2f0]
+      ts2phc.extts_polarity rising
+      ts2phc.extts_correction 0
   recommend:
   - profile: "profile1"
     priority: 4
