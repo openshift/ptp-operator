@@ -59,5 +59,5 @@ status:
   acceptedNames:
     kind: ""
     plural: ""
-  conditions: []
-  storedVersions: []
+  conditions: null
+  storedVersions: null

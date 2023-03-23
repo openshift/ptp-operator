@@ -58,8 +58,9 @@ items:
   spec:
     ptpEventConfig:
       enableEventPublisher: true
-      transportHost: "http://hw-event-publisher-service.openshift-bare-metal-events.svc.cluster.local:9043"
       # For AMQP transport, transportHost: "amqp://amq-router.amq-router.svc.cluster.local"
+      transportHost: "http://ptp-event-publisher-service-NODE_NAME.openshift-ptp.svc.cluster.local:9043"
+      storageType: local-sc
     daemonNodeSelector:
       node-role.kubernetes.io/worker: ""
 kind: List

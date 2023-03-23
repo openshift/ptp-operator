@@ -124,11 +124,11 @@ spec:
             secretName: linuxptp-daemon-secret
         {{ if (eq .EnableEventPublisher true) }}
         - name: pubsubstore
-          {{ if not (hasPrefix "amqp" .EventTransportHost) }}
-          persistentVolumeClaim:
-            claimName: cloud-event-proxy-store
-          {{ else }}
+          {{ if or (eq .StorageType "emptyDir") (hasPrefix "amqp" .EventTransportHost) }}
           emptyDir: {}
+          {{ else }}
+          persistentVolumeClaim:
+            claimName: cloud-event-proxy-store-{{ .StorageType }}
           {{ end }}
         - name: event-bus-socket
           emptyDir: {}
@@ -249,23 +249,21 @@ spec:
             severity: warning
         {{ end }}
 
-{{ if and (eq .EnableEventPublisher true) (not (hasPrefix "amqp" .EventTransportHost)) }}
+# special storageType "emptyDir" is used for developer tests to map pubsubstore volume to emptyDir
+{{ if and (eq .EnableEventPublisher true) (ne .StorageType "emptyDir") }}
+{{ if not (hasPrefix "amqp" .EventTransportHost) }}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: cloud-event-proxy-store
+  name: cloud-event-proxy-store-{{ .StorageType }}
   namespace: openshift-ptp
 spec:
-  # By default use the (default) storageClass.
-  # Use the following command to patch a storageClass as default.
-  # oc patch storageclass example-storage-class -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
-  # To use a specific storageClass, uncomment the following line and replace the place holder
-  # with the name of storage class.
-  # storageClassName: <storage-class-name>
+  storageClassName: {{ .StorageType }}
   resources:
     requests:
       storage: 10Mi
   accessModes:
   - ReadWriteOnce
+{{ end }}
 {{ end }}
