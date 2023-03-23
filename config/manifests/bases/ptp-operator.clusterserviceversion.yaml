@@ -86,8 +86,14 @@ spec:
       kind: PtpOperatorConfig
       name: ptpoperatorconfigs.ptp.openshift.io
       specDescriptors:
-      - description: 'TransportHost format is <protocol>://<transport-service>.<namespace>.svc.cluster.local:<transport-port>"
-          Example HTTP transport: "http://ptp-event-publisher-service.openshift-ptp.svc.cluster.local:9043"
+      - description: StorageType is the name of StorageClass providing persist storage
+          used by HTTP transport to store subscription data
+        displayName: Storage Type
+        path: ptpEventConfig.storageType
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: 'TransportHost format is <protocol>://<transport-service>.<namespace>.svc.cluster.local:<transport-port>
+          Example HTTP transport: "http://ptp-event-publisher-service-NODE_NAME.openshift-ptp.svc.cluster.local:9043"
           Example AMQP transport: "amqp://amq-router-service-name.amq-namespace.svc.cluster.local"'
         displayName: Transport Host
         path: ptpEventConfig.transportHost
