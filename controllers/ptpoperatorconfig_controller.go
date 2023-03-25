@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -65,18 +66,22 @@ type EventTransportHostStatus struct {
 const (
 	ResyncPeriod = 2 * time.Minute
 	// AmqReadyStateError Event related transport protocol const
-	AmqReadyStateError         = "AMQ not ready"
-	TransportRetryMaxCount     = 12 // max 3 minutes
-	RsyncTransportRetryPeriod  = 10 * time.Second
-	DefaultTransportHostScheme = "amqp"
-	DefaultTransportHostName   = "nohup"
-	AmqDefaultHost             = DefaultTransportHostScheme + "://" + DefaultTransportHostName
+	AmqReadyStateError        = "AMQ not ready"
+	TransportRetryMaxCount    = 12 // max 3 minutes
+	RsyncTransportRetryPeriod = 10 * time.Second
+	AmqScheme                 = "amqp"
+	AmqDefaultHostName        = "nohup"
+	AmqDefaultHost            = AmqScheme + "://" + AmqDefaultHostName
+	DefaultTransportHost      = "http://ptp-event-publisher-service-NODE_NAME.openshift-ptp.svc.cluster.local:9043"
+	DefaultStorageType        = "emptyDir"
+	PVCNamePrefix             = "cloud-event-proxy-store"
 )
 
 //+kubebuilder:rbac:groups=ptp.openshift.io,resources=ptpoperatorconfigs,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=ptp.openshift.io,resources=ptpoperatorconfigs/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=ptp.openshift.io,resources=ptpoperatorconfigs/finalizers,verbs=update
 //+kubebuilder:rbac:groups=config.openshift.io,resources=infrastructures,verbs=get;list;watch
+//+kubebuilder:rbac:groups=core,resources=persistentvolumeclaims,verbs=get;list;watch;create;update;delete
 
 func (r *PtpOperatorConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (reconcile.Result, error) {
 	reqLogger := r.Log.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
@@ -186,6 +191,62 @@ func (r *PtpOperatorConfigReconciler) setDaemonNodeSelector(
 	return obj, nil
 }
 
+// syncPvc update PersistentVolumeClaim
+func (r *PtpOperatorConfigReconciler) syncPvc(ctx context.Context, obj *uns.Unstructured) (*uns.Unstructured, error) {
+	var err error
+	scheme := kscheme.Scheme
+	pvc := &corev1.PersistentVolumeClaim{}
+	err = scheme.Convert(obj, pvc, nil)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert obj to corev1.PersistentVolumeClaim: %v", err)
+	}
+
+	// update the VolumeName of PVC when the PVC is bound to a PV
+	if pvcDeployed := r.getPvc(obj.GetName(), names.Namespace); pvcDeployed != nil {
+		if pvcDeployed.Spec.VolumeName != pvc.Spec.VolumeName && pvc.Spec.VolumeName == "" {
+			log.Printf("pvc %s is Bound, updating VolumeName to %s", obj.GetName(), pvcDeployed.Spec.VolumeName)
+			pvc.Spec.VolumeName = pvcDeployed.Spec.VolumeName
+		}
+	}
+
+	err = scheme.Convert(pvc, obj, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert corev1.PersistentVolumeClaim to obj: %v", err)
+	}
+
+	return obj, nil
+}
+
+// cleanupPvc clean up obsolete PVCs not mounted to current lixnuxptp pod
+func (r *PtpOperatorConfigReconciler) cleanupPvc(ctx context.Context, storageType string) error {
+	var err error
+	pvcList := &corev1.PersistentVolumeClaimList{}
+	opts := []client.ListOption{
+		client.InNamespace(names.Namespace),
+	}
+	err = r.List(context.TODO(), pvcList, opts...)
+	if err != nil {
+		return err
+	}
+
+	pvcName := fmt.Sprintf("%s-%s", PVCNamePrefix, storageType)
+
+	for _, p := range pvcList.Items {
+		if strings.HasPrefix(p.ObjectMeta.Name, PVCNamePrefix) {
+			if p.ObjectMeta.Name != pvcName || storageType == DefaultStorageType {
+				if err := r.Client.Delete(ctx, &p); err != nil {
+					log.Printf("fail to delete obsolete pvc %s err: %v", p.ObjectMeta.Name, err)
+				} else {
+					log.Printf("garbage collection: successfully deleted obsolete pvc %s", p.ObjectMeta.Name)
+				}
+			}
+		}
+
+	}
+	return nil
+}
+
 // syncLinuxptpDaemon synchronizes Linuxptp DaemonSet
 func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, defaultCfg *ptpv1.PtpOperatorConfig, nodeList *corev1.NodeList) error {
 	var err error
@@ -198,6 +259,7 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 	data.Data["KubeRbacProxy"] = os.Getenv("KUBE_RBAC_PROXY_IMAGE")
 	data.Data["SideCar"] = os.Getenv("SIDECAR_EVENT_IMAGE")
 	data.Data["NodeName"] = os.Getenv("NODE_NAME")
+	data.Data["StorageType"] = DefaultStorageType
 	// configure EventConfig
 	if defaultCfg.Spec.EventConfig == nil {
 		data.Data["EnableEventPublisher"] = false
@@ -211,6 +273,9 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 				return e
 			}
 			data.Data["EventTransportHost"] = transportHost
+			if defaultCfg.Spec.EventConfig.StorageType != "" {
+				data.Data["StorageType"] = defaultCfg.Spec.EventConfig.StorageType
+			}
 		}
 	}
 
@@ -235,11 +300,24 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 		return fmt.Errorf("failed to render linuxptp daemon manifest: %v", err)
 	}
 
+	err = r.cleanupPvc(ctx, fmt.Sprintf("%s", data.Data["StorageType"]))
+	if err != nil {
+		return err
+	}
+
 	for _, obj := range objs {
 		obj, err = r.setDaemonNodeSelector(defaultCfg, obj)
 		if err != nil {
 			return err
 		}
+
+		if obj.GetKind() == "PersistentVolumeClaim" {
+			obj, err = r.syncPvc(ctx, obj)
+			if err != nil {
+				return err
+			}
+		}
+
 		if err = controllerutil.SetControllerReference(defaultCfg, obj, r.Scheme); err != nil {
 			return fmt.Errorf("failed to set owner reference for daemon: %v", err)
 		}
@@ -326,8 +404,8 @@ func (r *PtpOperatorConfigReconciler) EventTransportHostAvailabilityCheck(transp
 	var transportUrl *url.URL
 	if transportHost == "" {
 		glog.Warningf("ptp operator config Spec, ptpEventConfig.transportHost=%v is not valid, proceed as %s",
-			transportHost, AmqDefaultHost)
-		return AmqDefaultHost, nil
+			transportHost, DefaultTransportHost)
+		return DefaultTransportHost, nil
 	}
 
 	// if new transport has been applied reset everything
@@ -338,8 +416,8 @@ func (r *PtpOperatorConfigReconciler) EventTransportHostAvailabilityCheck(transp
 	transportUrl, err := url.Parse(transportHost)
 	if err != nil {
 		glog.Warningf("ptp operator config Spec, ptpEventConfig.transportHost=%v is not valid, proceed as %s",
-			transportHost, AmqDefaultHost)
-		return AmqDefaultHost, nil
+			transportHost, DefaultTransportHost)
+		return DefaultTransportHost, nil
 	} else if r.TransportHostStatus.RetryThisHost(transportUrl.Scheme, transportUrl.Host) { // not set to nohup and last try was not success
 		if r.TransportHostStatus.RetryOnCount() {
 			if amq := strings.Split(transportUrl.Host, "."); len(amq) > 1 { // check for availability if its amq
@@ -357,6 +435,25 @@ func (r *PtpOperatorConfigReconciler) EventTransportHostAvailabilityCheck(transp
 	} // else not checking for amq://localhost:5672 or http
 	r.TransportHostStatus.Exit()
 	return transportHost, nil
+}
+
+func (r *PtpOperatorConfigReconciler) getPvc(pvcName string, namespace string) *corev1.PersistentVolumeClaim {
+
+	pvcList := &corev1.PersistentVolumeClaimList{}
+	opts := []client.ListOption{
+		client.InNamespace(namespace),
+	}
+	err := r.List(context.TODO(), pvcList, opts...)
+	if err != nil {
+		return nil
+	}
+	for _, p := range pvcList.Items {
+		if p.ObjectMeta.Name == pvcName {
+			return &p
+		}
+
+	}
+	return nil
 }
 
 // Inc count
@@ -390,8 +487,8 @@ func (e *EventTransportHostStatus) Exit() {
 
 // RetryThisHost ... check if retry  needed for this host
 func (e *EventTransportHostStatus) RetryThisHost(scheme, host string) bool {
-	if scheme == DefaultTransportHostScheme &&
-		host != DefaultTransportHostName &&
+	if scheme == AmqScheme &&
+		host != AmqDefaultHostName &&
 		!e.Success {
 		return true
 	}
