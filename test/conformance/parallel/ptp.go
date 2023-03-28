@@ -19,6 +19,7 @@ import (
 
 	. "github.com/onsi/gomega"
 	ptptestconfig "github.com/openshift/ptp-operator/test/conformance/config"
+	"github.com/openshift/ptp-operator/test/pkg/metrics"
 	exports "github.com/redhat-cne/ptp-listener-exports"
 	lib "github.com/redhat-cne/ptp-listener-lib"
 	ptpEvent "github.com/redhat-cne/sdk-go/pkg/event/ptp"
@@ -151,7 +152,7 @@ func testPtpCpuUtilization(fullConfig testconfig.TestConfig, testParameters *ptp
 		failureThreshold = params.CpuTestSpec.FailureThreshold
 	}
 
-	prometheusPod, err := ptptesthelper.GetPrometheusPod()
+	prometheusPod, err := metrics.GetPrometheusPod()
 	Expect(err).To(BeNil(), "failed to get prometheus pod")
 
 	ptpPodsPerNode, err := ptptesthelper.GetPtpPodsPerNode()
@@ -160,7 +161,7 @@ func testPtpCpuUtilization(fullConfig testconfig.TestConfig, testParameters *ptp
 	prometheusRateTimeWindow, err := params.PromRateTimeWindow()
 	Expect(err).To(BeNil(), "Invalid prometheus time window for prometheus' rate function.")
 
-	cadvisorScrapeInterval, err := ptptesthelper.GetCadvisorScrapeInterval()
+	cadvisorScrapeInterval, err := metrics.GetCadvisorScrapeInterval()
 	Expect(err).To(BeNil(), "failed to get cadvisor's prometheus scrape interval")
 
 	logrus.Infof("Configured rate timeWindow: %s, cadvisor scrape interval: %d secs.", prometheusRateTimeWindow, cadvisorScrapeInterval)

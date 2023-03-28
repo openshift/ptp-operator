@@ -392,7 +392,7 @@ func GetPodsTotalCpuUsage(pods []*corev1.Pod, prometheusPod *corev1.Pod) (float6
 	if prometheusPod == nil {
 		logrus.Debugf("Getting prometheus pod...")
 		var err error
-		prometheusPod, err = GetPrometheusPod()
+		prometheusPod, err = metrics.GetPrometheusPod()
 		if err != nil {
 			return 0, fmt.Errorf("failed to get prometheus pod: %w", err)
 		}
@@ -404,11 +404,11 @@ func GetPodsTotalCpuUsage(pods []*corev1.Pod, prometheusPod *corev1.Pod) (float6
 		query := fmt.Sprintf(queryFormat, pod.Name, queryTimeWindow)
 
 		// Preparing the result part so the unmarshaller can set it accordingly.
-		resultVector := PrometheusVectorResult{}
-		promResponse := PrometheusQueryResponse{}
+		resultVector := metrics.PrometheusVectorResult{}
+		promResponse := metrics.PrometheusQueryResponse{}
 		promResponse.Data.Result = &resultVector
 
-		err := RunPrometheusQueryWithRetries(prometheusPod, query, prometheusQueryRetries, prometheusQueryRetryInterval, &promResponse, func(*PrometheusQueryResponse) bool {
+		err := metrics.RunPrometheusQueryWithRetries(prometheusPod, query, metrics.PrometheusQueryRetries, metrics.PrometheusQueryRetryInterval, &promResponse, func(*metrics.PrometheusQueryResponse) bool {
 			// Make sure the result's value is not empty
 			logrus.Infof("Checking result vector len: %v", len(resultVector))
 			if len(resultVector) != 1 {
@@ -423,7 +423,7 @@ func GetPodsTotalCpuUsage(pods []*corev1.Pod, prometheusPod *corev1.Pod) (float6
 		}
 
 		// The rate query should return only one metric, so it's safe to access the first result.
-		podCpuUsage, tsMillis, err := GetPrometheusResultFloatValue(resultVector[0].Value)
+		podCpuUsage, tsMillis, err := metrics.GetPrometheusResultFloatValue(resultVector[0].Value)
 		if err != nil {
 			return 0, fmt.Errorf("failed to get value from prometheus response from pod %s (ns %s): %w", pod.Name, pod.Namespace, err)
 		}
@@ -461,7 +461,7 @@ func GetContainerCpuUsage(podName, containerName, podNamespace string, rateTimeW
 	if prometheusPod == nil {
 		logrus.Debugf("Getting prometheus pod...")
 		var err error
-		prometheusPod, err = GetPrometheusPod()
+		prometheusPod, err = metrics.GetPrometheusPod()
 		if err != nil {
 			return 0, fmt.Errorf("failed to get prometheus pod: %w", err)
 		}
@@ -472,11 +472,11 @@ func GetContainerCpuUsage(podName, containerName, podNamespace string, rateTimeW
 	query := fmt.Sprintf(queryFormat, podNamespace, podName, containerName, queryTimeWindow)
 
 	// Preparing the result part so the unmarshaller can set it accordingly.
-	resultVector := PrometheusVectorResult{}
-	promResponse := PrometheusQueryResponse{}
+	resultVector := metrics.PrometheusVectorResult{}
+	promResponse := metrics.PrometheusQueryResponse{}
 	promResponse.Data.Result = &resultVector
 
-	err := RunPrometheusQueryWithRetries(prometheusPod, query, prometheusQueryRetries, prometheusQueryRetryInterval, &promResponse, func(response *PrometheusQueryResponse) bool {
+	err := metrics.RunPrometheusQueryWithRetries(prometheusPod, query, metrics.PrometheusQueryRetries, metrics.PrometheusQueryRetryInterval, &promResponse, func(response *metrics.PrometheusQueryResponse) bool {
 		if len(resultVector) != 1 {
 			logrus.Warnf("Invalid result vector length in prometheus response: %+v", promResponse)
 			return false
@@ -489,7 +489,7 @@ func GetContainerCpuUsage(podName, containerName, podNamespace string, rateTimeW
 	}
 
 	// The rate query should return only one metric, so it's safe to access the first result.
-	cpuUsage, tsMillis, err := GetPrometheusResultFloatValue(resultVector[0].Value)
+	cpuUsage, tsMillis, err := metrics.GetPrometheusResultFloatValue(resultVector[0].Value)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get value from prometheus response from pod %s, container %q (ns %s): %w", podName, containerName, podNamespace, err)
 	}

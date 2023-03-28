@@ -1,4 +1,4 @@
-package ptptesthelper
+package metrics
 
 import (
 	"context"
@@ -22,8 +22,8 @@ const (
 	prometheusResponseSuccess    = "success"
 	kubeletServiceMonitor        = "kubelet"
 
-	prometheusQueryRetries       = 10
-	prometheusQueryRetryInterval = 1 * time.Second
+	PrometheusQueryRetries       = 10
+	PrometheusQueryRetryInterval = 1 * time.Second
 )
 
 type PrometheusQueryResponse struct {
