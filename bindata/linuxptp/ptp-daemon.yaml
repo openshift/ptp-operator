@@ -37,14 +37,15 @@ spec:
           imagePullPolicy: IfNotPresent
           args:
             - "--metrics-addr=127.0.0.1:9091"
-            - "--store-path=/store"
+            - "--store-path=/store/ptp/$(NODE_NAME)"
             - "--transport-host={{ .EventTransportHost }}"
             - "--api-port=9085"
           volumeMounts:
             - name: config-volume
               mountPath: /etc/linuxptp
             - name: pubsubstore
-              mountPath: /store
+              mountPath: /store/ptp
+              subPathExpr: $(NODE_NAME)
             - name: event-bus-socket
               mountPath: /cloud-native
             - name: socket-dir
@@ -108,7 +109,6 @@ spec:
               value: "{{ .EnableEventPublisher }}"
             - name: PLUGINS
               value: "{{ .EnabledPlugins }}"
-
           volumeMounts:
             - name: config-volume
               mountPath: /etc/linuxptp
@@ -253,8 +253,8 @@ spec:
         {{ end }}
 
 # special storageType "emptyDir" is used for developer tests to map pubsubstore volume to emptyDir
-{{ if and (eq .EnableEventPublisher true) (ne .StorageType "emptyDir") }}
-{{ if not (hasPrefix "amqp" .EventTransportHost) }}
+  {{ if and (eq .EnableEventPublisher true) (ne .StorageType "emptyDir") }}
+  {{ if not (hasPrefix "amqp" .EventTransportHost) }}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
