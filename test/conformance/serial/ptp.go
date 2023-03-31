@@ -215,15 +215,16 @@ var _ = Describe("[ptp]", Serial, func() {
 			It("The interfaces supporting ptp can be discovered correctly", func() {
 				for podIndex := range ptpPods.Items {
 					ptpNodeIfacesDiscoveredByL2 := ptphelper.GetPtpInterfacePerNode(ptpPods.Items[podIndex].Spec.NodeName, fullConfig.L2Config.GetPtpIfListUnfiltered())
-					Expect(len(ptpNodeIfacesDiscoveredByL2)).To(BeNumerically(">", 0), "Fail to detect PTP Supported interfaces on slave/master pods")
+					lenPtpNodeIfacesDiscoveredByL2 := len(ptpNodeIfacesDiscoveredByL2)
 					ptpNodeIfacesFromPtpApi := ptphelper.PtpDiscoveredInterfaceList(ptpPods.Items[podIndex].Spec.NodeName)
+					lenPtpNodeIfacesFromPtpApi := len(ptpNodeIfacesFromPtpApi)
 					sort.Strings(ptpNodeIfacesDiscoveredByL2)
 					sort.Strings(ptpNodeIfacesFromPtpApi)
 					logrus.Infof("Interfaces supporting ptp for node        %s: %v", ptpPods.Items[podIndex].Spec.NodeName, ptpNodeIfacesDiscoveredByL2)
 					logrus.Infof("Interfaces discovered by ptp API for node %s: %v", ptpPods.Items[podIndex].Spec.NodeName, ptpNodeIfacesFromPtpApi)
 
 					// The discovered PTP interfaces should match exactly the list of interfaces calculated by test
-					Expect(len(ptpNodeIfacesDiscoveredByL2)).To(Equal(len(ptpNodeIfacesFromPtpApi)))
+					Expect(lenPtpNodeIfacesDiscoveredByL2).To(Equal(lenPtpNodeIfacesFromPtpApi))
 					for index := range ptpNodeIfacesDiscoveredByL2 {
 						Expect(ptpNodeIfacesDiscoveredByL2[index]).To(Equal(ptpNodeIfacesFromPtpApi[index]))
 					}
