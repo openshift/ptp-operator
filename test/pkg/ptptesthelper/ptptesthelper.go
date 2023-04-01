@@ -259,7 +259,7 @@ func RecoverySlaveNetworkOutage(fullConfig testconfig.TestConfig, skippedInterfa
 			toggleNetworkInterface(outageRecoveryDaemonsetPod, ptpNodeInterface, slavePodNodeName, fullConfig)
 		}
 	}
-	DeletePtpTestPrivilegedDaemonSet(pkg.RecoveryNetworkOutageDaemonSetName, pkg.RecoveryNetworkOutageDaemonSetNamespace)
+	k8sPriviledgedDs.DeleteNamespaceIfPresent(pkg.RecoveryNetworkOutageDaemonSetNamespace)
 	logrus.Info("Recovery PTP outage ends ...........")
 }
 
@@ -333,7 +333,7 @@ func RebootSlaveNode(fullConfig testconfig.TestConfig) {
 	CheckSlaveSyncWithMaster(fullConfig)
 
 	// 5. Delete the reboot ptp test priviledged daemonset
-	DeletePtpTestPrivilegedDaemonSet(pkg.RebootDaemonSetName, pkg.RebootDaemonSetNamespace)
+	k8sPriviledgedDs.DeleteNamespaceIfPresent(pkg.RebootDaemonSetNamespace)
 
 	logrus.Info("Rebooting system ends ..............")
 }
