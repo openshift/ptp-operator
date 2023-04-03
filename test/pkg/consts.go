@@ -49,11 +49,11 @@ const (
 	MetricsEndPoint       = "127.0.0.1:9091/metrics"
 	PtpConfigOperatorName = "default"
 
-	RebootDaemonSetNamespace     = "default"
+	RebootDaemonSetNamespace     = "ptp-reboot"
 	RebootDaemonSetName          = "ptp-reboot"
 	RebootDaemonSetContainerName = "container-00"
 
-	RecoveryNetworkOutageDaemonSetNamespace     = "default"
+	RecoveryNetworkOutageDaemonSetNamespace     = "ptp-network-outage-recovery"
 	RecoveryNetworkOutageDaemonSetName          = "ptp-network-outage-recovery"
 	RecoveryNetworkOutageDaemonSetContainerName = "container-00"
 )
