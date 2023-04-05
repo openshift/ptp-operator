@@ -103,7 +103,7 @@ func containSameMetrics(ptpMetricsByPod map[string][]string, prometheusMetrics m
 					continue
 				}
 			}
-			return fmt.Errorf("metric %s on pod %s was not reported", podName, podName)
+			return fmt.Errorf("metric %s on pod %s was not reported", key, podName)
 		}
 	}
 	return nil

@@ -56,9 +56,16 @@ func GetProfileLogID(ptpConfigName string, label *string, nodeName *string) (id 
 	return id, nil
 }
 
-func GetClockIDMaster(ptpConfigName string, label *string, nodeName *string) (id string, err error) {
-	const clockIDRegex = `(?m)\[%s\] selected local clock (.*) as best master`
+func GetClockIDMaster(ptpConfigName string, label *string, nodeName *string, isGM bool) (id string, err error) {
+	const clockIDGMRegex = `(?m)\[%s\] selected local clock (.*) as best master`
+	const clockIDBCRegex = `(?m)\[%s\] selected best master clock (.*)`
 	const clockIDIndex = 1
+	clockIDRegex := ""
+	if isGM {
+		clockIDRegex = clockIDGMRegex
+	} else {
+		clockIDRegex = clockIDBCRegex
+	}
 	logID, err := GetProfileLogID(ptpConfigName, label, nodeName)
 	if err != nil {
 		return id, err
@@ -89,7 +96,7 @@ func GetClockIDMaster(ptpConfigName string, label *string, nodeName *string) (id
 }
 
 func GetClockIDForeign(ptpConfigName string, label *string, nodeName *string) (id string, err error) {
-	const clockIDForeignRegex = `(?m)\[%s\].*new foreign master (.*)`
+	const clockIDForeignRegex = `(?m)\[%s\].* selected best master clock (.*)`
 	const clockIDForeignIndex = 1
 	logID, err := GetProfileLogID(ptpConfigName, label, nodeName)
 	if err != nil {
@@ -595,4 +602,12 @@ func SaveStoreEventsToFile(allEvents, filename string) {
 		logrus.Errorf("could not write events to file, err: %s", err)
 	}
 	mu.Unlock()
+}
+
+func IsExternalGM() (out bool) {
+	value, isSet := os.LookupEnv("EXTERNAL_GM")
+	value = strings.ToLower(value)
+	out = isSet && !strings.Contains(value, "false")
+	logrus.Infof("EXTERNAL_GM=%t", out)
+	return out
 }

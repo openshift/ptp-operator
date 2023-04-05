@@ -13,7 +13,9 @@ import (
 	"github.com/openshift/ptp-operator/test/pkg"
 	"github.com/openshift/ptp-operator/test/pkg/client"
 	testclient "github.com/openshift/ptp-operator/test/pkg/client"
+
 	"github.com/openshift/ptp-operator/test/pkg/images"
+
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -131,8 +133,11 @@ func WaitForPhase(cs *testclient.ClientSet, pod *corev1.Pod, phaseType corev1.Po
 
 // returns last Regex match in the logs for a given pod
 func GetPodLogsRegex(namespace string, podName string, containerName, regex string, isLiteralText bool, timeout time.Duration) (matches [][]string, err error) {
+	const matchOnlyFullLines = `\s*^`
 	if isLiteralText {
 		regex = regexp.QuoteMeta(regex)
+	} else {
+		regex += matchOnlyFullLines
 	}
 	//count := int64(100)
 	podLogOptions := corev1.PodLogOptions{

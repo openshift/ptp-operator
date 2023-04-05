@@ -5,6 +5,7 @@ package test
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -21,7 +22,6 @@ import (
 	ptptestconfig "github.com/openshift/ptp-operator/test/conformance/config"
 	"github.com/openshift/ptp-operator/test/pkg/metrics"
 	exports "github.com/redhat-cne/ptp-listener-exports"
-	lib "github.com/redhat-cne/ptp-listener-lib"
 	ptpEvent "github.com/redhat-cne/sdk-go/pkg/event/ptp"
 	"github.com/sirupsen/logrus"
 )
@@ -31,9 +31,11 @@ const (
 	clockSyncStateLocalHttpPort    = 8902
 )
 
+var DesiredMode = testconfig.GetDesiredConfig(true).PtpModeDesired
+
 // this full config is one per thread
 var fullConfig = testconfig.TestConfig{}
-var _ = Describe("[ptp-long-running]", func() {
+var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-parallel]", func() {
 
 	var testParameters *ptptestconfig.PtpTestConfig
 
@@ -44,6 +46,9 @@ var _ = Describe("[ptp-long-running]", func() {
 
 		testclient.Client = testclient.New("")
 		Expect(testclient.Client).NotTo(BeNil())
+
+		// let ptp synchronize first
+		time.Sleep(60 * time.Second)
 	})
 
 	Context("Soak testing", func() {
@@ -59,6 +64,10 @@ var _ = Describe("[ptp-long-running]", func() {
 
 	Context("Event based tests", func() {
 		BeforeEach(func() {
+
+			if !ptphelper.PtpEventEnabled() {
+				Skip("Skipping, PTP events not enabled")
+			}
 			logrus.Debugf("fullConfig=%s", fullConfig.String())
 			if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 				Skip("Failed to find a valid ptp slave configuration")
@@ -66,31 +75,20 @@ var _ = Describe("[ptp-long-running]", func() {
 		})
 
 		It("PTP Slave Clock Sync", func() {
-			useSideCar := false
-			if event.IsDeployConsumerSidecar() {
-				if fullConfig.PtpEventsIsSidecarReady {
-					useSideCar = true
-				}
-			}
 
-			event.InitEvents(&fullConfig, clockSyncStateLocalHttpPort, clockSyncStateLocalForwardPort, useSideCar)
 			testPtpSlaveClockSync(fullConfig, testParameters) // Implementation of the test case
 
 		})
 		AfterEach(func() {
 			// closing internal pubsub
-			lib.Ps.Close()
-
-			// unsubscribing all supported events
-			lib.UnsubscribeAllEvents(
-				fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName, // this is the remote end of the port forwarding tunnel (pod's node name))
-			)
+			event.PubSub.Close()
 		})
 	})
 })
 
 // test case for continuous testing of clock synchronization of the clock under test
 func testPtpSlaveClockSync(fullConfig testconfig.TestConfig, testParameters *ptptestconfig.PtpTestConfig) {
+	event.InitPubSub()
 	Expect(testclient.Client).NotTo(BeNil())
 	logrus.Debugf("sync test fullConfig=%s", fullConfig.String())
 	if fullConfig.Status == testconfig.DiscoveryFailureStatus {
@@ -120,7 +118,7 @@ func testPtpSlaveClockSync(fullConfig testconfig.TestConfig, testParameters *ptp
 	}
 	logrus.Info("Failure threshold = ", failureThreshold)
 	// Actual implementation
-	testSyncState(soakTestConfig)
+	testSyncState(soakTestConfig, fullConfig)
 }
 
 // This test will run for configured minutes or until failure_threshold reached,
@@ -285,8 +283,10 @@ func isCpuUsageThresholdReachedInPtpPods(prometheusPod *v1core.Pod, ptpPodsPerNo
 }
 
 // Implementation for continuous testing of clock synchronization of the clock under test
-func testSyncState(soakTestConfig ptptestconfig.SoakTestConfig) {
-
+func testSyncState(soakTestConfig ptptestconfig.SoakTestConfig, fullConfig testconfig.TestConfig) {
+	// buffer to hold events until they can be processed. Buffering is needed to avoid dropping POST messages at the HTML server
+	// During testing maximum buffer length could reach 20. Increase it as needed if the length reaches the capacity (see logs)
+	const incomingEventsBuffer = 100
 	slaveClockSyncTestSpec := soakTestConfig.SlaveClockSyncConfig.TestSpec
 	logrus.Infof("%+v", slaveClockSyncTestSpec)
 	syncEvents := ""
@@ -294,12 +294,20 @@ func testSyncState(soakTestConfig ptptestconfig.SoakTestConfig) {
 	testCaseDuration := time.Duration(slaveClockSyncTestSpec.Duration) * time.Minute
 	tcEndChan := time.After(testCaseDuration)
 	// registers channel to receive OsClockSyncStateChange events using the ptp-listener-lib
-	tcEventChan, subscriberID := lib.Ps.Subscribe(string(ptpEvent.OsClockSyncStateChange))
+	tcEventChan, subscriberID := event.PubSub.Subscribe(string(ptpEvent.OsClockSyncStateChange), incomingEventsBuffer)
 	// unsubscribe event type when finished
-	defer lib.Ps.Unsubscribe(string(ptpEvent.OsClockSyncStateChange), subscriberID)
+	defer event.PubSub.Unsubscribe(string(ptpEvent.OsClockSyncStateChange), subscriberID)
 	// creates and push an initial event indicating the initial state of the clock
 	// otherwise no events would be received as long as the clock is not changing states
-	lib.PushInitialEvent(string(ptpEvent.OsClockSyncState))
+	err := event.PushInitialEvent(string(ptpEvent.OsClockSyncStateChange), 20*time.Second)
+	if err != nil {
+		Fail("could not push initial event")
+	}
+	term, err := event.MonitorPodLogsRegex()
+	if err != nil {
+		Fail("could not start listening to events")
+	}
+	defer func() { term <- true }()
 	// counts number of times the clock state looses LOCKED state
 	failureCounter := 0
 	wasLocked := false
@@ -310,10 +318,18 @@ func testSyncState(soakTestConfig ptptestconfig.SoakTestConfig) {
 			if !wasLocked {
 				Fail("OS Clock was never LOCKED and test timed out")
 			}
-			// Test case timeout, pushing metrics
+
+			// add the events to the junit report
+			AddReportEntry(fmt.Sprintf("%v", syncEvents))
+
+			// Test case ended, pushing metrics
 			logrus.Infof("Clock Sync failed %d times.", failureCounter)
 			logrus.Infof("Collected sync events during soak test period= %s", syncEvents)
 			ptphelper.SaveStoreEventsToFile(syncEvents, soakTestConfig.EventOutputFile)
+
+			// if the number of loss of lock events exceed test threshold, fail the test
+			Expect(failureCounter).To(BeNumerically("<", slaveClockSyncTestSpec.FailureThreshold),
+				fmt.Sprintf("Failure threshold (%d) reached", slaveClockSyncTestSpec.FailureThreshold))
 			return
 		case singleEvent := <-tcEventChan:
 			// New OsClockSyncStateChange event received
@@ -323,8 +339,8 @@ func testSyncState(soakTestConfig ptptestconfig.SoakTestConfig) {
 			values, _ := singleEvent[exports.EventValues].(exports.StoredEventValues)
 			state, _ := values["notification"].(string)
 			clockOffset, _ := values["metric"].(float64)
-			// create a pseudo value mapping a state to an integer (for vizualization)
-			eventString := fmt.Sprintf("%s,%f,%s,%d\n", ptpEvent.OsClockSyncStateChange, clockOffset, state, exports.ToLockStateValue[state])
+			// create a pseudo value mapping a state to an integer (for visualization)
+			eventString := fmt.Sprintf("%s,%s,%f,%s,%d\n", singleEvent[exports.EventTimeStamp], ptpEvent.OsClockSyncStateChange, clockOffset, state, exports.ToLockStateValue[state])
 			// start counting loss of LOCK only after the clock was locked once
 			logrus.Debugf("clockOffset=%f", clockOffset)
 			if state != "LOCKED" && wasLocked {
@@ -340,17 +356,6 @@ func testSyncState(soakTestConfig ptptestconfig.SoakTestConfig) {
 			// wait before the clock was locked once before starting to record metrics
 			if wasLocked {
 				syncEvents += eventString
-			}
-
-			// if the number of loss of lock events exceed test threshold, fail the test and end immediately
-			if failureCounter >= slaveClockSyncTestSpec.FailureThreshold {
-				// add the events to the junit report
-				AddReportEntry(fmt.Sprintf("%v", syncEvents))
-				// save events to file
-				ptphelper.SaveStoreEventsToFile(syncEvents, soakTestConfig.EventOutputFile)
-				// fail the test
-				Expect(failureCounter).To(BeNumerically("<", slaveClockSyncTestSpec.FailureThreshold),
-					fmt.Sprintf("Failure threshold (%d) reached", slaveClockSyncTestSpec.FailureThreshold))
 			}
 		}
 	}

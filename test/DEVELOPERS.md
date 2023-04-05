@@ -497,7 +497,8 @@ where `<constraint_function>` is a function validating if a single constraint is
 		{{int(solver.StepSameNic), 2, 3, 4}}, // step5
  ``` 
 in step 4 we are checking that p1 and p3 are in the same node and that p2 and p3 are in the same LAN. Note that you can only do a constraint check if the interface is already selected from previous steps.
-So for instance, in step 4, interfaces p0, p1, p2, p3 are selected (the 4 first ones). So in step 4 we can run constrains on any of these interfaces, but not let's say on p4 since it is not selected yet. 
+So for instance, in step 4, interfaces p0, p1, p2, p3 are selected (the 4 first ones). So in step 4 we can run constraints on any of these interfaces, but not let's say on p4 since it is not selected yet. 
+The number of steps, not including the first one must be equal to the number of interfaces.
 
 Another information needed is the role each of these interfaces p0, p1, p2, ... are playing such as grandmaster
 ```
@@ -748,39 +749,10 @@ ptp events are useful for cloud applications to be notified about changes in the
 The officially supported way for a cloud application to receive events is to deploy a cloud-events-proxy consumer sidecar. The role of the sidecar is to facilitate access to the events REST API to the application. the application just needs to access a localhost port inside the pod namespace to access the REST API. 
 
 To simulate this scenario, the conformance test support testing ptp events in the parallel suite. The following steps are needed to setup ptp events testing with sidecar:
-- instantiate a pod running the cloud-events-proxy container. The cloud-event-proxy process listens on `localhost:8089`.
-- setup a ip tunnel to the sidecar pod to have access to the cloud-events-proxy consumer REST API (port 8089). The side of the tunnel ending in the test machine (local) is listening on a test specific port. For instance, the long term OS clock sync soak test's tunnel listens on port `8901` locally. A different tunnel needs to be create per test case and so a different port is also assigned per test case.  
-- create a http server on the test machine to process messages from the cloud-events-proxy API. The http listens on a test specific port. For instance, for the long term OS clock sync soak test, the http server listen to port `8902`
-After these steps, the test suite perform normal consumer registration steps to receive events: 
-- ping the k8s cluster ip address to retrieve the correct outbound interface used by the ptp conformance test suite. This is the ip address used to listen for events
-- run a event registration request using the cloud event proxy REST API to register the outbound test machine ip address towards the cluster under test. This steps is so that the test machine will receive events from the sidecar
-- after registration events are sent from the sidecar pod towards the test machine port listening for events. Note that while the registration is using a tunnel to reach the sidecar pod localhost, the events are sent directly to the test machine without using the tunnel.
+- instantiate a pod running the cloud-events-proxy container. 
+- instantiate the cloud-proxy-consumer example, code is at: https://github.com/redhat-cne/cloud-event-proxy/blob/main/examples/consumer/main.go 
+- wait for events to be setup and look for the consumer container logs
 
-The setup used to test events with a sidecar is shown below:
-![multi_bc](doc/ptpeventswithconsumersidecar.svg)
-
-
-## PTP events using ptp-operator cloud-events-proxy (internal developer API)
-The same consumer REST API available in the consumer side car is also available in the producer cloud-events-proxy sidecar but is not to be used by applications. It is possible to use it in the conformance test however. The setup in this case does not require a sidecar. The following steps are required:
-- setup a ip tunnel to the linuxptp-daemon's cloud-events-proxy container pod to have access to the cloud-events-proxy consumer REST API.
-- create a http server on the test machine to process messages from the cloud-events-proxy API.
-
-The port assignements for the tunnel and the http server are the same with and without without sidecar.
-
-The setup used to test events without a sidecar is shown below:
-![multi_bc](doc/ptpeventsnosidecar.svg)
-
-## Events api initialization
-PTP events handling is managed with the ptp-listener-lib project ( https://github.com/redhat-cne/ptp-listener-lib ). The library offer mechnisms to setup the connection to the events API including setting up the tunnel.
-
-The `InitEvents` function initialize an instance of the ptp-events-listener library per testcase/process and needs the following information:
-- clockSyncStateLocalHttpPort: this is the test suite http server port used for this test (e.g. `8902` for the OS Clock sync soak test)		
-- clockSyncStateLocalForwardPort: this is the local forwardind port used by the tunnel to reach the events pod (e.g. `8901` for the OS Clock sync soak test)
-- useSideCar: true will deploy a sidecar and use the consumer official technique. False will not deploy a sidecar and use the internal developer API.
-
-```
-event.InitEvents(&fullConfig, clockSyncStateLocalHttpPort, clockSyncStateLocalForwardPort, useSideCar)
-```
 
 ## In process event subscription 
 
@@ -856,14 +828,14 @@ Below is an example of subscription:
 
 The subscription is done by the following line:
 ```
-tcEventChan, subscriberID := lib.Ps.Subscribe(string(ptpEvent.OsClockSyncStateChange))
+tcEventChan, subscriberID := event.Subscribe(string(ptpEvent.OsClockSyncStateChange))
 ```
 
 to unsubscribe :
 
 ```
 	// unsubscribe event type when finished
-	defer lib.Ps.Unsubscribe(string(ptpEvent.OsClockSyncStateChange), subscriberID)
+	event.Pubsub.Unsubscribe(string(ptpEvent.OsClockSyncStateChange), subscriberID)
 
 ```
 

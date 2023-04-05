@@ -15,12 +15,13 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus-operator/prometheus-operator/pkg/client v0.57.0
 	github.com/prometheus/common v0.32.1
+	github.com/redhat-cne/channel-pubsub v0.0.8
 	github.com/redhat-cne/ptp-listener-exports v0.0.7
-	github.com/redhat-cne/ptp-listener-lib v0.1.6
+	github.com/redhat-cne/ptp-listener-lib v0.1.7
 	github.com/redhat-cne/sdk-go v0.1.1-0.20221202175356-6d25e1b3c0be
 	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.8.0
-	github.com/test-network-function/graphsolver-lib v0.0.2
+	github.com/test-network-function/graphsolver-lib v0.0.3
 	github.com/test-network-function/l2discovery-exports v0.0.3
 	github.com/test-network-function/l2discovery-lib v0.0.9
 	github.com/test-network-function/privileged-daemonset v1.0.2
@@ -101,7 +102,6 @@ require (
 	github.com/prometheus/client_golang v1.12.2 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
-	github.com/redhat-cne/channel-pubsub v0.0.7 // indirect
 	github.com/spf13/cobra v1.4.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/test-network-function/graphsolver-exports v0.0.1 // indirect

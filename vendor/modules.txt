@@ -281,13 +281,13 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# github.com/redhat-cne/channel-pubsub v0.0.7
+# github.com/redhat-cne/channel-pubsub v0.0.8
 ## explicit; go 1.19
 github.com/redhat-cne/channel-pubsub
 # github.com/redhat-cne/ptp-listener-exports v0.0.7
 ## explicit; go 1.19
 github.com/redhat-cne/ptp-listener-exports
-# github.com/redhat-cne/ptp-listener-lib v0.1.6
+# github.com/redhat-cne/ptp-listener-lib v0.1.7
 ## explicit; go 1.19
 github.com/redhat-cne/ptp-listener-lib
 # github.com/redhat-cne/sdk-go v0.1.1-0.20221202175356-6d25e1b3c0be
@@ -314,8 +314,8 @@ github.com/stretchr/testify/assert
 # github.com/test-network-function/graphsolver-exports v0.0.1
 ## explicit; go 1.19
 github.com/test-network-function/graphsolver-exports
-# github.com/test-network-function/graphsolver-lib v0.0.2
-## explicit; go 1.19
+# github.com/test-network-function/graphsolver-lib v0.0.3
+## explicit; go 1.20
 github.com/test-network-function/graphsolver-lib
 # github.com/test-network-function/l2discovery-exports v0.0.3
 ## explicit; go 1.20

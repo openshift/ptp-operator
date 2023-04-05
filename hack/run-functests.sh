@@ -9,7 +9,7 @@ if [ $? -ne 0 ]; then
 	GINKGO_TMP_DIR=$(mktemp -d)
 	cd $GINKGO_TMP_DIR
 	go mod init tmp
-	GOFLAGS=-mod=mod go install github.com/onsi/ginkgo/v2/ginkgo@v2.8.4
+	GOFLAGS=-mod=mod go install github.com/onsi/ginkgo/v2/ginkgo@v2.9.5
 	rm -rf $GINKGO_TMP_DIR
 	echo "Downloading ginkgo tool"
 	cd -
@@ -26,5 +26,5 @@ if [[ $SUITE == *"$VALIDATION_SUIT_SUBSTR"* ]]
 then
 	GOFLAGS=-mod=vendor ginkgo --output-dir=$JUNIT_OUTPUT_DIR --junit-report=$JUNIT_OUTPUT_FILE -v -p "$SUITE"
 else
-	GOFLAGS=-mod=vendor ginkgo --output-dir=$JUNIT_OUTPUT_DIR --junit-report=$JUNIT_OUTPUT_FILE -v -p "$SUITE"/serial "$SUITE"/parallel
+	GOFLAGS=-mod=vendor ginkgo -keepGoing --output-dir=$JUNIT_OUTPUT_DIR --junit-report=$JUNIT_OUTPUT_FILE -v -p "$SUITE"/serial "$SUITE"/parallel
 fi
