@@ -20,7 +20,7 @@ require (
 	github.com/redhat-cne/sdk-go v0.1.1-0.20221202175356-6d25e1b3c0be
 	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.8.0
-	github.com/test-network-function/graphsolver-lib v0.0.2
+	github.com/test-network-function/graphsolver-lib v0.0.3
 	github.com/test-network-function/l2discovery-exports v0.0.3
 	github.com/test-network-function/l2discovery-lib v0.0.9
 	github.com/test-network-function/privileged-daemonset v1.0.2
@@ -101,7 +101,7 @@ require (
 	github.com/prometheus/client_golang v1.12.2 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
-	github.com/redhat-cne/channel-pubsub v0.0.7 // indirect
+	github.com/redhat-cne/channel-pubsub v0.0.8 // indirect
 	github.com/spf13/cobra v1.4.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/test-network-function/graphsolver-exports v0.0.1 // indirect

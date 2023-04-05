@@ -286,7 +286,9 @@ func isCpuUsageThresholdReachedInPtpPods(prometheusPod *v1core.Pod, ptpPodsPerNo
 
 // Implementation for continuous testing of clock synchronization of the clock under test
 func testSyncState(soakTestConfig ptptestconfig.SoakTestConfig) {
-
+	// buffer to hold events until they can be processed. Buffering is needed to avoid dropping POST messages at the HTML server
+	// During testing maximum buffer length could reach 20. Increase it as needed if the length reaches the capacity (see logs)
+	const incomingEventsBuffer = 100
 	slaveClockSyncTestSpec := soakTestConfig.SlaveClockSyncConfig.TestSpec
 	logrus.Infof("%+v", slaveClockSyncTestSpec)
 	syncEvents := ""
@@ -294,7 +296,7 @@ func testSyncState(soakTestConfig ptptestconfig.SoakTestConfig) {
 	testCaseDuration := time.Duration(slaveClockSyncTestSpec.Duration) * time.Minute
 	tcEndChan := time.After(testCaseDuration)
 	// registers channel to receive OsClockSyncStateChange events using the ptp-listener-lib
-	tcEventChan, subscriberID := lib.Ps.Subscribe(string(ptpEvent.OsClockSyncStateChange))
+	tcEventChan, subscriberID := lib.Ps.Subscribe(string(ptpEvent.OsClockSyncStateChange), incomingEventsBuffer)
 	// unsubscribe event type when finished
 	defer lib.Ps.Unsubscribe(string(ptpEvent.OsClockSyncStateChange), subscriberID)
 	// creates and push an initial event indicating the initial state of the clock

@@ -585,8 +585,8 @@ github.com/prometheus/procfs v0.6.0/go.mod h1:cz+aTbrPOrUb4q7XlbU9ygM+/jj0fzG6c1
 github.com/prometheus/procfs v0.7.3 h1:4jVXhlkAyzOScmCkXBTOLRLTz8EeU+eyjrwB/EPq0VU=
 github.com/prometheus/procfs v0.7.3/go.mod h1:cz+aTbrPOrUb4q7XlbU9ygM+/jj0fzG6c1xBZuNvfVA=
 github.com/prometheus/tsdb v0.7.1/go.mod h1:qhTCs0VvXwvX/y3TZrWD7rabWM+ijKTux40TwIPHuXU=
-github.com/redhat-cne/channel-pubsub v0.0.7 h1:Ynr4Op3NIlwZs+9KreD13qtBwQoP9E3sS6dKSj2JwYU=
-github.com/redhat-cne/channel-pubsub v0.0.7/go.mod h1:mzF6XIdwFXrQ0JmvVA4UtflirDIM+q9Dj/1YGevGnOU=
+github.com/redhat-cne/channel-pubsub v0.0.8 h1:5UzwMev+pjIIfzHDyCsx8HlG4a/ahHpRO+EXMFDa7YQ=
+github.com/redhat-cne/channel-pubsub v0.0.8/go.mod h1:mzF6XIdwFXrQ0JmvVA4UtflirDIM+q9Dj/1YGevGnOU=
 github.com/redhat-cne/ptp-listener-exports v0.0.7 h1:OndW4kSKym5LK9bbEqJPE/LW/LGMDPw5IzXdmrGMRhI=
 github.com/redhat-cne/ptp-listener-exports v0.0.7/go.mod h1:oDdWZOsl2wP1WUECbyLvva0ld/JOvWzNWLJOSCOlOAI=
 github.com/redhat-cne/ptp-listener-lib v0.1.6 h1:HP5ckt7LaHHRKYMC/oYnc7e6F3ssG5XDXSQyblS2O04=
@@ -653,8 +653,8 @@ github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO
 github.com/subosito/gotenv v1.2.0/go.mod h1:N0PQaV/YGNqwC0u51sEeR/aUtSLEXKX9iv69rRypqCw=
 github.com/test-network-function/graphsolver-exports v0.0.1 h1:27zhW/1fiKf3+NJsevl+jvuJu9t/MqOs1wmAkcmp8ng=
 github.com/test-network-function/graphsolver-exports v0.0.1/go.mod h1:Zo5bUPq3s1KWfz6MtMHzHQh1mSiW4DOpBbZ03TG2zIw=
-github.com/test-network-function/graphsolver-lib v0.0.2 h1:s/2petXZPAlG7Gh7ra7hi8Y2W0jv83LQMVJEUScwiYk=
-github.com/test-network-function/graphsolver-lib v0.0.2/go.mod h1:X9HIBAST5obDb8YMWykMIOU9iwouT2wrR1yLpTRmXQM=
+github.com/test-network-function/graphsolver-lib v0.0.3 h1:4gdxyqfZBfWOfi7lJOV+ZhlCsELOoQvV9Ji6HoidXnY=
+github.com/test-network-function/graphsolver-lib v0.0.3/go.mod h1:QfXYYotdpHkIaaSO+SPWyPDpt8SpeQWoiN9WnU5fmIE=
 github.com/test-network-function/l2discovery-exports v0.0.3 h1:kuzpWu5UQL3VIG+8AkjmsghkjZN1X3k3dQ8M36DsJc4=
 github.com/test-network-function/l2discovery-exports v0.0.3/go.mod h1:38JgpFHXB9PQ+4bPZQ+STsUKK9BrTe+5uDq47OeMV50=
 github.com/test-network-function/l2discovery-lib v0.0.9 h1:eDBxPzQs2Wd7deeELwjxNznwbHRLBNIV2yGljGGfcHk=

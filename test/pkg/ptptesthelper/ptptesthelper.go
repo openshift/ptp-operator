@@ -185,10 +185,11 @@ func CheckSlaveSyncWithMaster(fullConfig testconfig.TestConfig) {
 			logrus.Warnf("could not determine the Grandmaster ID (probably because the log no longer exists), err=%s", err)
 		}
 	}
-	BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), grandmasterID)
-
+	err = BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), grandmasterID)
+	Expect(err).NotTo(HaveOccurred())
 	if fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock {
-		BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestSecondaryPtpConfig), grandmasterID)
+		err = BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestSecondaryPtpConfig), grandmasterID)
+		Expect(err).NotTo(HaveOccurred())
 	}
 }
 

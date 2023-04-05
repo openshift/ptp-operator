@@ -345,10 +345,11 @@ var _ = Describe("[ptp]", Serial, func() {
 					grandmasterID = &aString
 					Expect(err).To(BeNil())
 				}
-				ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), grandmasterID)
-
+				err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), grandmasterID)
+				Expect(err).To(BeNil())
 				if fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock {
-					ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestSecondaryPtpConfig), grandmasterID)
+					err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestSecondaryPtpConfig), grandmasterID)
+					Expect(err).To(BeNil())
 				}
 			})
 
@@ -377,15 +378,16 @@ var _ = Describe("[ptp]", Serial, func() {
 				aLabel := pkg.PtpClockUnderTestNodeLabel
 				masterIDBc1, err := ptphelper.GetClockIDMaster(pkg.PtpBcMaster1PolicyName, &aLabel, nil)
 				Expect(err).To(BeNil())
-				ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredSlave1PtpConfig), &masterIDBc1)
-
+				err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredSlave1PtpConfig), &masterIDBc1)
+				Expect(err).To(BeNil())
 				if fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock &&
 					fullConfig.FoundSolutions[testconfig.AlgoDualNicBCWithSlavesString] {
 
 					aLabel := pkg.PtpClockUnderTestNodeLabel
 					masterIDBc2, err := ptphelper.GetClockIDMaster(pkg.PtpBcMaster2PolicyName, &aLabel, nil)
 					Expect(err).To(BeNil())
-					ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredSlave2PtpConfig), &masterIDBc2)
+					err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredSlave2PtpConfig), &masterIDBc2)
+					Expect(err).To(BeNil())
 				}
 
 			})
@@ -442,7 +444,8 @@ var _ = Describe("[ptp]", Serial, func() {
 						grandmasterID = &aString
 						Expect(err).To(BeNil())
 					}
-					ptptesthelper.BasicClockSyncCheck(fullConfig, modifiedPtpConfig, grandmasterID)
+					err = ptptesthelper.BasicClockSyncCheck(fullConfig, modifiedPtpConfig, grandmasterID)
+					Expect(err).To(BeNil())
 				})
 
 				By("Deleting the test profile", func() {
