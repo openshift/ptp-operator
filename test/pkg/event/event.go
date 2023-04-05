@@ -1,19 +1,26 @@
 package event
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
+	testclient "github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/namespaces"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/pods"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/testconfig"
+	chanpubsub "github.com/redhat-cne/channel-pubsub"
+	exports "github.com/redhat-cne/ptp-listener-exports"
 	lib "github.com/redhat-cne/ptp-listener-lib"
+	cneevent "github.com/redhat-cne/sdk-go/pkg/event"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -30,10 +37,19 @@ const (
 	TestSidecarSaName             = "sidecar-sa"
 	TestServiceName               = "consumer-events-subscription-service"
 	TestSidecarSuccessLogString   = "rest service returned healthy status"
+	ConsumerContainerName         = "consumer"
 	CustomerCloudEventProxyPort   = 8089
 	ProviderCloudEventProxyPort   = 9085
 	sidecarNamespaceDeleteTimeout = time.Minute * 2
 )
+
+var (
+	PubSub *chanpubsub.Pubsub
+)
+
+func InitPubSub() {
+	PubSub = chanpubsub.NewPubsub()
+}
 
 // enables event if ptp event is required
 func Enable() bool {
@@ -42,9 +58,10 @@ func Enable() bool {
 }
 
 // create ptp-events sidecar
-func CreateEventProxySidecar(nodeName string) (err error) {
+func CreateEventProxySidecar(nodeNameFull string) (err error) {
+	nodeName := nodeNameFull
 	// using the first component of the node name before the first dot (master2.example.com -> master2)
-	if nodeName != "" && strings.Contains(nodeName, ".") {
+	if nodeNameFull != "" && strings.Contains(nodeNameFull, ".") {
 		nodeName = strings.Split(nodeName, ".")[0]
 	}
 	testSidecarImageName, err := GetCloudEventProxyImageFromPod()
@@ -76,6 +93,7 @@ func CreateEventProxySidecar(nodeName string) (err error) {
 			ServiceAccountName: TestSidecarSaName,
 			Containers: []corev1.Container{
 				{Name: TestSidecarContainerName,
+					//Image: "quay.io/deliedit/test:ep2",
 					Image: testSidecarImageName,
 					SecurityContext: &corev1.SecurityContext{
 						Privileged: pointer.Bool(true),
@@ -87,11 +105,27 @@ func CreateEventProxySidecar(nodeName string) (err error) {
 						"--transport-host=consumer-events-subscription-service." + ConsumerSidecarTestNamespace + ".svc.cluster.local:9043",
 						"--http-event-publishers=ptp-event-publisher-service-" + nodeName + "." + ProviderSidecarTestNamespace + ".svc.cluster.local:9043",
 						"--api-port=8089"},
-					Env: []corev1.EnvVar{{Name: "NODE_NAME", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "spec.nodeName"}}},
+					Env: []corev1.EnvVar{{Name: "NODE_NAME", Value: nodeNameFull},
 						{Name: "NODE_IP", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "status.hostIP"}}}},
 					Ports: []corev1.ContainerPort{{Name: "sub-port", ContainerPort: 9043},
 						{Name: "metrics-port", ContainerPort: 9091}},
 					VolumeMounts: []corev1.VolumeMount{{MountPath: "/store", Name: "pubsubstore"}},
+				},
+				{Name: ConsumerContainerName,
+					//Image: "quay.io/deliedit/test:cep5",
+					Image: "quay.io/redhat-cne/cloud-event-consumer:latest",
+					SecurityContext: &corev1.SecurityContext{
+						Privileged: pointer.Bool(true),
+						RunAsUser:  rootUser,
+					},
+
+					Args: []string{"--local-api-addr=127.0.0.1:9089",
+						"--api-path=/api/ocloudNotifications/v1/",
+						"--api-addr=127.0.0.1:8089"},
+					Env: []corev1.EnvVar{{Name: "NODE_NAME", Value: nodeNameFull},
+						{Name: "CONSUMER_TYPE", Value: "PTP"},
+						{Name: "ENABLE_STATUS_CHECK", Value: "true"},
+					},
 				},
 			},
 		},
@@ -273,47 +307,6 @@ func DeleteService(namespace, name string) {
 const DeleteBackground = "deleteBackground"
 const DeleteForeground = "deleteForeground"
 
-func IsDeployConsumerSidecar() (deployConsumerSidecar bool) {
-	value, isSet := os.LookupEnv("USE_PTP_EVENT_CONSUMER_SIDECAR")
-	value = strings.ToLower(value)
-	deployConsumerSidecar = !isSet || (isSet && strings.Contains(value, "true"))
-	logrus.Infof("deployConsumerSidecar=%t", deployConsumerSidecar)
-	return deployConsumerSidecar
-}
-
-const localHttpServerPort = 8989
-
-// initialized the event listening framework to start listening for all supported events
-func InitEvents(fullConfig *testconfig.TestConfig, localHttpServerPort, localPortFoward int, useSideCar bool) {
-	// initializes internal channel-pubsub object
-	lib.InitPubSub()
-	defer logrus.Infof("Init Events Fullconfig=%v", fullConfig)
-	const waitForPortUp = time.Second * 20
-	time.Sleep(waitForPortUp)
-	ptpEventsPodName := fullConfig.DiscoveredClockUnderTestPod.Name
-	ptpEventsPodPort := ProviderCloudEventProxyPort
-	eventNamespace := ProviderSidecarTestNamespace
-	if useSideCar {
-		ptpEventsPodName = TestSidecarName
-		ptpEventsPodPort = CustomerCloudEventProxyPort
-		eventNamespace = ConsumerSidecarTestNamespace
-	}
-	err := lib.StartListening(
-		localPortFoward,  // this is the local end of the port forwarding tunnel
-		ptpEventsPodPort, // this is the remote end of the port forwarding tunnel (port)
-		localHttpServerPort,
-		ptpEventsPodName, // this is the remote end of the port forwarding tunnel (pod's name)
-		fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName, // this is the clock under test node name
-		eventNamespace,               // this is the remote end of the port forwarding tunnel (pod's namespace)
-		client.Client.KubeConfigPath, // this is the remote end of the port forwarding tunnel (pod's kubeconfig)
-		client.Client.Config.Host,    // this is the remote end of the port forwarding tunnel (pod's kubernetes api IP)
-	)
-
-	if err != nil {
-		logrus.Errorf("PTP events are not available due to err=%s", err)
-	}
-}
-
 // gets the cloud-event-proxy sidecar image from the ptp-operator pods
 func GetCloudEventProxyImageFromPod() (image string, err error) {
 	ptpPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
@@ -329,4 +322,136 @@ func GetCloudEventProxyImageFromPod() (image string, err error) {
 		}
 	}
 	return image, fmt.Errorf("could find a cloud-event-proxy sidecar in ptp-daemon pods, cannot get cloud-events-proxy image")
+}
+
+// returns last Regex match in the logs for a given pod
+func MonitorPodLogsRegex() (term chan bool, err error) {
+	namespace := ConsumerSidecarTestNamespace
+	podName := TestSidecarName
+	containerName := ConsumerContainerName
+	regex := `received event ({.*})`
+	count := int64(0)
+	podLogOptions := corev1.PodLogOptions{
+		Container: containerName,
+		Follow:    true,
+		TailLines: &count,
+	}
+	term = make(chan bool)
+	go func() {
+		podLogRequest := testclient.Client.CoreV1().Pods(namespace).GetLogs(podName, &podLogOptions)
+		stream, err := podLogRequest.Stream(context.TODO())
+		if err != nil {
+			logrus.Errorf("could not retrieve log in ns=%s pod=%s, err=%s", namespace, podName, err)
+		}
+		defer stream.Close()
+		scanner := bufio.NewScanner(stream)
+		for scanner.Scan() {
+
+			select {
+			case <-term:
+				logrus.Infof("received term signal, exiting MonitorPodLogsRegex")
+				return
+
+			default:
+				line := scanner.Text()
+				logrus.Trace(line)
+
+				r := regexp.MustCompile(regex)
+				matches := r.FindAllStringSubmatch(line, -1)
+				if len(matches) > 0 {
+					aStoredEvent, eType, err := createStoredEvent([]byte(matches[0][1]))
+					if err == nil {
+						PubSub.Publish(eType, aStoredEvent)
+					}
+				}
+			}
+		}
+		// Check for any scanner errors
+		if err := scanner.Err(); err != nil {
+			logrus.Errorf("Error reading input:%s", err)
+		}
+	}()
+
+	return term, nil
+}
+
+// returns last Regex match in the logs for a given pod
+func PushInitialEvent(eventType string, timeout time.Duration) (err error) {
+	namespace := ConsumerSidecarTestNamespace
+	podName := TestSidecarName
+	containerName := ConsumerContainerName
+	regex := `Got CurrentState: ({.*})`
+
+	count := int64(0)
+	podLogOptions := corev1.PodLogOptions{
+		Container: containerName,
+		Follow:    true,
+		TailLines: &count,
+	}
+
+	podLogRequest := testclient.Client.CoreV1().Pods(namespace).GetLogs(podName, &podLogOptions)
+	stream, err := podLogRequest.Stream(context.TODO())
+	if err != nil {
+		return fmt.Errorf("could not retrieve log in ns=%s pod=%s, err=%s", namespace, podName, err)
+	}
+	defer stream.Close()
+	start := time.Now()
+	for {
+		t := time.Now()
+		elapsed := t.Sub(start)
+		if elapsed > timeout {
+			return fmt.Errorf("timedout PushInitialValue, waiting for log in ns=%s pod=%s, looking for = %s", namespace, podName, regex)
+		}
+
+		scanner := bufio.NewScanner(stream)
+		for scanner.Scan() {
+			line := scanner.Text()
+			logrus.Trace(line)
+
+			r := regexp.MustCompile(regex)
+			matches := r.FindAllStringSubmatch(line, -1)
+			if len(matches) > 0 {
+				aStoredEvent, eType, err := createStoredEvent([]byte(matches[0][1]))
+				if err == nil && eType == eventType {
+					PubSub.Publish(eType, aStoredEvent)
+					return nil
+				}
+			}
+		}
+
+	}
+}
+func createStoredEvent(data []byte) (aStoredEvent exports.StoredEvent, aType string, err error) {
+	var e cneevent.Event
+	tmpData := strings.ReplaceAll(string(data), `\`, ``)
+	err = json.Unmarshal([]byte(tmpData), &e)
+	if err != nil {
+		return aStoredEvent, aType, err
+	}
+
+	if !isEventValid(&e) {
+		return aStoredEvent, aType, fmt.Errorf("parsed invalid event event=%+v", e)
+	}
+	logrus.Debug(e)
+
+	// Note that there is no UnixMillis, so to get the
+	// milliseconds since epoch you'll need to manually
+	// divide from nanoseconds.
+	latency := (time.Now().UnixNano() - e.Time.UnixNano()) / 1000000
+	// set log to Info level for performance measurement
+	logrus.Debugf("Latency for the event: %d ms\n", latency)
+
+	values := exports.StoredEventValues{}
+	for _, v := range e.Data.Values {
+		dataType := string(v.DataType)
+		values[dataType] = v.Value
+	}
+	return exports.StoredEvent{exports.EventTimeStamp: e.Time, exports.EventType: e.Type, exports.EventSource: e.Source, exports.EventValues: values}, e.Type, nil
+}
+
+func isEventValid(aEvent *cneevent.Event) bool {
+	if aEvent.Time == nil || aEvent.Data == nil {
+		return false
+	}
+	return true
 }

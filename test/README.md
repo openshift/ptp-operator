@@ -71,7 +71,7 @@ global:
       failure_threshold: 10
     desc: "The test measures number of PTP time sync faults, and fails if >0"
 ```
-The test suite deploys a ptp events consumer sidecar by default and directly connects to it to access ptp events. It is also possible to access the ptp-events api without a side car by using the cloud-events-proxy publisher sidecar directly for debugging. The `USE_PTP_EVENT_CONSUMER_SIDECAR` should be set to false in this case.
+The test suite deploys a ptp events consumer sidecar to test events
 
 ### Cpu Usage test case configuration
 The CPU usage test case will run for the "duration" minutes or until a number (`failure_threshold`) of cpu usage threshold has been reached.
@@ -239,8 +239,10 @@ spec:
 ## PTP test modes
 The type of clock to test is indicated by selecting a PTP test mode. The mode selection also determines which test are executed.
 ### Discovery mode
-This mode assumes that one or more valid ptpconfig objects are configured in the openshift-ptp namespace. The test parses the ptpconfig objects and labels to automatically determines the type of clock to test. Currently able to detect OC, BC configurations. GrandMasters or Boundary clock slaves are not detected.
-### Auto-Configured modes in SNO and Multinode clusters
+This mode assumes that one or more valid ptpconfig objects are configured in the openshift-ptp namespace. The test parses the ptpconfig objects and labels to automatically determines the type of clock to test. Currently able to detect OC, BC and Dual NIC BC configurations. GrandMasters or Boundary clock slaves are not detected.
+
+In Discovery mode, no auto-configuration is performed and no clocks are created. The existing clocks are just tested.
+### Auto-Configured modes
 The following modes need a multinode or single node cluster to run:
 - with a multi-node cluster, One node is selected to act as a Master. Another node is selected to act as a slave Ordinary clock. The test suite uses the L2 discovery mechanism to discover the cluster connectivity and create a graph of the network. The graph is resolved to find the best OC, or BC configuration. 
 - with a single node cluster, the L2 mechanism instead reports interfaces on which PTP ethernet frames are received. The PTP frames received are assumed to be from ax external Grand master. The test suite uses one of the interfaces identified as receiving ptp GM frames and create the ordinary or boundary clock with it. 
@@ -250,9 +252,6 @@ The OC configurations includes a grandmaster providing a clock signal to a slave
 
 ![multi_oc](doc/multi_oc.svg)
 
-If the OC configuration was detected from the discovery mode or in OC mode in single node cluster with an external grandmaster, the following diagram applies:
-
-![sno_oc](doc/sno_oc.svg)
 #### BC
 Several boundary clock scenarios are possible, dependent on minimum hardware configuration.
 In the optimal scenario, the openshift cluster needs to be at least connected to 2 separate LANs. These LANs are realized with the help of VLANs or other technologies. The following configuration is tested if 2 LANs are detected in the cluster. Note that the cluster needs to have at least one NIC which ports are connected on the 2 separate LANs, as shown below:
@@ -262,11 +261,6 @@ In the optimal scenario, the openshift cluster needs to be at least connected to
 If only one LAN is available, the following configuration is tested. In this case, the synchronization of the slave ordinary clocks cannot be tested
 
 ![multi_bc](doc/multi_bc.svg)
-
-Finally, if the BC clock is discovered in "Discovery" mode or in BC mode but in single node cluster, then the following configuration can be tested. Note that in discovery mode, the conformance test suite does not modify the ptpconfigs provided by the user. 
-
-![sno_bc](doc/sno_bc.svg)
-
 
 #### DualNICBC
 
@@ -279,9 +273,36 @@ If only one LAN is available, the following configuration is tested. In this cas
 
 ![multi_dnbc](doc/multi_dnbc.svg)
 
-Finally, if the BC clock is discovered in "Discovery" mode or in Dual NIC BC mode but in single node cluster, then the following configuration can be tested. Note that in discovery mode, the conformance test suite does not modify the ptpconfigs provided by the user. 
+#### External Grandmaster support
 
-![sno_dnbc](doc/sno_dnbc.svg)
+It is also possible to use an existing Grandmaster to synchronize clock to. This is specified by setting the EXTERNAL_GM environement variable. The PTP test mode is configured according to the following table:
+
+| PTP_TEST_MODE      | EXTERNAL_GM | MODE |
+| ----------- | ----------- |---------| 
+| OC      | false/not set       | OC + self configured GM |
+| BC      | false/not set       | BC + self configured GM |
+| Dual NIC BC      | false/not set       |  Dual NIC BC + self configured GM |
+| OC      | true       | OC + discovered External GM |
+| BC      | true       | BC + discovered External GM |
+| Dual NIC BC      | true       |  Dual NIC BC + discovered External GM |
+| Discovery     | true/false       | Discovered Clock + discovered External GM |
+
+##### External GM and OC
+![extgm_oc](doc/extgm_oc.svg)
+##### External GM and BC
+![extgm_bc_with_slaves](doc/extgm_bc_with_slaves.svg)
+
+if not enough resources for slaves:
+
+![extgm_bc](doc/extgm_bc.svg)
+
+##### External GM and DualNIC BC
+![extgm_dnbc_with_slaves](doc/extgm_dnbc_with_slaves.svg)
+
+if not enough resources for slaves:
+
+![extgm_dnbc](doc/extgm_dnbc.svg)
+
 
 ## Test mode discovery workflow 
 The Test mode discovery workflow is as follows:

@@ -12,7 +12,6 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	lib "github.com/redhat-cne/ptp-listener-lib"
 	"github.com/sirupsen/logrus"
 
 	ptptestconfig "github.com/k8snetworkplumbingwg/ptp-operator/test/conformance/config"
@@ -63,15 +62,12 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	})
 	ptphelper.RestartPTPDaemon()
 
-	isSideCarReady := false
-	if event.IsDeployConsumerSidecar() {
-		err := event.CreateEventProxySidecar(fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName)
-		if err != nil {
-			logrus.Errorf("PTP events are not available due to Sidecar creation error err=%s", err)
-		}
-		isSideCarReady = true
+	isSideCarReady := true
+	err = event.CreateEventProxySidecar(fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName)
+	if err != nil {
+		logrus.Errorf("PTP events are not available due to Sidecar creation error err=%s", err)
+		isSideCarReady = false
 	}
-
 	// stops the event listening framework
 	DeferCleanup(func() {
 
@@ -82,8 +78,8 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 		}
 	})
 
-	logrus.Debugf("lib.Ps=%v", lib.Ps)
-	return []byte(fmt.Sprintf("%t,%p", isSideCarReady, lib.Ps))
+	logrus.Debugf("lib.Ps=%v", event.PubSub)
+	return []byte(fmt.Sprintf("%t,%p", isSideCarReady, event.PubSub))
 }, func(data []byte) {
 	values := strings.Split(string(data), ",")
 	testclient.Client = testclient.New("")

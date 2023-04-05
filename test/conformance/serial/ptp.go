@@ -25,12 +25,10 @@ import (
 
 	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
 
-	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/nodes"
-	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/pods"
-
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/execute"
-
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/nodes"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/pods"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/testconfig"
 )
 
@@ -40,7 +38,9 @@ const (
 	Reboot TestCase = "reboot"
 )
 
-var _ = Describe("[ptp]", Serial, func() {
+var DesiredMode = testconfig.GetDesiredConfig(true).PtpModeDesired
+
+var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, func() {
 	BeforeEach(func() {
 		Expect(client.Client).NotTo(BeNil())
 	})
@@ -139,37 +139,6 @@ var _ = Describe("[ptp]", Serial, func() {
 				ptphelper.RestartPTPDaemon()
 			}
 
-		})
-
-		Context("PTP Outage recovery", func() {
-			BeforeEach(func() {
-				By("Refreshing configuration", func() {
-					ptphelper.WaitForPtpDaemonToBeReady()
-					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
-				})
-				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
-					Skip("Failed to find a valid ptp slave configuration")
-				}
-			})
-
-			It("The slave node network interface is taken down and up", func() {
-				By("toggling network interfaces and syncing", func() {
-
-					skippedInterfacesStr, isSet := os.LookupEnv("SKIP_INTERFACES")
-
-					if !isSet {
-						Skip("Mandatory to provide skipped interface to avoid making a node disconnected from the cluster")
-					} else {
-						skipInterfaces := make(map[string]bool)
-						separated := strings.Split(skippedInterfacesStr, ",")
-						for _, val := range separated {
-							skipInterfaces[val] = true
-						}
-						logrus.Info("skipINterfaces", skipInterfaces)
-						ptptesthelper.RecoverySlaveNetworkOutage(fullConfig, skipInterfaces)
-					}
-				})
-			})
 		})
 
 		Context("PTP Reboot discovery", func() {
@@ -334,21 +303,19 @@ var _ = Describe("[ptp]", Serial, func() {
 			// - waits for the foreign master to appear
 			// - use metrics to verify that the offset is below threshold
 			It("Slave can sync to master", func() {
-				isSingleNode, err := nodes.IsSingleNodeCluster()
-				if err != nil {
-					Skip("cannot determine if cluster is single node")
-				}
+				isExternalMaster := ptphelper.IsExternalGM()
 				var grandmasterID *string
-				if fullConfig.L2Config != nil && !isSingleNode {
+				if fullConfig.L2Config != nil && !isExternalMaster {
 					aLabel := pkg.PtpGrandmasterNodeLabel
-					aString, err := ptphelper.GetClockIDMaster(pkg.PtpGrandMasterPolicyName, &aLabel, nil)
+					aString, err := ptphelper.GetClockIDMaster(pkg.PtpGrandMasterPolicyName, &aLabel, nil, true)
 					grandmasterID = &aString
 					Expect(err).To(BeNil())
 				}
-				ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), grandmasterID)
-
+				err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), grandmasterID)
+				Expect(err).To(BeNil())
 				if fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock {
-					ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestSecondaryPtpConfig), grandmasterID)
+					err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestSecondaryPtpConfig), grandmasterID)
+					Expect(err).To(BeNil())
 				}
 			})
 
@@ -357,35 +324,29 @@ var _ = Describe("[ptp]", Serial, func() {
 			// - verifies that the BCSlave foreign master has the expected boundary clock ID
 			// - use metrics to verify that the offset with boundary clock is below threshold
 			It("Downstream slave can sync to BC master", func() {
-				isSingleNode, err := nodes.IsSingleNodeCluster()
-				if err != nil {
-					Skip("cannot determine if cluster is single node")
-				}
-				if fullConfig.L2Config == nil || isSingleNode {
-					Skip("Boundary clock slave sync test is not performed in discovery or SNO mode")
-				}
 				if fullConfig.PtpModeDiscovered != testconfig.BoundaryClock &&
 					fullConfig.PtpModeDiscovered != testconfig.DualNICBoundaryClock {
 					Skip("test only valid for Boundary clock in multi-node clusters")
 				}
-				if (fullConfig.PtpModeDiscovered == testconfig.BoundaryClock &&
-					!fullConfig.FoundSolutions[testconfig.AlgoBCWithSlavesString]) ||
-					(fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock &&
-						!fullConfig.FoundSolutions[testconfig.AlgoDualNicBCWithSlavesString]) {
+				if !fullConfig.FoundSolutions[testconfig.AlgoBCWithSlavesString] &&
+					!fullConfig.FoundSolutions[testconfig.AlgoDualNicBCWithSlavesString] &&
+					!fullConfig.FoundSolutions[testconfig.AlgoBCWithSlavesExtGMString] &&
+					!fullConfig.FoundSolutions[testconfig.AlgoDualNicBCWithSlavesExtGMString] {
 					Skip("test only valid for Boundary clock in multi-node clusters with slaves")
 				}
 				aLabel := pkg.PtpClockUnderTestNodeLabel
-				masterIDBc1, err := ptphelper.GetClockIDMaster(pkg.PtpBcMaster1PolicyName, &aLabel, nil)
+				masterIDBc1, err := ptphelper.GetClockIDMaster(pkg.PtpBcMaster1PolicyName, &aLabel, nil, false)
 				Expect(err).To(BeNil())
-				ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredSlave1PtpConfig), &masterIDBc1)
+				err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredSlave1PtpConfig), &masterIDBc1)
+				Expect(err).To(BeNil())
 
-				if fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock &&
-					fullConfig.FoundSolutions[testconfig.AlgoDualNicBCWithSlavesString] {
-
+				if (fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock) && (fullConfig.FoundSolutions[testconfig.AlgoDualNicBCWithSlavesExtGMString] ||
+					fullConfig.FoundSolutions[testconfig.AlgoDualNicBCWithSlavesString]) {
 					aLabel := pkg.PtpClockUnderTestNodeLabel
-					masterIDBc2, err := ptphelper.GetClockIDMaster(pkg.PtpBcMaster2PolicyName, &aLabel, nil)
+					masterIDBc2, err := ptphelper.GetClockIDMaster(pkg.PtpBcMaster2PolicyName, &aLabel, nil, false)
 					Expect(err).To(BeNil())
-					ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredSlave2PtpConfig), &masterIDBc2)
+					err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredSlave2PtpConfig), &masterIDBc2)
+					Expect(err).To(BeNil())
 				}
 
 			})
@@ -393,10 +354,7 @@ var _ = Describe("[ptp]", Serial, func() {
 			// 25743
 			It("Can provide a profile with higher priority", func() {
 				var testPtpPod v1core.Pod
-				isSingleNode, err := nodes.IsSingleNodeCluster()
-				if err != nil {
-					Skip("cannot determine if cluster is single node")
-				}
+				isExternalMaster := ptphelper.IsExternalGM()
 				if fullConfig.PtpModeDesired == testconfig.Discovery {
 					Skip("Skipping because adding a different profile and no modifications are allowed in discovery mode")
 				}
@@ -436,13 +394,14 @@ var _ = Describe("[ptp]", Serial, func() {
 
 				By("Checking if Node has Profile and check sync", func() {
 					var grandmasterID *string
-					if fullConfig.L2Config != nil && !isSingleNode {
+					if fullConfig.L2Config != nil && !isExternalMaster {
 						aLabel := pkg.PtpGrandmasterNodeLabel
-						aString, err := ptphelper.GetClockIDMaster(pkg.PtpGrandMasterPolicyName, &aLabel, nil)
+						aString, err := ptphelper.GetClockIDMaster(pkg.PtpGrandMasterPolicyName, &aLabel, nil, true)
 						grandmasterID = &aString
 						Expect(err).To(BeNil())
 					}
-					ptptesthelper.BasicClockSyncCheck(fullConfig, modifiedPtpConfig, grandmasterID)
+					err = ptptesthelper.BasicClockSyncCheck(fullConfig, modifiedPtpConfig, grandmasterID)
+					Expect(err).To(BeNil())
 				})
 
 				By("Deleting the test profile", func() {
@@ -754,6 +713,37 @@ var _ = Describe("[ptp]", Serial, func() {
 						return containSameMetrics(ptpMonitoredEntriesByPod, podsPerPrometheusMetricKey)
 					}, 5*time.Minute, 2*time.Second).Should(Not(HaveOccurred()))
 
+				})
+			})
+		})
+
+		Context("PTP Outage recovery", func() {
+			BeforeEach(func() {
+				By("Refreshing configuration", func() {
+					ptphelper.WaitForPtpDaemonToBeReady()
+					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
+				})
+				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
+					Skip("Failed to find a valid ptp slave configuration")
+				}
+			})
+
+			It("The slave node network interface is taken down and up", func() {
+				By("toggling network interfaces and syncing", func() {
+
+					skippedInterfacesStr, isSet := os.LookupEnv("SKIP_INTERFACES")
+
+					if !isSet {
+						Skip("Mandatory to provide skipped interface to avoid making a node disconnected from the cluster")
+					} else {
+						skipInterfaces := make(map[string]bool)
+						separated := strings.Split(skippedInterfacesStr, ",")
+						for _, val := range separated {
+							skipInterfaces[val] = true
+						}
+						logrus.Info("skipINterfaces", skipInterfaces)
+						ptptesthelper.RecoverySlaveNetworkOutage(fullConfig, skipInterfaces)
+					}
 				})
 			})
 		})

@@ -150,13 +150,13 @@ const (
 	sleep5s               = 5 * time.Second
 )
 
-func SubscribeAnWaitForAllEvents(kubernetesHost, nodeName, apiAddr string, localHTTPServerPort int) (err error) {
+func SubscribeAnWaitForAllEvents(kubernetesHost, nodeName, apiAddr string, localHTTPServerPort int, timeoutPost time.Duration) (err error) {
 	supportedResources := initResources(nodeName)
 	localListeningEndpoint = fmt.Sprintf("%s:%d", GetOutboundIP(kubernetesHost).String(), localHTTPServerPort)
 	go server(fmt.Sprintf(":%d", localHTTPServerPort)) // spin local api
 	time.Sleep(sleep5s)
 	for _, resource := range supportedResources {
-		err := SubscribeAllEvents(resource, apiAddr, localListeningEndpoint)
+		err := SubscribeAllEvents(resource, apiAddr, localListeningEndpoint, timeoutPost)
 		if err != nil {
 			return fmt.Errorf("could not register resource=%s at api addr=%s with endpoint=%s , err=%s", resource, apiAddr, localListeningEndpoint, err)
 		}
@@ -179,7 +179,7 @@ func UnsubscribeAllEvents(nodeName string) {
 	}
 }
 
-func SubscribeAllEvents(supportedResource, apiAddr, localAPIAddr string) (err error) {
+func SubscribeAllEvents(supportedResource, apiAddr, localAPIAddr string, timeoutPost time.Duration) (err error) {
 	subURL := &types.URI{URL: url.URL{Scheme: "http",
 		Host: apiAddr,
 		Path: SubscriptionPath}}
@@ -195,7 +195,7 @@ func SubscribeAllEvents(supportedResource, apiAddr, localAPIAddr string) (err er
 		return fmt.Errorf("error marshalling, err=%s", err)
 	}
 	ctx := context.Background()
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithTimeout(ctx, timeoutPost)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, "POST", subURL.String(), bytes.NewBuffer(data))
 	if err != nil {
@@ -285,6 +285,7 @@ func StartListening(ptpEventServiceLocalhostPort,
 	ptpNs,
 	kubeconfigPath,
 	kubernetesHost string,
+	timeoutPost time.Duration,
 ) (err error) {
 	// Saving configuration
 	config.ptpEventServiceLocalhostPort = ptpEventServiceLocalhostPort
@@ -326,7 +327,7 @@ func StartListening(ptpEventServiceLocalhostPort,
 	if err != nil {
 		return err
 	}
-	err = SubscribeAnWaitForAllEvents(kubernetesHost, nodeName, "localhost:"+strconv.Itoa(ptpEventServiceLocalhostPort), localHTTPServerPort)
+	err = SubscribeAnWaitForAllEvents(kubernetesHost, nodeName, "localhost:"+strconv.Itoa(ptpEventServiceLocalhostPort), localHTTPServerPort, timeoutPost)
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to events, err=%s", err)
 	}
