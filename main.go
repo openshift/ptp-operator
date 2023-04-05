@@ -112,6 +112,11 @@ func main() {
 	}
 	// +kubebuilder:scaffold:builder
 
+	if err = (&ptpv1.PtpOperatorConfig{}).SetupWebhookWithManager(mgr, mgr.GetClient()); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "PtpOperatorConfig")
+		os.Exit(1)
+	}
+
 	err = createDefaultOperatorConfig(ctrl.GetConfigOrDie())
 	if err != nil {
 		setupLog.Error(err, "unable to create default PtpOperatorConfig")

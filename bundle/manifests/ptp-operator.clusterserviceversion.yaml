@@ -93,8 +93,14 @@ spec:
       kind: PtpOperatorConfig
       name: ptpoperatorconfigs.ptp.openshift.io
       specDescriptors:
-      - description: 'TransportHost format is <protocol>://<transport-service>.<namespace>.svc.cluster.local:<transport-port>"
-          Example HTTP transport: "http://ptp-event-publisher-service.openshift-ptp.svc.cluster.local:9043"
+      - description: StorageType is the name of StorageClass providing persist storage
+          used by HTTP transport to store subscription data
+        displayName: Storage Type
+        path: ptpEventConfig.storageType
+        x-descriptors:
+        - urn:alm:descriptor:com.tectonic.ui:text
+      - description: 'TransportHost format is <protocol>://<transport-service>.<namespace>.svc.cluster.local:<transport-port>
+          Example HTTP transport: "http://ptp-event-publisher-service-NODE_NAME.openshift-ptp.svc.cluster.local:9043"
           Example AMQP transport: "amqp://amq-router-service-name.amq-namespace.svc.cluster.local"'
         displayName: Transport Host
         path: ptpEventConfig.transportHost
@@ -260,12 +266,29 @@ spec:
           verbs:
           - '*'
         - apiGroups:
+          - storage.k8s.io
+          resources:
+          - storageclasses
+          verbs:
+          - '*'
+        - apiGroups:
           - config.openshift.io
           resources:
           - infrastructures
           verbs:
           - get
           - list
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - persistentvolumeclaims
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
           - watch
         - apiGroups:
           - ptp.openshift.io
@@ -459,11 +482,10 @@ spec:
   webhookdefinitions:
   - admissionReviewVersions:
     - v1
-    - v1beta1
     containerPort: 443
     deploymentName: ptp-operator
     failurePolicy: Fail
-    generateName: ptpconfigvalidationwebhook.openshift.io
+    generateName: vptpconfig.kb.io
     rules:
     - apiGroups:
       - ptp.openshift.io
@@ -478,3 +500,22 @@ spec:
     targetPort: 9443
     type: ValidatingAdmissionWebhook
     webhookPath: /validate-ptp-openshift-io-v1-ptpconfig
+  - admissionReviewVersions:
+    - v1
+    containerPort: 443
+    deploymentName: ptp-operator
+    failurePolicy: Fail
+    generateName: vptpoperatorconfig.kb.io
+    rules:
+    - apiGroups:
+      - ptp.openshift.io
+      apiVersions:
+      - v1
+      operations:
+      - UPDATE
+      resources:
+      - ptpoperatorconfigs
+    sideEffects: None
+    targetPort: 9443
+    type: ValidatingAdmissionWebhook
+    webhookPath: /validate-ptp-openshift-io-v1-ptpoperatorconfig

@@ -36,4 +36,7 @@ resources:
   kind: PtpOperatorConfig
   path: github.com/openshift/ptp-operator/api/v1
   version: v1
+  webhooks:
+    validation: true
+    webhookVersion: v1
 version: "3"

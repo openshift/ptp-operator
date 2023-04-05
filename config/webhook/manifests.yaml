@@ -2,18 +2,18 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
-  name: ptpconfig-validating-webhook-configuration
+  creationTimestamp: null
+  name: validating-webhook-configuration
 webhooks:
 - admissionReviewVersions:
   - v1
-  - v1beta1
   clientConfig:
     service:
-      name: ptpconfig-validator-webhook-service
+      name: webhook-service
       namespace: system
       path: /validate-ptp-openshift-io-v1-ptpconfig
   failurePolicy: Fail
-  name: ptpconfigvalidationwebhook.openshift.io
+  name: vptpconfig.kb.io
   rules:
   - apiGroups:
     - ptp.openshift.io
@@ -24,4 +24,23 @@ webhooks:
     - UPDATE
     resources:
     - ptpconfigs
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-ptp-openshift-io-v1-ptpoperatorconfig
+  failurePolicy: Fail
+  name: vptpoperatorconfig.kb.io
+  rules:
+  - apiGroups:
+    - ptp.openshift.io
+    apiVersions:
+    - v1
+    operations:
+    - UPDATE
+    resources:
+    - ptpoperatorconfigs
   sideEffects: None
