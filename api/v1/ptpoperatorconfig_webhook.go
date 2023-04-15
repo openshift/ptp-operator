@@ -51,7 +51,7 @@ const (
 
 func (r *PtpOperatorConfig) validate() error {
 	eventConfig := r.Spec.EventConfig
-	if eventConfig.EnableEventPublisher {
+	if eventConfig != nil && eventConfig.EnableEventPublisher {
 		transportUrl, err := url.Parse(eventConfig.TransportHost)
 		if err == nil && transportUrl.Scheme == AmqScheme {
 			return nil
