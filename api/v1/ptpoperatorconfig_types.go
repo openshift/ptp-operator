@@ -66,11 +66,14 @@ type PtpEventConfig struct {
 	// +kubebuilder:default=false
 	// EnableEventPublisher will deploy event proxy as a sidecar
 	EnableEventPublisher bool `json:"enableEventPublisher,omitempty"`
-	// TransportHost format is <protocol>://<transport-service>.<namespace>.svc.cluster.local:<transport-port>"
-	// Example HTTP transport: "http://hw-event-publisher-service.openshift-bare-metal-events.svc.cluster.local:9043"
+	// TransportHost format is <protocol>://<transport-service>.<namespace>.svc.cluster.local:<transport-port>
+	// Example HTTP transport: "http://ptp-event-publisher-service-NODE_NAME.openshift-ptp.svc.cluster.local:9043"
 	// Example AMQP transport: "amqp://amq-router-service-name.amq-namespace.svc.cluster.local"
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Transport Host",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	TransportHost string `json:"transportHost,omitempty"`
+	// StorageType is the name of StorageClass providing persist storage used by HTTP transport to store subscription data
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Storage Type",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	StorageType string `json:"storageType,omitempty"`
 }
 
 func init() {

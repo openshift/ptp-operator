@@ -51,9 +51,14 @@ spec:
                     description: EnableEventPublisher will deploy event proxy as a
                       sidecar
                     type: boolean
+                  storageType:
+                    description: StorageType is the name of StorageClass providing
+                      persist storage used by HTTP transport to store subscription
+                      data
+                    type: string
                   transportHost:
-                    description: 'TransportHost format is <protocol>://<transport-service>.<namespace>.svc.cluster.local:<transport-port>"
-                      Example HTTP transport: "http://hw-event-publisher-service.openshift-bare-metal-events.svc.cluster.local:9043"
+                    description: 'TransportHost format is <protocol>://<transport-service>.<namespace>.svc.cluster.local:<transport-port>
+                      Example HTTP transport: "http://ptp-event-publisher-service-NODE_NAME.openshift-ptp.svc.cluster.local:9043"
                       Example AMQP transport: "amqp://amq-router-service-name.amq-namespace.svc.cluster.local"'
                     type: string
                 type: object
