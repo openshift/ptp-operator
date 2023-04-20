@@ -61,6 +61,8 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            - name: NAME_SPACE
+              value: openshift-ptp
         {{ end }}
         - name: kube-rbac-proxy
           image: {{.KubeRbacProxy}}
