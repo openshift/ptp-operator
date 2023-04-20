@@ -167,6 +167,12 @@ spec:
           - pods
           verbs:
           - '*'
+        - apiGroups:
+          - ""
+          resources:
+          - configmaps
+          verbs:
+          - '*'
         serviceAccountName: linuxptp-daemon
       - rules:
         - apiGroups:
