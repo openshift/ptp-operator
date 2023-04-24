@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
-	"io/ioutil"
+	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -98,8 +98,11 @@ func main() {
 	}
 
 	// label the current linux-ptp-daemon pod with a nodeName label
-	labelPod(kubeClient, nodeName, podName)
-
+	err = labelPod(kubeClient, nodeName, podName)
+	if err != nil {
+		glog.Errorf("failed to label linuxptp-daemon with node name, err: %v", err)
+		return
+	}
 	go daemon.New(
 		nodeName,
 		daemon.PtpNamespace,
@@ -135,7 +138,7 @@ func main() {
 					continue
 				}
 			}
-			nodeProfilesJson, err := ioutil.ReadFile(nodeProfile)
+			nodeProfilesJson, err := os.ReadFile(nodeProfile)
 			if err != nil {
 				glog.Errorf("error reading node profile: %v", nodeProfile)
 				continue
@@ -158,14 +161,13 @@ type patchStringValue struct {
 	Value string `json:"value"`
 }
 
-func labelPod(kubeClient *kubernetes.Clientset, nodeName, podName string) {
+func labelPod(kubeClient *kubernetes.Clientset, nodeName, podName string) (err error) {
 	pod, err := kubeClient.CoreV1().Pods(daemon.PtpNamespace).Get(context.TODO(), podName, metav1.GetOptions{})
 	if err != nil {
-		glog.Error(err)
+		return fmt.Errorf("error getting linuxptp-daemon pod, err=%s", err)
 	}
 	if pod == nil {
-		glog.Info("Could not find linux-ptp-daemon pod to label")
-		return
+		return fmt.Errorf("could not find linux-ptp-daemon pod to label")
 	}
 	if nodeName != "" && strings.Contains(nodeName, ".") {
 		nodeName = strings.Split(nodeName, ".")[0]
@@ -179,7 +181,9 @@ func labelPod(kubeClient *kubernetes.Clientset, nodeName, podName string) {
 	payloadBytes, _ := json.Marshal(payload)
 
 	_, err = kubeClient.CoreV1().Pods(pod.GetNamespace()).Patch(context.TODO(), pod.GetName(), types.JSONPatchType, payloadBytes, metav1.PatchOptions{})
-	if err == nil {
-		glog.Infof("Pod %s labelled successfully.", pod.GetName())
+	if err != nil {
+		return fmt.Errorf("could not label ns=%s pod %s, err=%s", pod.GetName(), pod.GetNamespace(), err)
 	}
+	glog.Infof("Pod %s labelled successfully.", pod.GetName())
+	return nil
 }
