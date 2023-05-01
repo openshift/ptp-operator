@@ -18,6 +18,7 @@ import (
 
 	"github.com/openshift/linuxptp-daemon/pkg/config"
 	"github.com/openshift/linuxptp-daemon/pkg/daemon"
+	ptpv1 "github.com/openshift/ptp-operator/api/v1"
 	ptpclient "github.com/openshift/ptp-operator/pkg/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -85,9 +86,6 @@ func main() {
 		plugins = strings.Split(val, ",")
 	}
 
-	// Run a loop to update the device status
-	go daemon.RunDeviceStatusUpdate(ptpClient, nodeName)
-
 	stopCh := make(chan struct{})
 	defer close(stopCh)
 
@@ -103,6 +101,9 @@ func main() {
 		glog.Errorf("failed to label linuxptp-daemon with node name, err: %v", err)
 		return
 	}
+
+	hwconfigs := []ptpv1.HwConfig{}
+
 	go daemon.New(
 		nodeName,
 		daemon.PtpNamespace,
@@ -111,6 +112,7 @@ func main() {
 		ptpConfUpdate,
 		stopCh,
 		plugins,
+		&hwconfigs,
 	).Run()
 
 	tickerPull := time.NewTicker(time.Second * time.Duration(cp.updateInterval))
@@ -128,6 +130,8 @@ func main() {
 		select {
 		case <-tickerPull.C:
 			glog.Infof("ticker pull")
+			// Run a loop to update the device status
+			go daemon.RunDeviceStatusUpdate(ptpClient, nodeName, &hwconfigs)
 			nodeProfile := filepath.Join(cp.profileDir, nodeName)
 			if _, err := os.Stat(nodeProfile); err != nil {
 				if os.IsNotExist(err) {

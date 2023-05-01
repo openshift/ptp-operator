@@ -44,3 +44,9 @@ func (pm *PluginManager) OnPTPConfigChange(nodeProfile *ptpv1.PtpProfile) {
 		pluginObject.OnPTPConfigChange(nodeProfile)
 	}
 }
+
+func (pm *PluginManager) PopulateHwConfig(hwconfigs *[]ptpv1.HwConfig) {
+	for _, pluginObject := range pm.plugins {
+		pluginObject.PopulateHwConfig(hwconfigs)
+	}
+}

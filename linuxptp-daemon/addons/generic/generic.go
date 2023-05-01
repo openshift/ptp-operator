@@ -11,7 +11,7 @@ func onPTPConfigChangeGeneric(*ptpv1.PtpProfile) error {
 	return nil
 }
 
-func PopulateHwConfigGeneric(hwconfig *ptpv1.HwConfig) error {
+func PopulateHwConfigGeneric(hwconfigs *[]ptpv1.HwConfig) error {
 	return nil
 }
 

@@ -56,6 +56,13 @@ func OnPTPConfigChangeE810(nodeProfile *ptpv1.PtpProfile) error {
 	return nil
 }
 
+func PopulateHwConfigE810(hwconfigs *[]ptpv1.HwConfig) error {
+	//hwConfig := ptpv1.HwConfig{}
+	//hwConfig.DeviceID = "e810"
+	//*hwconfigs = append(*hwconfigs, hwConfig)
+	return nil
+}
+
 func E810(name string) *plugin.Plugin {
 	if name != "e810" {
 		glog.Errorf("Plugin must be initialized as 'e810'")
@@ -64,5 +71,6 @@ func E810(name string) *plugin.Plugin {
 	glog.Infof("registering e810 plugin")
 	return &plugin.Plugin{Name: "e810",
 		OnPTPConfigChange: OnPTPConfigChangeE810,
+		PopulateHwConfig:  PopulateHwConfigE810,
 	}
 }

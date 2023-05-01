@@ -6,7 +6,7 @@ import (
 
 type New func(string) *Plugin
 type OnPTPConfigChange func(*ptpv1.PtpProfile) error
-type PopulateHwConfig func(*ptpv1.HwConfig) error
+type PopulateHwConfig func(*[]ptpv1.HwConfig) error
 
 type Plugin struct {
 	Name              string

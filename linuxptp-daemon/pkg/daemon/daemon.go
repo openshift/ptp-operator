@@ -82,6 +82,8 @@ type Daemon struct {
 
 	processManager *ProcessManager
 
+	hwconfigs *[]ptpv1.HwConfig
+
 	// channel ensure LinuxPTP.Run() exit when main function exits.
 	// stopCh is created by main function and passed by Daemon via NewLinuxPTP()
 	stopCh <-chan struct{}
@@ -99,6 +101,7 @@ func New(
 	ptpUpdate *LinuxPTPConfUpdate,
 	stopCh <-chan struct{},
 	plugins []string,
+	hwconfigs *[]ptpv1.HwConfig,
 ) *Daemon {
 	if !stdoutToSocket {
 		RegisterMetrics(nodeName)
@@ -113,6 +116,7 @@ func New(
 		processManager: &ProcessManager{},
 		stopCh:         stopCh,
 		pluginManager:  pluginManager,
+		hwconfigs:      hwconfigs,
 	}
 }
 
@@ -175,6 +179,9 @@ func (dn *Daemon) applyNodePTPProfiles() error {
 	// TODO:
 	// compare nodeProfile with previous config,
 	// only apply when nodeProfile changes
+
+	//clear hwconfig before updating
+	*dn.hwconfigs = []ptpv1.HwConfig{}
 
 	glog.Infof("updating NodePTPProfiles to:")
 	runID := 0
@@ -350,7 +357,8 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 		dn.processManager.process = append(dn.processManager.process, &process)
 	}
 
-	printNodeProfile(nodeProfile)
+	dn.pluginManager.PopulateHwConfig(dn.hwconfigs)
+
 	return nil
 }
 
@@ -405,6 +413,7 @@ func cmdRun(p *ptpProcess, stdoutToSocket bool) {
 	if regexErr != nil {
 		glog.Infof("Failed parsing regex %s for %s: %d.  Defaulting to accept all", p.logFilterRegex, p.configName, regexErr)
 	}
+
 	for {
 		glog.Infof("Starting %s...", p.name)
 		glog.Infof("%s cmd: %+v", p.name, p.cmd)
