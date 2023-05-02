@@ -15,7 +15,6 @@ import (
 	testclient "github.com/openshift/ptp-operator/test/pkg/client"
 	"github.com/openshift/ptp-operator/test/pkg/images"
 	"github.com/sirupsen/logrus"
-	"github.com/test-network-function/l2discovery-lib/pkg/pods"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -183,7 +182,7 @@ func ExecutePtpInterfaceCommand(pod corev1.Pod, interfaceName string, command st
 		pollingInterval = 3 * time.Second
 	)
 	gomega.Eventually(func() error {
-		_, err := pods.ExecCommand(&pod, "container-00", []string{"sh", "-c", command})
+		_, _, err := ExecCommand(client.Client, &pod, "container-00", []string{"sh", "-c", command})
 		return err
 	}, pkg.TimeoutIn10Minutes, pollingInterval).Should(gomega.BeNil())
 }
@@ -196,7 +195,7 @@ func CheckRestart(pod corev1.Pod) {
 	)
 
 	gomega.Eventually(func() error {
-		_, err := pods.ExecCommand(&pod, "container-00", []string{"chroot", "/host", "shutdown", "-r"})
+		_, _, err := ExecCommand(client.Client, &pod, "container-00", []string{"chroot", "/host", "shutdown", "-r"})
 		return err
 	}, pkg.TimeoutIn10Minutes, pollingInterval).Should(gomega.BeNil())
 }

@@ -172,7 +172,7 @@ func UnsubscribeAllEvents(nodeName string) {
 	}
 	supportedResources := initResources(nodeName)
 	for _, resource := range supportedResources {
-		err := deleteSubscription(resource, config.kubernetesHost)
+		err := deleteSubscription(resource, "localhost:"+strconv.Itoa(config.ptpEventServiceLocalhostPort))
 		if err != nil {
 			logrus.Errorf("could not delete resource=%s at api addr=%s with endpoint=%s , err=%s", resource, config.kubernetesHost, localListeningEndpoint, err)
 		}
@@ -276,6 +276,7 @@ func GetOutboundIP(aURL string) net.IP {
 	return localAddr.IP
 }
 
+//nolint:funlen
 func StartListening(ptpEventServiceLocalhostPort,
 	ptpEventServiceRemotePort,
 	localHTTPServerPort int,
