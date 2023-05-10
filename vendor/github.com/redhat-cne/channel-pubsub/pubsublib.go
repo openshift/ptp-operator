@@ -76,8 +76,8 @@ func (ps *Pubsub) Close() {
 
 func (ps *Pubsub) Unsubscribe(topic string, subscriberID int) {
 	ps.mu.Lock()
-	logrus.Info("lock Unsubscribe")
-	defer logrus.Info("unlock Unsubscribe")
+	logrus.Debug("lock Unsubscribe")
+	defer logrus.Debug("unlock Unsubscribe")
 	defer ps.mu.Unlock()
 	if _, ok := ps.subs[topic]; !ok {
 		logrus.Errorf("Unsubscribe: did not find pubsub topic ID=%s", topic)
