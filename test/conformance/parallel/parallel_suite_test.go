@@ -18,29 +18,38 @@ import (
 	lib "github.com/redhat-cne/ptp-listener-lib"
 	"github.com/sirupsen/logrus"
 
+	kniK8sReporter "github.com/openshift-kni/k8sreporter"
 	ptptestconfig "github.com/openshift/ptp-operator/test/conformance/config"
 	"github.com/openshift/ptp-operator/test/pkg"
 	"github.com/openshift/ptp-operator/test/pkg/clean"
 	testclient "github.com/openshift/ptp-operator/test/pkg/client"
 	"github.com/openshift/ptp-operator/test/pkg/event"
+	"github.com/openshift/ptp-operator/test/pkg/k8sreporter"
 	"github.com/openshift/ptp-operator/test/pkg/logging"
+	stringsutil "github.com/openshift/ptp-operator/test/pkg/strings"
 
 	ptphelper "github.com/openshift/ptp-operator/test/pkg/ptphelper"
 	"github.com/openshift/ptp-operator/test/pkg/testconfig"
 )
 
 var (
+	reportPath      *string
 	junitPath       *string
 	DeletePtpConfig bool
+	reporter        *kniK8sReporter.KubernetesReporter
 )
 
 func init() {
 	junitPath = flag.String("junit", "", "the path for the junit format report")
+	reportPath = flag.String("report", "", "the path of the report file containing details for failed tests")
 }
 
 func TestTest(t *testing.T) {
 	logging.InitLogLevel()
 	RegisterFailHandler(Fail)
+	if *reportPath != "" {
+		reporter = k8sreporter.New("", *reportPath, pkg.PtpNamespace)
+	}
 	RunSpecs(t, "PTP e2e tests : Parallel")
 }
 
@@ -118,5 +127,16 @@ var _ = ReportAfterSuite("PTP parallel e2e integration tests", func(report types
 			OmitLeafNodeType:          true,
 			OmitSuiteSetupNodes:       true,
 		})
+	}
+})
+
+var _ = ReportAfterEach(func(specReport types.SpecReport) {
+	if specReport.Failed() == false {
+		return
+	}
+
+	if *reportPath != "" {
+		dumpSubPath := stringsutil.CleanDirName(specReport.LeafNodeText)
+		reporter.Dump(pkg.LogsFetchDuration, dumpSubPath)
 	}
 })

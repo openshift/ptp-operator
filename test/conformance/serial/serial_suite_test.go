@@ -10,9 +10,13 @@ import (
 	"strings"
 	"testing"
 
+	kniK8sReporter "github.com/openshift-kni/k8sreporter"
+	"github.com/openshift/ptp-operator/test/pkg"
 	"github.com/openshift/ptp-operator/test/pkg/clean"
 	testclient "github.com/openshift/ptp-operator/test/pkg/client"
+	"github.com/openshift/ptp-operator/test/pkg/k8sreporter"
 	"github.com/openshift/ptp-operator/test/pkg/logging"
+	stringsutil "github.com/openshift/ptp-operator/test/pkg/strings"
 	"github.com/openshift/ptp-operator/test/pkg/testconfig"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -23,12 +27,15 @@ import (
 )
 
 var (
+	reportPath      *string
 	junitPath       *string
 	DeletePtpConfig bool
+	reporter        *kniK8sReporter.KubernetesReporter
 )
 
 func init() {
 	junitPath = flag.String("junit", "", "the path for the junit format report")
+	reportPath = flag.String("report", "", "the path of the report file containing details for failed tests")
 }
 
 func InitDeletePtpConfig() {
@@ -42,6 +49,9 @@ func TestTest(t *testing.T) {
 	logging.InitLogLevel()
 	RegisterFailHandler(Fail)
 	InitDeletePtpConfig()
+	if *reportPath != "" {
+		reporter = k8sreporter.New("", *reportPath, pkg.PtpNamespace)
+	}
 	RunSpecs(t, "PTP e2e integration tests")
 }
 
@@ -66,5 +76,16 @@ var _ = ReportAfterSuite("PTP serial e2e integration tests", func(report types.R
 			OmitLeafNodeType:          true,
 			OmitSuiteSetupNodes:       true,
 		})
+	}
+})
+
+var _ = ReportAfterEach(func(specReport types.SpecReport) {
+	if specReport.Failed() == false {
+		return
+	}
+
+	if *reportPath != "" {
+		dumpSubPath := stringsutil.CleanDirName(specReport.LeafNodeText)
+		reporter.Dump(pkg.LogsFetchDuration, dumpSubPath)
 	}
 })
