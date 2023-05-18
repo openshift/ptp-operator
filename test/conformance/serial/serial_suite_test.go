@@ -6,6 +6,7 @@ package test
 import (
 	"flag"
 	"os"
+	"path"
 	"strings"
 	"testing"
 
@@ -15,15 +16,19 @@ import (
 	"github.com/openshift/ptp-operator/test/pkg/testconfig"
 
 	. "github.com/onsi/ginkgo/v2"
+	"github.com/onsi/ginkgo/v2/reporters"
+	"github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 	"github.com/sirupsen/logrus"
 )
 
-var junitPath *string
-var DeletePtpConfig bool
+var (
+	junitPath       *string
+	DeletePtpConfig bool
+)
 
 func init() {
-	junitPath = flag.String("junit", "junit.xml", "the path for the junit format report")
+	junitPath = flag.String("junit", "", "the path for the junit format report")
 }
 
 func InitDeletePtpConfig() {
@@ -50,5 +55,16 @@ var _ = AfterSuite(func() {
 
 	if DeletePtpConfig && testconfig.GetDesiredConfig(false).PtpModeDesired != testconfig.Discovery {
 		clean.All()
+	}
+})
+
+var _ = ReportAfterSuite("PTP serial e2e integration tests", func(report types.Report) {
+	if *junitPath != "" {
+		junitFile := path.Join(*junitPath, "ptp_serial_junit.xml")
+		reporters.GenerateJUnitReportWithConfig(report, junitFile, reporters.JunitReportConfig{
+			OmitTimelinesForSpecState: types.SpecStatePassed | types.SpecStateSkipped,
+			OmitLeafNodeType:          true,
+			OmitSuiteSetupNodes:       true,
+		})
 	}
 })

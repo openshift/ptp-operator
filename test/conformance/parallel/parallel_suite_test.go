@@ -6,11 +6,14 @@ package test
 import (
 	"flag"
 	"fmt"
+	"path"
 	"strings"
 
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
+	"github.com/onsi/ginkgo/v2/reporters"
+	"github.com/onsi/ginkgo/v2/types"
 	. "github.com/onsi/gomega"
 	lib "github.com/redhat-cne/ptp-listener-lib"
 	"github.com/sirupsen/logrus"
@@ -26,11 +29,13 @@ import (
 	"github.com/openshift/ptp-operator/test/pkg/testconfig"
 )
 
-var junitPath *string
-var DeletePtpConfig bool
+var (
+	junitPath       *string
+	DeletePtpConfig bool
+)
 
 func init() {
-	junitPath = flag.String("junit", "junit.xml", "the path for the junit format report")
+	junitPath = flag.String("junit", "", "the path for the junit format report")
 }
 
 func TestTest(t *testing.T) {
@@ -102,5 +107,16 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 var _ = AfterSuite(func() {
 	if DeletePtpConfig {
 		clean.All()
+	}
+})
+
+var _ = ReportAfterSuite("PTP parallel e2e integration tests", func(report types.Report) {
+	if *junitPath != "" {
+		junitFile := path.Join(*junitPath, "ptp_parallel_junit.xml")
+		reporters.GenerateJUnitReportWithConfig(report, junitFile, reporters.JunitReportConfig{
+			OmitTimelinesForSpecState: types.SpecStatePassed | types.SpecStateSkipped,
+			OmitLeafNodeType:          true,
+			OmitSuiteSetupNodes:       true,
+		})
 	}
 })
