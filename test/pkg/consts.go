@@ -67,4 +67,6 @@ const (
 	PtpConfigsCRD = "ptpconfigs.ptp.openshift.io"
 	// PtpOperatorConfigs contains the name of the ptp operator config CRD
 	PtpOperatorConfigsCRD = "ptpoperatorconfigs.ptp.openshift.io"
+	// LogsFetchDuration represents how much in the past we need to go when fetching the pod logs
+	LogsFetchDuration = 10 * time.Minute
 )
