@@ -96,7 +96,7 @@ func main() {
 	}
 
 	hwconfigs := []ptpv1.HwConfig{}
-
+	closeProcessManager := make(chan bool)
 	go daemon.New(
 		nodeName,
 		daemon.PtpNamespace,
@@ -105,6 +105,7 @@ func main() {
 		stopCh,
 		plugins,
 		&hwconfigs,
+		closeProcessManager,
 	).Run()
 
 	tickerPull := time.NewTicker(time.Second * time.Duration(cp.updateInterval))
@@ -143,6 +144,7 @@ func main() {
 			}
 		case sig := <-sigCh:
 			glog.Info("signal received, shutting down", sig)
+			closeProcessManager <- true
 			return
 		}
 	}
