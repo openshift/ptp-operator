@@ -1,4 +1,4 @@
 packageName: ptp-operator
 channels:
 - name: stable
-  currentCSV: ptp-operator.v4.13.0
+  currentCSV: ptp-operator.v4.14.0
