@@ -47,6 +47,7 @@ type ptpProcess struct {
 	logFilterRegex  string
 	cmd             *exec.Cmd
 	depProcess      []process // this could gpsd and other process which needs to be stopped if the parent process is stopped
+	nodeProfile     *ptpv1.PtpProfile
 }
 
 func (p *ptpProcess) Stopped() bool {
@@ -205,15 +206,18 @@ func (dn *Daemon) applyNodePTPProfiles() error {
 					if d != nil {
 						time.Sleep(3 * time.Second)
 						go d.cmdRun(false)
-						time.Sleep(2 * time.Second)
+						time.Sleep(3 * time.Second)
+						dn.pluginManager.AfterRunPTPCommand(p.nodeProfile, d.Name())
 						d.monitorEvent(clockType, p.configName, p.exitCh, dn.processManager.eventChannel)
 					}
 				}
 			}
 			time.Sleep(1 * time.Second)
 			go p.cmdRun()
+			dn.pluginManager.AfterRunPTPCommand(p.nodeProfile, p.name)
 		}
 	}
+	dn.pluginManager.PopulateHwConfig(dn.hwconfigs)
 	return nil
 }
 
@@ -362,6 +366,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 			logFilterRegex:  getLogFilterRegex(nodeProfile),
 			cmd:             cmd,
 			depProcess:      []process{},
+			nodeProfile:     nodeProfile,
 		}
 		//TODO HARDWARE PLUGIN for e810
 		if pProcess == ts2phcProcessName { //& if the x plugin is enabled
@@ -398,8 +403,6 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 		}
 		dn.processManager.process = append(dn.processManager.process, &dprocess)
 	}
-
-	dn.pluginManager.PopulateHwConfig(dn.hwconfigs)
 
 	return nil
 }

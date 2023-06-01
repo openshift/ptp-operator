@@ -6,22 +6,28 @@ import (
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/plugin"
 )
 
-func onPTPConfigChangeGeneric(*ptpv1.PtpProfile) error {
+func onPTPConfigChangeGeneric(*interface{}, *ptpv1.PtpProfile) error {
 	glog.Infof("calling onPTPConfigChangeGeneric")
 	return nil
 }
 
-func PopulateHwConfigGeneric(hwconfigs *[]ptpv1.HwConfig) error {
+func PopulateHwConfigGeneric(*interface{}, *[]ptpv1.HwConfig) error {
 	return nil
 }
 
-func Reference(name string) *plugin.Plugin {
+func AfterRunPTPCommandGeneric(*interface{}, *ptpv1.PtpProfile, string) error {
+	return nil
+}
+
+func Reference(name string) (*plugin.Plugin, *interface{}) {
 	if name != "reference" {
 		glog.Errorf("Plugin must be initialized as 'reference'")
-		return nil
+		return nil, nil
 	}
-	return &plugin.Plugin{Name: "reference",
-		OnPTPConfigChange: onPTPConfigChangeGeneric,
-		PopulateHwConfig:  PopulateHwConfigGeneric,
+	_plugin := plugin.Plugin{Name: "reference",
+		OnPTPConfigChange:  onPTPConfigChangeGeneric,
+		PopulateHwConfig:   PopulateHwConfigGeneric,
+		AfterRunPTPCommand: AfterRunPTPCommandGeneric,
 	}
+	return &_plugin, nil
 }

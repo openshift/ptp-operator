@@ -9,6 +9,7 @@ import (
 
 type PluginManager struct {
 	plugins map[string]*plugin.Plugin
+	data    map[string]*interface{}
 }
 
 func HelloWorld() {
@@ -18,17 +19,20 @@ func HelloWorld() {
 
 func registerPlugins(plugins []string) PluginManager {
 	glog.Infof("Begin plugin registration...")
-	manager := PluginManager{plugins: make(map[string]*plugin.Plugin)}
+	manager := PluginManager{plugins: make(map[string]*plugin.Plugin),
+		data: make(map[string]*interface{}),
+	}
 	for _, name := range plugins {
-		currentPlugin := registerPlugin(name)
+		currentPlugin, currentData := registerPlugin(name)
 		if currentPlugin != nil {
 			manager.plugins[name] = currentPlugin
+			manager.data[name] = currentData
 		}
 	}
 	return manager
 }
 
-func registerPlugin(name string) *plugin.Plugin {
+func registerPlugin(name string) (*plugin.Plugin, *interface{}) {
 	glog.Infof("Trying to register plugin: " + name)
 	for mName, mConstructor := range mapping.PluginMapping {
 		if mName == name {
@@ -36,17 +40,23 @@ func registerPlugin(name string) *plugin.Plugin {
 		}
 	}
 	glog.Errorf("Plugin not found: " + name)
-	return nil
+	return nil, nil
 }
 
 func (pm *PluginManager) OnPTPConfigChange(nodeProfile *ptpv1.PtpProfile) {
-	for _, pluginObject := range pm.plugins {
-		pluginObject.OnPTPConfigChange(nodeProfile)
+	for pluginName, pluginObject := range pm.plugins {
+		pluginObject.OnPTPConfigChange(pm.data[pluginName], nodeProfile)
+	}
+}
+
+func (pm *PluginManager) AfterRunPTPCommand(nodeProfile *ptpv1.PtpProfile, command string) {
+	for pluginName, pluginObject := range pm.plugins {
+		pluginObject.AfterRunPTPCommand(pm.data[pluginName], nodeProfile, command)
 	}
 }
 
 func (pm *PluginManager) PopulateHwConfig(hwconfigs *[]ptpv1.HwConfig) {
-	for _, pluginObject := range pm.plugins {
-		pluginObject.PopulateHwConfig(hwconfigs)
+	for pluginName, pluginObject := range pm.plugins {
+		pluginObject.PopulateHwConfig(pm.data[pluginName], hwconfigs)
 	}
 }
