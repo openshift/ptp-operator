@@ -301,11 +301,11 @@ func testSyncState(soakTestConfig ptptestconfig.SoakTestConfig, fullConfig testc
 	// otherwise no events would be received as long as the clock is not changing states
 	err := event.PushInitialEvent(string(ptpEvent.OsClockSyncStateChange), 20*time.Second)
 	if err != nil {
-		Fail("could not push initial event")
+		Fail(fmt.Sprintf("could not push initial event, err=%s", err))
 	}
 	term, err := event.MonitorPodLogsRegex()
 	if err != nil {
-		Fail("could not start listening to events")
+		Fail(fmt.Sprintf("could not start listening to events, err=%s", err))
 	}
 	defer func() { term <- true }()
 	// counts number of times the clock state looses LOCKED state
