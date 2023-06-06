@@ -264,16 +264,18 @@ func RecoverySlaveNetworkOutage(fullConfig testconfig.TestConfig, skippedInterfa
 func toggleNetworkInterface(pod corev1.Pod, interfaceName string, slavePodNodeName string, fullConfig testconfig.TestConfig) {
 
 	const (
-		waitingPeriod      = 2 * time.Minute
+		waitingPeriod      = 3 * time.Minute
 		offsetRetryCounter = 5
 	)
-
+	By("Setting interface down then wait")
 	downInterfaceCommand := fmt.Sprintf("ip link set dev %s down", interfaceName)
 	logrus.Infof("Setting the interface %s down", interfaceName)
 	pods.ExecutePtpInterfaceCommand(pod, interfaceName, downInterfaceCommand)
 	logrus.Infof("Interface %s is set down", interfaceName)
 
 	time.Sleep(waitingPeriod)
+
+	By("Checking that the port role is FAULTY after wait. Set the interface UP again and wait")
 
 	// Check if the port state has changed to faulty
 	err := metrics.CheckClockRole(metrics.MetricRoleFaulty, interfaceName, &slavePodNodeName)
@@ -284,6 +286,7 @@ func toggleNetworkInterface(pod corev1.Pod, interfaceName string, slavePodNodeNa
 	logrus.Infof("Interface %s is up", interfaceName)
 	time.Sleep(waitingPeriod)
 
+	By("Checking that the port role is SLAVE after wait and clock is in sync")
 	// Check if the port has the role of the slave
 	err = metrics.CheckClockRole(metrics.MetricRoleSlave, interfaceName, &slavePodNodeName)
 	Expect(err).NotTo(HaveOccurred())
