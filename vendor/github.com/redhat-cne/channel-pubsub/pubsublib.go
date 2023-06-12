@@ -13,8 +13,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const channelBuffer = 10
-
 type Pubsub struct {
 	mu     sync.RWMutex
 	subs   map[string][]chan exports.StoredEvent
@@ -28,7 +26,7 @@ func NewPubsub() *Pubsub {
 	return ps
 }
 
-func (ps *Pubsub) Subscribe(topic string) (chin <-chan exports.StoredEvent, subscriberID int) {
+func (ps *Pubsub) Subscribe(topic string, channelBuffer int) (chin <-chan exports.StoredEvent, subscriberID int) {
 	ps.mu.Lock()
 	logrus.Debugf("lock Subscribe %s", topic)
 	defer logrus.Debugf("unlock Subscribe %s", topic)
@@ -53,6 +51,7 @@ func (ps *Pubsub) Publish(topic string, msg exports.StoredEvent) {
 		if ch == nil {
 			continue
 		}
+		logrus.Debugf("Publish topic=%s channel len=%d, capacity=%d", topic, len(ch), cap(ch))
 		ch <- msg
 	}
 }

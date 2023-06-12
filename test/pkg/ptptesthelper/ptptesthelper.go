@@ -15,7 +15,6 @@ import (
 	"github.com/openshift/ptp-operator/test/pkg"
 	"github.com/openshift/ptp-operator/test/pkg/client"
 	"github.com/openshift/ptp-operator/test/pkg/metrics"
-	"github.com/openshift/ptp-operator/test/pkg/nodes"
 	nodeshelper "github.com/openshift/ptp-operator/test/pkg/nodes"
 	"github.com/openshift/ptp-operator/test/pkg/pods"
 	"github.com/openshift/ptp-operator/test/pkg/ptphelper"
@@ -172,23 +171,21 @@ func VerifyAfterRebootState(rebootedNodes []string, fullConfig testconfig.TestCo
 func CheckSlaveSyncWithMaster(fullConfig testconfig.TestConfig) {
 	By("Checking if slave nodes can sync with the master")
 
-	isSingleNode, err := nodes.IsSingleNodeCluster()
-	if err != nil {
-		Skip("cannot determine if cluster is single node")
-	}
+	isExternalMaster := ptphelper.IsExternalGM()
 	var grandmasterID *string
-	if fullConfig.L2Config != nil && !isSingleNode {
+	if fullConfig.L2Config != nil && !isExternalMaster {
 		aLabel := pkg.PtpGrandmasterNodeLabel
-		aString, err := ptphelper.GetClockIDMaster(pkg.PtpGrandMasterPolicyName, &aLabel, nil)
+		aString, err := ptphelper.GetClockIDMaster(pkg.PtpGrandMasterPolicyName, &aLabel, nil, true)
 		grandmasterID = &aString
 		if err != nil {
 			logrus.Warnf("could not determine the Grandmaster ID (probably because the log no longer exists), err=%s", err)
 		}
 	}
-	BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), grandmasterID)
-
+	err := BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), grandmasterID)
+	Expect(err).NotTo(HaveOccurred())
 	if fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock {
-		BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestSecondaryPtpConfig), grandmasterID)
+		err = BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestSecondaryPtpConfig), grandmasterID)
+		Expect(err).NotTo(HaveOccurred())
 	}
 }
 
@@ -266,16 +263,18 @@ func RecoverySlaveNetworkOutage(fullConfig testconfig.TestConfig, skippedInterfa
 func toggleNetworkInterface(pod corev1.Pod, interfaceName string, slavePodNodeName string, fullConfig testconfig.TestConfig) {
 
 	const (
-		waitingPeriod      = 1 * time.Minute
+		waitingPeriod      = 4 * time.Minute
 		offsetRetryCounter = 5
 	)
-
+	By("Setting interface down then wait")
 	downInterfaceCommand := fmt.Sprintf("ip link set dev %s down", interfaceName)
 	logrus.Infof("Setting the interface %s down", interfaceName)
 	pods.ExecutePtpInterfaceCommand(pod, interfaceName, downInterfaceCommand)
 	logrus.Infof("Interface %s is set down", interfaceName)
 
 	time.Sleep(waitingPeriod)
+
+	By("Checking that the port role is FAULTY after wait. Set the interface UP again and wait")
 
 	// Check if the port state has changed to faulty
 	err := metrics.CheckClockRole(metrics.MetricRoleFaulty, interfaceName, &slavePodNodeName)
@@ -286,6 +285,7 @@ func toggleNetworkInterface(pod corev1.Pod, interfaceName string, slavePodNodeNa
 	logrus.Infof("Interface %s is up", interfaceName)
 	time.Sleep(waitingPeriod)
 
+	By("Checking that the port role is SLAVE after wait and clock is in sync")
 	// Check if the port has the role of the slave
 	err = metrics.CheckClockRole(metrics.MetricRoleSlave, interfaceName, &slavePodNodeName)
 	Expect(err).NotTo(HaveOccurred())

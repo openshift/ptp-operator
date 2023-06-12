@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"context"
 
@@ -52,7 +53,7 @@ const (
 	DualNICBoundaryClockString = "DualNICBC"
 	ptp4lEthernet              = "-2 --summary_interval -4"
 	ptp4lEthernetSlave         = "-2 -s --summary_interval -4"
-	phc2sysGM                  = "" // do not autoconfigure phc2sys, use local IF clock as clock source for grandmaster
+	phc2sysGM                  = "a -r -r -n 24" // use phc2sys to sync phc to system clock
 	phc2sysSlave               = "-a -r -n 24 -m -N 8 -R 16"
 	SCHED_OTHER                = "SCHED_OTHER"
 	SCHED_FIFO                 = "SCHED_FIFO"
@@ -116,9 +117,11 @@ var enabledProblems = []string{AlgoOCString,
 	AlgoBCWithSlavesString,
 	AlgoDualNicBCString,
 	AlgoDualNicBCWithSlavesString,
-	AlgoSNOOCString,
-	AlgoSNOBCString,
-	AlgoSNODualNicBCString,
+	AlgoOCExtGMString,
+	AlgoBCExtGMString,
+	AlgoBCWithSlavesExtGMString,
+	AlgoDualNicBCExtGMString,
+	AlgoDualNicBCWithSlavesExtGMString,
 }
 
 const FirstSolution = 0
@@ -140,14 +143,16 @@ const (
 )
 
 const (
-	AlgoOCString                  = "OC"
-	AlgoBCString                  = "BC"
-	AlgoBCWithSlavesString        = "BCWithSlaves"
-	AlgoDualNicBCString           = "DualNicBC"
-	AlgoDualNicBCWithSlavesString = "DualNicBCWithSlaves"
-	AlgoSNOOCString               = "SNOOC"
-	AlgoSNOBCString               = "SNOBC"
-	AlgoSNODualNicBCString        = "SNODualNicBC"
+	AlgoOCString                       = "OC"
+	AlgoBCString                       = "BC"
+	AlgoBCWithSlavesString             = "BCWithSlaves"
+	AlgoDualNicBCString                = "DualNicBC"
+	AlgoDualNicBCWithSlavesString      = "DualNicBCWithSlaves"
+	AlgoOCExtGMString                  = "OCExtGM"
+	AlgoBCExtGMString                  = "BCExtGM"
+	AlgoDualNicBCExtGMString           = "DualNicBCExtGM"
+	AlgoBCWithSlavesExtGMString        = "BCWithSlavesExtGM"
+	AlgoDualNicBCWithSlavesExtGMString = "DualNicBCWithSlavesExtGM"
 )
 
 type ptpDiscoveryRes ptpv1.PtpConfig
@@ -296,6 +301,15 @@ func GetDesiredConfig(forceUpdate bool) TestConfig {
 
 // Create ptpconfigs
 func CreatePtpConfigurations() error {
+	if GlobalConfig.PtpModeDesired != Discovery {
+		// for external grand master, clean previous configuration so that it is not detected as a external grandmaster
+		err := clean.All()
+		if err != nil {
+			logrus.Errorf("Error deleting labels and configuration, err=%s", err)
+		}
+		ptphelper.RestartPTPDaemon()
+		ptphelper.WaitForPtpDaemonToBeReady()
+	}
 	// Initialize desired ptp config for all configs
 	GetDesiredConfig(true)
 	// in multi node configuration create ptp configs
@@ -311,20 +325,15 @@ func CreatePtpConfigurations() error {
 	GlobalConfig.L2Config = config
 
 	if GlobalConfig.PtpModeDesired != Discovery {
-		err := clean.All()
-
-		if err != nil {
-			logrus.Errorf("Error deleting labels and configuration, err=%s", err)
-		}
 		// initialize L2 config in solver
 		solver.GlobalConfig.SetL2Config(config)
-
+		logrus.Infof("Ports getting PTP frames=%+v", config.GetPortsGettingPTP())
 		initAndSolveProblems()
 
 		if len(data.solutions) == 0 {
 			return fmt.Errorf("could not find a solution")
 		}
-		isSingleNode, err := nodes.IsSingleNodeCluster()
+		isExternalMaster := ptphelper.IsExternalGM()
 		if err != nil {
 			return fmt.Errorf("cannot determine if cluster is single node")
 		}
@@ -332,11 +341,11 @@ func CreatePtpConfigurations() error {
 		case Discovery, None:
 			logrus.Errorf("error creating ptpconfig Discovery, None not supported")
 		case OrdinaryClock:
-			return PtpConfigOC(isSingleNode)
+			return PtpConfigOC(isExternalMaster)
 		case BoundaryClock:
-			return PtpConfigBC(isSingleNode)
+			return PtpConfigBC(isExternalMaster)
 		case DualNICBoundaryClock:
-			return PtpConfigDualNicBC(isSingleNode)
+			return PtpConfigDualNicBC(isExternalMaster)
 		}
 	}
 	return nil
@@ -373,7 +382,8 @@ func initAndSolveProblems() {
 		{{int(solver.StepSameLan2), 2, 1, 2}}, // step3
 		{{int(solver.StepSameNode), 2, 1, 3}, // step4
 			{int(solver.StepSameLan2), 2, 2, 3}}, // step4
-		{{int(solver.StepSameNic), 2, 3, 4}}, // step5
+		{{int(solver.StepSameNic), 2, 3, 4},
+			{int(solver.StepDifferentNic), 2, 1, 3}}, // step5
 	}
 	data.problems[AlgoDualNicBCWithSlavesString] = &[][][]int{
 		{{int(solver.StepNil), 0, 0}},         // step1
@@ -382,26 +392,46 @@ func initAndSolveProblems() {
 		{{int(solver.StepSameLan2), 2, 2, 3}}, // step4
 		{{int(solver.StepSameNode), 2, 2, 4}, // step5
 			{int(solver.StepSameLan2), 2, 3, 4}}, // step5
-		{{int(solver.StepSameNic), 2, 4, 5}},      // step6
-		{{int(solver.StepSameLan2), 2, 5, 6}},     // step7
-		{{int(solver.StepDifferentNic), 2, 0, 6}}, // step8 - downstream slaves and grandmaster must be on different nics
-		{{int(solver.StepDifferentNic), 2, 0, 3}}, // step9 - downstream slaves and grandmaster must be on different nics
+		{{int(solver.StepSameNic), 2, 4, 5}}, // step6
+		{{int(solver.StepSameLan2), 2, 5, 6}, // step7
+			{int(solver.StepDifferentNic), 2, 0, 3},  // downstream slaves and grandmaster must be on different nics
+			{int(solver.StepDifferentNic), 2, 6, 3},  // downstream slaves and grandmaster must be on different nics
+			{int(solver.StepDifferentNic), 2, 2, 4}}, // dual nic BC uses 2 different NICs
 	}
-	data.problems[AlgoSNOOCString] = &[][][]int{
+	data.problems[AlgoOCExtGMString] = &[][][]int{
 		{{int(solver.StepIsPTP), 1, 0}}, // step1
 	}
-	data.problems[AlgoSNOBCString] = &[][][]int{
+	data.problems[AlgoBCExtGMString] = &[][][]int{
 		{{int(solver.StepIsPTP), 1, 0}},      // step1
 		{{int(solver.StepSameNic), 2, 0, 1}}, // step2
 	}
-	data.problems[AlgoSNODualNicBCString] = &[][][]int{
+	data.problems[AlgoBCWithSlavesExtGMString] = &[][][]int{
+		{{int(solver.StepNil), 0, 0}},         // step1
+		{{int(solver.StepSameLan2), 2, 0, 1}}, // step2
+		{{int(solver.StepSameNic), 2, 1, 2}, // step3
+			{int(solver.StepIsPTP), 1, 2}},
+	}
+	data.problems[AlgoDualNicBCExtGMString] = &[][][]int{
 		{{int(solver.StepIsPTP), 1, 0}},      // step1
 		{{int(solver.StepSameNic), 2, 0, 1}}, // step2
 		{{int(solver.StepIsPTP), 1, 2}, // step3
 			{int(solver.StepSameNode), 2, 0, 2}}, // step3
-		{{int(solver.StepSameNic), 2, 2, 3}}, // step4
+		{{int(solver.StepSameNic), 2, 2, 3},
+			{int(solver.StepDifferentNic), 2, 0, 2}}, // step4
 	}
-
+	data.problems[AlgoDualNicBCWithSlavesExtGMString] = &[][][]int{
+		{{int(solver.StepNil), 0, 0}},         // step1
+		{{int(solver.StepSameLan2), 2, 0, 1}}, // step2
+		{{int(solver.StepSameNic), 2, 1, 2}},  // step3
+		{{int(solver.StepSameNode), 2, 2, 4}, // step4
+			{int(solver.StepIsPTP), 1, 2},
+			{int(solver.StepIsPTP), 1, 4}},
+		{{int(solver.StepSameNic), 2, 4, 5}}, // step5
+		{{int(solver.StepSameLan2), 2, 5, 6}, // step6
+			{int(solver.StepDifferentNic), 2, 0, 3},  // downstream slaves and grandmaster must be on different nics
+			{int(solver.StepDifferentNic), 2, 6, 3},  // downstream slaves and grandmaster must be on different nics
+			{int(solver.StepDifferentNic), 2, 2, 4}}, // dual nic BC uses 2 different NICs
+	}
 	// Initializing Solution decoding and mapping
 	// allocating all slices
 	for _, name := range enabledProblems {
@@ -434,6 +464,7 @@ func initAndSolveProblems() {
 	(*data.testClockRolesAlgoMapping[AlgoDualNicBCString])[BC2Slave] = 4
 
 	// Dual NIC BC with slaves
+
 	(*data.testClockRolesAlgoMapping[AlgoDualNicBCWithSlavesString])[Slave1] = 0
 	(*data.testClockRolesAlgoMapping[AlgoDualNicBCWithSlavesString])[BC1Master] = 1
 	(*data.testClockRolesAlgoMapping[AlgoDualNicBCWithSlavesString])[BC1Slave] = 2
@@ -442,19 +473,33 @@ func initAndSolveProblems() {
 	(*data.testClockRolesAlgoMapping[AlgoDualNicBCWithSlavesString])[BC2Master] = 5
 	(*data.testClockRolesAlgoMapping[AlgoDualNicBCWithSlavesString])[Slave2] = 6
 
-	// SNO OC
-	(*data.testClockRolesAlgoMapping[AlgoSNOOCString])[Slave1] = 0
+	// OC, External GM
+	(*data.testClockRolesAlgoMapping[AlgoOCExtGMString])[Slave1] = 0
 
-	// SNO BC
-	(*data.testClockRolesAlgoMapping[AlgoSNOBCString])[BC1Slave] = 0
-	(*data.testClockRolesAlgoMapping[AlgoSNOBCString])[BC1Master] = 1
+	// BC, External GM
+	(*data.testClockRolesAlgoMapping[AlgoBCExtGMString])[BC1Slave] = 0
+	(*data.testClockRolesAlgoMapping[AlgoBCExtGMString])[BC1Master] = 1
 
-	// SNO Dual NIC BC
+	// BC with slaves, External GM
 
-	(*data.testClockRolesAlgoMapping[AlgoSNODualNicBCString])[BC1Slave] = 0
-	(*data.testClockRolesAlgoMapping[AlgoSNODualNicBCString])[BC1Master] = 1
-	(*data.testClockRolesAlgoMapping[AlgoSNODualNicBCString])[BC2Slave] = 2
-	(*data.testClockRolesAlgoMapping[AlgoSNODualNicBCString])[BC2Master] = 3
+	(*data.testClockRolesAlgoMapping[AlgoBCWithSlavesExtGMString])[Slave1] = 0
+	(*data.testClockRolesAlgoMapping[AlgoBCWithSlavesExtGMString])[BC1Master] = 1
+	(*data.testClockRolesAlgoMapping[AlgoBCWithSlavesExtGMString])[BC1Slave] = 2
+
+	// Dual NIC BC, External GM
+
+	(*data.testClockRolesAlgoMapping[AlgoDualNicBCExtGMString])[BC1Slave] = 0
+	(*data.testClockRolesAlgoMapping[AlgoDualNicBCExtGMString])[BC1Master] = 1
+	(*data.testClockRolesAlgoMapping[AlgoDualNicBCExtGMString])[BC2Slave] = 2
+	(*data.testClockRolesAlgoMapping[AlgoDualNicBCExtGMString])[BC2Master] = 3
+
+	// Dual NIC BC with slaves, External GM
+	(*data.testClockRolesAlgoMapping[AlgoDualNicBCWithSlavesExtGMString])[Slave1] = 0
+	(*data.testClockRolesAlgoMapping[AlgoDualNicBCWithSlavesExtGMString])[BC1Master] = 1
+	(*data.testClockRolesAlgoMapping[AlgoDualNicBCWithSlavesExtGMString])[BC1Slave] = 2
+	(*data.testClockRolesAlgoMapping[AlgoDualNicBCWithSlavesExtGMString])[BC2Slave] = 4
+	(*data.testClockRolesAlgoMapping[AlgoDualNicBCWithSlavesExtGMString])[BC2Master] = 5
+	(*data.testClockRolesAlgoMapping[AlgoDualNicBCWithSlavesExtGMString])[Slave2] = 6
 
 	for _, name := range enabledProblems {
 		// Initializing problems
@@ -525,6 +570,8 @@ func CreatePtpConfigBC(policyName, nodeName, ifMasterName, ifSlaveName string, p
 	if err == nil && configureFifo {
 		ptpSchedulingPolicy = SCHED_FIFO
 	}
+	// Sleep for a second to allow previous label on the same node to complete
+	time.Sleep(time.Second)
 	_, err = nodes.LabelNode(nodeName, pkg.PtpClockUnderTestNodeLabel, "")
 	if err != nil {
 		logrus.Errorf("Error setting BC node role label: %s", err)
@@ -559,6 +606,8 @@ func CreatePtpConfigOC(profileName, nodeName, ifSlaveName string, phc2sys bool, 
 	if err == nil && configureFifo {
 		ptpSchedulingPolicy = SCHED_FIFO
 	}
+	// Sleep for a second to allow previous label on the same node to complete
+	time.Sleep(time.Second)
 	_, err = nodes.LabelNode(nodeName, label, "")
 	if err != nil {
 		logrus.Errorf("Error setting Slave node role label: %s", err)
@@ -583,20 +632,23 @@ func CreatePtpConfigOC(profileName, nodeName, ifSlaveName string, phc2sys bool, 
 		pointer.Int64Ptr(int65))
 }
 
-func PtpConfigOC(isSingleNode bool) error {
+func PtpConfigOC(isExtGM bool) error {
 	var grandmaster, slave1 int
 
-	BestSolution := AlgoOCString
+	BestSolution := ""
 
-	if isSingleNode {
-		if len(*data.solutions[AlgoSNOOCString]) != 0 {
-			BestSolution = AlgoSNOOCString
+	if isExtGM {
+		if len(*data.solutions[AlgoOCExtGMString]) != 0 {
+			BestSolution = AlgoOCExtGMString
 		} else {
-			return fmt.Errorf("no solution found for OC configuration in Single node")
+			return fmt.Errorf("no solution found for OC configuration in External GM mode")
 		}
 	} else {
-		if len(*data.solutions[AlgoOCString]) == 0 {
-			return fmt.Errorf("no solution found for OC configuration in Multi node")
+		if len(*data.solutions[AlgoOCString]) != 0 {
+			BestSolution = AlgoOCString
+		}
+		if BestSolution == "" {
+			return fmt.Errorf("no solution found for OC configuration in Local GM mode")
 		}
 	}
 	logrus.Infof("Configuring best solution= %s", BestSolution)
@@ -620,7 +672,7 @@ func PtpConfigOC(isSingleNode bool) error {
 			logrus.Errorf("Error creating Slave1 ptpconfig: %s", err)
 		}
 
-	case AlgoSNOOCString:
+	case AlgoOCExtGMString:
 
 		slave1 = (*data.testClockRolesAlgoMapping[BestSolution])[Slave1]
 
@@ -634,25 +686,31 @@ func PtpConfigOC(isSingleNode bool) error {
 	}
 	return nil
 }
-func PtpConfigBC(isSingleNode bool) error {
+func PtpConfigBC(isExtGM bool) error {
 	var grandmaster, bc1Master, bc1Slave, slave1 int
 
-	BestSolution := AlgoBCWithSlavesString
+	BestSolution := ""
 
-	if isSingleNode {
-		if len(*data.solutions[AlgoSNOBCString]) != 0 {
-			BestSolution = AlgoSNOBCString
-		} else {
-			return fmt.Errorf("no solution found for BC configuration in Single node")
+	if isExtGM {
+		if len(*data.solutions[AlgoBCExtGMString]) != 0 {
+			BestSolution = AlgoBCExtGMString
 		}
+		if len(*data.solutions[AlgoBCWithSlavesExtGMString]) != 0 {
+			BestSolution = AlgoBCWithSlavesExtGMString
+		}
+		if BestSolution == "" {
+			return fmt.Errorf("no solution found for BC configuration in External GM mode")
+		}
+
 	} else {
-		if len(*data.solutions[AlgoBCWithSlavesString]) == 0 &&
-			len(*data.solutions[AlgoBCString]) == 0 {
-			return fmt.Errorf("no solution found for BC configuration in Multi node")
-		}
-		if len(*data.solutions[AlgoBCWithSlavesString]) == 0 &&
-			len(*data.solutions[AlgoBCString]) != 0 {
+		if len(*data.solutions[AlgoBCString]) != 0 {
 			BestSolution = AlgoBCString
+		}
+		if len(*data.solutions[AlgoBCWithSlavesString]) != 0 {
+			BestSolution = AlgoBCWithSlavesString
+		}
+		if BestSolution == "" {
+			return fmt.Errorf("no solution found for BC configuration in Local GM mode")
 		}
 	}
 
@@ -708,7 +766,7 @@ func PtpConfigBC(isSingleNode bool) error {
 			logrus.Errorf("Error creating bc1master ptpconfig: %s", err)
 		}
 
-	case AlgoSNOBCString:
+	case AlgoBCExtGMString:
 
 		bc1Master = (*data.testClockRolesAlgoMapping[BestSolution])[BC1Master]
 		bc1Slave = (*data.testClockRolesAlgoMapping[BestSolution])[BC1Slave]
@@ -721,31 +779,54 @@ func PtpConfigBC(isSingleNode bool) error {
 		if err != nil {
 			logrus.Errorf("Error creating bc1master ptpconfig: %s", err)
 		}
+	case AlgoBCWithSlavesExtGMString:
+		bc1Master = (*data.testClockRolesAlgoMapping[BestSolution])[BC1Master]
+		bc1Slave = (*data.testClockRolesAlgoMapping[BestSolution])[BC1Slave]
+		slave1 = (*data.testClockRolesAlgoMapping[BestSolution])[Slave1]
+
+		bc1MasterIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][bc1Master]]
+		bc1SlaveIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][bc1Slave]]
+		slave1If := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][slave1]]
+
+		err := CreatePtpConfigBC(pkg.PtpBcMaster1PolicyName, bc1MasterIf.NodeName,
+			bc1MasterIf.IfName, bc1SlaveIf.IfName, true)
+		if err != nil {
+			logrus.Errorf("Error creating bc1master ptpconfig: %s", err)
+		}
+
+		err = CreatePtpConfigOC(pkg.PtpSlave1PolicyName, slave1If.NodeName,
+			slave1If.IfName, false, pkg.PtpSlave1NodeLabel)
+		if err != nil {
+			logrus.Errorf("Error creating Slave1 ptpconfig: %s", err)
+		}
 	}
 	return nil
 }
 
-func PtpConfigDualNicBC(isSingleNode bool) error {
+func PtpConfigDualNicBC(isExtGM bool) error {
 
 	var grandmaster, bc1Master, bc1Slave, slave1, bc2Master, bc2Slave, slave2 int
 
-	BestSolution := AlgoDualNicBCWithSlavesString
-	if isSingleNode {
-		if len(*data.solutions[AlgoDualNicBCWithSlavesString]) == 0 &&
-			len(*data.solutions[AlgoDualNicBCString]) == 0 &&
-			len(*data.solutions[AlgoSNODualNicBCString]) != 0 {
-			BestSolution = AlgoSNODualNicBCString
-		} else {
-			return fmt.Errorf("no solution found for Dual NIC BC configuration in Single node")
+	BestSolution := ""
+	if isExtGM {
+		if len(*data.solutions[AlgoDualNicBCExtGMString]) != 0 {
+			BestSolution = AlgoDualNicBCExtGMString
+		}
+		if len(*data.solutions[AlgoDualNicBCWithSlavesExtGMString]) != 0 {
+			BestSolution = AlgoDualNicBCWithSlavesExtGMString
+		}
+		if BestSolution == "" {
+			return fmt.Errorf("no solution found for Dual NIC BC configuration in External GM mode")
 		}
 	} else {
-		if len(*data.solutions[AlgoDualNicBCWithSlavesString]) == 0 &&
-			len(*data.solutions[AlgoDualNicBCString]) == 0 {
-			return fmt.Errorf("no solution found for Dual NIC BC configuration in Multi node")
-		}
-		if len(*data.solutions[AlgoDualNicBCWithSlavesString]) == 0 &&
-			len(*data.solutions[AlgoDualNicBCString]) != 0 {
+		if len(*data.solutions[AlgoDualNicBCString]) != 0 {
 			BestSolution = AlgoDualNicBCString
+		}
+		if len(*data.solutions[AlgoDualNicBCWithSlavesString]) != 0 {
+			BestSolution = AlgoDualNicBCWithSlavesString
+		}
+		if BestSolution == "" {
+			return fmt.Errorf("no solution found for Dual NIC BC configuration in Local GM mode")
 		}
 	}
 
@@ -828,7 +909,7 @@ func PtpConfigDualNicBC(isSingleNode bool) error {
 			logrus.Errorf("Error creating bc2master ptpconfig: %s", err)
 		}
 
-	case AlgoSNODualNicBCString:
+	case AlgoDualNicBCExtGMString:
 
 		bc1Master = (*data.testClockRolesAlgoMapping[BestSolution])[BC1Master]
 		bc1Slave = (*data.testClockRolesAlgoMapping[BestSolution])[BC1Slave]
@@ -850,6 +931,44 @@ func PtpConfigDualNicBC(isSingleNode bool) error {
 			bc2MasterIf.IfName, bc2SlaveIf.IfName, false)
 		if err != nil {
 			logrus.Errorf("Error creating bc2master ptpconfig: %s", err)
+		}
+
+	case AlgoDualNicBCWithSlavesExtGMString:
+		bc1Master = (*data.testClockRolesAlgoMapping[BestSolution])[BC1Master]
+		bc1Slave = (*data.testClockRolesAlgoMapping[BestSolution])[BC1Slave]
+		slave1 = (*data.testClockRolesAlgoMapping[BestSolution])[Slave1]
+		bc2Master = (*data.testClockRolesAlgoMapping[BestSolution])[BC2Master]
+		bc2Slave = (*data.testClockRolesAlgoMapping[BestSolution])[BC2Slave]
+		slave2 = (*data.testClockRolesAlgoMapping[BestSolution])[Slave2]
+
+		bc1MasterIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][bc1Master]]
+		bc1SlaveIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][bc1Slave]]
+		slave1If := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][slave1]]
+		bc2MasterIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][bc2Master]]
+		bc2SlaveIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][bc2Slave]]
+		slave2If := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][slave2]]
+
+		err := CreatePtpConfigBC(pkg.PtpBcMaster1PolicyName, bc1MasterIf.NodeName,
+			bc1MasterIf.IfName, bc1SlaveIf.IfName, true)
+		if err != nil {
+			logrus.Errorf("Error creating bc1master ptpconfig: %s", err)
+		}
+
+		err = CreatePtpConfigBC(pkg.PtpBcMaster2PolicyName, bc2MasterIf.NodeName,
+			bc2MasterIf.IfName, bc2SlaveIf.IfName, false)
+		if err != nil {
+			logrus.Errorf("Error creating bc2master ptpconfig: %s", err)
+		}
+
+		err = CreatePtpConfigOC(pkg.PtpSlave1PolicyName, slave1If.NodeName,
+			slave1If.IfName, false, pkg.PtpSlave1NodeLabel)
+		if err != nil {
+			logrus.Errorf("Error creating Slave1 ptpconfig: %s", err)
+		}
+		err = CreatePtpConfigOC(pkg.PtpSlave2PolicyName, slave2If.NodeName,
+			slave2If.IfName, false, pkg.PtpSlave2NodeLabel)
+		if err != nil {
+			logrus.Errorf("Error creating Slave2 ptpconfig: %s", err)
 		}
 	}
 	return nil
