@@ -107,7 +107,7 @@ var (
 			Help:      "0 = FREERUN, 1 = LOCKED, 2 = HOLDOVER",
 		}, []string{"process", "node", "iface"})
 
-	// Threshold metrics to show current ptp threshold
+	// Threshold metrics to show current ptp GMThreshold
 	InterfaceRole = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: PTPNamespace,
@@ -174,7 +174,7 @@ func updatePTPMetrics(from, process, iface string, ptpOffset, maxPtpOffset, freq
 }
 
 // extractMetrics ...
-func extractMetrics(messageTag string, processName string, ifaces []string, output string) {
+func extractMetrics(messageTag string, processName string, ifaces []string, output string) (source string, offset float64, state string, iface string) {
 	configName := strings.Replace(strings.Replace(messageTag, "]", "", 1), "[", "", 1)
 	if strings.Contains(output, " max ") {
 		ifaceName, ptpOffset, maxPtpOffset, frequencyAdjustment, delay := extractSummaryMetrics(configName, processName, output)
@@ -204,6 +204,10 @@ func extractMetrics(messageTag string, processName string, ifaces []string, outp
 			updatePTPMetrics(offsetSource, processName, ifaceName, ptpOffset, maxPtpOffset, frequencyAdjustment, delay)
 			updateClockStateMetrics(processName, ifaceName, clockstate)
 		}
+		source = processName
+		offset = ptpOffset
+		state = clockstate
+		iface = ifaceName
 	}
 	if processName == ptp4lProcessName {
 		if portId, role := extractPTP4lEventState(output); portId > 0 {
@@ -225,6 +229,7 @@ func extractMetrics(messageTag string, processName string, ifaces []string, outp
 			}
 		}
 	}
+	return
 }
 
 func extractSummaryMetrics(configName, processName, output string) (iface string, ptpOffset, maxPtpOffset, frequencyAdjustment, delay float64) {

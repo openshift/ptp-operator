@@ -17,24 +17,32 @@ import (
 )
 
 var (
+	// PorotoVersionRegEx ...
 	PorotoVersionRegEx = regexp.MustCompile(`PROTVER=+(\d+)`)
+	// AntennaStatusRegEx ...
 	AntennaStatusRegEx = regexp.MustCompile(`antStatus[[:space:]]+(\d+)[[:space:]]antPower[[:space:]]+(\d+)`)
-	NavStatusRegEx     = regexp.MustCompile(`gpsFix[[:space:]]+(\d+)`)
-	cmdTimeout         = 10 * time.Second
-	ubloxProtoVersion  = "29.20"
+	// NavStatusRegEx ...
+	NavStatusRegEx    = regexp.MustCompile(`gpsFix[[:space:]]+(\d+)`)
+	cmdTimeout        = 10 * time.Second
+	ubloxProtoVersion = "29.20"
 )
 
 const (
-	CMD_PROTO_VERSION     = " -p MON-VER"
+	// CMD_PROTO_VERSION ...
+	CMD_PROTO_VERSION = " -p MON-VER"
+	// CMD_VOLTAGE_CONTROLER ...
 	CMD_VOLTAGE_CONTROLER = " -v 1 -z CFG-HW-ANT_CFG_VOLTCTRL %d"
-	CMD_NAV_STATUS        = " -t -p NAV-STATUS"
+	// CMD_NAV_STATUS ...
+	CMD_NAV_STATUS = " -t -p NAV-STATUS"
 )
 
+// UBlox ... UBlox type
 type UBlox struct {
 	protoVersion *string
 	mockExp      func(cmdStr string) ([]string, error)
 }
 
+// NewUblox ... create new Ublox
 func NewUblox() (*UBlox, error) {
 	u := &UBlox{
 		protoVersion: &ubloxProtoVersion,
@@ -142,6 +150,7 @@ func (u *UBlox) Query(command string, promptRE *regexp.Regexp) (result string, m
 // layers (ram bbr flash) transaction (Transactionless)
 // item CFG-HW-ANT_CFG_VOLTCTRL/0x10a3002e val 1
 
+// EnableDisableVoltageController ...
 // UBX-ACK-ACK:
 // ACK to Class x06 (CFG) ID x8a (VALSET)
 // TODO: Should read ACK-ACK to confirm right and read the item
@@ -155,7 +164,8 @@ func (u *UBlox) EnableDisableVoltageController(command string, value int) ([]byt
 	return stdout, err
 }
 
-/*
+// NavStatus ...
+/* NavStatus ...
 ubxtool -t -w 3 -p NAV-STATUS -P 29.20
 1683631651.3422
 UBX-NAV-STATUS:
@@ -204,4 +214,35 @@ func match(stdout string, ubLoxRegex *regexp.Regexp) (string, error) {
 		return match[1], nil
 	}
 	return "", fmt.Errorf("error parsing %s", stdout)
+}
+
+// GetNavOffset ... get gnss offset
+func (u *UBlox) GetNavOffset() (string, error) {
+	command := "ubxtool"
+	args := []string{"-t", "-p", "NAV-CLOCK", "-P", "29.20"}
+
+	output, err := exec.Command(command, args...).Output()
+	if err != nil {
+		return "", fmt.Errorf("error executing ubxtool command: %s", err)
+
+	}
+
+	offset := extractOffset(string(output))
+	return offset, nil
+}
+
+func extractOffset(output string) string {
+	// Find the line that contains "tAcc"
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "tAcc") {
+			// Extract the offset value
+			fields := strings.Fields(line)
+			if len(fields) >= 6 {
+				return fields[6]
+			}
+		}
+	}
+
+	return ""
 }

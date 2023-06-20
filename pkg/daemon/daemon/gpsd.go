@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -21,16 +22,20 @@ const (
 )
 
 type gpsd struct {
-	name       string
-	execMutex  sync.Mutex
-	cmd        *exec.Cmd
-	serialPort string
-	exitCh     chan bool
-	stopped    bool
+	name          string
+	execMutex     sync.Mutex
+	cmd           *exec.Cmd
+	serialPort    string
+	exitCh        chan bool
+	stopped       bool
+	state         event.PTPState
+	offset        int64
+	processConfig config.ProcessConfig
+	gmInterface   string
 }
 
-func (g *gpsd) monitorEvent(clockType event.ClockType, cfgName string, chClose chan bool, chEventChannel chan<- event.EventChannel) {
-	go gnss.MonitorGNSSEvents(clockType, cfgName, "E810", chClose, chEventChannel)
+func (g *gpsd) MonitorProcess(p config.ProcessConfig) {
+	go g.monitorGNSSEvents(p, "E810")
 }
 
 func (g *gpsd) Name() string {
@@ -53,14 +58,13 @@ func (g *gpsd) Stopped() bool {
 	return me
 }
 
-func (g *gpsd) cmdStop() {
+func (g *gpsd) CmdStop() {
 	glog.Infof("Stopping %s...", g.name)
 	if g.cmd == nil {
 		return
 	}
 
 	g.setStopped(true)
-
 	if g.cmd.Process != nil {
 		glog.Infof("Sending TERM to PID: %d", g.cmd.Process.Pid)
 		g.cmd.Process.Signal(syscall.SIGTERM)
@@ -71,7 +75,7 @@ func (g *gpsd) cmdStop() {
 }
 
 // ubxtool -w 5 -v 1 -p MON-VER -P 29.20
-func (g *gpsd) cmdInit() {
+func (g *gpsd) CmdInit() {
 	if g.name == "" {
 		g.name = "gpsd"
 	}
@@ -81,7 +85,7 @@ func (g *gpsd) cmdInit() {
 
 }
 
-func (g *gpsd) cmdRun(stdoutToSocket bool) {
+func (g *gpsd) CmdRun(stdoutToSocket bool) {
 	done := make(chan struct{}) // Done setting up logging.  Go ahead and wait for process
 	defer func() {
 		g.exitCh <- true
@@ -93,7 +97,7 @@ func (g *gpsd) cmdRun(stdoutToSocket bool) {
 		cmdReader, err := g.cmd.StdoutPipe()
 
 		if err != nil {
-			glog.Errorf("cmdRun() error creating StdoutPipe for %s: %v", g.Name(), err)
+			glog.Errorf("CmdRun() error creating StdoutPipe for %s: %v", g.Name(), err)
 			break
 		}
 		if !stdoutToSocket {
@@ -101,8 +105,8 @@ func (g *gpsd) cmdRun(stdoutToSocket bool) {
 			go func() {
 				for scanner.Scan() {
 					//TODO: suppress logs for
-					output := scanner.Text()
-					fmt.Printf("%s\n", output)
+					_ = scanner.Text()
+					//fmt.Printf("%s\n", output)
 				}
 				done <- struct{}{}
 			}()
@@ -112,13 +116,97 @@ func (g *gpsd) cmdRun(stdoutToSocket bool) {
 			time.Sleep(1 * time.Second)
 			err = g.cmd.Start() // this is asynchronous call,
 			if err != nil {
-				glog.Errorf("cmdRun() error starting %s: %v", g.Name(), err)
+				glog.Errorf("CmdRun() error starting %s: %v", g.Name(), err)
 			}
 		}
 		<-done // goroutine is done
 		err = g.cmd.Wait()
 		if err != nil {
-			glog.Errorf("cmdRun() error waiting for %s: %v", g.Name(), err)
+			glog.Errorf("CmdRun() error waiting for %s: %v", g.Name(), err)
 		}
 	}
+}
+
+// MonitorGNSSEvents ... monitor gnss events
+func (g *gpsd) monitorGNSSEvents(processCfg config.ProcessConfig, pluginName string) error {
+	//done := make(chan struct{}) // Done setting up logging.  Go ahead and wait for process
+	// var currentNavStatus int64
+	g.processConfig = processCfg
+	var err error
+	//currentNavStatus = 0
+	glog.Infof("Starting GNSS Monitoring for plugin  %s...", pluginName)
+
+	var ublx *ublox.UBlox
+	g.state = event.PTP_FREERUN
+retry:
+	if ublx, err = ublox.NewUblox(); err != nil {
+		glog.Errorf("failed to initialize GNSS monitoring via ublox %s", err)
+		time.Sleep(10 * time.Second)
+		goto retry
+	} else {
+		//TODO: monitor on 1PPS  events trigger
+		ticker := time.NewTicker(1 * time.Second)
+		var lastState int64
+		var lastOffset int64
+		for {
+			select {
+			case <-ticker.C:
+				// do stuff
+				nStatus, errs := ublx.NavStatus()
+				offsetS, err2 := ublx.GetNavOffset()
+				if errs == nil && err2 == nil {
+					//calculate PTP states
+					g.offset, _ = strconv.ParseInt(offsetS, 10, 64)
+					if nStatus > 3 && g.isOffsetInRange() {
+						g.state = event.PTP_LOCKED
+					} else {
+						g.state = event.PTP_FREERUN
+					}
+					if lastState != nStatus || lastOffset != g.offset {
+						lastState = nStatus
+						lastOffset = g.offset
+						processCfg.EventChannel <- event.EventChannel{
+							ProcessName: event.GNSS,
+							State:       g.state,
+							CfgName:     processCfg.ConfigName,
+							IFace:       g.gmInterface,
+							Values: map[event.ValueType]int64{
+								event.GPS_STATUS: nStatus,
+								event.OFFSET:     g.offset,
+							},
+							ClockType:  processCfg.ClockType,
+							Time:       time.Now().Unix(),
+							WriteToLog: true,
+							Reset:      false,
+						}
+					}
+
+				} else {
+					if errs != nil {
+						glog.Errorf("error calling ublox %s", errs)
+					}
+					if err2 != nil {
+						glog.Errorf("error calling ublox %s", err2)
+					}
+				}
+			case <-processCfg.CloseCh:
+				processCfg.EventChannel <- event.EventChannel{
+					ProcessName: event.GNSS,
+					CfgName:     processCfg.ConfigName,
+					ClockType:   processCfg.ClockType,
+					Time:        time.Now().Unix(),
+					Reset:       true,
+				}
+				ticker.Stop()
+				return nil
+			}
+		}
+	}
+}
+
+func (d *gpsd) isOffsetInRange() bool {
+	if d.offset < d.processConfig.GMThreshold.Max && d.offset > d.processConfig.GMThreshold.Min {
+		return true
+	}
+	return false
 }

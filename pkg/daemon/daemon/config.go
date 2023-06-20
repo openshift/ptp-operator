@@ -158,7 +158,7 @@ func (conf *ptp4lConf) renderPtp4lConf() (string, string) {
 
 	for _, section := range conf.sections {
 		configOut = fmt.Sprintf("%s\n%s", configOut, section.sectionName)
-		if section.sectionName != "[global]" {
+		if section.sectionName != "[global]" && section.sectionName != "[nmea]" {
 			iface := section.sectionName
 			iface = strings.ReplaceAll(iface, "[", "")
 			iface = strings.ReplaceAll(iface, "]", "")

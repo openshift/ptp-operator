@@ -1,12 +1,12 @@
 package daemon
 
-import "github.com/openshift/linuxptp-daemon/pkg/event"
+import "github.com/openshift/linuxptp-daemon/pkg/config"
 
 type process interface {
 	Name() string
 	Stopped() bool
-	cmdStop()
-	cmdInit()
-	cmdRun(stdToSocket bool)
-	monitorEvent(clockType event.ClockType, configName string, chClose chan bool, chEventChannel chan<- event.EventChannel)
+	CmdStop()
+	CmdInit()
+	CmdRun(stdToSocket bool)
+	MonitorProcess(p config.ProcessConfig)
 }

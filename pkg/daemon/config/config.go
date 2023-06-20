@@ -41,3 +41,17 @@ func GetKubeConfig() (*rest.Config, error) {
 
 	return nil, fmt.Errorf("Could not locate a kubeconfig")
 }
+
+type ProcessConfig struct {
+	ClockType       event.ClockType
+	ConfigName      string
+	CloseCh         chan bool
+	EventChannel    chan<- event.EventChannel
+	GMThreshold     Threshold
+	InitialPTPState event.PTPState
+}
+type Threshold struct {
+	Max             int64
+	Min             int64
+	HoldOverTimeout int64
+}

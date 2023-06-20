@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"fmt"
+	"github.com/openshift/linuxptp-daemon/pkg/config"
 	"io"
 	"os"
 	"os/exec"
@@ -10,7 +11,6 @@ import (
 	"syscall"
 
 	"github.com/golang/glog"
-	"github.com/openshift/linuxptp-daemon/pkg/event"
 )
 
 const (
@@ -50,7 +50,7 @@ func (gp *gpspipe) Stopped() bool {
 	return me
 }
 
-func (gp *gpspipe) cmdStop() {
+func (gp *gpspipe) CmdStop() {
 	glog.Infof("Stopping %s...", gp.name)
 	if gp.cmd == nil {
 		return
@@ -62,13 +62,17 @@ func (gp *gpspipe) cmdStop() {
 		glog.Infof("Sending TERM to PID: %d", gp.cmd.Process.Pid)
 		gp.cmd.Process.Signal(syscall.SIGTERM)
 	}
-
+	// Clean up (delete) the named pipe
+	err := os.Remove(GPSPIPE_SERIALPORT)
+	if err != nil {
+		glog.Errorf("Failed to delete named pipe: %s", GPSD_SERIALPORT)
+	}
 	<-gp.exitCh
 	glog.Infof("Process %d terminated", gp.cmd.Process.Pid)
 }
 
 // ubxtool -w 5 -v 1 -p MON-VER -P 29.20
-func (gp *gpspipe) cmdInit() {
+func (gp *gpspipe) CmdInit() {
 	if gp.name == "" {
 		gp.name = GPSPIPE_PROCESSNAME
 	}
@@ -80,7 +84,7 @@ func (gp *gpspipe) cmdInit() {
 	gp.cmd = exec.Command("/usr/bin/bash", "-c", fmt.Sprintf("gpspipe -v -d -r -l -o  %s ", gp.SerialPort()))
 
 }
-func (gp *gpspipe) cmdRun(stdoutToSocket bool) {
+func (gp *gpspipe) CmdRun(stdoutToSocket bool) {
 	glog.Infof("running process %s", gp.name)
 	stdout, err := gp.cmd.Output()
 	if err != nil {
@@ -111,7 +115,7 @@ func mkFifo() error {
 	}
 	return nil
 }
-func (gp *gpspipe) monitorEvent(clockType event.ClockType, cfgName string, chClose chan bool, chEventChannel chan<- event.EventChannel) {
+func (gp *gpspipe) MonitorProcess(config config.ProcessConfig) {
 	//TODO implement me
 	glog.Infof("monitoring for gpspipe not implemented")
 }
