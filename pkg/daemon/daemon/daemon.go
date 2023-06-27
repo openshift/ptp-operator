@@ -432,13 +432,13 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 			dpllDaemon := dpll.NewDpll(dpll.LocalMaxHoldoverOffSet, dpll.LocalHoldoverTimeout, dpll.MaxInSpecOffset,
 				gmInterface, []event.EventSource{event.GNSS})
 			dprocess.depProcess = append(dprocess.depProcess, dpllDaemon)
-			dn.processManager.process = append(dn.processManager.process, &dprocess)
 		}
 		err = os.WriteFile(configPath, []byte(configOutput), 0644)
 		if err != nil {
 			printNodeProfile(nodeProfile)
 			return fmt.Errorf("failed to write the configuration file named %s: %v", configPath, err)
 		}
+		dn.processManager.process = append(dn.processManager.process, &dprocess)
 	}
 
 	return nil
