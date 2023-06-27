@@ -3,7 +3,6 @@ package dpll
 import (
 	"encoding/binary"
 	"fmt"
-	"math"
 	"os"
 	"time"
 
@@ -13,12 +12,12 @@ import (
 )
 
 const (
-	DPLL_UNKNOW        = -1
+	DPLL_UNKNOWN       = -1
 	DPLL_INVALID       = 0
 	DPLL_FREERUN       = 1
 	DPLL_LOCKED        = 2
 	DPLL_LOCKED_HO_ACQ = 3
-	DPLL_HOLOVER       = 4
+	DPLL_HOLDOVER      = 4
 
 	LocalMaxHoldoverOffSet = 1500  //ns
 	LocalHoldoverTimeout   = 14400 //secs
@@ -137,9 +136,9 @@ func (d *DpllConfig) MonitorDpll(processCfg config.ProcessConfig) {
 				d.sourceLost = true
 			}
 			// calculate dpll status
-			dpllStatus := d.getState(phase_status, frequency_status)
+			dpllStatus := d.getWorseState(phase_status, frequency_status)
 			switch dpllStatus {
-			case DPLL_FREERUN, DPLL_INVALID, DPLL_UNKNOW:
+			case DPLL_FREERUN, DPLL_INVALID, DPLL_UNKNOWN:
 				d.inSpec = true
 				if d.onHoldover {
 					closeCh <- true
@@ -152,7 +151,7 @@ func (d *DpllConfig) MonitorDpll(processCfg config.ProcessConfig) {
 				} else {
 					d.state = event.PTP_FREERUN
 				}
-			case DPLL_LOCKED_HO_ACQ, DPLL_HOLOVER:
+			case DPLL_LOCKED_HO_ACQ, DPLL_HOLDOVER:
 				if !d.sourceLost && d.isOffsetInRange() {
 					d.inSpec = true
 					d.state = event.PTP_LOCKED
@@ -197,9 +196,27 @@ func (d *DpllConfig) MonitorDpll(processCfg config.ProcessConfig) {
 	}
 }
 
-func (d *DpllConfig) getState(pstate, fstate int64) int64 {
-	//TODO: Fix the logic to get correct lowest state
-	return int64(math.Min(float64(pstate), float64(fstate)))
+// getStateQuality maps the state with relatively worse signal quality with
+// a lower number for easy comparison
+// Ref: ITU-T G.781 section 6.3.1 Auto selection operation
+func (d *DpllConfig) getStateQuality() map[int64]float64 {
+	return map[int64]float64{
+		DPLL_UNKNOWN:       -1,
+		DPLL_INVALID:       0,
+		DPLL_FREERUN:       1,
+		DPLL_HOLDOVER:      2,
+		DPLL_LOCKED:        3,
+		DPLL_LOCKED_HO_ACQ: 4,
+	}
+}
+
+// getWorseState returns the state with worse signal quality
+func (d *DpllConfig) getWorseState(pstate, fstate int64) int64 {
+	sq := d.getStateQuality()
+	if sq[pstate] < sq[fstate] {
+		return pstate
+	}
+	return fstate
 }
 
 func (d *DpllConfig) holdover(closeCh chan bool) {
