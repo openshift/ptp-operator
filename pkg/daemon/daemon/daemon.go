@@ -344,6 +344,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 			return err
 		}
 
+		clockType = output.clock_type
 		output.profile_name = *nodeProfile.Name
 
 		if nodeProfile.Interface != nil && *nodeProfile.Interface != "" {
@@ -564,7 +565,7 @@ func (p *ptpProcess) cmdRun() {
 					Values: map[event.ValueType]int64{
 						event.OFFSET: int64(ts2phcsOffset),
 					},
-					ClockType:  "GM", //TODO: add actual defined
+					ClockType:  clockType,
 					Time:       time.Now().Unix(),
 					WriteToLog: true,
 					Reset:      false,

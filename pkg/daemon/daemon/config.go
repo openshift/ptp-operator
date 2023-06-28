@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/openshift/linuxptp-daemon/pkg/event"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -32,6 +33,7 @@ type ptp4lConf struct {
 	sections     []ptp4lConfSection
 	mapping      []string
 	profile_name string
+	clock_type   event.ClockType
 }
 
 func NewLinuxPTPConfUpdate() (*LinuxPTPConfUpdate, error) {
@@ -112,6 +114,7 @@ func (output *ptp4lConf) populatePtp4lConf(config *string) error {
 	var currentSection ptp4lConfSection
 	output.sections = make([]ptp4lConfSection, 0)
 	globalIsDefined := false
+	hasSlaveConfigDefined := false
 
 	if config != nil {
 		for _, line := range strings.Split(*config, "\n") {
@@ -137,6 +140,12 @@ func (output *ptp4lConf) populatePtp4lConf(config *string) error {
 				split := strings.IndexByte(line, ' ')
 				if split > 0 {
 					currentSection.options[line[:split]] = line[split:]
+					if (line[:split] == "masterOnly" && line[split:] == "0") ||
+						(line[:split] == "serverOnly" && line[split:] == "0") ||
+						(line[:split] == "slaveOnly" && line[split:] == "1") ||
+						(line[:split] == "clientOnly" && line[split:] == "1") {
+						hasSlaveConfigDefined = true
+					}
 				}
 			} else {
 				return errors.New("Config option not in section: " + line)
@@ -146,8 +155,20 @@ func (output *ptp4lConf) populatePtp4lConf(config *string) error {
 			output.sections = append(output.sections, currentSection)
 		}
 	}
+
 	if !globalIsDefined {
 		output.sections = append(output.sections, ptp4lConfSection{options: map[string]string{}, sectionName: "[global]"})
+	}
+
+	if !hasSlaveConfigDefined {
+		// No Slave Interfaces defined
+		output.clock_type = event.GM
+	} else if len(output.sections) > 2 {
+		// Multiple interfaces with at least one slave Interface defined
+		output.clock_type = event.BC
+	} else {
+		// Single slave Interface defined
+		output.clock_type = event.OC
 	}
 	return nil
 }
