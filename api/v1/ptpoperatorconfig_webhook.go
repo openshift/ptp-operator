@@ -57,7 +57,8 @@ func (r *PtpOperatorConfig) validate() error {
 			return nil
 		}
 		if eventConfig.StorageType == "" {
-			return errors.New("for HTTP transport, ptpEventConfig.storageType must be set to the name of StorageClass providing persist storage")
+			// default to emptyDir to pass the check since cloud-event-proxy overwrites this to configMap for HTTP transport
+			eventConfig.StorageType = storageTypeEmptyDir
 		}
 		if eventConfig.StorageType != storageTypeEmptyDir && !r.checkStorageClass(eventConfig.StorageType) {
 			return errors.New("ptpEventConfig.storageType is set to StorageClass " + eventConfig.StorageType + " which does not exist")
