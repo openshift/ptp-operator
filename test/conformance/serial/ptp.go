@@ -2,6 +2,7 @@ package test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
@@ -531,6 +532,83 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					Fail(fmt.Sprintf("PTP event was not generated in the pod %s, err=%s", fullConfig.DiscoveredClockUnderTestPod.Name, err))
 				}
 
+			})
+		})
+		Context("Running with reference plugin", func() {
+			BeforeEach(func() {
+				By("Enabling reference plugin", func() {
+					Expect(ptphelper.EnablePTPReferencePlugin()).NotTo(HaveOccurred())
+				})
+			})
+			AfterEach(func() {
+				By("Disabling reference plugin", func() {
+					Expect(ptphelper.DisablePTPReferencePlugin()).NotTo(HaveOccurred())
+				})
+			})
+			It("Should check whether plugin is loaded", func() {
+				By("checking for plugin logs")
+				foundMatch := false
+				for i := 0; i < 3 && !foundMatch; i++ {
+					ptphelper.WaitForPtpDaemonToBeReady()
+					ptpPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
+					Expect(err).NotTo(HaveOccurred())
+					Expect(len(ptpPods.Items)).To(BeNumerically(">", 0), "linuxptp-daemon is not deployed on cluster")
+					pluginLog := "Trying to register plugin: reference"
+					for podIndex := range ptpPods.Items {
+						_, err := pods.GetPodLogsRegex(ptpPods.Items[podIndex].Namespace,
+							ptpPods.Items[podIndex].Name, pkg.PtpContainerName,
+							pluginLog, true, pkg.TimeoutIn3Minutes)
+						if err != nil {
+							logrus.Errorf(fmt.Sprintf("Reference plugin not loaded, err=%s", err))
+							continue
+						}
+						foundMatch = true
+					}
+				}
+				Expect(foundMatch).To(BeTrue())
+			})
+			It("Should check whether test plugin executes", func() {
+				By("Find if required logs are found")
+				Expect(ptphelper.EnablePTPReferencePlugin()).NotTo(HaveOccurred())
+				pluginConfigExists := false
+				pluginOpts := ""
+				masterConfigs, slaveConfigs := ptphelper.DiscoveryPTPConfiguration(pkg.PtpLinuxDaemonNamespace)
+				ptpConfigs := append(masterConfigs, slaveConfigs...)
+				for _, config := range ptpConfigs {
+					for _, profile := range config.Spec.Profile {
+						if profile.Plugins != nil {
+							for name, opts := range profile.Plugins {
+								if name == "reference" {
+									optsByteArray, _ := json.Marshal(opts)
+									json.Unmarshal(optsByteArray, &pluginOpts)
+									pluginConfigExists = true
+								}
+							}
+						}
+					}
+				}
+				if !pluginConfigExists {
+					Skip("No plugin policies configured")
+				}
+				foundMatch := false
+				for i := 0; i < 3 && !foundMatch; i++ {
+					ptphelper.WaitForPtpDaemonToBeReady()
+					ptpPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
+					Expect(err).NotTo(HaveOccurred())
+					Expect(len(ptpPods.Items)).To(BeNumerically(">", 0), "linuxptp-daemon is not deployed on cluster")
+					pluginLog := fmt.Sprintf("OnPTPConfigChangeGeneric: (%s)", pluginOpts)
+					for podIndex := range ptpPods.Items {
+						_, err := pods.GetPodLogsRegex(ptpPods.Items[podIndex].Namespace,
+							ptpPods.Items[podIndex].Name, pkg.PtpContainerName,
+							pluginLog, true, pkg.TimeoutIn3Minutes)
+						if err != nil {
+							logrus.Errorf(fmt.Sprintf("Reference plugin not running OnPTPConfigChangeGeneric, err=%s", err))
+							continue
+						}
+						foundMatch = true
+					}
+				}
+				Expect(foundMatch).To(BeTrue())
 			})
 		})
 		Context("Running with fifo scheduling", func() {
