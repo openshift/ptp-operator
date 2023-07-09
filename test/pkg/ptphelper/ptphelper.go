@@ -19,6 +19,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/nodes"
@@ -405,6 +406,9 @@ func DiscoveryPTPConfiguration(namespace string) (masters, slaves []*ptpv1.PtpCo
 			}
 			if IsPtpSlave(profile.Ptp4lOpts, profile.Phc2sysOpts) {
 				slaves = append(slaves, &configList.Items[configIndex])
+			} else {
+				slaves = append(slaves, &configList.Items[configIndex])
+
 			}
 		}
 	}
@@ -437,6 +441,29 @@ func PtpEventEnabled() bool {
 		return false
 	}
 	return ptpConfig.Spec.EventConfig.EnableEventPublisher
+}
+
+func EnablePTPReferencePlugin() error {
+	ptpOperatorConfig, err := client.Client.PtpV1Interface.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), pkg.PtpConfigOperatorName, metav1.GetOptions{})
+	Expect(err).NotTo(HaveOccurred())
+
+	var plugindata apiextensions.JSON
+	plugindata.Raw = []byte("1")
+
+	(*ptpOperatorConfig.Spec.EnabledPlugins)["reference"] = &plugindata
+
+	_, err = client.Client.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Update(context.Background(), ptpOperatorConfig, metav1.UpdateOptions{})
+	return err
+}
+
+func DisablePTPReferencePlugin() error {
+	ptpOperatorConfig, err := client.Client.PtpV1Interface.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), pkg.PtpConfigOperatorName, metav1.GetOptions{})
+	Expect(err).NotTo(HaveOccurred())
+
+	(*ptpOperatorConfig.Spec.EnabledPlugins)["reference"] = nil
+
+	_, err = client.Client.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Update(context.Background(), ptpOperatorConfig, metav1.UpdateOptions{})
+	return err
 }
 
 func GetPtpOperatorVersion() (string, error) {
