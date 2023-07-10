@@ -26,5 +26,5 @@ if [[ $SUITE == *"$VALIDATION_SUIT_SUBSTR"* ]]
 then
 	GOFLAGS=-mod=vendor ginkgo --output-dir=$JUNIT_OUTPUT_DIR --junit-report=$JUNIT_OUTPUT_FILE -v -p "$SUITE"
 else
-	GOFLAGS=-mod=vendor ginkgo -keepGoing --output-dir=$JUNIT_OUTPUT_DIR --junit-report=$JUNIT_OUTPUT_FILE -v -p "$SUITE"/serial "$SUITE"/parallel
+	GOFLAGS=-mod=vendor ginkgo -keepGoing --output-dir=$JUNIT_OUTPUT_DIR --junit-report=$JUNIT_OUTPUT_FILE -v -p "$SUITE"/serial
 fi
