@@ -50,6 +50,7 @@ type ptpProcess struct {
 	nodeProfile     *ptpv1.PtpProfile
 	parentClockClass float64
 	pmcCheck          bool
+	clockType         event.ClockType
 	ptpClockThreshold *ptpv1.PtpClockThreshold
 }
 
@@ -171,7 +172,7 @@ func (dn *Daemon) applyNodePTPProfiles() error {
 
 	for _, p := range dn.processManager.process {
 		if p != nil {
-			glog.Infof("stopping process.... %+v", p)
+			glog.Infof("stopping process.... %s", p.name)
 			if p.depProcess != nil {
 				for _, d := range p.depProcess {
 					if d != nil {
@@ -222,7 +223,7 @@ func (dn *Daemon) applyNodePTPProfiles() error {
 						dn.pluginManager.AfterRunPTPCommand(p.nodeProfile, d.Name())
 						//TODO: Maybe Move DPLL start and stop as part of pluign
 						d.MonitorProcess(config.ProcessConfig{
-							ClockType:    clockType,
+							ClockType:    p.clockType,
 							ConfigName:   p.configName,
 							CloseCh:      p.exitCh,
 							EventChannel: dn.processManager.eventChannel,
@@ -344,7 +345,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 			return err
 		}
 
-		clockType = output.clock_type
+		clockType := output.clock_type
 		output.profile_name = *nodeProfile.Name
 
 		if nodeProfile.Interface != nil && *nodeProfile.Interface != "" {
@@ -393,6 +394,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 			cmd:               cmd,
 			depProcess:        []process{},
 			nodeProfile:       nodeProfile,
+			clockType:         clockType,
 			ptpClockThreshold: getPTPThreshold(nodeProfile),
 		}
 		//TODO HARDWARE PLUGIN for e810
@@ -549,26 +551,34 @@ func (p *ptpProcess) cmdRun() {
 				if regexErr != nil || !logFilterRegex.MatchString(output) {
 					fmt.Printf("%s\n", output)
 				}
-				source, ts2phcsOffset, state, iface := extractMetrics(p.messageTag, p.name, p.ifaces, output)
-				var ts2phcState event.PTPState
-				if state == FREERUN {
-					ts2phcState = event.PTP_FREERUN
-				} else if state == LOCKED {
-					ts2phcState = event.PTP_LOCKED
-				}
-				if source == ts2phcProcessName {
-					p.eventCh <- event.EventChannel{
-					ProcessName: event.TS2PHC,
-					State:       ts2phcState,
-					CfgName:     p.configName,
-					IFace:       iface,
-					Values: map[event.ValueType]int64{
-						event.OFFSET: int64(ts2phcsOffset),
-					},
-					ClockType:  clockType,
-					Time:       time.Now().Unix(),
-					WriteToLog: true,
-					Reset:      false,
+				source, ptpOffset, _, iface := extractMetrics(p.messageTag, p.name, p.ifaces, output)
+				if iface != "" {
+					var ptpState event.PTPState
+					ptpState = event.PTP_FREERUN
+					if int64(ptpOffset) < p.ptpClockThreshold.MaxOffsetThreshold &&
+						int64(ptpOffset) > p.ptpClockThreshold.MinOffsetThreshold {
+						ptpState = event.PTP_LOCKED
+						updateClockStateMetrics(p.name, iface, LOCKED)
+					} else {
+						updateClockStateMetrics(p.name, iface, FREERUN)
+					}
+					if source == ts2phcProcessName && p.clockType == event.GM {
+						if len(p.ifaces) > 0 {
+							iface = p.ifaces[0]
+						}
+						p.eventCh <- event.EventChannel{
+							ProcessName: event.TS2PHC,
+							State:       ptpState,
+							CfgName:     p.configName,
+							IFace:       iface,
+							Values: map[event.ValueType]int64{
+								event.OFFSET: int64(ptpOffset),
+							},
+							ClockType:  p.clockType,
+							Time:       time.Now().Unix(),
+							WriteToLog: false,
+							Reset:      false,
+						}
 					}
 				}
 			}
@@ -607,21 +617,17 @@ func (p *ptpProcess) cmdStop() {
 	if p.cmd == nil {
 		return
 	}
-
 	p.setStopped(true)
-
 	if p.cmd.Process != nil {
 		glog.Infof("Sending TERM to PID: %d", p.cmd.Process.Pid)
 		p.cmd.Process.Signal(syscall.SIGTERM)
 	}
-
 	if p.ptp4lConfigPath != "" {
 		err := os.Remove(p.ptp4lConfigPath)
 		if err != nil {
 			glog.Errorf("failed to remove ptp4l config path %s: %v", p.ptp4lConfigPath, err)
 		}
 	}
-
 	<-p.exitCh
 	glog.Infof("Process %d terminated", p.cmd.Process.Pid)
 }

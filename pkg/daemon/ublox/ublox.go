@@ -31,7 +31,7 @@ const (
 	// CMD_PROTO_VERSION ...
 	CMD_PROTO_VERSION = " -p MON-VER"
 	// CMD_VOLTAGE_CONTROLER ...
-	CMD_VOLTAGE_CONTROLER = " -v 1 -z CFG-HW-ANT_CFG_VOLTCTRL %d"
+	CMD_VOLTAGE_CONTROLER = " -v 1 -z CFG-HW-ANT_CFG_VOLTCTRL,%d"
 	// CMD_NAV_STATUS ...
 	CMD_NAV_STATUS = " -t -p NAV-STATUS"
 )
@@ -181,7 +181,7 @@ func (u *UBlox) NavStatus() (int64, error) {
 	stdout, err = u.query(fmt.Sprintf("-P %s %s", *u.protoVersion, CMD_NAV_STATUS), NavStatusRegEx)
 	glog.Infof("queried ublox output %s", stdout)
 	if err != nil {
-		glog.Errorf("errorin reading gnss status %s", err)
+		glog.Errorf("error in reading gnss status %s", err)
 		return 0, err
 	}
 	var parseError error

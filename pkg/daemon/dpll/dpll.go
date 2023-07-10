@@ -52,8 +52,8 @@ func (d *DpllConfig) Stopped() bool {
 }
 
 func (d *DpllConfig) CmdStop() {
-
 	glog.Infof("Process %s terminated", d.Name())
+	d.processConfig.CloseCh <- true
 }
 
 func (d *DpllConfig) CmdInit() {

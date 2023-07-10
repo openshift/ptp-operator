@@ -67,7 +67,6 @@ func (gp *gpspipe) CmdStop() {
 	if err != nil {
 		glog.Errorf("Failed to delete named pipe: %s", GPSD_SERIALPORT)
 	}
-	<-gp.exitCh
 	glog.Infof("Process %d terminated", gp.cmd.Process.Pid)
 }
 

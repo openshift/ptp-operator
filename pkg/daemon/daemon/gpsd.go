@@ -69,8 +69,7 @@ func (g *gpsd) CmdStop() {
 		glog.Infof("Sending TERM to PID: %d", g.cmd.Process.Pid)
 		g.cmd.Process.Signal(syscall.SIGTERM)
 	}
-
-	<-g.exitCh
+	g.processConfig.CloseCh <- true
 	glog.Infof("Process %d terminated", g.cmd.Process.Pid)
 }
 
@@ -148,6 +147,8 @@ retry:
 		ticker := time.NewTicker(1 * time.Second)
 		var lastState int64
 		var lastOffset int64
+		lastState = -1
+		lastOffset = -1
 		for {
 			select {
 			case <-ticker.C:
@@ -180,7 +181,6 @@ retry:
 							Reset:      false,
 						}
 					}
-
 				} else {
 					if errs != nil {
 						glog.Errorf("error calling ublox %s", errs)
