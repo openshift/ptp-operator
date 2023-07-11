@@ -9,14 +9,12 @@ import (
 )
 
 func TestDpllConfig_MonitorProcess(t *testing.T) {
-	d := dpll.NewDpll(1400, 5, 10, []event.EventSource{})
+	d := dpll.NewDpll(1400, 5, 10, "ens01", []event.EventSource{})
 	eventChannel := make(chan event.EventChannel, 10)
-	closeCh := make(chan bool)
 
 	d.MonitorProcess(config.ProcessConfig{
 		ClockType:       "GM",
 		ConfigName:      "test",
-		CloseCh:         closeCh,
 		EventChannel:    eventChannel,
 		GMThreshold:     config.Threshold{},
 		InitialPTPState: event.PTP_FREERUN,
@@ -24,5 +22,4 @@ func TestDpllConfig_MonitorProcess(t *testing.T) {
 
 	ptpState := <-eventChannel
 	assert.Equal(t, ptpState.ProcessName, event.DPLL)
-	close(closeCh)
 }

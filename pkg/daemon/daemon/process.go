@@ -9,4 +9,5 @@ type process interface {
 	CmdInit()
 	CmdRun(stdToSocket bool)
 	MonitorProcess(p config.ProcessConfig)
+	ExitCh() chan struct{}
 }

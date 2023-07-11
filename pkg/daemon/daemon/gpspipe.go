@@ -24,7 +24,7 @@ type gpspipe struct {
 	execMutex  sync.Mutex
 	cmd        *exec.Cmd
 	serialPort string
-	exitCh     chan bool
+	exitCh     chan struct{}
 	stopped    bool
 	cancelFn   context.CancelFunc
 	ctx        context.Context
@@ -32,6 +32,11 @@ type gpspipe struct {
 
 func (gp *gpspipe) Name() string {
 	return gp.name
+}
+
+// ExitCh ... exit channel
+func (gp *gpspipe) ExitCh() chan struct{} {
+	return gp.exitCh
 }
 
 func (gp *gpspipe) SerialPort() string {
@@ -50,27 +55,26 @@ func (gp *gpspipe) Stopped() bool {
 	return me
 }
 
+// CmdStop ... stop gpspipe
 func (gp *gpspipe) CmdStop() {
-	glog.Infof("Stopping %s...", gp.name)
+	glog.Infof("stopping %s...", gp.name)
 	if gp.cmd == nil {
 		return
 	}
-
 	gp.setStopped(true)
-
 	if gp.cmd.Process != nil {
-		glog.Infof("Sending TERM to PID: %d", gp.cmd.Process.Pid)
+		glog.Infof("Sending TERM to (%s) PID: %d", gp.name, gp.cmd.Process.Pid)
 		gp.cmd.Process.Signal(syscall.SIGTERM)
 	}
 	// Clean up (delete) the named pipe
 	err := os.Remove(GPSPIPE_SERIALPORT)
 	if err != nil {
-		glog.Errorf("Failed to delete named pipe: %s", GPSD_SERIALPORT)
+		glog.Errorf("Failed to delete named pipe: %s", GPSPIPE_SERIALPORT)
 	}
-	glog.Infof("Process %d terminated", gp.cmd.Process.Pid)
+	glog.Infof("Process %s (%d) terminated", gp.name, gp.cmd.Process.Pid)
 }
 
-// ubxtool -w 5 -v 1 -p MON-VER -P 29.20
+// CmdInit ... initialize gpspipe
 func (gp *gpspipe) CmdInit() {
 	if gp.name == "" {
 		gp.name = GPSPIPE_PROCESSNAME

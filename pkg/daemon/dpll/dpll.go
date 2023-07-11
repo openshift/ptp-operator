@@ -22,6 +22,7 @@ const (
 	LocalMaxHoldoverOffSet = 1500  //ns
 	LocalHoldoverTimeout   = 14400 //secs
 	MaxInSpecOffset        = 100   //ns
+	monitoringInerval      = 1 * time.Second
 )
 
 type DpllConfig struct {
@@ -39,6 +40,8 @@ type DpllConfig struct {
 	sourceLost             bool
 	processConfig          config.ProcessConfig
 	dependingState         []event.EventSource
+	exitCh                 chan struct{}
+	ticker                 *time.Ticker
 }
 
 func (d *DpllConfig) Name() string {
@@ -51,9 +54,17 @@ func (d *DpllConfig) Stopped() bool {
 	panic("implement me")
 }
 
+// ExitCh ... exit channel
+func (d *DpllConfig) ExitCh() chan struct{} {
+	return d.exitCh
+}
+
 func (d *DpllConfig) CmdStop() {
+	glog.Infof("stopping %s", d.Name())
+	d.ticker.Stop()
+	glog.Infof("Ticker stopped %s", d.Name())
+	close(d.exitCh) // terminate loop
 	glog.Infof("Process %s terminated", d.Name())
-	d.processConfig.CloseCh <- true
 }
 
 func (d *DpllConfig) CmdInit() {
@@ -62,8 +73,7 @@ func (d *DpllConfig) CmdInit() {
 }
 
 func (d *DpllConfig) CmdRun(stdToSocket bool) {
-	//TODO implement me
-	glog.Infof("cmdRun not implemented %s", d.Name())
+	//not implemented
 }
 
 func NewDpll(localMaxHoldoverOffSet, localHoldoverTimeout, maxInSpecOffset int64,
@@ -82,6 +92,8 @@ func NewDpll(localMaxHoldoverOffSet, localHoldoverTimeout, maxInSpecOffset int64
 		onHoldover:     false,
 		sourceLost:     false,
 		dependingState: dependingState,
+		exitCh:         make(chan struct{}),
+		ticker:         time.NewTicker(monitoringInerval),
 	}
 	d.timer = int64(float64(d.MaxInSpecOffset) / d.slope)
 	return d
@@ -92,16 +104,35 @@ func (d *DpllConfig) MonitorProcess(processCfg config.ProcessConfig) {
 
 // MonitorDpll ... monitor dpll events
 func (d *DpllConfig) MonitorDpll(processCfg config.ProcessConfig) {
-	ticker := time.NewTicker(1 * time.Second)
+	defer func() {
+		if recover() != nil {
+			// handle closed close channel
+		}
+	}()
+	d.ticker = time.NewTicker(monitoringInerval)
 	dpll_state := event.PTP_FREERUN
-	var closeCh chan bool
+	var holdoverCloseCh chan bool
 	// determine dpll state
 	responseChannel := make(chan event.PTPState)
 	var responseState event.PTPState
 	d.inSpec = true
 	for {
 		select {
-		case <-ticker.C:
+		case <-d.exitCh:
+			glog.Infof("terminating DPLL monitoring")
+			processCfg.EventChannel <- event.EventChannel{
+				ProcessName: event.DPLL,
+				IFace:       d.iface,
+				CfgName:     processCfg.ConfigName,
+				ClockType:   processCfg.ClockType,
+				Time:        time.Now().Unix(),
+				Reset:       true,
+			}
+			if d.onHoldover {
+				close(holdoverCloseCh) // cancel any holdover
+			}
+			return
+		case <-d.ticker.C:
 			// monitor DPLL
 			//TODO: netlink to monitor DPLL start here
 			phase_status, frequency_status, phase_offset := d.sysfs(d.iface)
@@ -117,18 +148,16 @@ func (d *DpllConfig) MonitorDpll(processCfg config.ProcessConfig) {
 				})
 				select {
 				case responseState = <-responseChannel:
-				case <-time.After(1 * time.Second):
+				case <-time.After(200 * time.Millisecond): //TODO:move this to non blocking call
 					responseState = event.PTP_UNKNOWN
 				}
 				dependingProcessState = append(dependingProcessState, responseState)
 			}
-
 			for i, state := range dependingProcessState {
 				if i == 0 || state < lowestState {
 					lowestState = state
 				}
 			}
-
 			// check dpll status
 			if lowestState == event.PTP_LOCKED {
 				d.sourceLost = false
@@ -141,7 +170,7 @@ func (d *DpllConfig) MonitorDpll(processCfg config.ProcessConfig) {
 			case DPLL_FREERUN, DPLL_INVALID, DPLL_UNKNOWN:
 				d.inSpec = true
 				if d.onHoldover {
-					closeCh <- true
+					holdoverCloseCh <- true
 				}
 				d.state = event.PTP_FREERUN
 			case DPLL_LOCKED:
@@ -157,12 +186,12 @@ func (d *DpllConfig) MonitorDpll(processCfg config.ProcessConfig) {
 					d.state = event.PTP_LOCKED
 					if d.onHoldover {
 						d.inSpec = true
-						closeCh <- true
+						holdoverCloseCh <- true
 					}
 				} else if d.sourceLost && d.inSpec == true {
-					closeCh = make(chan bool)
+					holdoverCloseCh = make(chan bool)
 					d.inSpec = false
-					go d.holdover(closeCh)
+					go d.holdover(holdoverCloseCh)
 				} else {
 					d.state = event.PTP_FREERUN
 				}
@@ -182,16 +211,6 @@ func (d *DpllConfig) MonitorDpll(processCfg config.ProcessConfig) {
 				WriteToLog: true,
 				Reset:      false,
 			}
-		case <-processCfg.CloseCh:
-			processCfg.EventChannel <- event.EventChannel{
-				ProcessName: event.DPLL,
-				IFace:       d.iface,
-				CfgName:     processCfg.ConfigName,
-				ClockType:   processCfg.ClockType,
-				Time:        time.Now().Unix(),
-				Reset:       true,
-			}
-			ticker.Stop()
 		}
 	}
 }

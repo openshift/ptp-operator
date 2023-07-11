@@ -132,7 +132,6 @@ func (dn *Daemon) Run() {
 			}
 		case <-tickerPmc.C:
 			dn.HandlePmcTicker()
-
 		case <-dn.stopCh:
 			for _, p := range dn.processManager.process {
 				if p != nil {
@@ -169,10 +168,10 @@ func printWhenNotNil(p interface{}, description string) {
 
 func (dn *Daemon) applyNodePTPProfiles() error {
 	glog.Infof("in applyNodePTPProfiles")
-
 	for _, p := range dn.processManager.process {
 		if p != nil {
 			glog.Infof("stopping process.... %s", p.name)
+			p.cmdStop()
 			if p.depProcess != nil {
 				for _, d := range p.depProcess {
 					if d != nil {
@@ -181,7 +180,7 @@ func (dn *Daemon) applyNodePTPProfiles() error {
 					}
 				}
 			}
-			p.cmdStop()
+			p.depProcess = nil
 			p = nil
 		}
 	}
@@ -225,7 +224,6 @@ func (dn *Daemon) applyNodePTPProfiles() error {
 						d.MonitorProcess(config.ProcessConfig{
 							ClockType:    p.clockType,
 							ConfigName:   p.configName,
-							CloseCh:      p.exitCh,
 							EventChannel: dn.processManager.eventChannel,
 							GMThreshold: config.Threshold{
 								Max:             p.ptpClockThreshold.MaxOffsetThreshold,
@@ -412,7 +410,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 				execMutex:   sync.Mutex{},
 				cmd:         nil,
 				serialPort:  GPSD_SERIALPORT,
-				exitCh:      make(chan bool),
+				exitCh:      make(chan struct{}),
 				gmInterface: gmInterface,
 				stopped:     false,
 			}
@@ -425,7 +423,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 				execMutex:  sync.Mutex{},
 				cmd:        nil,
 				serialPort: GPSPIPE_SERIALPORT,
-				exitCh:     make(chan bool),
+				exitCh:     make(chan struct{}),
 				stopped:    false,
 			}
 			gpsPipeDaemon.CmdInit()
@@ -441,6 +439,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 			printNodeProfile(nodeProfile)
 			return fmt.Errorf("failed to write the configuration file named %s: %v", configPath, err)
 		}
+		printNodeProfile(nodeProfile)
 		dn.processManager.process = append(dn.processManager.process, &dprocess)
 	}
 
@@ -613,13 +612,13 @@ func (p *ptpProcess) cmdRun() {
 
 // cmdStop stops ptpProcess launched by cmdRun
 func (p *ptpProcess) cmdStop() {
-	glog.Infof("Stopping %s...", p.name)
+	glog.Infof("stopping %s...", p.name)
 	if p.cmd == nil {
 		return
 	}
 	p.setStopped(true)
 	if p.cmd.Process != nil {
-		glog.Infof("Sending TERM to PID: %d", p.cmd.Process.Pid)
+		glog.Infof("Sending TERM to (%s) PID: %d", p.name, p.cmd.Process.Pid)
 		p.cmd.Process.Signal(syscall.SIGTERM)
 	}
 	if p.ptp4lConfigPath != "" {
@@ -629,7 +628,7 @@ func (p *ptpProcess) cmdStop() {
 		}
 	}
 	<-p.exitCh
-	glog.Infof("Process %d terminated", p.cmd.Process.Pid)
+	glog.Infof("Process %s (%d) terminated", p.name, p.cmd.Process.Pid)
 }
 
 func getPTPThreshold(nodeProfile *ptpv1.PtpProfile) *ptpv1.PtpClockThreshold {
@@ -649,5 +648,5 @@ func getPTPThreshold(nodeProfile *ptpv1.PtpProfile) *ptpv1.PtpClockThreshold {
 }
 
 func (p *ptpProcess) MonitorEvent(offset float64, clockState string) {
-
+	// not implemented
 }

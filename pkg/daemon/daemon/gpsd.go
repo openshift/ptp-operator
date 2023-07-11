@@ -1,7 +1,6 @@
 package daemon
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"os/exec"
@@ -26,7 +25,7 @@ type gpsd struct {
 	execMutex     sync.Mutex
 	cmd           *exec.Cmd
 	serialPort    string
-	exitCh        chan bool
+	exitCh        chan struct{}
 	stopped       bool
 	state         event.PTPState
 	offset        int64
@@ -34,14 +33,22 @@ type gpsd struct {
 	gmInterface   string
 }
 
+// MonitorProcess ... Monitor gpsd process
 func (g *gpsd) MonitorProcess(p config.ProcessConfig) {
 	go g.monitorGNSSEvents(p, "E810")
 }
 
+// Name ... Process name
 func (g *gpsd) Name() string {
 	return g.name
 }
 
+// ExitCh ... exit channel
+func (g *gpsd) ExitCh() chan struct{} {
+	return g.exitCh
+}
+
+// SerialPort ... get SerialPort
 func (g *gpsd) SerialPort() string {
 	return g.serialPort
 }
@@ -51,6 +58,7 @@ func (g *gpsd) setStopped(val bool) {
 	g.execMutex.Unlock()
 }
 
+// Stopped ...
 func (g *gpsd) Stopped() bool {
 	g.execMutex.Lock()
 	me := g.stopped
@@ -58,22 +66,22 @@ func (g *gpsd) Stopped() bool {
 	return me
 }
 
+// CmdStop .... stop
 func (g *gpsd) CmdStop() {
-	glog.Infof("Stopping %s...", g.name)
+	glog.Infof("stopping %s...", g.name)
 	if g.cmd == nil {
 		return
 	}
-
 	g.setStopped(true)
 	if g.cmd.Process != nil {
 		glog.Infof("Sending TERM to PID: %d", g.cmd.Process.Pid)
 		g.cmd.Process.Signal(syscall.SIGTERM)
 	}
-	g.processConfig.CloseCh <- true
-	glog.Infof("Process %d terminated", g.cmd.Process.Pid)
+	<-g.exitCh
+	glog.Infof("Process %s (%d) terminated", g.name, g.cmd.Process.Pid)
 }
 
-// ubxtool -w 5 -v 1 -p MON-VER -P 29.20
+// CmdInit .... ubxtool -w 5 -v 1 -p MON-VER -P 29.20
 func (g *gpsd) CmdInit() {
 	if g.name == "" {
 		g.name = "gpsd"
@@ -84,31 +92,20 @@ func (g *gpsd) CmdInit() {
 
 }
 
+// CmdRun ... run gpsd
 func (g *gpsd) CmdRun(stdoutToSocket bool) {
-	done := make(chan struct{}) // Done setting up logging.  Go ahead and wait for process
 	defer func() {
-		g.exitCh <- true
+		g.exitCh <- struct{}{}
 	}()
 	for {
 		glog.Infof("Starting %s...", g.Name())
 		glog.Infof("%s cmd: %+v", g.Name(), g.cmd)
 		g.cmd.Stderr = os.Stderr
-		cmdReader, err := g.cmd.StdoutPipe()
+		var err error
 
 		if err != nil {
 			glog.Errorf("CmdRun() error creating StdoutPipe for %s: %v", g.Name(), err)
 			break
-		}
-		if !stdoutToSocket {
-			scanner := bufio.NewScanner(cmdReader)
-			go func() {
-				for scanner.Scan() {
-					//TODO: suppress logs for
-					_ = scanner.Text()
-					//fmt.Printf("%s\n", output)
-				}
-				done <- struct{}{}
-			}()
 		}
 		// Don't restart after termination
 		if !g.Stopped() {
@@ -117,11 +114,13 @@ func (g *gpsd) CmdRun(stdoutToSocket bool) {
 			if err != nil {
 				glog.Errorf("CmdRun() error starting %s: %v", g.Name(), err)
 			}
-		}
-		<-done // goroutine is done
-		err = g.cmd.Wait()
-		if err != nil {
-			glog.Errorf("CmdRun() error waiting for %s: %v", g.Name(), err)
+			err = g.cmd.Wait()
+			if err != nil {
+				glog.Errorf("CmdRun() error waiting for %s: %v", g.Name(), err)
+			}
+		} else {
+			g.exitCh <- struct{}{}
+			break
 		}
 	}
 }
@@ -189,7 +188,7 @@ retry:
 						glog.Errorf("error calling ublox %s", err2)
 					}
 				}
-			case <-processCfg.CloseCh:
+			case <-g.exitCh:
 				processCfg.EventChannel <- event.EventChannel{
 					ProcessName: event.GNSS,
 					CfgName:     processCfg.ConfigName,
