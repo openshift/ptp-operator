@@ -86,7 +86,7 @@ func (g *gpsd) CmdInit() {
 	if g.name == "" {
 		g.name = "gpsd"
 	}
-	cmdLine := fmt.Sprintf("/usr/local/sbin/%s -p -n -S 2947 -G -N -D 5 %s", g.Name(), g.SerialPort())
+	cmdLine := fmt.Sprintf("/usr/local/sbin/%s -p -n -S 2947 -G -N %s", g.Name(), g.SerialPort())
 	args := strings.Split(cmdLine, " ")
 	g.cmd = exec.Command(args[0], args[1:]...)
 

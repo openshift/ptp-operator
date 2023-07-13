@@ -186,7 +186,7 @@ func (u *UBlox) NavStatus() (int64, error) {
 	}
 	var parseError error
 	var status int64
-	status, parseError = strconv.ParseInt(stdout, 10, 32)
+	status, parseError = strconv.ParseInt(stdout, 10, 64)
 	return status, parseError
 }
 

@@ -1,9 +1,10 @@
 package dpll
 
 import (
-	"encoding/binary"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/golang/glog"
@@ -271,6 +272,9 @@ func (d *DpllConfig) isOffsetInRange() bool {
 // Phase Offset
 // cat /sys/class/net/ens7f0/device/dpll_1_offset
 func (d *DpllConfig) sysfs(iface string) (phaseState, frequencyState, phaseOffset int64) {
+	var err error
+	var content []byte
+	var contentStr string
 	if iface == "" {
 		phaseState = DPLL_INVALID
 		frequencyState = DPLL_INVALID
@@ -281,25 +285,32 @@ func (d *DpllConfig) sysfs(iface string) (phaseState, frequencyState, phaseOffse
 	phaseStateStr := fmt.Sprintf("/sys/class/net/%s/device/dpll_1_state", iface)
 	phaseOffsetStr := fmt.Sprintf("/sys/class/net/%s/device/dpll_1_offset", iface)
 	// Read the content of the sysfs path
-	fContent, err := os.ReadFile(frequencyStateStr)
+	content, err = os.ReadFile(frequencyStateStr)
 	if err != nil {
-		glog.Infof("error reading sysfs path %s %s:", frequencyStateStr, err)
+		glog.Errorf("error reading sysfs path %s %s:", frequencyStateStr, err)
 	} else {
-		frequencyState = int64(binary.BigEndian.Uint64(fContent))
+		contentStr = strings.ReplaceAll(string(content), "\n", "")
+		if frequencyState, err = strconv.ParseInt(contentStr, 10, 64); err != nil {
+			glog.Errorf("error parsing frequency state %s = %s:", contentStr, err)
+		}
 	}
 	// Read the content of the sysfs path
-	pContent, err2 := os.ReadFile(phaseStateStr)
-	if err2 != nil {
-		glog.Infof("error reading sysfs path %s %s:", phaseStateStr, err2)
+	if content, err = os.ReadFile(phaseStateStr); err != nil {
+		glog.Errorf("error reading sysfs path %s %s:", phaseStateStr, err)
 	} else {
-		phaseState = int64(binary.BigEndian.Uint64(pContent))
+		contentStr = strings.ReplaceAll(string(content), "\n", "")
+		if phaseState, err = strconv.ParseInt(contentStr, 10, 64); err != nil {
+			glog.Errorf("error parsing phase state %s = %s:", contentStr, err)
+		}
 	}
 	// Read the content of the sysfs path
-	offsetContent, err3 := os.ReadFile(phaseOffsetStr)
-	if err3 != nil {
-		glog.Infof("error reading sysfs path %s %s:", phaseOffsetStr, err3)
+	if content, err = os.ReadFile(phaseOffsetStr); err != nil {
+		glog.Errorf("error reading sysfs path %s %s:", phaseOffsetStr, err)
 	} else {
-		phaseOffset = int64(binary.BigEndian.Uint64(offsetContent))
+		contentStr = strings.ReplaceAll(string(content), "\n", "")
+		if phaseOffset, err = strconv.ParseInt(contentStr, 10, 64); err != nil {
+			glog.Errorf("error parsing phase offset %s=%s:", contentStr, err)
+		}
 	}
 	return
 }
