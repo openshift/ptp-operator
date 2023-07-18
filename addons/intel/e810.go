@@ -6,13 +6,15 @@ import (
 	"github.com/golang/glog"
 	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/plugin"
+	"os"
 	"os/exec"
 	"strings"
 )
 
 type E810Opts struct {
-	EnableDefaultConfig bool           `json:"enableDefaultConfig"`
-	UblxCmds            []E810UblxCmds `json:"ublxCmds"`
+	EnableDefaultConfig bool                         `json:"enableDefaultConfig"`
+	UblxCmds            []E810UblxCmds               `json:"ublxCmds"`
+	DevicePins          map[string]map[string]string `json:"pins"`
 }
 
 type E810UblxCmds struct {
@@ -62,6 +64,24 @@ func OnPTPConfigChangeE810(data *interface{}, nodeProfile *ptpv1.PtpProfile) err
 			if e810Opts.EnableDefaultConfig {
 				stdout, err = exec.Command("/usr/bin/bash", "-c", EnableE810PTPConfig).Output()
 				glog.Infof(string(stdout))
+			}
+			for device, pins := range e810Opts.DevicePins {
+				for pin, value := range pins {
+					deviceDir := fmt.Sprintf("/sys/class/net/%s/device/ptp/", device)
+					phcs, err := os.ReadDir(deviceDir)
+					if err != nil {
+						glog.Error("e810 failed to read " + deviceDir + ": " + err.Error())
+						continue
+					}
+					for _, phc := range phcs {
+						pinPath := fmt.Sprintf("/sys/class/net/%s/device/ptp/%s/pins/%s", device, phc.Name(), pin)
+						glog.Infof("echo %s > %s", value, pinPath)
+						err = os.WriteFile(pinPath, []byte(value), 0666)
+						if err != nil {
+							glog.Error("e810 failed to write " + value + " to " + pinPath + ": " + err.Error())
+						}
+					}
+				}
 			}
 		}
 	}
