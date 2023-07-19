@@ -449,8 +449,9 @@ func EnablePTPReferencePlugin() error {
 
 	var plugindata apiextensions.JSON
 	plugindata.Raw = []byte("1")
-
-	(*ptpOperatorConfig.Spec.EnabledPlugins)["reference"] = &plugindata
+	if ptpOperatorConfig.Spec.EnabledPlugins != nil {
+		(*ptpOperatorConfig.Spec.EnabledPlugins)["reference"] = &plugindata
+	}
 
 	_, err = client.Client.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Update(context.Background(), ptpOperatorConfig, metav1.UpdateOptions{})
 	return err
