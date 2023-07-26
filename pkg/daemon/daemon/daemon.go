@@ -83,6 +83,8 @@ type Daemon struct {
 
 	hwconfigs *[]ptpv1.HwConfig
 
+	refreshNodePtpDevice *bool
+
 	// channel ensure LinuxPTP.Run() exit when main function exits.
 	// stopCh is created by main function and passed by Daemon via NewLinuxPTP()
 	stopCh <-chan struct{}
@@ -102,6 +104,7 @@ func New(
 	stopCh <-chan struct{},
 	plugins []string,
 	hwconfigs *[]ptpv1.HwConfig,
+	refreshNodePtpDevice *bool,
 	pmcPollInterval int,
 ) *Daemon {
 	RegisterMetrics(nodeName)
@@ -242,6 +245,7 @@ func (dn *Daemon) applyNodePTPProfiles() error {
 		}
 	}
 	dn.pluginManager.PopulateHwConfig(dn.hwconfigs)
+	*dn.refreshNodePtpDevice = true
 	return nil
 }
 

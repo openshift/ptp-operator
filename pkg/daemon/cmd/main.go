@@ -100,6 +100,7 @@ func main() {
 	}
 
 	hwconfigs := []ptpv1.HwConfig{}
+	refreshNodePtpDevice := true
 	closeProcessManager := make(chan bool)
 	go daemon.New(
 		nodeName,
@@ -109,6 +110,7 @@ func main() {
 		stopCh,
 		plugins,
 		&hwconfigs,
+		&refreshNodePtpDevice,
 		closeProcessManager,
 		cp.pmcPollInterval,
 	).Run()
@@ -126,7 +128,11 @@ func main() {
 		case <-tickerPull.C:
 			glog.Infof("ticker pull")
 			// Run a loop to update the device status
-			go daemon.RunDeviceStatusUpdate(ptpClient, nodeName, &hwconfigs)
+			if refreshNodePtpDevice {
+				go daemon.RunDeviceStatusUpdate(ptpClient, nodeName, &hwconfigs)
+				refreshNodePtpDevice = false
+			}
+
 			nodeProfile := filepath.Join(cp.profileDir, nodeName)
 			if _, err := os.Stat(nodeProfile); err != nil {
 				if os.IsNotExist(err) {
