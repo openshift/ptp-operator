@@ -24,6 +24,7 @@ const (
 	PTP4L_CONF_DIR            = "/ptp4l-conf"
 	connectionRetryInterval   = 1 * time.Second
 	ClockClassChangeIndicator = "selected best master clock"
+	GPSDDefaultGNSSSerialPort = "/dev/gnss0"
 )
 
 // ProcessManager manages a set of ptpProcess
@@ -223,7 +224,7 @@ func (dn *Daemon) applyNodePTPProfiles() error {
 						go d.CmdRun(false)
 						time.Sleep(3 * time.Second)
 						dn.pluginManager.AfterRunPTPCommand(p.nodeProfile, d.Name())
-						//TODO: Maybe Move DPLL start and stop as part of pluign
+						// TODO: Maybe Move DPLL start and stop as part of pluign
 						d.MonitorProcess(config.ProcessConfig{
 							ClockType:    p.clockType,
 							ConfigName:   p.configName,
@@ -235,6 +236,7 @@ func (dn *Daemon) applyNodePTPProfiles() error {
 							},
 							InitialPTPState: event.PTP_FREERUN,
 						})
+						glog.Infof("Max %d Min %d Holdover %d", p.ptpClockThreshold.MaxOffsetThreshold, p.ptpClockThreshold.MinOffsetThreshold, p.ptpClockThreshold.HoldOverTimeout)
 					}
 				}
 			}
@@ -361,6 +363,10 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 			if section.sectionName == "[global]" {
 				section.options["message_tag"] = messageTag
 				section.options["uds_address"] = socketPath
+				if gnssSerialPort, ok := section.options["ts2phc.nmea_serialport"]; ok {
+					output.gnss_serial_port = gnssSerialPort
+					section.options["ts2phc.nmea_serialport"] = GPSPIPE_SERIALPORT
+				}
 				output.sections[index] = section
 			}
 		}
@@ -379,8 +385,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 		args := strings.Split(cmdLine, " ")
 		cmd = exec.Command(args[0], args[1:]...)
 
-		//end rendering
-
+		//end rendering config file
 		ifacesList := strings.Split(ifaces, ",")
 
 		dprocess := ptpProcess{
@@ -401,6 +406,9 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 		}
 		//TODO HARDWARE PLUGIN for e810
 		if pProcess == ts2phcProcessName { //& if the x plugin is enabled
+			if output.gnss_serial_port == "" {
+				output.gnss_serial_port = GPSPIPE_SERIALPORT
+			}
 			//TODO: move this to plugin or call it from hwplugin or leave it here and remove Hardcoded
 			gmInterface := ""
 			if len(ifacesList) > 0 {
@@ -413,10 +421,11 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 				name:        GPSD_PROCESSNAME,
 				execMutex:   sync.Mutex{},
 				cmd:         nil,
-				serialPort:  GPSD_SERIALPORT,
+				serialPort:  output.gnss_serial_port,
 				exitCh:      make(chan struct{}),
 				gmInterface: gmInterface,
 				stopped:     false,
+				messageTag:  messageTag,
 			}
 			gpsDaemon.CmdInit()
 			dprocess.depProcess = append(dprocess.depProcess, gpsDaemon)
@@ -429,11 +438,11 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 				serialPort: GPSPIPE_SERIALPORT,
 				exitCh:     make(chan struct{}),
 				stopped:    false,
+				messageTag: messageTag,
 			}
 			gpsPipeDaemon.CmdInit()
 			dprocess.depProcess = append(dprocess.depProcess, gpsPipeDaemon)
 			// init dpll
-			// TODO: Try to inject DPLL depProcess via plugin ?
 			dpllDaemon := dpll.NewDpll(dpll.LocalMaxHoldoverOffSet, dpll.LocalHoldoverTimeout, dpll.MaxInSpecOffset,
 				gmInterface, []event.EventSource{event.GNSS})
 			dprocess.depProcess = append(dprocess.depProcess, dpllDaemon)
@@ -623,7 +632,12 @@ func (p *ptpProcess) cmdStop() {
 	p.setStopped(true)
 	if p.cmd.Process != nil {
 		glog.Infof("Sending TERM to (%s) PID: %d", p.name, p.cmd.Process.Pid)
-		p.cmd.Process.Signal(syscall.SIGTERM)
+		err := p.cmd.Process.Signal(syscall.SIGTERM)
+		if err != nil {
+			// If the process is already terminated, we will get an error here
+			glog.Errorf("failed to send SIGTERM to %s (%d): %v", p.name, p.cmd.Process.Pid, err)
+			return
+		}
 	}
 	if p.ptp4lConfigPath != "" {
 		err := os.Remove(p.ptp4lConfigPath)
@@ -646,7 +660,7 @@ func getPTPThreshold(nodeProfile *ptpv1.PtpProfile) *ptpv1.PtpClockThreshold {
 		return &ptpv1.PtpClockThreshold{
 			HoldOverTimeout:    5,
 			MaxOffsetThreshold: 100,
-			MinOffsetThreshold: 100,
+			MinOffsetThreshold: -100,
 		}
 	}
 }

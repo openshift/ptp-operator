@@ -30,10 +30,11 @@ type ptp4lConfSection struct {
 }
 
 type ptp4lConf struct {
-	sections     []ptp4lConfSection
-	mapping      []string
-	profile_name string
-	clock_type   event.ClockType
+	sections         []ptp4lConfSection
+	mapping          []string
+	profile_name     string
+	clock_type       event.ClockType
+	gnss_serial_port string // gnss serial port
 }
 
 func NewLinuxPTPConfUpdate() (*LinuxPTPConfUpdate, error) {

@@ -23,7 +23,7 @@ const (
 	LocalMaxHoldoverOffSet = 1500  //ns
 	LocalHoldoverTimeout   = 14400 //secs
 	MaxInSpecOffset        = 100   //ns
-	monitoringInerval      = 1 * time.Second
+	monitoringInterval     = 1 * time.Second
 )
 
 type DpllConfig struct {
@@ -94,7 +94,7 @@ func NewDpll(localMaxHoldoverOffSet, localHoldoverTimeout, maxInSpecOffset int64
 		sourceLost:     false,
 		dependingState: dependingState,
 		exitCh:         make(chan struct{}),
-		ticker:         time.NewTicker(monitoringInerval),
+		ticker:         time.NewTicker(monitoringInterval),
 	}
 	d.timer = int64(float64(d.MaxInSpecOffset) / d.slope)
 	return d
@@ -110,7 +110,7 @@ func (d *DpllConfig) MonitorDpll(processCfg config.ProcessConfig) {
 			// handle closed close channel
 		}
 	}()
-	d.ticker = time.NewTicker(monitoringInerval)
+	d.ticker = time.NewTicker(monitoringInterval)
 	dpll_state := event.PTP_FREERUN
 	var holdoverCloseCh chan bool
 	// determine dpll state
@@ -149,7 +149,7 @@ func (d *DpllConfig) MonitorDpll(processCfg config.ProcessConfig) {
 				})
 				select {
 				case responseState = <-responseChannel:
-				case <-time.After(200 * time.Millisecond): //TODO:move this to non blocking call
+				case <-time.After(250 * time.Millisecond): //TODO:move this to non blocking call
 					responseState = event.PTP_UNKNOWN
 				}
 				dependingProcessState = append(dependingProcessState, responseState)
@@ -258,7 +258,7 @@ func (d *DpllConfig) holdover(closeCh chan bool) {
 }
 
 func (d *DpllConfig) isOffsetInRange() bool {
-	if d.offset < d.processConfig.GMThreshold.Max && d.offset > d.processConfig.GMThreshold.Min {
+	if d.offset <= d.processConfig.GMThreshold.Max && d.offset >= d.processConfig.GMThreshold.Min {
 		return true
 	}
 	return false
