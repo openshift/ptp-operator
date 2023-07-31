@@ -8,6 +8,7 @@ import (
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/plugin"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 )
 
@@ -15,6 +16,7 @@ type E810Opts struct {
 	EnableDefaultConfig bool                         `json:"enableDefaultConfig"`
 	UblxCmds            []E810UblxCmds               `json:"ublxCmds"`
 	DevicePins          map[string]map[string]string `json:"pins"`
+	DpllSettings        map[string]int64             `json:"settings"`
 }
 
 type E810UblxCmds struct {
@@ -81,6 +83,14 @@ func OnPTPConfigChangeE810(data *interface{}, nodeProfile *ptpv1.PtpProfile) err
 							glog.Error("e810 failed to write " + value + " to " + pinPath + ": " + err.Error())
 						}
 					}
+				}
+			}
+			for k, v := range e810Opts.DpllSettings {
+				if (*nodeProfile).PtpSettings == nil {
+					(*nodeProfile).PtpSettings = make(map[string]string)
+				}
+				if _, ok := (*nodeProfile).PtpSettings[k]; !ok {
+					(*nodeProfile).PtpSettings[k] = strconv.FormatInt(v, 10)
 				}
 			}
 		}
