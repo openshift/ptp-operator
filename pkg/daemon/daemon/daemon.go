@@ -14,12 +14,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/openshift/linuxptp-daemon/pkg/pmc"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/pmc"
 
 	"github.com/golang/glog"
 	"k8s.io/client-go/kubernetes"
 
-	ptpv1 "github.com/openshift/ptp-operator/api/v1"
+	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
 )
 
 const (

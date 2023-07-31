@@ -63,7 +63,7 @@ metadata:
     olm.skipRange: ">=4.3.0-0 <4.13.0"
     operators.openshift.io/infrastructure-features: '["disconnected"]'
     provider: Red Hat
-    repository: https://github.com/openshift/ptp-operator
+    repository: https://github.com/k8snetworkplumbingwg/ptp-operator
     support: Red Hat
   name: ptp-operator.v0.0.0
   namespace: openshift-ptp
@@ -149,7 +149,7 @@ spec:
   - ptp
   links:
   - name: Documentation operator
-    url: https://github.com/openshift/ptp-operator
+    url: https://github.com/k8snetworkplumbingwg/ptp-operator
   - name: Documentation operand
     url: https://github.com/openshift/linuxptp-daemon
   maintainers:

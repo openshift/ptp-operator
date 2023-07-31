@@ -5,10 +5,10 @@ import (
 	"github.com/golang/glog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	ptpv1 "github.com/openshift/ptp-operator/api/v1"
-	ptpclient "github.com/openshift/ptp-operator/pkg/client/clientset/versioned"
+	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
+	ptpclient "github.com/k8snetworkplumbingwg/ptp-operator/pkg/client/clientset/versioned"
 
-	ptpnetwork "github.com/openshift/linuxptp-daemon/pkg/network"
+	ptpnetwork "github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/network"
 )
 
 func populateNodePTPDevices(nodePTPDev *ptpv1.NodePtpDevice, hwconfigs *[]ptpv1.HwConfig) (*ptpv1.NodePtpDevice, error) {

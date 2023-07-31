@@ -36,10 +36,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	ptpv1 "github.com/openshift/ptp-operator/api/v1"
-	"github.com/openshift/ptp-operator/controllers"
-	"github.com/openshift/ptp-operator/pkg/leaderelection"
-	"github.com/openshift/ptp-operator/pkg/names"
+	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
+	"github.com/k8snetworkplumbingwg/ptp-operator/controllers"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/leaderelection"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/names"
 	//+kubebuilder:scaffold:imports
 )
 

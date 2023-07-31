@@ -243,3 +243,7 @@ buildtest:
 	cp ./test/conformance/conformance.test ./bin/testptp
 buildimage: buildtest
 	./scripts/image.sh
+
+daemon:
+	./hack/build-daemon.sh
+

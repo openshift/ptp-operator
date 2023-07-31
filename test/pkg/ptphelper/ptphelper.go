@@ -12,17 +12,17 @@ import (
 	"time"
 
 	. "github.com/onsi/gomega"
-	"github.com/openshift/ptp-operator/test/pkg"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg"
 	"github.com/sirupsen/logrus"
 	v1core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
-	ptpv1 "github.com/openshift/ptp-operator/api/v1"
+	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
 
-	"github.com/openshift/ptp-operator/test/pkg/client"
-	"github.com/openshift/ptp-operator/test/pkg/nodes"
-	"github.com/openshift/ptp-operator/test/pkg/pods"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/nodes"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/pods"
 	l2exports "github.com/test-network-function/l2discovery-exports"
 )
 

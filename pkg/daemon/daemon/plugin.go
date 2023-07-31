@@ -2,9 +2,9 @@ package daemon
 
 import (
 	"github.com/golang/glog"
-	"github.com/openshift/linuxptp-daemon/addons"
-	"github.com/openshift/linuxptp-daemon/pkg/plugin"
-	ptpv1 "github.com/openshift/ptp-operator/api/v1"
+	"github.com/k8snetworkplumbingwg/ptp-operator/addons"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/plugin"
+	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
 )
 
 type PluginManager struct {

@@ -16,10 +16,10 @@ import (
 	"github.com/golang/glog"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/openshift/linuxptp-daemon/pkg/config"
-	"github.com/openshift/linuxptp-daemon/pkg/daemon"
-	ptpv1 "github.com/openshift/ptp-operator/api/v1"
-	ptpclient "github.com/openshift/ptp-operator/pkg/client/clientset/versioned"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/config"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/daemon"
+	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
+	ptpclient "github.com/k8snetworkplumbingwg/ptp-operator/pkg/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )

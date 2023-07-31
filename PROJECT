@@ -5,7 +5,7 @@ plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
 projectName: ptp-operator
-repo: github.com/openshift/ptp-operator
+repo: github.com/k8snetworkplumbingwg/ptp-operator
 resources:
 - api:
     crdVersion: v1
@@ -14,7 +14,7 @@ resources:
   domain: openshift.io
   group: ptp
   kind: PtpConfig
-  path: github.com/openshift/ptp-operator/api/v1
+  path: github.com/k8snetworkplumbingwg/ptp-operator/api/v1
   version: v1
   webhooks:
     validation: true
@@ -25,7 +25,7 @@ resources:
   domain: openshift.io
   group: ptp
   kind: NodePtpDevice
-  path: github.com/openshift/ptp-operator/api/v1
+  path: github.com/k8snetworkplumbingwg/ptp-operator/api/v1
   version: v1
 - api:
     crdVersion: v1
@@ -34,7 +34,7 @@ resources:
   domain: openshift.io
   group: ptp
   kind: PtpOperatorConfig
-  path: github.com/openshift/ptp-operator/api/v1
+  path: github.com/k8snetworkplumbingwg/ptp-operator/api/v1
   version: v1
   webhooks:
     validation: true
