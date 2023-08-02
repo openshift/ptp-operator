@@ -211,7 +211,7 @@ retry:
 }
 
 func (g *gpsd) isOffsetInRange() bool {
-	if g.offset < g.processConfig.GMThreshold.Max && g.offset > g.processConfig.GMThreshold.Min {
+	if g.offset < g.processConfig.GMThreshold.Max && g.offset >= g.processConfig.GMThreshold.Min {
 		return true
 	}
 	return false
