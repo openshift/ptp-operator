@@ -428,6 +428,9 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 				messageTag:  messageTag,
 			}
 			gpsDaemon.CmdInit()
+			gpsDaemon.cmdLine = addScheduling(nodeProfile, gpsDaemon.cmdLine)
+			args = strings.Split(gpsDaemon.cmdLine, " ")
+			gpsDaemon.cmd = exec.Command(args[0], args[1:]...)
 			dprocess.depProcess = append(dprocess.depProcess, gpsDaemon)
 
 			// init gpspipe
@@ -441,6 +444,9 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 				messageTag: messageTag,
 			}
 			gpsPipeDaemon.CmdInit()
+			gpsPipeDaemon.cmdLine = addScheduling(nodeProfile, gpsPipeDaemon.cmdLine)
+			args = strings.Split(gpsPipeDaemon.cmdLine, " ")
+			gpsPipeDaemon.cmd = exec.Command(args[0], args[1:]...)
 			dprocess.depProcess = append(dprocess.depProcess, gpsPipeDaemon)
 			// init dpll
 			// TODO: Try to inject DPLL depProcess via plugin ?

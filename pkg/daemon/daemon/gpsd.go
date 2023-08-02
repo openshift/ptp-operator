@@ -23,6 +23,7 @@ const (
 type gpsd struct {
 	name                 string
 	execMutex            sync.Mutex
+	cmdLine              string
 	cmd                  *exec.Cmd
 	serialPort           string
 	exitCh               chan struct{}
@@ -96,9 +97,7 @@ func (g *gpsd) CmdInit() {
 	if g.name == "" {
 		g.name = GPSD_PROCESSNAME
 	}
-	cmdLine := fmt.Sprintf("/usr/local/sbin/%s -p -n -S 2947 -G -N %s", g.Name(), g.SerialPort())
-	args := strings.Split(cmdLine, " ")
-	g.cmd = exec.Command(args[0], args[1:]...)
+	g.cmdLine = fmt.Sprintf("/usr/local/sbin/%s -p -n -S 2947 -G -N %s", g.Name(), g.SerialPort())
 }
 
 // CmdRun ... run gpsd

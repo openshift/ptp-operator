@@ -25,6 +25,7 @@ const (
 type gpspipe struct {
 	name       string
 	execMutex  sync.Mutex
+	cmdLine    string
 	cmd        *exec.Cmd
 	serialPort string
 	exitCh     chan struct{}
@@ -89,8 +90,7 @@ func (gp *gpspipe) CmdInit() {
 	if gp.name == "" {
 		gp.name = GPSPIPE_PROCESSNAME
 	}
-	gp.cmd = exec.Command("/usr/bin/bash", "-c", fmt.Sprintf("gpspipe -v -d -r -l -o  %s ", gp.SerialPort()))
-
+	gp.cmdLine = fmt.Sprintf("/usr/local/bin/gpspipe -v -d -r -l -o %s", gp.SerialPort())
 }
 
 // CmdRun ... run gpspipe
