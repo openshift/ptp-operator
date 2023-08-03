@@ -125,7 +125,10 @@ func NewDpll(localMaxHoldoverOffSet, localHoldoverTimeout, maxInSpecOffset int64
 		ticker:         time.NewTicker(monitoringInterval),
 	}
 	d.timer = int64(float64(d.MaxInSpecOffset) / d.slope)
-	d.initDpllClockId()
+	err := d.initDpllClockId()
+	if err != nil {
+		return nil
+	}
 	return d
 }
 
@@ -179,7 +182,7 @@ func (d *DpllConfig) monitorNtf(c *genetlink.Conn, holdoverCloseCh chan bool) {
 	}
 }
 
-// checks whether or not sysfs file structure exists for dpll associated with the interface
+// checks whether sysfs file structure exists for dpll associated with the interface
 func (d *DpllConfig) isSysFsPresent() bool {
 	path := fmt.Sprintf("/sys/class/net/%s/device/dpll_0_state", d.iface)
 	if _, err := os.Stat(path); err == nil {
@@ -257,28 +260,35 @@ func (d *DpllConfig) MonitorDpllNetlink() {
 			if d.onHoldover {
 				close(holdoverCloseCh) // cancel any holdover
 			}
-			d.conn.Close()
+			err := d.conn.Close()
+			if err != nil {
+				glog.Error(err)
+				return
+			}
 			glog.Infof("Netlink connection %s is closed", d.Name())
 			return
 		default:
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
-			defer cancel()
-			err = sem.Acquire(ctx, 1)
-			if err != nil {
-				glog.Info("dpll monitoring is running")
-				redial = false
-			} else {
+			redial = func() bool {
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+				defer cancel() //
+				err = sem.Acquire(ctx, 1)
+				if err != nil {
+					return false
+				}
 				glog.Info("dpll monitoring exited, redial")
 				d.stopDpll()
-				redial = true
-			}
+				return true
+			}()
 		}
 	}
 }
 
 // stopDpll stops DPLL monitoring
 func (d *DpllConfig) stopDpll() {
-	d.conn.Close()
+	err := d.conn.Close()
+	if err != nil {
+		return
+	}
 	d.conn = nil
 }
 

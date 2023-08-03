@@ -34,6 +34,7 @@ const (
 	CMD_VOLTAGE_CONTROLER = " -v 1 -z CFG-HW-ANT_CFG_VOLTCTRL,%d"
 	// CMD_NAV_STATUS ...
 	CMD_NAV_STATUS = " -t -p NAV-STATUS"
+	UBXCommand     = "ubxtool"
 )
 
 // UBlox ... UBlox type
@@ -48,10 +49,9 @@ func NewUblox() (*UBlox, error) {
 		protoVersion: &ubloxProtoVersion,
 		mockExp:      nil,
 	}
-	/*if e := u.Init(); e != nil {
-		glog.Errorf("error creating UBlox object %s", e)
-		return nil, e
-	}*/
+	u.EnableNMEA()
+	u.DisableBinary()
+	//u.DisableNMEA()
 	return u, nil
 }
 
@@ -73,9 +73,10 @@ func NewUblox() (*UBlox, error) {
 // Init ...
 func (u *UBlox) Init() (err error) {
 	var protoVersion *string
-
 	if protoVersion, err = u.MonVersion(CMD_PROTO_VERSION, PorotoVersionRegEx); err == nil {
 		u.protoVersion = protoVersion
+		u.DisableBinary()
+		u.EnableNMEA()
 	} else {
 		err = fmt.Errorf("UBlox could not find version for method %s with error %s", "MON-VER", err)
 	}
@@ -109,8 +110,13 @@ func (u *UBlox) queryVersion(command string, promptRE *regexp.Regexp) (result st
 	if err != nil {
 		return
 	}
-	defer e.Close()
-	if err = e.Send(fmt.Sprintf("ubxtool -p %s", command) + "\n"); err == nil {
+	defer func(e *expect.GExpect) {
+		err := e.Close()
+		if err != nil {
+			glog.Errorf("error closing expect %s", err)
+		}
+	}(e)
+	if err = e.Send(fmt.Sprintf("%s -p %s", UBXCommand, command) + "\n"); err == nil {
 		result, matches, err = e.Expect(promptRE, cmdTimeout)
 		if err != nil {
 			glog.Errorf("result match error %s", err)
@@ -121,15 +127,19 @@ func (u *UBlox) queryVersion(command string, promptRE *regexp.Regexp) (result st
 	return
 }
 
-// Query .. used for testing only
+// Query ... used for testing only
 func (u *UBlox) Query(command string, promptRE *regexp.Regexp) (result string, matches []string, err error) {
-
 	e, _, err := expect.Spawn("/usr/bin/bash", -1)
 	if err != nil {
 		return
 	}
-	defer e.Close()
-	if err = e.Send(fmt.Sprintf("ubxtool %s", command) + "\n"); err == nil {
+	defer func(e *expect.GExpect) {
+		err := e.Close()
+		if err != nil {
+			glog.Errorf("error closing expect %s", err)
+		}
+	}(e)
+	if err = e.Send(fmt.Sprintf("%s %s", UBXCommand, command) + "\n"); err == nil {
 		result, matches, err = e.Expect(promptRE, cmdTimeout)
 		if err != nil {
 			glog.Errorf("result match error %s", err)
@@ -158,7 +168,7 @@ func (u *UBlox) EnableDisableVoltageController(command string, value int) ([]byt
 	if u.protoVersion == nil {
 		return []byte{}, fmt.Errorf("Cannot query UBlox without protocol version ")
 	}
-	commandArgs := []string{"/usr/bin/bash", "-c", fmt.Sprintf("\"ubxtool  -v 1 -P %s  -p %s,%d\"", *u.protoVersion, command, value)}
+	commandArgs := []string{"/usr/bin/bash", "-c", fmt.Sprintf("\"%s  -v 1 -P %s  -p %s,%d\"", UBXCommand, *u.protoVersion, command, value)}
 
 	stdout, err := exec.Command(commandArgs[0], commandArgs[1:]...).Output()
 	return stdout, err
@@ -193,14 +203,14 @@ func (u *UBlox) NavStatus() (int64, error) {
 func (u *UBlox) query(command string, promptRE *regexp.Regexp) (string, error) {
 	var stdBuffer bytes.Buffer
 	mw := io.MultiWriter(os.Stdout, &stdBuffer)
-	cmdName := fmt.Sprintf("ubxtool %s", command)
+	cmdName := fmt.Sprintf("%s %s", UBXCommand, command)
 	cmdArgs := strings.Fields(cmdName)
 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
 	cmd.Stdout = mw
 	cmd.Stderr = mw
 	// Execute the command
 	if err := cmd.Run(); err != nil {
-		glog.Errorf("error executing cmd %s", fmt.Sprintf("ubxtool %s", command))
+		glog.Errorf("error executing cmd %s", fmt.Sprintf("%s %s", UBXCommand, command))
 		return "", err
 	}
 	glog.Infof("Ublox cmd %s returned\n %s", fmt.Sprintf("ubxtool %s", command), stdBuffer.String())
@@ -218,17 +228,37 @@ func match(stdout string, ubLoxRegex *regexp.Regexp) (string, error) {
 
 // GetNavOffset ... get gnss offset
 func (u *UBlox) GetNavOffset() (string, error) {
-	command := "ubxtool"
 	args := []string{"-t", "-p", "NAV-CLOCK", "-P", "29.20"}
 
-	output, err := exec.Command(command, args...).Output()
+	output, err := exec.Command(UBXCommand, args...).Output()
 	if err != nil {
 		return "", fmt.Errorf("error executing ubxtool command: %s", err)
-
 	}
 
 	offset := extractOffset(string(output))
 	return offset, nil
+}
+
+// DisableBinary ...  disable binary
+func (u *UBlox) DisableBinary() {
+	// Enable binary protocol
+	args := []string{"-d", "BINARY", "-P", "29.20"}
+	if err := exec.Command(UBXCommand, args...).Run(); err != nil {
+		glog.Errorf("error executing ubxtool command: %s", err)
+	} else {
+		glog.Info("disable binary")
+	}
+}
+
+// EnableNMEA ... enable nmea
+func (u *UBlox) EnableNMEA() {
+	// Enable binary protocol
+	args := []string{"-e", "NMEA", "-P", "29.20"}
+	if err := exec.Command(UBXCommand, args...).Run(); err != nil {
+		glog.Errorf("error executing ubxtool command: %s", err)
+	} else {
+		glog.Info("Enable NMEA")
+	}
 }
 
 func extractOffset(output string) string {
@@ -238,8 +268,10 @@ func extractOffset(output string) string {
 		if strings.Contains(line, "tAcc") {
 			// Extract the offset value
 			fields := strings.Fields(line)
-			if len(fields) >= 6 {
-				return fields[6]
+			for i, field := range fields {
+				if field == "tAcc" {
+					return fields[i+1]
+				}
 			}
 		}
 	}

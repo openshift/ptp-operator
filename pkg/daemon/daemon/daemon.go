@@ -364,14 +364,14 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 				section.options["message_tag"] = messageTag
 				section.options["uds_address"] = socketPath
 				if gnssSerialPort, ok := section.options["ts2phc.nmea_serialport"]; ok {
-					output.gnss_serial_port = gnssSerialPort
+					output.gnss_serial_port = strings.TrimSpace(gnssSerialPort)
 					section.options["ts2phc.nmea_serialport"] = GPSPIPE_SERIALPORT
 				}
 				output.sections[index] = section
 			}
 		}
 
-		// This add the flags needed for monitor
+		// This adds the flags needed for monitor
 		addFlagsForMonitor(p, configOpts, output, false)
 
 		configOutput, ifaces = output.renderPtp4lConf()

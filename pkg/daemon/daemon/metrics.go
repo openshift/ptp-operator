@@ -107,7 +107,7 @@ var (
 			Help:      "0 = FREERUN, 1 = LOCKED, 2 = HOLDOVER",
 		}, []string{"process", "node", "iface"})
 
-	// Threshold metrics to show current ptp GMThreshold
+	// InterfaceRole metrics to show current interface role
 	InterfaceRole = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: PTPNamespace,
@@ -217,7 +217,7 @@ func extractMetrics(messageTag string, processName string, ifaces []string, outp
 					r := []rune(ifaces[portId-1])
 					masterOffsetIfaceName[configName] = string(r[:len(r)-1]) + "x"
 					slaveIfaceName[configName] = ifaces[portId-1]
-				} else if role == FAULTY { // only if ptp4l is processing offset, ts2phc offset won't effect by port faulty
+				} else if role == FAULTY { // only if ptp4l is processing offset, ts2phc offset won't affect by port faulty
 					if isSlaveFaulty(configName, ifaces[portId-1]) &&
 						getMasterSourceProcess(configName) == ptp4lProcessName {
 						updatePTPMetrics(master, processName, getMasterOffsetIfaceName(configName), faultyOffset, faultyOffset, 0, 0)
