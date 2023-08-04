@@ -18,8 +18,8 @@ var (
 	CmdGetParentDataSet   = "GET PARENT_DATA_SET"
 	CmdGetGMSettings      = "GET GRANDMASTER_SETTINGS_NP"
 	CmdSetGMSettings      = "SET GRANDMASTER_SETTINGS_NP"
-	// GET GRANDMASTER_SETTINGS_NP sometimes takes more than 2 seconds
-	cmdTimeout = 5000 * time.Millisecond
+	cmdTimeout            = 2000 * time.Millisecond
+	numRetry              = 6
 )
 
 // RunPMCExp ... go expect to run PMC util cmd
@@ -53,17 +53,23 @@ func RunPMCExpGetGMSettings(configFileName string) (g protocol.GrandmasterSettin
 		return g, err
 	}
 	defer e.Close()
-	if err = e.Send(cmdStr + "\n"); err == nil {
-		result, matches, err := e.Expect(regexp.MustCompile(g.RegEx()), cmdTimeout)
-		if err != nil {
-			fmt.Printf("pmc result match error %s\n", err)
-			return g, err
+	for i := 0; i < numRetry; i++ {
+		if err = e.Send(cmdStr + "\n"); err == nil {
+			result, matches, err := e.Expect(regexp.MustCompile(g.RegEx()), cmdTimeout)
+			if err != nil {
+				if _, ok := err.(expect.TimeoutError); ok {
+					continue
+				}
+				fmt.Printf("pmc result match error %s\n", err)
+				return g, err
+			}
+			glog.Infof("pmc result: %s", result)
+			for i, m := range matches[1:] {
+				g.Update(g.Keys()[i], m)
+			}
+			err = e.Send("\x03")
+			break
 		}
-		glog.Infof("pmc result: %s", result)
-		for i, m := range matches[1:] {
-			g.Update(g.Keys()[i], m)
-		}
-		err = e.Send("\x03")
 	}
 	return
 }
