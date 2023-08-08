@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang/glog"
@@ -38,6 +39,36 @@ const (
 	MaxInSpecOffsetStr        = "MaxInSpecOffset"
 )
 
+type DependingStates struct {
+	sync.Mutex
+	states       map[event.EventSource]event.PTPState
+	currentState event.PTPState
+}
+type Subscriber struct {
+	source event.EventSource
+	dpll   *DpllConfig
+}
+
+var dependingProcessStateMap = DependingStates{
+	states: make(map[event.EventSource]event.PTPState),
+}
+
+func (d *DependingStates) GetCurrentState() event.PTPState {
+	return d.currentState
+}
+
+func (d *DependingStates) UpdateState(source event.EventSource) {
+	lowestState := event.PTP_FREERUN
+	d.Lock()
+	defer d.Unlock()
+	for _, state := range d.states {
+		if state < lowestState {
+			lowestState = state
+		}
+	}
+	d.currentState = lowestState
+}
+
 type DpllConfig struct {
 	LocalMaxHoldoverOffSet int64
 	LocalHoldoverTimeout   int64
@@ -52,8 +83,9 @@ type DpllConfig struct {
 	onHoldover             bool
 	sourceLost             bool
 	processConfig          config.ProcessConfig
-	dependingState         []event.EventSource
+	dependsOn              []event.EventSource
 	exitCh                 chan struct{}
+	holdoverCloseCh        chan bool
 	ticker                 *time.Ticker
 	// DPLL netlink connection pointer. If 'nil', use sysfs
 	conn *nl.Conn
@@ -70,11 +102,27 @@ type DpllConfig struct {
 	//  on the basis of best correlation to the initial value
 	clockId        uint64
 	clockIdUpdated bool
+	sync.Mutex
+}
+
+func (s Subscriber) Topic() event.EventSource {
+	return s.source
+}
+
+func (s Subscriber) Notify(source event.EventSource, state event.PTPState) {
+	dependingProcessStateMap.Lock()
+	if dependingProcessStateMap.states[source] != state {
+		dependingProcessStateMap.states[source] = state
+		glog.Infof("dpll notified on state change: source %v state %v", source, state)
+		s.dpll.stateDecision()
+	}
+	dependingProcessStateMap.Unlock()
+	dependingProcessStateMap.UpdateState(source)
+
 }
 
 func (d *DpllConfig) Name() string {
-	//TODO implement me
-	return "dpll"
+	return string(event.DPLL)
 }
 
 func (d *DpllConfig) Stopped() bool {
@@ -105,7 +153,7 @@ func (d *DpllConfig) CmdRun(stdToSocket bool) {
 }
 
 func NewDpll(localMaxHoldoverOffSet, localHoldoverTimeout, maxInSpecOffset int64,
-	iface string, dependingState []event.EventSource) *DpllConfig {
+	iface string, dependsOn []event.EventSource) *DpllConfig {
 	glog.Infof("Calling NewDpll with localMaxHoldoverOffSet=%d, localHoldoverTimeout=%d, maxInSpecOffset=%d, iface=%s", localMaxHoldoverOffSet, localHoldoverTimeout, maxInSpecOffset, iface)
 	d := &DpllConfig{
 		LocalMaxHoldoverOffSet: localMaxHoldoverOffSet,
@@ -114,17 +162,25 @@ func NewDpll(localMaxHoldoverOffSet, localHoldoverTimeout, maxInSpecOffset int64
 		slope: func() float64 {
 			return float64((localMaxHoldoverOffSet / localHoldoverTimeout) * 1000)
 		}(),
-		timer:          0,
-		offset:         0,
-		state:          event.PTP_FREERUN,
-		iface:          iface,
-		onHoldover:     false,
-		sourceLost:     false,
-		dependingState: dependingState,
-		exitCh:         make(chan struct{}),
-		ticker:         time.NewTicker(monitoringInterval),
+		timer:      0,
+		offset:     0,
+		state:      event.PTP_FREERUN,
+		iface:      iface,
+		onHoldover: false,
+		sourceLost: false,
+		dependsOn:  dependsOn,
+		exitCh:     make(chan struct{}),
+		ticker:     time.NewTicker(monitoringInterval),
 	}
 	d.timer = int64(float64(d.MaxInSpecOffset) / d.slope)
+
+	// register to event notification from other processes
+	for _, dep := range dependsOn {
+		dependingProcessStateMap.states[dep] = event.PTP_FREERUN
+		// register to event notification from other processes
+		event.EventStateRegisterer.Register(Subscriber{source: dep, dpll: d})
+	}
+	// initialize DPLL clock ID
 	err := d.initDpllClockId()
 	if err != nil {
 		return nil
@@ -163,7 +219,7 @@ func (d *DpllConfig) nlUpdateState(replies []*nl.DoDeviceGetReply) {
 
 // monitorNtf receives a multicast unsolicited notification and
 // calls dpll state updating function.
-func (d *DpllConfig) monitorNtf(c *genetlink.Conn, holdoverCloseCh chan bool) {
+func (d *DpllConfig) monitorNtf(c *genetlink.Conn) {
 	for {
 		msgs, _, err := c.Receive()
 		if err != nil {
@@ -176,9 +232,7 @@ func (d *DpllConfig) monitorNtf(c *genetlink.Conn, holdoverCloseCh chan bool) {
 			return
 		}
 		d.nlUpdateState(replies)
-		d.updateDependingProcessState()
-		d.stateDecision(holdoverCloseCh)
-
+		d.stateDecision()
 	}
 }
 
@@ -193,7 +247,6 @@ func (d *DpllConfig) isSysFsPresent() bool {
 
 // MonitorDpllNetlink monitors DPLL through netlink
 func (d *DpllConfig) MonitorDpllNetlink() {
-	var holdoverCloseCh chan bool
 	redial := true
 	var replies []*nl.DoDeviceGetReply
 	var err error
@@ -224,8 +277,7 @@ func (d *DpllConfig) MonitorDpllNetlink() {
 				goto abort
 			}
 			d.nlUpdateState(replies)
-			d.updateDependingProcessState()
-			d.stateDecision(holdoverCloseCh)
+			d.stateDecision()
 			err = c.JoinGroup(mcastId)
 			if err != nil {
 				goto abort
@@ -238,7 +290,7 @@ func (d *DpllConfig) MonitorDpllNetlink() {
 
 			go func() {
 				defer sem.Release(1)
-				d.monitorNtf(c, holdoverCloseCh)
+				d.monitorNtf(c)
 			}()
 			goto checkExit
 		abort:
@@ -258,7 +310,7 @@ func (d *DpllConfig) MonitorDpllNetlink() {
 				Reset:       true,
 			}
 			if d.onHoldover {
-				close(holdoverCloseCh) // cancel any holdover
+				close(d.holdoverCloseCh) // cancel any holdover
 			}
 			err := d.conn.Close()
 			if err != nil {
@@ -344,42 +396,8 @@ func (d *DpllConfig) initDpllClockId() error {
 	return nil
 }
 
-// updateDependingProcessState updates d.sourceLost according to the process response
-// Currently, GNSS is the only source we take into account. The function is
-// called periodically.
-func (d *DpllConfig) updateDependingProcessState() {
-	responseChannel := make(chan event.PTPState)
-	var responseState event.PTPState
-	lowestState := event.PTP_UNKNOWN
-	var dependingProcessState []event.PTPState
-	for _, stateSource := range d.dependingState {
-		event.GetPTPStateRequest(event.StatusRequest{
-			Source:          stateSource,
-			CfgName:         d.processConfig.ConfigName,
-			ResponseChannel: responseChannel,
-		})
-		select {
-		case responseState = <-responseChannel:
-		case <-time.After(200 * time.Millisecond): //TODO:move this to non blocking call
-			responseState = event.PTP_UNKNOWN
-		}
-		dependingProcessState = append(dependingProcessState, responseState)
-	}
-	for i, state := range dependingProcessState {
-		if i == 0 || state < lowestState {
-			lowestState = state
-		}
-	}
-	// check dpll status
-	if lowestState == event.PTP_LOCKED {
-		d.sourceLost = false
-	} else {
-		d.sourceLost = true
-	}
-}
-
 // stateDecision
-func (d *DpllConfig) stateDecision(holdoverCloseCh chan bool) {
+func (d *DpllConfig) stateDecision() {
 
 	// send event
 	// calculate dpll status
@@ -390,7 +408,7 @@ func (d *DpllConfig) stateDecision(holdoverCloseCh chan bool) {
 	case DPLL_FREERUN, DPLL_INVALID, DPLL_UNKNOWN:
 		d.inSpec = true
 		if d.onHoldover {
-			holdoverCloseCh <- true
+			d.holdoverCloseCh <- true
 		}
 		d.state = event.PTP_FREERUN
 	case DPLL_LOCKED:
@@ -406,17 +424,18 @@ func (d *DpllConfig) stateDecision(holdoverCloseCh chan bool) {
 			d.state = event.PTP_LOCKED
 			if d.onHoldover {
 				d.inSpec = true
-				holdoverCloseCh <- true
+				d.holdoverCloseCh <- true
 			}
 		} else if d.sourceLost && d.inSpec {
-			holdoverCloseCh = make(chan bool)
+			d.holdoverCloseCh = make(chan bool)
 			d.inSpec = false
-			go d.holdover(holdoverCloseCh)
+			go d.holdover()
 		} else {
 			d.state = event.PTP_FREERUN
 		}
 	}
-	d.processConfig.EventChannel <- event.EventChannel{
+	select {
+	case d.processConfig.EventChannel <- event.EventChannel{
 		ProcessName: event.DPLL,
 		State:       d.state,
 		IFace:       d.iface,
@@ -430,6 +449,9 @@ func (d *DpllConfig) stateDecision(holdoverCloseCh chan bool) {
 		Time:       time.Now().Unix(),
 		WriteToLog: true,
 		Reset:      false,
+	}:
+	case <-time.After(time.Millisecond * 250):
+		glog.Error("dpll can't send event ")
 	}
 
 }
@@ -443,8 +465,6 @@ func (d *DpllConfig) MonitorDpllSysfs() {
 	}()
 
 	d.ticker = time.NewTicker(monitoringInterval)
-
-	var holdoverCloseCh chan bool
 
 	// determine dpll state
 	d.inSpec = true
@@ -461,14 +481,13 @@ func (d *DpllConfig) MonitorDpllSysfs() {
 				Reset:       true,
 			}
 			if d.onHoldover {
-				close(holdoverCloseCh) // cancel any holdover
+				close(d.holdoverCloseCh) // cancel any holdover
 			}
 			return
 		case <-d.ticker.C:
 			// monitor DPLL
-			d.updateDependingProcessState()
 			d.phase_status, d.frequency_status, d.phase_offset = d.sysfs(d.iface)
-			d.stateDecision(holdoverCloseCh)
+			d.stateDecision()
 		}
 	}
 }
@@ -496,7 +515,7 @@ func (d *DpllConfig) getWorseState(pstate, fstate int64) int64 {
 	return fstate
 }
 
-func (d *DpllConfig) holdover(closeCh chan bool) {
+func (d *DpllConfig) holdover() {
 	start := time.Now()
 	ticker := time.NewTicker(1 * time.Second)
 	d.state = event.PTP_HOLDOVER
@@ -508,7 +527,7 @@ func (d *DpllConfig) holdover(closeCh chan bool) {
 		case <-timeout:
 			d.state = event.PTP_FREERUN
 			return
-		case <-closeCh:
+		case <-d.holdoverCloseCh:
 			return
 		}
 	}
