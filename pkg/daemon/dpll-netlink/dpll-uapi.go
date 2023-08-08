@@ -3,6 +3,8 @@
 
 package dpll_netlink
 
+import "fmt"
+
 const DPLL_MCGRP_MONITOR = "monitor"
 const (
 	DPLL_A_TYPES = iota
@@ -102,7 +104,7 @@ type DpllStatusHR struct {
 	Mode          string
 	ModeSupported string
 	LockStatus    string
-	ClockId       uint64
+	ClockId       string
 	Type          string
 }
 
@@ -114,7 +116,7 @@ func GetDpllStatusHR(reply *DoDeviceGetReply) DpllStatusHR {
 		Mode:       GetMode(reply.Mode),
 		// TODO: ModeSupported
 		LockStatus: GetLockStatus(reply.LockStatus),
-		ClockId:    reply.ClockId,
+		ClockId:    fmt.Sprintf("0x%x", reply.ClockId),
 		Type:       GetDpllType(reply.Type),
 	}
 }

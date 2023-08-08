@@ -190,10 +190,6 @@ func NewDpll(localMaxHoldoverOffSet, localHoldoverTimeout, maxInSpecOffset int64
 
 // nlUpdateState updates DPLL state in the DpllConfig structure.
 func (d *DpllConfig) nlUpdateState(replies []*nl.DoDeviceGetReply) {
-	const (
-		EEC_DPLL uint32 = 0
-		PPS_DPLL uint32 = 1
-	)
 	for _, reply := range replies {
 		if !d.clockIdUpdated && reply.ClockId != d.clockId {
 			if bits.OnesCount64(reply.ClockId^d.clockId) <= 4 {
@@ -206,10 +202,10 @@ func (d *DpllConfig) nlUpdateState(replies []*nl.DoDeviceGetReply) {
 		}
 		if reply.ClockId == d.clockId {
 			glog.Info(nl.GetDpllStatusHR(reply))
-			switch reply.Id {
-			case EEC_DPLL:
+			switch nl.GetDpllType(reply.Type) {
+			case "eec":
 				d.frequency_status = int64(reply.LockStatus)
-			case PPS_DPLL:
+			case "pps":
 				d.phase_status = int64(reply.LockStatus)
 				d.phase_offset = 0 // TODO: get offset from reply when implemented
 			}
