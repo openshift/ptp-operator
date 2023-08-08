@@ -189,7 +189,8 @@ func NewDpll(localMaxHoldoverOffSet, localHoldoverTimeout, maxInSpecOffset int64
 }
 
 // nlUpdateState updates DPLL state in the DpllConfig structure.
-func (d *DpllConfig) nlUpdateState(replies []*nl.DoDeviceGetReply) {
+func (d *DpllConfig) nlUpdateState(replies []*nl.DoDeviceGetReply) bool {
+	valid := false
 	for _, reply := range replies {
 		if !d.clockIdUpdated && reply.ClockId != d.clockId {
 			if bits.OnesCount64(reply.ClockId^d.clockId) <= 4 {
@@ -201,16 +202,25 @@ func (d *DpllConfig) nlUpdateState(replies []*nl.DoDeviceGetReply) {
 			}
 		}
 		if reply.ClockId == d.clockId {
+			if reply.LockStatus == DPLL_INVALID {
+				glog.Info("discarding on invalid status: ", nl.GetDpllStatusHR(reply))
+				continue
+			}
 			glog.Info(nl.GetDpllStatusHR(reply))
 			switch nl.GetDpllType(reply.Type) {
 			case "eec":
 				d.frequency_status = int64(reply.LockStatus)
+				valid = true
 			case "pps":
 				d.phase_status = int64(reply.LockStatus)
 				d.phase_offset = 0 // TODO: get offset from reply when implemented
+				valid = true
 			}
+		} else {
+			glog.Info("discarding on clock ID: ", nl.GetDpllStatusHR(reply))
 		}
 	}
+	return valid
 }
 
 // monitorNtf receives a multicast unsolicited notification and
@@ -227,8 +237,10 @@ func (d *DpllConfig) monitorNtf(c *genetlink.Conn) {
 			glog.Error(err)
 			return
 		}
-		d.nlUpdateState(replies)
-		d.stateDecision()
+		if d.nlUpdateState(replies) {
+			d.stateDecision()
+		}
+
 	}
 }
 
@@ -272,8 +284,9 @@ func (d *DpllConfig) MonitorDpllNetlink() {
 			if err != nil {
 				goto abort
 			}
-			d.nlUpdateState(replies)
-			d.stateDecision()
+			if d.nlUpdateState(replies) {
+				d.stateDecision()
+			}
 			err = c.JoinGroup(mcastId)
 			if err != nil {
 				goto abort
