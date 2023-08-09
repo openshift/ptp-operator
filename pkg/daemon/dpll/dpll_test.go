@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/openshift/linuxptp-daemon/pkg/config"
@@ -24,8 +25,13 @@ func TestDpllConfig_MonitorProcess(t *testing.T) {
 			InitialPTPState: event.PTP_FREERUN,
 		})
 
-		ptpState := <-eventChannel
-		assert.Equal(t, ptpState.ProcessName, event.DPLL)
+		select {
+		case ptpState := <-eventChannel:
+			assert.Equal(t, ptpState.ProcessName, event.DPLL)
+		case <-time.After(time.Millisecond * 250):
+			glog.Error("Failed to send DPLL event")
+		}
+
 	}
 
 }

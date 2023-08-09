@@ -39,6 +39,14 @@ const (
 	MaxInSpecOffsetStr        = "MaxInSpecOffset"
 )
 
+type dpllApiType string
+
+const (
+	SYSFS   dpllApiType = "sysfs"
+	NETLINK dpllApiType = "netlink"
+	NONE    dpllApiType = "none"
+)
+
 type DependingStates struct {
 	sync.Mutex
 	states       map[event.EventSource]event.PTPState
@@ -87,14 +95,15 @@ type DpllConfig struct {
 	exitCh                 chan struct{}
 	holdoverCloseCh        chan bool
 	ticker                 *time.Ticker
+	apiType                dpllApiType
 	// DPLL netlink connection pointer. If 'nil', use sysfs
 	conn *nl.Conn
 	// We need to keep latest DPLL status values, since Netlink device
 	// change indications don't contain all the status fields, but
 	// only the changed one(s)
-	phase_status     int64
-	frequency_status int64
-	phase_offset     int64
+	phaseStatus     int64
+	frequencyStatus int64
+	phaseOffset     int64
 	// clockId is needed to distinguish between DPLL associated with the particular
 	// iface from other DPLL units that might be present on the system. Clock ID implementation
 	// is driver-specific and vendor-specific, always derived from hardware ID or MAC address
@@ -109,16 +118,23 @@ func (s Subscriber) Topic() event.EventSource {
 	return s.source
 }
 
+// Notify ... event notification
 func (s Subscriber) Notify(source event.EventSource, state event.PTPState) {
 	dependingProcessStateMap.Lock()
+	defer dependingProcessStateMap.Unlock()
 	if dependingProcessStateMap.states[source] != state {
 		dependingProcessStateMap.states[source] = state
-		glog.Infof("dpll notified on state change: source %v state %v", source, state)
+		if source == event.GNSS {
+			if state == event.PTP_LOCKED {
+				s.dpll.sourceLost = false
+			} else {
+				s.dpll.sourceLost = true
+			}
+		}
 		s.dpll.stateDecision()
+		glog.Infof("%s notified on state change: state %v", source, state)
+		dependingProcessStateMap.UpdateState(source)
 	}
-	dependingProcessStateMap.Unlock()
-	dependingProcessStateMap.UpdateState(source)
-
 }
 
 func (d *DpllConfig) Name() string {
@@ -143,11 +159,23 @@ func (d *DpllConfig) CmdStop() {
 	glog.Infof("Process %s terminated", d.Name())
 }
 
+// CmdInit ... init command
 func (d *DpllConfig) CmdInit() {
-	//TODO implement me
-	glog.Infof("cmdInit not implemented %s", d.Name())
+	// register to event notification from other processes
+	d.setAPIType()
+	glog.Infof("api type %v", d.apiType)
+	if d.apiType == NONE {
+		glog.Infof("DPLL process %s is disabled", d.Name())
+		return
+	}
+	// initialize DPLL clock ID
+	err := d.initDpllClockId()
+	if err != nil {
+		glog.Errorf("Failed to initialize DPLL clock ID: %v", err)
+	}
 }
 
+// CmdRun ... run command
 func (d *DpllConfig) CmdRun(stdToSocket bool) {
 	//not implemented
 }
@@ -173,18 +201,7 @@ func NewDpll(localMaxHoldoverOffSet, localHoldoverTimeout, maxInSpecOffset int64
 		ticker:     time.NewTicker(monitoringInterval),
 	}
 	d.timer = int64(float64(d.MaxInSpecOffset) / d.slope)
-
-	// register to event notification from other processes
-	for _, dep := range dependsOn {
-		dependingProcessStateMap.states[dep] = event.PTP_FREERUN
-		// register to event notification from other processes
-		event.EventStateRegisterer.Register(Subscriber{source: dep, dpll: d})
-	}
-	// initialize DPLL clock ID
-	err := d.initDpllClockId()
-	if err != nil {
-		return nil
-	}
+	d.holdoverCloseCh = make(chan bool)
 	return d
 }
 
@@ -209,11 +226,11 @@ func (d *DpllConfig) nlUpdateState(replies []*nl.DoDeviceGetReply) bool {
 			glog.Info(nl.GetDpllStatusHR(reply))
 			switch nl.GetDpllType(reply.Type) {
 			case "eec":
-				d.frequency_status = int64(reply.LockStatus)
+				d.frequencyStatus = int64(reply.LockStatus)
 				valid = true
 			case "pps":
-				d.phase_status = int64(reply.LockStatus)
-				d.phase_offset = 0 // TODO: get offset from reply when implemented
+				d.phaseStatus = int64(reply.LockStatus)
+				d.phaseOffset = 0 // TODO: get offset from reply when implemented
 				valid = true
 			}
 		} else {
@@ -227,12 +244,12 @@ func (d *DpllConfig) nlUpdateState(replies []*nl.DoDeviceGetReply) bool {
 // calls dpll state updating function.
 func (d *DpllConfig) monitorNtf(c *genetlink.Conn) {
 	for {
-		msgs, _, err := c.Receive()
+		msg, _, err := c.Receive()
 		if err != nil {
 			glog.Error(err)
 			return
 		}
-		replies, err := nl.ParseDeviceReplies(msgs)
+		replies, err := nl.ParseDeviceReplies(msg)
 		if err != nil {
 			glog.Error(err)
 			return
@@ -240,7 +257,6 @@ func (d *DpllConfig) monitorNtf(c *genetlink.Conn) {
 		if d.nlUpdateState(replies) {
 			d.stateDecision()
 		}
-
 	}
 }
 
@@ -253,44 +269,75 @@ func (d *DpllConfig) isSysFsPresent() bool {
 	return false
 }
 
+// MonitorDpllSysfs monitors DPLL through sysfs
+func (d *DpllConfig) isNetLinkPresent() bool {
+	conn, err := nl.Dial(nil)
+	if err != nil {
+		glog.Info("failed to establish DPLL netlink connection: ", err)
+		return false
+	}
+	conn.Close()
+	return true
+}
+
+// setAPIType
+func (d *DpllConfig) setAPIType() {
+	if d.isSysFsPresent() {
+		d.apiType = SYSFS
+	} else if d.isNetLinkPresent() {
+		d.apiType = NETLINK
+	} else {
+		d.apiType = NONE
+	}
+}
+
 // MonitorDpllNetlink monitors DPLL through netlink
 func (d *DpllConfig) MonitorDpllNetlink() {
 	redial := true
 	var replies []*nl.DoDeviceGetReply
 	var err error
 	var sem *semaphore.Weighted
-	for {
+	cleanup := func() {
+		if sem != nil {
+			sem.Release(1)
+		}
+		d.stopDpll()
+	}
+	defer cleanup()
 
-		// If netlink connection failed before
+	for {
 		if redial {
 			if d.conn == nil {
-				conn, err := nl.Dial(nil)
-				if err != nil {
+				if conn, err2 := nl.Dial(nil); err2 != nil {
 					d.conn = nil
-					glog.Info("can't dial to DPLL netlink: ", err)
+					glog.Info("failed to establish DPLL netlink connection: ", err2)
 					goto checkExit
-
 				} else {
 					d.conn = conn
 				}
 			}
+
 			c := d.conn.GetGenetlinkConn()
 			mcastId, found := d.conn.GetMcastGroupId(nl.DPLL_MCGRP_MONITOR)
 			if !found {
 				glog.Warning("multicast ID ", nl.DPLL_MCGRP_MONITOR, " not found")
 				goto abort
 			}
+
 			replies, err = d.conn.DumpDeviceGet()
 			if err != nil {
 				goto abort
 			}
+
 			if d.nlUpdateState(replies) {
 				d.stateDecision()
 			}
+
 			err = c.JoinGroup(mcastId)
 			if err != nil {
 				goto abort
 			}
+
 			sem = semaphore.NewWeighted(1)
 			err = sem.Acquire(context.Background(), 1)
 			if err != nil {
@@ -301,7 +348,9 @@ func (d *DpllConfig) MonitorDpllNetlink() {
 				defer sem.Release(1)
 				d.monitorNtf(c)
 			}()
+
 			goto checkExit
+
 		abort:
 			d.stopDpll()
 		}
@@ -318,57 +367,69 @@ func (d *DpllConfig) MonitorDpllNetlink() {
 				Time:        time.Now().Unix(),
 				Reset:       true,
 			}
+
 			if d.onHoldover {
-				close(d.holdoverCloseCh) // cancel any holdover
+				close(d.holdoverCloseCh)
+				d.onHoldover = false
 			}
-			err := d.conn.Close()
-			if err != nil {
-				glog.Error(err)
-				return
-			}
-			glog.Infof("Netlink connection %s is closed", d.Name())
+
+			d.stopDpll()
 			return
+
 		default:
 			redial = func() bool {
 				ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
-				defer cancel() //
-				err = sem.Acquire(ctx, 1)
-				if err != nil {
+				defer cancel()
+
+				if sem == nil {
 					return false
 				}
-				glog.Info("dpll monitoring exited, redial")
+
+				if err = sem.Acquire(ctx, 1); err != nil {
+					return false
+				}
+
+				glog.Info("DPLL monitoring exited, initiating redial")
 				d.stopDpll()
 				return true
 			}()
+			time.Sleep(time.Millisecond * 250) // cpu saver
 		}
 	}
 }
 
 // stopDpll stops DPLL monitoring
 func (d *DpllConfig) stopDpll() {
-	err := d.conn.Close()
-	if err != nil {
-		return
+	if d.conn != nil {
+		if err := d.conn.Close(); err != nil {
+			glog.Errorf("Error closing DPLL netlink connection: %v", err)
+		}
+		d.conn = nil
 	}
-	d.conn = nil
 }
 
 // MonitorProcess is initiating monitoring of DPLL associated with a process
 func (d *DpllConfig) MonitorProcess(processCfg config.ProcessConfig) {
 	d.processConfig = processCfg
-	go d.MonitorDpll()
+	d.MonitorDpll()
 }
 
-// MonitorDpll tries to create netlink connection to DPLL.
-// If netlink can't be dialed for N retries and sysfs directory
-// structure is present, fall back to sysfs.
-// Otherwise, use netlink and never fall back
+// MonitorDpll monitors DPLL on the discovered API, if any
 func (d *DpllConfig) MonitorDpll() {
-	if d.isSysFsPresent() {
-		d.MonitorDpllSysfs()
-
+	if d.apiType == SYSFS {
+		go d.MonitorDpllSysfs()
+	} else if d.apiType == NETLINK {
+		go d.MonitorDpllNetlink()
 	} else {
-		d.MonitorDpllNetlink()
+		glog.Errorf("DPLL monitoring is not possible, both sysfs is not available or netlink implementation is not present")
+		return
+	}
+	time.Sleep(time.Millisecond * 1000)
+	// register to event notification from other processes
+	for _, dep := range d.dependsOn {
+		dependingProcessStateMap.states[dep] = event.PTP_UNKNOWN
+		// register to event notification from other processes
+		event.EventStateRegisterer.Register(Subscriber{source: dep, dpll: d})
 	}
 }
 
@@ -407,12 +468,10 @@ func (d *DpllConfig) initDpllClockId() error {
 
 // stateDecision
 func (d *DpllConfig) stateDecision() {
-
-	// send event
-	// calculate dpll status
-	dpllStatus := d.getWorseState(d.phase_status, d.frequency_status)
-	glog.Infof("dpll decision entry: status %d, offset %d, in spec %v, sourceLost %v, on holdover %v",
+	dpllStatus := d.getWorseState(d.phaseStatus, d.frequencyStatus)
+	glog.Infof("DPLL decision: Status %d, Offset %d, In spec %v, Source lost %v, On holdover %v",
 		dpllStatus, d.offset, d.inSpec, d.sourceLost, d.onHoldover)
+
 	switch dpllStatus {
 	case DPLL_FREERUN, DPLL_INVALID, DPLL_UNKNOWN:
 		d.inSpec = true
@@ -420,84 +479,114 @@ func (d *DpllConfig) stateDecision() {
 			d.holdoverCloseCh <- true
 		}
 		d.state = event.PTP_FREERUN
+		glog.Infof("DPLL is in FREERUN, state is FREERUN")
+		d.sendDpllEvent()
 	case DPLL_LOCKED:
-		d.inSpec = true
 		if !d.sourceLost && d.isOffsetInRange() {
-			d.state = event.PTP_LOCKED
-		} else {
-			d.state = event.PTP_FREERUN
-		}
-	case DPLL_LOCKED_HO_ACQ, DPLL_HOLDOVER:
-		if !d.sourceLost && d.isOffsetInRange() {
-			d.inSpec = true
-			d.state = event.PTP_LOCKED
 			if d.onHoldover {
-				d.inSpec = true
 				d.holdoverCloseCh <- true
 			}
-		} else if d.sourceLost && d.inSpec {
-			d.holdoverCloseCh = make(chan bool)
-			d.inSpec = false
-			go d.holdover()
-		} else {
+			glog.Infof("DPLL is locked, offset is in range, state is LOCKED")
+			d.state = event.PTP_LOCKED
+		} else { // what happens if source is lost and DPLL is locked? goto holdover?
+			glog.Infof("DPLL is locked, offset is out of range, state is FREERUN")
 			d.state = event.PTP_FREERUN
 		}
+		d.inSpec = true
+		d.sendDpllEvent()
+	case DPLL_LOCKED_HO_ACQ, DPLL_HOLDOVER:
+		if !d.sourceLost && d.isOffsetInRange() {
+			glog.Infof("DPLL is locked, source is not lost, offset is in range, state is DPLL_LOCKED_HO_ACQ or DPLL_HOLDOVER")
+			if d.onHoldover {
+				d.holdoverCloseCh <- true
+			}
+			d.inSpec = true
+			d.state = event.PTP_LOCKED
+		} else if d.sourceLost && d.inSpec {
+			glog.Infof("DPLL state is DPLL_LOCKED_HO_ACQ or DPLL_HOLDOVER,  source is lost, state is HOLDOVER")
+			if !d.onHoldover {
+				d.holdoverCloseCh = make(chan bool)
+				go d.holdover()
+			}
+		} else if !d.inSpec {
+			glog.Infof("DPLL is not in spec ,state is DPLL_LOCKED_HO_ACQ or DPLL_HOLDOVER, offset is out of range, state is FREERUN")
+			d.state = event.PTP_FREERUN
+		}
+		d.sendDpllEvent()
 	}
-	select {
-	case d.processConfig.EventChannel <- event.EventChannel{
+}
+
+// sendDpllEvent sends DPLL event to the event channel
+func (d *DpllConfig) sendDpllEvent() {
+	if d.processConfig.EventChannel == nil {
+		glog.Info("Skip event - dpll is not yet initialized")
+		return
+	}
+	eventData := event.EventChannel{
 		ProcessName: event.DPLL,
 		State:       d.state,
 		IFace:       d.iface,
 		CfgName:     d.processConfig.ConfigName,
 		Values: map[event.ValueType]int64{
-			event.FREQUENCY_STATUS: d.frequency_status,
-			event.OFFSET:           d.phase_offset,
-			event.PHASE_STATUS:     d.phase_status,
+			event.FREQUENCY_STATUS: d.frequencyStatus,
+			event.OFFSET:           d.phaseOffset,
+			event.PHASE_STATUS:     d.phaseStatus,
 		},
 		ClockType:  d.processConfig.ClockType,
 		Time:       time.Now().Unix(),
 		WriteToLog: true,
 		Reset:      false,
-	}:
-	case <-time.After(time.Millisecond * 250):
-		glog.Error("dpll can't send event ")
 	}
 
+	select {
+	case d.processConfig.EventChannel <- eventData:
+		glog.Infof("DPLL event sent")
+	case <-time.After(time.Millisecond * 250):
+		glog.Error("Failed to send DPLL event")
+	}
 }
 
 // MonitorDpllSysfs ... monitor dpll events
 func (d *DpllConfig) MonitorDpllSysfs() {
 	defer func() {
-		if recover() != nil {
-			// handle closed close channel
+		if r := recover(); r != nil {
+			glog.Warning("Recovered from panic: ", r)
+			// Handle the closed channel panic if necessary
 		}
 	}()
 
 	d.ticker = time.NewTicker(monitoringInterval)
 
-	// determine dpll state
+	// Determine DPLL state
 	d.inSpec = true
+
 	for {
 		select {
 		case <-d.exitCh:
-			glog.Infof("terminating sysfs DPLL monitoring")
-			d.processConfig.EventChannel <- event.EventChannel{
-				ProcessName: event.DPLL,
-				IFace:       d.iface,
-				CfgName:     d.processConfig.ConfigName,
-				ClockType:   d.processConfig.ClockType,
-				Time:        time.Now().Unix(),
-				Reset:       true,
-			}
+			glog.Infof("Terminating sysfs DPLL monitoring")
+			d.sendDpllTerminationEvent()
+
 			if d.onHoldover {
-				close(d.holdoverCloseCh) // cancel any holdover
+				close(d.holdoverCloseCh) // Cancel any holdover
 			}
 			return
 		case <-d.ticker.C:
-			// monitor DPLL
-			d.phase_status, d.frequency_status, d.phase_offset = d.sysfs(d.iface)
+			// Monitor DPLL
+			d.phaseStatus, d.frequencyStatus, d.phaseOffset = d.sysfs(d.iface)
 			d.stateDecision()
 		}
+	}
+}
+
+// sendDpllTerminationEvent sends a termination event to the event channel
+func (d *DpllConfig) sendDpllTerminationEvent() {
+	d.processConfig.EventChannel <- event.EventChannel{
+		ProcessName: event.DPLL,
+		IFace:       d.iface,
+		CfgName:     d.processConfig.ConfigName,
+		ClockType:   d.processConfig.ClockType,
+		Time:        time.Now().Unix(),
+		Reset:       true,
 	}
 }
 
@@ -534,9 +623,12 @@ func (d *DpllConfig) holdover() {
 			//calculate offset
 			d.offset = int64(d.slope * float64(time.Since(start)))
 		case <-timeout:
+			d.inSpec = false
 			d.state = event.PTP_FREERUN
 			return
 		case <-d.holdoverCloseCh:
+			d.onHoldover = false
+			d.inSpec = true // if someone else is closing then it should be back in spec (if it was not in spec before)
 			return
 		}
 	}
@@ -559,46 +651,42 @@ func (d *DpllConfig) isOffsetInRange() bool {
 // Phase Offset
 // cat /sys/class/net/ens7f0/device/dpll_1_offset
 func (d *DpllConfig) sysfs(iface string) (phaseState, frequencyState, phaseOffset int64) {
-	var err error
-	var content []byte
-	var contentStr string
 	if iface == "" {
-		phaseState = DPLL_INVALID
-		frequencyState = DPLL_INVALID
-		phaseOffset = 0
-		return
+		return DPLL_INVALID, DPLL_INVALID, 0
 	}
+
+	readInt64FromFile := func(path string) (int64, error) {
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return 0, err
+		}
+		contentStr := strings.TrimSpace(string(content))
+		value, err := strconv.ParseInt(contentStr, 10, 64)
+		if err != nil {
+			return 0, err
+		}
+		return value, nil
+	}
+
 	frequencyStateStr := fmt.Sprintf("/sys/class/net/%s/device/dpll_0_state", iface)
 	phaseStateStr := fmt.Sprintf("/sys/class/net/%s/device/dpll_1_state", iface)
 	phaseOffsetStr := fmt.Sprintf("/sys/class/net/%s/device/dpll_1_offset", iface)
-	// Read the content of the sysfs path
-	content, err = os.ReadFile(frequencyStateStr)
+
+	frequencyState, err := readInt64FromFile(frequencyStateStr)
 	if err != nil {
-		glog.Errorf("error reading sysfs path %s %s:", frequencyStateStr, err)
-	} else {
-		contentStr = strings.ReplaceAll(string(content), "\n", "")
-		if frequencyState, err = strconv.ParseInt(contentStr, 10, 64); err != nil {
-			glog.Errorf("error parsing frequency state %s = %s:", contentStr, err)
-		}
+		glog.Errorf("Error reading frequency state from %s: %v", frequencyStateStr, err)
 	}
-	// Read the content of the sysfs path
-	if content, err = os.ReadFile(phaseStateStr); err != nil {
-		glog.Errorf("error reading sysfs path %s %s:", phaseStateStr, err)
-	} else {
-		contentStr = strings.ReplaceAll(string(content), "\n", "")
-		if phaseState, err = strconv.ParseInt(contentStr, 10, 64); err != nil {
-			glog.Errorf("error parsing phase state %s = %s:", contentStr, err)
-		}
+
+	phaseState, err = readInt64FromFile(phaseStateStr)
+	if err != nil {
+		glog.Errorf("Error reading phase state from %s: %v", phaseStateStr, err)
 	}
-	// Read the content of the sysfs path
-	if content, err = os.ReadFile(phaseOffsetStr); err != nil {
-		glog.Errorf("error reading sysfs path %s %s:", phaseOffsetStr, err)
+
+	phaseOffset, err = readInt64FromFile(phaseOffsetStr)
+	if err != nil {
+		glog.Errorf("Error reading phase offset from %s: %v", phaseOffsetStr, err)
 	} else {
-		contentStr = strings.ReplaceAll(string(content), "\n", "")
-		if phaseOffset, err = strconv.ParseInt(contentStr, 10, 64); err != nil {
-			glog.Errorf("error parsing phase offset %s=%s:", contentStr, err)
-		}
-		phaseOffset = phaseOffset / 100 // convert to nanoseconds from tens of picoseconds (div by 100)
+		phaseOffset /= 100 // Convert to nanoseconds from tens of picoseconds (divide by 100)
 	}
-	return
+	return phaseState, frequencyState, phaseOffset
 }

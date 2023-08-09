@@ -217,6 +217,7 @@ func (dn *Daemon) applyNodePTPProfiles() error {
 	// Start all the process
 	for _, p := range dn.processManager.process {
 		if p != nil {
+			p.eventCh = dn.processManager.eventChannel
 			if p.depProcess != nil {
 				for _, d := range p.depProcess {
 					if d != nil {
@@ -224,7 +225,6 @@ func (dn *Daemon) applyNodePTPProfiles() error {
 						go d.CmdRun(false)
 						time.Sleep(3 * time.Second)
 						dn.pluginManager.AfterRunPTPCommand(p.nodeProfile, d.Name())
-						// TODO: Maybe Move DPLL start and stop as part of pluign
 						d.MonitorProcess(config.ProcessConfig{
 							ClockType:    p.clockType,
 							ConfigName:   p.configName,
@@ -240,9 +240,8 @@ func (dn *Daemon) applyNodePTPProfiles() error {
 					}
 				}
 			}
-			time.Sleep(1 * time.Second)
 			go p.cmdRun()
-			p.eventCh = dn.processManager.eventChannel
+			time.Sleep(1 * time.Second)
 			dn.pluginManager.AfterRunPTPCommand(p.nodeProfile, p.name)
 		}
 	}
@@ -470,6 +469,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 			}
 			dpllDaemon := dpll.NewDpll(localMaxHoldoverOffSet, localHoldoverTimeout, maxInSpecOffset,
 				gmInterface, []event.EventSource{event.GNSS})
+			dpllDaemon.CmdInit()
 			dprocess.depProcess = append(dprocess.depProcess, dpllDaemon)
 		}
 		err = os.WriteFile(configPath, []byte(configOutput), 0644)
