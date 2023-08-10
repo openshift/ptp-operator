@@ -1,22 +1,25 @@
 package intel
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"github.com/golang/glog"
-	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
-	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/plugin"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+
+	"github.com/golang/glog"
+	"github.com/openshift/linuxptp-daemon/pkg/dpll"
+	"github.com/openshift/linuxptp-daemon/pkg/plugin"
+	ptpv1 "github.com/openshift/ptp-operator/api/v1"
 )
 
 type E810Opts struct {
 	EnableDefaultConfig bool                         `json:"enableDefaultConfig"`
 	UblxCmds            []E810UblxCmds               `json:"ublxCmds"`
 	DevicePins          map[string]map[string]string `json:"pins"`
-	DpllSettings        map[string]int64             `json:"settings"`
+	DpllSettings        map[string]uint64            `json:"settings"`
 }
 
 type E810UblxCmds struct {
@@ -67,7 +70,9 @@ func OnPTPConfigChangeE810(data *interface{}, nodeProfile *ptpv1.PtpProfile) err
 				stdout, err = exec.Command("/usr/bin/bash", "-c", EnableE810PTPConfig).Output()
 				glog.Infof(string(stdout))
 			}
+			var dpllDevice string
 			for device, pins := range e810Opts.DevicePins {
+				dpllDevice = device //Any of E810 devices is good to determine clock ID
 				for pin, value := range pins {
 					deviceDir := fmt.Sprintf("/sys/class/net/%s/device/ptp/", device)
 					phcs, err := os.ReadDir(deviceDir)
@@ -85,14 +90,15 @@ func OnPTPConfigChangeE810(data *interface{}, nodeProfile *ptpv1.PtpProfile) err
 					}
 				}
 			}
+			if (*nodeProfile).PtpSettings == nil {
+				(*nodeProfile).PtpSettings = make(map[string]string)
+			}
 			for k, v := range e810Opts.DpllSettings {
-				if (*nodeProfile).PtpSettings == nil {
-					(*nodeProfile).PtpSettings = make(map[string]string)
-				}
 				if _, ok := (*nodeProfile).PtpSettings[k]; !ok {
-					(*nodeProfile).PtpSettings[k] = strconv.FormatInt(v, 10)
+					(*nodeProfile).PtpSettings[k] = strconv.FormatUint(v, 10)
 				}
 			}
+			(*nodeProfile).PtpSettings[dpll.ClockIdStr] = strconv.FormatUint(getClockIdE810(dpllDevice), 10)
 		}
 	}
 	return nil
@@ -175,4 +181,35 @@ func E810(name string) (*plugin.Plugin, *interface{}) {
 	}
 	var iface interface{} = &pluginData
 	return &_plugin, &iface
+}
+
+func getClockIdE810(device string) uint64 {
+	const (
+		PCI_EXT_CAP_ID_DSN       = 3
+		PCI_CFG_SPACE_SIZE       = 256
+		PCI_EXT_CAP_NEXT_OFFSET  = 2
+		PCI_EXT_CAP_OFFSET_SHIFT = 4
+		PCI_EXT_CAP_DATA_OFFSET  = 4
+	)
+	b, err := os.ReadFile(fmt.Sprintf("/sys/class/net/%s/device/config", device))
+	if err != nil {
+		glog.Error(err)
+		return 0
+	}
+	// Extended capability space starts right on PCI_CFG_SPACE
+	var offset uint16 = PCI_CFG_SPACE_SIZE
+	var id uint16
+	for {
+		id = binary.LittleEndian.Uint16(b[offset:])
+		if id != PCI_EXT_CAP_ID_DSN {
+			if id == 0 {
+				glog.Errorf("can't find DSN for device %s", device)
+				return 0
+			}
+			offset = binary.LittleEndian.Uint16(b[offset+PCI_EXT_CAP_NEXT_OFFSET:]) >> PCI_EXT_CAP_OFFSET_SHIFT
+			continue
+		}
+		break
+	}
+	return binary.LittleEndian.Uint64(b[offset+PCI_EXT_CAP_DATA_OFFSET:])
 }

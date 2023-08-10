@@ -2,11 +2,7 @@ package dpll
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
-	"log"
-	"math/bits"
-	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -37,6 +33,7 @@ const (
 	LocalMaxHoldoverOffSetStr = "LocalMaxHoldoverOffSet"
 	LocalHoldoverTimeoutStr   = "LocalHoldoverTimeout"
 	MaxInSpecOffsetStr        = "MaxInSpecOffset"
+	ClockIdStr                = "clockId"
 )
 
 type dpllApiType string
@@ -78,9 +75,9 @@ func (d *DependingStates) UpdateState(source event.EventSource) {
 }
 
 type DpllConfig struct {
-	LocalMaxHoldoverOffSet int64
-	LocalHoldoverTimeout   int64
-	MaxInSpecOffset        int64
+	LocalMaxHoldoverOffSet uint64
+	LocalHoldoverTimeout   uint64
+	MaxInSpecOffset        uint64
 	iface                  string
 	name                   string
 	slope                  float64
@@ -106,11 +103,8 @@ type DpllConfig struct {
 	phaseOffset     int64
 	// clockId is needed to distinguish between DPLL associated with the particular
 	// iface from other DPLL units that might be present on the system. Clock ID implementation
-	// is driver-specific and vendor-specific, always derived from hardware ID or MAC address
-	// This clock ID value is initialized from MAC address, and updated after the first "device dump"
-	//  on the basis of best correlation to the initial value
-	clockId        uint64
-	clockIdUpdated bool
+	// is driver-specific and vendor-specific.
+	clockId uint64
 	sync.Mutex
 }
 
@@ -172,11 +166,6 @@ func (d *DpllConfig) CmdInit() {
 		glog.Infof("DPLL process %s is disabled", d.Name())
 		return
 	}
-	// initialize DPLL clock ID
-	err := d.initDpllClockId()
-	if err != nil {
-		glog.Errorf("Failed to initialize DPLL clock ID: %v", err)
-	}
 }
 
 // CmdRun ... run command
@@ -184,10 +173,11 @@ func (d *DpllConfig) CmdRun(stdToSocket bool) {
 	//not implemented
 }
 
-func NewDpll(localMaxHoldoverOffSet, localHoldoverTimeout, maxInSpecOffset int64,
+func NewDpll(clockId uint64, localMaxHoldoverOffSet, localHoldoverTimeout, maxInSpecOffset uint64,
 	iface string, dependsOn []event.EventSource) *DpllConfig {
-	glog.Infof("Calling NewDpll with localMaxHoldoverOffSet=%d, localHoldoverTimeout=%d, maxInSpecOffset=%d, iface=%s", localMaxHoldoverOffSet, localHoldoverTimeout, maxInSpecOffset, iface)
+	glog.Infof("Calling NewDpll with clockId %x, localMaxHoldoverOffSet=%d, localHoldoverTimeout=%d, maxInSpecOffset=%d, iface=%s", clockId, localMaxHoldoverOffSet, localHoldoverTimeout, maxInSpecOffset, iface)
 	d := &DpllConfig{
+		clockId:                clockId,
 		LocalMaxHoldoverOffSet: localMaxHoldoverOffSet,
 		LocalHoldoverTimeout:   localHoldoverTimeout,
 		MaxInSpecOffset:        maxInSpecOffset,
@@ -205,7 +195,13 @@ func NewDpll(localMaxHoldoverOffSet, localHoldoverTimeout, maxInSpecOffset int64
 		ticker:     time.NewTicker(monitoringInterval),
 	}
 	d.timer = int64(float64(d.MaxInSpecOffset) / d.slope)
-	d.holdoverCloseCh = make(chan bool)
+
+	// register to event notification from other processes
+	for _, dep := range dependsOn {
+		dependingProcessStateMap.states[dep] = event.PTP_FREERUN
+		// register to event notification from other processes
+		event.EventStateRegisterer.Register(Subscriber{source: dep, dpll: d})
+	}
 	return d
 }
 
@@ -213,15 +209,6 @@ func NewDpll(localMaxHoldoverOffSet, localHoldoverTimeout, maxInSpecOffset int64
 func (d *DpllConfig) nlUpdateState(replies []*nl.DoDeviceGetReply) bool {
 	valid := false
 	for _, reply := range replies {
-		if !d.clockIdUpdated && reply.ClockId != d.clockId {
-			if bits.OnesCount64(reply.ClockId^d.clockId) <= 4 {
-				d.clockId = reply.ClockId
-				d.clockIdUpdated = true
-				glog.Infof("clock ID associated with %s is set to %x", d.iface, d.clockId)
-			} else {
-				continue
-			}
-		}
 		if reply.ClockId == d.clockId {
 			if reply.LockStatus == DPLL_INVALID {
 				glog.Info("discarding on invalid status: ", nl.GetDpllStatusHR(reply))
@@ -431,39 +418,6 @@ func (d *DpllConfig) MonitorDpll() {
 		// register to event notification from other processes
 		event.EventStateRegisterer.Register(Subscriber{source: dep, dpll: d})
 	}
-}
-
-// initDpllClockId finds clock ID associated with the network interface
-// and initializes it in the DpllConfig structure.
-// We need Clock ID to select DPLL belonging to the right card, if several cards
-// are available on the system.
-// TODO: read clock ID from PCI as extended capabilities DSN (intel implementation).
-// TODO: even then, this will work for Intel, but might be different for other vendors.
-func (d *DpllConfig) initDpllClockId() error {
-	const (
-		EUI48 = 6
-		EUI64 = 8
-	)
-	interfaces, err := net.Interfaces()
-	if err != nil {
-		log.Fatal(err)
-	}
-	var mac net.HardwareAddr
-	for _, ifc := range interfaces {
-		if ifc.Name == d.iface {
-			mac = ifc.HardwareAddr
-		}
-	}
-	var clockId []byte
-	if len(mac) == EUI48 {
-		clockId = []byte{mac[0], mac[1], mac[2], 0xff, 0xff, mac[3], mac[4], mac[5]}
-	} else if len(mac) == EUI64 {
-		clockId = mac
-	} else {
-		return fmt.Errorf("can't find mac address of interface %s", d.iface)
-	}
-	d.clockId = binary.BigEndian.Uint64(clockId)
-	return nil
 }
 
 // stateDecision

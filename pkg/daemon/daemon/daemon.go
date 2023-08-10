@@ -449,11 +449,12 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 			dprocess.depProcess = append(dprocess.depProcess, gpsPipeDaemon)
 			// init dpll
 			// TODO: Try to inject DPLL depProcess via plugin ?
-			var localMaxHoldoverOffSet int64 = dpll.LocalMaxHoldoverOffSet
-			var localHoldoverTimeout int64 = dpll.LocalHoldoverTimeout
-			var maxInSpecOffset int64 = dpll.MaxInSpecOffset
+			var localMaxHoldoverOffSet uint64 = dpll.LocalMaxHoldoverOffSet
+			var localHoldoverTimeout uint64 = dpll.LocalHoldoverTimeout
+			var maxInSpecOffset uint64 = dpll.MaxInSpecOffset
+			var clockId uint64
 			for k, v := range (*nodeProfile).PtpSettings {
-				i, err := strconv.ParseInt(v, 10, 64)
+				i, err := strconv.ParseUint(v, 10, 64)
 				if err != nil {
 					continue
 				}
@@ -466,8 +467,11 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 				if k == dpll.MaxInSpecOffsetStr {
 					maxInSpecOffset = i
 				}
+				if k == dpll.ClockIdStr {
+					clockId = i
+				}
 			}
-			dpllDaemon := dpll.NewDpll(localMaxHoldoverOffSet, localHoldoverTimeout, maxInSpecOffset,
+			dpllDaemon := dpll.NewDpll(clockId, localMaxHoldoverOffSet, localHoldoverTimeout, maxInSpecOffset,
 				gmInterface, []event.EventSource{event.GNSS})
 			dpllDaemon.CmdInit()
 			dprocess.depProcess = append(dprocess.depProcess, dpllDaemon)
