@@ -17,9 +17,9 @@ import (
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/testconfig"
 	v1core "k8s.io/api/core/v1"
 
-	. "github.com/onsi/gomega"
 	ptptestconfig "github.com/k8snetworkplumbingwg/ptp-operator/test/conformance/config"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/metrics"
+	. "github.com/onsi/gomega"
 	exports "github.com/redhat-cne/ptp-listener-exports"
 	lib "github.com/redhat-cne/ptp-listener-lib"
 	ptpEvent "github.com/redhat-cne/sdk-go/pkg/event/ptp"

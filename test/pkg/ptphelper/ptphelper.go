@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	. "github.com/onsi/gomega"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg"
+	. "github.com/onsi/gomega"
 	"github.com/sirupsen/logrus"
 	v1core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

@@ -247,3 +247,5 @@ buildimage: buildtest
 daemon:
 	./hack/build-daemon.sh
 
+leapfile:
+	wget https://www.ietf.org/timezones/data/leap-seconds.list -O ./extra/leap-seconds.list

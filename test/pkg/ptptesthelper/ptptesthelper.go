@@ -9,8 +9,6 @@ import (
 
 	"context"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
@@ -20,6 +18,8 @@ import (
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/pods"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/ptphelper"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/testconfig"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	k8sPriviledgedDs "github.com/test-network-function/privileged-daemonset"

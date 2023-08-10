@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	. "github.com/onsi/gomega"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/metrics"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/pods"
+	. "github.com/onsi/gomega"
 
 	k8sv1 "k8s.io/api/core/v1"
 )
