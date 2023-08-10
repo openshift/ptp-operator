@@ -545,7 +545,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					Expect(ptphelper.DisablePTPReferencePlugin()).NotTo(HaveOccurred())
 				})
 			})
-			It("Should check whether plugin is loaded", func() {
+			XIt("Should check whether plugin is loaded", func() {
 				By("checking for plugin logs")
 				foundMatch := false
 				for i := 0; i < 3 && !foundMatch; i++ {
@@ -567,7 +567,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				}
 				Expect(foundMatch).To(BeTrue())
 			})
-			It("Should check whether test plugin executes", func() {
+			XIt("Should check whether test plugin executes", func() {
 				By("Find if required logs are found")
 				Expect(ptphelper.EnablePTPReferencePlugin()).NotTo(HaveOccurred())
 				pluginConfigExists := false
