@@ -232,6 +232,9 @@ image:
 clean:
 	rm -rf build/_output/bin/ptp-operator
 
+clean-daemon:
+	./hack/cleanup-daemon.sh
+
 functests:
 	SUITE=./test/conformance hack/run-functests.sh
 
@@ -246,6 +249,9 @@ buildimage: buildtest
 
 daemon:
 	./hack/build-daemon.sh
+
+daemon-image:
+	./hack/build-daemon-image.sh
 
 leapfile:
 	wget https://www.ietf.org/timezones/data/leap-seconds.list -O ./extra/leap-seconds.list

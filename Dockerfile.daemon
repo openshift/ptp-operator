@@ -1,11 +1,11 @@
 FROM golang:1.19 AS builder
-WORKDIR /go/src/github.com/openshift/linuxptp-daemon
+WORKDIR /go/src/github.com/openshift/ptp-operator/linuxptp-daemon
 COPY . .
-RUN make clean && make
+RUN make clean-daemon && make daemon
 
-FROM quay.io/openshift/origin-base:4.13
-RUN yum -y update && yum --setopt=skip_missing_names_on_install=False -y install linuxptp ethtool hwdata && yum clean all
-COPY --from=builder /go/src/github.com/openshift/linuxptp-daemon/bin/ptp /usr/local/bin/
+FROM quay.io/centos/centos:stream9
+RUN dnf update -y && dnf --setopt=skip_missing_names_on_install=False -y install linuxptp ethtool hwdata && dnf clean all
+COPY --from=builder /go/src/github.com/openshift/ptp-operator/linuxptp-daemon/bin/linuxptp-daemon /usr/local/bin/
 COPY ./extra/leap-seconds.list /usr/share/zoneinfo/leap-seconds.list
 
-CMD ["/usr/local/bin/ptp"]
+CMD ["/usr/local/bin/linuxptp-daemon"]
