@@ -250,7 +250,11 @@ func (d *DpllConfig) monitorNtf(c *genetlink.Conn) {
 	for {
 		msg, _, err := c.Receive()
 		if err != nil {
-			glog.Error(err)
+			if err.Error() == "netlink receive: use of closed file" {
+				glog.Info("netlink connection has been closed - stop monitoring")
+			} else {
+				glog.Error(err)
+			}
 			return
 		}
 		replies, err := nl.ParseDeviceReplies(msg)
@@ -301,11 +305,6 @@ func (d *DpllConfig) MonitorDpllNetlink() {
 	var replies []*nl.DoDeviceGetReply
 	var err error
 	var sem *semaphore.Weighted
-	cleanup := func() {
-		d.stopDpll()
-	}
-	defer cleanup()
-
 	for {
 		if redial {
 			if d.conn == nil {
