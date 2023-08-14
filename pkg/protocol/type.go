@@ -10,7 +10,8 @@ import (
 
 // extend fbprotocol.ClockClass according to https://www.itu.int/rec/T-REC-G.8275.1-202211-I/en section 6.4 table 3
 const (
-	ClockClassFreerun protocol.ClockClass = 248
+	ClockClassFreerun       protocol.ClockClass = 248
+	ClockClassUninitialized protocol.ClockClass = 0
 )
 
 type GrandmasterSettings struct {

@@ -120,6 +120,10 @@ func (s Subscriber) Topic() event.EventSource {
 
 // Notify ... event notification
 func (s Subscriber) Notify(source event.EventSource, state event.PTPState) {
+	if s.dpll == nil {
+		glog.Errorf("DPLL subscriber %s is not initialized", s.source)
+		return
+	}
 	dependingProcessStateMap.Lock()
 	defer dependingProcessStateMap.Unlock()
 	if dependingProcessStateMap.states[source] != state {
@@ -298,9 +302,6 @@ func (d *DpllConfig) MonitorDpllNetlink() {
 	var err error
 	var sem *semaphore.Weighted
 	cleanup := func() {
-		if sem != nil {
-			sem.Release(1)
-		}
 		d.stopDpll()
 	}
 	defer cleanup()
@@ -587,6 +588,11 @@ func (d *DpllConfig) sendDpllTerminationEvent() {
 		ClockType:   d.processConfig.ClockType,
 		Time:        time.Now().Unix(),
 		Reset:       true,
+	}
+	// unregister from event notification from other processes
+	for _, dep := range d.dependsOn {
+		// register to event notification from other processes
+		event.EventStateRegisterer.Unregister(Subscriber{source: dep, dpll: d})
 	}
 }
 
