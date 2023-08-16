@@ -64,8 +64,6 @@ func (d *DependingStates) GetCurrentState() event.PTPState {
 
 func (d *DependingStates) UpdateState(source event.EventSource) {
 	lowestState := event.PTP_FREERUN
-	d.Lock()
-	defer d.Unlock()
 	for _, state := range d.states {
 		if state < lowestState {
 			lowestState = state
@@ -128,7 +126,9 @@ func (s Subscriber) Notify(source event.EventSource, state event.PTPState) {
 			} else {
 				s.dpll.sourceLost = true
 			}
+			glog.Infof("sourceLost %v", s.dpll.sourceLost)
 		}
+
 		s.dpll.stateDecision()
 		glog.Infof("%s notified on state change: state %v", source, state)
 		dependingProcessStateMap.UpdateState(source)
