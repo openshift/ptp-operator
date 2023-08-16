@@ -50,6 +50,8 @@ type DependingStates struct {
 	states       map[event.EventSource]event.PTPState
 	currentState event.PTPState
 }
+
+// Subscriber ... event subscriber
 type Subscriber struct {
 	source event.EventSource
 	dpll   *DpllConfig
@@ -59,11 +61,13 @@ var dependingProcessStateMap = DependingStates{
 	states: make(map[event.EventSource]event.PTPState),
 }
 
+// GetCurrentState ... get current state
 func (d *DependingStates) GetCurrentState() event.PTPState {
 	return d.currentState
 }
 
 func (d *DependingStates) UpdateState(source event.EventSource) {
+	// do not lock here, since this function is called from other locks
 	lowestState := event.PTP_FREERUN
 	for _, state := range d.states {
 		if state < lowestState {
@@ -73,6 +77,7 @@ func (d *DependingStates) UpdateState(source event.EventSource) {
 	d.currentState = lowestState
 }
 
+// DpllConfig ... DPLL configuration
 type DpllConfig struct {
 	LocalMaxHoldoverOffSet uint64
 	LocalHoldoverTimeout   uint64
@@ -107,6 +112,7 @@ type DpllConfig struct {
 	sync.Mutex
 }
 
+// Topic ... event topic
 func (s Subscriber) Topic() event.EventSource {
 	return s.source
 }
@@ -136,10 +142,12 @@ func (s Subscriber) Notify(source event.EventSource, state event.PTPState) {
 	}
 }
 
+// Name ... name of the process
 func (d *DpllConfig) Name() string {
 	return string(event.DPLL)
 }
 
+// Stopped ... stopped
 func (d *DpllConfig) Stopped() bool {
 	//TODO implement me
 	panic("implement me")
@@ -150,6 +158,7 @@ func (d *DpllConfig) ExitCh() chan struct{} {
 	return d.exitCh
 }
 
+// CmdStop ... stop command
 func (d *DpllConfig) CmdStop() {
 	glog.Infof("stopping %s", d.Name())
 	d.ticker.Stop()
@@ -174,6 +183,7 @@ func (d *DpllConfig) CmdRun(stdToSocket bool) {
 	//not implemented
 }
 
+// NewDpll ... create new DPLL process
 func NewDpll(clockId uint64, localMaxHoldoverOffSet, localHoldoverTimeout, maxInSpecOffset uint64,
 	iface string, dependsOn []event.EventSource) *DpllConfig {
 	glog.Infof("Calling NewDpll with clockId %x, localMaxHoldoverOffSet=%d, localHoldoverTimeout=%d, maxInSpecOffset=%d, iface=%s", clockId, localMaxHoldoverOffSet, localHoldoverTimeout, maxInSpecOffset, iface)

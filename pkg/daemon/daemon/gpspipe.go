@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"sync"
@@ -104,19 +103,6 @@ func (gp *gpspipe) CmdRun(stdoutToSocket bool) {
 		processStatus(nil, gp.name, gp.messageTag, PtpProcessUp)
 	}
 	glog.Infof(string(stdout))
-}
-
-func output(reader io.ReadCloser) error {
-	buf := make([]byte, 1024)
-	for {
-		num, err := reader.Read(buf)
-		if err != nil && err != io.EOF {
-			return err
-		}
-		if num > 0 {
-			fmt.Printf("%s", string(buf[:num]))
-		}
-	}
 }
 
 func mkFifo() error {

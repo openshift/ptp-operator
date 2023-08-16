@@ -153,6 +153,10 @@ func RegisterMetrics(nodeName string) {
 		NodeName = nodeName
 	})
 
+}
+
+// InitializeOffsetMaps ... initialize maps
+func InitializeOffsetMaps() {
 	masterOffsetIfaceName = map[string]string{}
 	slaveIfaceName = map[string]string{}
 	masterOffsetSourceProfile = map[string]string{}
