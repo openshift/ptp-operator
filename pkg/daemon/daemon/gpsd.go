@@ -205,7 +205,7 @@ retry:
 			goto exit
 		case <-g.gpsdDoneCh:
 			glog.Infof("GPSD Monitor() gpsdDone closed")
-			g.gpsdDoneCh = g.gpsdSession.Watch()
+			goto exit
 		default:
 			// do nothing
 			time.Sleep(250 * time.Millisecond)
