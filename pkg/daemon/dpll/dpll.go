@@ -3,6 +3,7 @@ package dpll
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -182,7 +183,7 @@ func NewDpll(clockId uint64, localMaxHoldoverOffSet, localHoldoverTimeout, maxIn
 		LocalHoldoverTimeout:   localHoldoverTimeout,
 		MaxInSpecOffset:        maxInSpecOffset,
 		slope: func() float64 {
-			return float64((localMaxHoldoverOffSet / localHoldoverTimeout) * 1000)
+			return ((float64(localMaxHoldoverOffSet) / float64(localHoldoverTimeout)) * 1000.0)
 		}(),
 		timer:      0,
 		offset:     0,
@@ -194,8 +195,9 @@ func NewDpll(clockId uint64, localMaxHoldoverOffSet, localHoldoverTimeout, maxIn
 		exitCh:     make(chan struct{}),
 		ticker:     time.NewTicker(monitoringInterval),
 	}
-	d.timer = int64(float64(d.MaxInSpecOffset) / d.slope)
 
+	d.timer = int64(math.Round((float64(d.MaxInSpecOffset*1000) / d.slope)))
+	glog.Infof("slope %f ps/s, offset %f ns, timer %d sec", d.slope, float64(d.MaxInSpecOffset), d.timer)
 	// register to event notification from other processes
 	for _, dep := range dependsOn {
 		dependingProcessStateMap.states[dep] = event.PTP_FREERUN
@@ -573,20 +575,34 @@ func (d *DpllConfig) getWorseState(pstate, fstate int64) int64 {
 }
 
 func (d *DpllConfig) holdover() {
+	d.onHoldover = true
 	start := time.Now()
 	ticker := time.NewTicker(1 * time.Second)
+	defer func() {
+		ticker.Stop()
+		d.onHoldover = false
+		d.stateDecision()
+	}()
+
 	d.state = event.PTP_HOLDOVER
-	for timeout := time.After(time.Duration(d.timer)); ; {
+	for timeout := time.After(time.Duration(d.timer * int64(time.Second))); ; {
 		select {
 		case <-ticker.C:
 			//calculate offset
-			d.offset = int64(d.slope * float64(time.Since(start)))
+			d.offset = int64(math.Round((d.slope / 1000) * float64(time.Since(start).Seconds())))
+			glog.Infof("time since holdover start %f, offset %d nanosecond", float64(time.Since(start).Seconds()), d.offset)
+			if !d.isOffsetInRange() {
+				glog.Infof("offset is out of range: %v, min %v, max %v",
+					d.offset, d.processConfig.GMThreshold.Min, d.processConfig.GMThreshold.Max)
+				return
+			}
 		case <-timeout:
 			d.inSpec = false
 			d.state = event.PTP_FREERUN
+			glog.Infof("holdover timer %d expired", d.timer)
 			return
 		case <-d.holdoverCloseCh:
-			d.onHoldover = false
+			glog.Info("holdover was closed")
 			d.inSpec = true // if someone else is closing then it should be back in spec (if it was not in spec before)
 			return
 		}
