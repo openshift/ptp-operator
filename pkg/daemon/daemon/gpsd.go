@@ -10,9 +10,9 @@ import (
 	"syscall"
 	"time"
 
-	gpsdlib "github.com/aneeshkp/go-gpsd"
 	"github.com/openshift/linuxptp-daemon/pkg/event"
 	"github.com/openshift/linuxptp-daemon/pkg/gnss"
+	gpsdlib "github.com/stratoberry/go-gpsd"
 )
 
 const (
@@ -139,7 +139,10 @@ func (g *gpsd) MonitorGNSSEventsWithGPSD(processCfg config.ProcessConfig, plugin
 	// close the session if it is already open
 	defer func() {
 		if g.gpsdSession != nil {
-			g.gpsdSession.Close()
+			err := g.gpsdSession.Close()
+			if err != nil {
+				return
+			}
 		}
 	}()
 	g.processConfig = processCfg
