@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"fmt"
+	"github.com/golang/glog"
 	"strconv"
 	"strings"
 
@@ -32,6 +33,7 @@ type TimePropertiesDS struct {
 
 func (g *GrandmasterSettings) String() string {
 	if g == nil {
+		glog.Error("returned empty grandmasterSettings")
 		return ""
 
 	}

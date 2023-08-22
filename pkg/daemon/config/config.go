@@ -39,7 +39,7 @@ func GetKubeConfig() (*rest.Config, error) {
 		return configFromFlags(kubeConfig)
 	}
 
-	return nil, fmt.Errorf("Could not locate a kubeconfig")
+	return nil, fmt.Errorf("could not locate a kubeconfig")
 }
 
 type ProcessConfig struct {

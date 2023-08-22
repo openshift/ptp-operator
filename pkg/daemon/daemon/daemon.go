@@ -47,7 +47,7 @@ type ptpProcess struct {
 	stopped         bool
 	logFilterRegex  string
 	cmd             *exec.Cmd
-	depProcess      []process // this could gpsd and other process which needs to be stopped if the parent process is stopped
+	depProcess      []process // these are list of dependent process which needs to be started/stopped if the parent process is starts/stops
 	nodeProfile     *ptpv1.PtpProfile
 	parentClockClass float64
 	pmcCheck          bool
@@ -417,7 +417,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 			if e := mkFifo(); e != nil {
 				glog.Errorf("Error creating named pipe, GNSS monitoring will not work as expected %s", e.Error())
 			}
-			gpsDaemon := &gpsd{
+			gpsDaemon := &GPSD{
 				name:        GPSD_PROCESSNAME,
 				execMutex:   sync.Mutex{},
 				cmd:         nil,
@@ -697,7 +697,7 @@ func (p *ptpProcess) ProcessTs2PhcEvents(ptpOffset float64, source string, iface
 				event.OFFSET: ptpOffsetInt64,
 			},
 			ClockType:  p.clockType,
-			Time:       time.Now().Unix(),
+			Time:       time.Now().UnixMilli(),
 			WriteToLog: false,
 			Reset:      false,
 		}

@@ -14,7 +14,7 @@ import (
 )
 
 func TestDpllConfig_MonitorProcess(t *testing.T) {
-	d := dpll.NewDpll(1400, 5, 10, "ens01", []event.EventSource{})
+	d := dpll.NewDpll(248, 1400, 5, 10, "ens01", []event.EventSource{})
 	eventChannel := make(chan event.EventChannel, 10)
 	if d != nil {
 		d.MonitorProcess(config.ProcessConfig{

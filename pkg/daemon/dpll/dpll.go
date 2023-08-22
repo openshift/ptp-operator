@@ -39,6 +39,8 @@ const (
 
 type dpllApiType string
 
+var subscribers []Subscriber
+
 const (
 	SYSFS   dpllApiType = "sysfs"
 	NETLINK dpllApiType = "netlink"
@@ -53,8 +55,10 @@ type DependingStates struct {
 
 // Subscriber ... event subscriber
 type Subscriber struct {
-	source event.EventSource
-	dpll   *DpllConfig
+	source     event.EventSource
+	dpll       *DpllConfig
+	monitoring bool
+	id         string
 }
 
 var dependingProcessStateMap = DependingStates{
@@ -110,6 +114,13 @@ type DpllConfig struct {
 	// is driver-specific and vendor-specific.
 	clockId uint64
 	sync.Mutex
+	isMonitoring bool
+}
+
+// Monitor ...
+func (s Subscriber) Monitor() {
+	glog.Infof("Starting dpll monitoring")
+	s.dpll.MonitorDpll()
 }
 
 // Topic ... event topic
@@ -117,15 +128,26 @@ func (s Subscriber) Topic() event.EventSource {
 	return s.source
 }
 
+func (s Subscriber) MonitoringStarted() bool {
+	return s.monitoring
+}
+
+func (s Subscriber) ID() string {
+	return s.id
+}
+
 // Notify ... event notification
 func (s Subscriber) Notify(source event.EventSource, state event.PTPState) {
-	if s.dpll == nil {
-		glog.Errorf("DPLL subscriber %s is not initialized", s.source)
+	if s.dpll == nil || !s.dpll.isMonitoring {
+		glog.Errorf("dpll subscriber %s is not initialized (monitoring state %t)", s.source, s.dpll.isMonitoring)
 		return
 	}
+	glog.Infof("state change notification received  for %s", s.source)
 	dependingProcessStateMap.Lock()
 	defer dependingProcessStateMap.Unlock()
-	if dependingProcessStateMap.states[source] != state {
+	currentState := dependingProcessStateMap.states[source]
+	glog.Infof("%s notified on state change: from state %v to state %v", source, currentState, state)
+	if currentState != state {
 		dependingProcessStateMap.states[source] = state
 		if source == event.GNSS {
 			if state == event.PTP_LOCKED {
@@ -135,10 +157,11 @@ func (s Subscriber) Notify(source event.EventSource, state event.PTPState) {
 			}
 			glog.Infof("sourceLost %v", s.dpll.sourceLost)
 		}
-
 		s.dpll.stateDecision()
 		glog.Infof("%s notified on state change: state %v", source, state)
 		dependingProcessStateMap.UpdateState(source)
+	} else {
+		glog.Infof("ignoring state change notification for state %s", state)
 	}
 }
 
@@ -172,15 +195,19 @@ func (d *DpllConfig) CmdInit() {
 	// register to event notification from other processes
 	d.setAPIType()
 	glog.Infof("api type %v", d.apiType)
-	if d.apiType == NONE {
-		glog.Infof("DPLL process %s is disabled", d.Name())
-		return
-	}
 }
 
 // CmdRun ... run command
 func (d *DpllConfig) CmdRun(stdToSocket bool) {
-	//not implemented
+	// register to event notification from other processes
+	subscribers = []Subscriber{}
+	for _, dep := range d.dependsOn {
+		dependingProcessStateMap.states[dep] = event.PTP_UNKNOWN
+		// register to event notification from other processes
+		s := Subscriber{source: dep, dpll: d, monitoring: false, id: string(event.DPLL)}
+		subscribers = append(subscribers, s)
+		event.StateRegisterer.Register(s)
+	}
 }
 
 // NewDpll ... create new DPLL process
@@ -193,27 +220,22 @@ func NewDpll(clockId uint64, localMaxHoldoverOffSet, localHoldoverTimeout, maxIn
 		LocalHoldoverTimeout:   localHoldoverTimeout,
 		MaxInSpecOffset:        maxInSpecOffset,
 		slope: func() float64 {
-			return ((float64(localMaxHoldoverOffSet) / float64(localHoldoverTimeout)) * 1000.0)
+			return (float64(localMaxHoldoverOffSet) / float64(localHoldoverTimeout)) * 1000.0
 		}(),
-		timer:      0,
-		offset:     0,
-		state:      event.PTP_FREERUN,
-		iface:      iface,
-		onHoldover: false,
-		sourceLost: false,
-		dependsOn:  dependsOn,
-		exitCh:     make(chan struct{}),
-		ticker:     time.NewTicker(monitoringInterval),
+		timer:        0,
+		offset:       0,
+		state:        event.PTP_FREERUN,
+		iface:        iface,
+		onHoldover:   false,
+		sourceLost:   false,
+		dependsOn:    dependsOn,
+		exitCh:       make(chan struct{}),
+		ticker:       time.NewTicker(monitoringInterval),
+		isMonitoring: false,
 	}
 
-	d.timer = int64(math.Round((float64(d.MaxInSpecOffset*1000) / d.slope)))
+	d.timer = int64(math.Round(float64(d.MaxInSpecOffset*1000) / d.slope))
 	glog.Infof("slope %f ps/s, offset %f ns, timer %d sec", d.slope, float64(d.MaxInSpecOffset), d.timer)
-	// register to event notification from other processes
-	for _, dep := range dependsOn {
-		dependingProcessStateMap.states[dep] = event.PTP_FREERUN
-		// register to event notification from other processes
-		event.EventStateRegisterer.Register(Subscriber{source: dep, dpll: d})
-	}
 	return d
 }
 
@@ -280,7 +302,7 @@ func (d *DpllConfig) isSysFsPresent() bool {
 func (d *DpllConfig) isNetLinkPresent() bool {
 	conn, err := nl.Dial(nil)
 	if err != nil {
-		glog.Info("failed to establish DPLL netlink connection: ", err)
+		glog.Info("failed to establish dpll netlink connection: ", err)
 		return false
 	}
 	conn.Close()
@@ -309,7 +331,7 @@ func (d *DpllConfig) MonitorDpllNetlink() {
 			if d.conn == nil {
 				if conn, err2 := nl.Dial(nil); err2 != nil {
 					d.conn = nil
-					glog.Info("failed to establish DPLL netlink connection: ", err2)
+					glog.Info("failed to establish dpll netlink connection: ", err2)
 					goto checkExit
 				} else {
 					d.conn = conn
@@ -357,14 +379,18 @@ func (d *DpllConfig) MonitorDpllNetlink() {
 	checkExit:
 		select {
 		case <-d.exitCh:
-			glog.Infof("terminating netlink DPLL monitoring")
-			d.processConfig.EventChannel <- event.EventChannel{
+			glog.Infof("terminating netlink dpll monitoring")
+			select {
+			case d.processConfig.EventChannel <- event.EventChannel{
 				ProcessName: event.DPLL,
 				IFace:       d.iface,
 				CfgName:     d.processConfig.ConfigName,
 				ClockType:   d.processConfig.ClockType,
-				Time:        time.Now().Unix(),
+				Time:        time.Now().UnixMilli(),
 				Reset:       true,
+			}:
+			default:
+				glog.Error("failed to send dpll event terminated event")
 			}
 
 			if d.onHoldover {
@@ -388,7 +414,7 @@ func (d *DpllConfig) MonitorDpllNetlink() {
 					return false
 				}
 
-				glog.Info("DPLL monitoring exited, initiating redial")
+				glog.Info("dpll monitoring exited, initiating redial")
 				d.stopDpll()
 				return true
 			}()
@@ -401,7 +427,7 @@ func (d *DpllConfig) MonitorDpllNetlink() {
 func (d *DpllConfig) stopDpll() {
 	if d.conn != nil {
 		if err := d.conn.Close(); err != nil {
-			glog.Errorf("Error closing DPLL netlink connection: %v", err)
+			glog.Errorf("error closing DPLL netlink connection: %v", err)
 		}
 		d.conn = nil
 	}
@@ -410,32 +436,37 @@ func (d *DpllConfig) stopDpll() {
 // MonitorProcess is initiating monitoring of DPLL associated with a process
 func (d *DpllConfig) MonitorProcess(processCfg config.ProcessConfig) {
 	d.processConfig = processCfg
-	d.MonitorDpll()
+	// register monitoring process to be called by event
+	m := Subscriber{
+		source:     event.NIL,
+		dpll:       d,
+		monitoring: false,
+		id:         string(event.DPLL),
+	}
+	subscribers = append(subscribers, m)
+	event.StateRegisterer.Register(m)
+	//d.MonitorDpll()
+	// do not monitor here, the event will call monitoring when it is ready to serve
 }
 
 // MonitorDpll monitors DPLL on the discovered API, if any
 func (d *DpllConfig) MonitorDpll() {
 	if d.apiType == SYSFS {
 		go d.MonitorDpllSysfs()
+		d.isMonitoring = true
 	} else if d.apiType == NETLINK {
 		go d.MonitorDpllNetlink()
+		d.isMonitoring = true
 	} else {
-		glog.Errorf("DPLL monitoring is not possible, both sysfs is not available or netlink implementation is not present")
+		glog.Errorf("dpll monitoring is not possible, both sysfs is not available or netlink implementation is not present")
 		return
-	}
-	time.Sleep(time.Millisecond * 1000)
-	// register to event notification from other processes
-	for _, dep := range d.dependsOn {
-		dependingProcessStateMap.states[dep] = event.PTP_UNKNOWN
-		// register to event notification from other processes
-		event.EventStateRegisterer.Register(Subscriber{source: dep, dpll: d})
 	}
 }
 
 // stateDecision
 func (d *DpllConfig) stateDecision() {
 	dpllStatus := d.getWorseState(d.phaseStatus, d.frequencyStatus)
-	glog.Infof("DPLL decision: Status %d, Offset %d, In spec %v, Source lost %v, On holdover %v",
+	glog.Infof("dpll decision: Status %d, Offset %d, In spec %v, Source lost %v, On holdover %v",
 		dpllStatus, d.offset, d.inSpec, d.sourceLost, d.onHoldover)
 
 	switch dpllStatus {
@@ -445,37 +476,37 @@ func (d *DpllConfig) stateDecision() {
 			d.holdoverCloseCh <- true
 		}
 		d.state = event.PTP_FREERUN
-		glog.Infof("DPLL is in FREERUN, state is FREERUN")
+		glog.Infof("dpll is in FREERUN, state is FREERUN")
 		d.sendDpllEvent()
 	case DPLL_LOCKED:
 		if !d.sourceLost && d.isOffsetInRange() {
 			if d.onHoldover {
 				d.holdoverCloseCh <- true
 			}
-			glog.Infof("DPLL is locked, offset is in range, state is LOCKED")
+			glog.Infof("dpll is locked, offset is in range, state is LOCKED")
 			d.state = event.PTP_LOCKED
 		} else { // what happens if source is lost and DPLL is locked? goto holdover?
-			glog.Infof("DPLL is locked, offset is out of range, state is FREERUN")
+			glog.Infof("dpll is locked, offset is out of range, state is FREERUN")
 			d.state = event.PTP_FREERUN
 		}
 		d.inSpec = true
 		d.sendDpllEvent()
 	case DPLL_LOCKED_HO_ACQ, DPLL_HOLDOVER:
 		if !d.sourceLost && d.isOffsetInRange() {
-			glog.Infof("DPLL is locked, source is not lost, offset is in range, state is DPLL_LOCKED_HO_ACQ or DPLL_HOLDOVER")
+			glog.Infof("dpll is locked, source is not lost, offset is in range, state is DPLL_LOCKED_HO_ACQ or DPLL_HOLDOVER")
 			if d.onHoldover {
 				d.holdoverCloseCh <- true
 			}
 			d.inSpec = true
 			d.state = event.PTP_LOCKED
 		} else if d.sourceLost && d.inSpec {
-			glog.Infof("DPLL state is DPLL_LOCKED_HO_ACQ or DPLL_HOLDOVER,  source is lost, state is HOLDOVER")
+			glog.Infof("dpll state is DPLL_LOCKED_HO_ACQ or DPLL_HOLDOVER,  source is lost, state is HOLDOVER")
 			if !d.onHoldover {
 				d.holdoverCloseCh = make(chan bool)
 				go d.holdover()
 			}
 		} else if !d.inSpec {
-			glog.Infof("DPLL is not in spec ,state is DPLL_LOCKED_HO_ACQ or DPLL_HOLDOVER, offset is out of range, state is FREERUN")
+			glog.Infof("dpll is not in spec ,state is DPLL_LOCKED_HO_ACQ or DPLL_HOLDOVER, offset is out of range, state is FREERUN")
 			d.state = event.PTP_FREERUN
 		}
 		d.sendDpllEvent()
@@ -499,16 +530,15 @@ func (d *DpllConfig) sendDpllEvent() {
 			event.PHASE_STATUS:     d.phaseStatus,
 		},
 		ClockType:  d.processConfig.ClockType,
-		Time:       time.Now().Unix(),
+		Time:       time.Now().UnixMilli(),
 		WriteToLog: true,
 		Reset:      false,
 	}
-
 	select {
 	case d.processConfig.EventChannel <- eventData:
-		glog.Infof("DPLL event sent")
-	case <-time.After(time.Millisecond * 250):
-		glog.Error("Failed to send DPLL event")
+		glog.Infof("dpll event sent")
+	default:
+		glog.Infof("failed to send dpll event, retying.")
 	}
 }
 
@@ -546,18 +576,25 @@ func (d *DpllConfig) MonitorDpllSysfs() {
 
 // sendDpllTerminationEvent sends a termination event to the event channel
 func (d *DpllConfig) sendDpllTerminationEvent() {
-	d.processConfig.EventChannel <- event.EventChannel{
+	select {
+	case d.processConfig.EventChannel <- event.EventChannel{
 		ProcessName: event.DPLL,
 		IFace:       d.iface,
 		CfgName:     d.processConfig.ConfigName,
 		ClockType:   d.processConfig.ClockType,
-		Time:        time.Now().Unix(),
+		Time:        time.Now().UnixMilli(),
 		Reset:       true,
+	}:
+	default:
+		glog.Error("failed to send dpll terminated event")
 	}
+
 	// unregister from event notification from other processes
-	for _, dep := range d.dependsOn {
-		// register to event notification from other processes
-		event.EventStateRegisterer.Unregister(Subscriber{source: dep, dpll: d})
+	if subscribers != nil {
+		for _, s := range subscribers {
+			s.monitoring = false
+			event.StateRegisterer.Unregister(s)
+		}
 	}
 }
 
