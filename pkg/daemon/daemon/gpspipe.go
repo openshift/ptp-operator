@@ -89,7 +89,7 @@ func (gp *gpspipe) CmdInit() {
 	if gp.name == "" {
 		gp.name = GPSPIPE_PROCESSNAME
 	}
-	gp.cmdLine = fmt.Sprintf("/usr/local/bin/gpspipe -v -d -r -l -o %s", gp.SerialPort())
+	gp.cmdLine = fmt.Sprintf("/usr/bin/gpspipe -v -d -r -l -o %s", gp.SerialPort())
 }
 
 // CmdRun ... run gpspipe
