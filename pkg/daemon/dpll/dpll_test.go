@@ -14,6 +14,10 @@ import (
 )
 
 func TestDpllConfig_MonitorProcess(t *testing.T) {
+	eChannel := make(chan event.EventChannel, 10)
+	closeChn := make(chan bool)
+	// event has to be running before dpll is started
+	event.Init("node", false, "/tmp/go.sock", eChannel, closeChn, nil, nil)
 	d := dpll.NewDpll(248, 1400, 5, 10, "ens01", []event.EventSource{})
 	eventChannel := make(chan event.EventChannel, 10)
 	if d != nil {
