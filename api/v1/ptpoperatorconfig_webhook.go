@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // log is for logging in this package.
@@ -70,21 +71,25 @@ func (r *PtpOperatorConfig) validate() error {
 var _ webhook.Validator = &PtpOperatorConfig{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *PtpOperatorConfig) ValidateCreate() error {
+func (r *PtpOperatorConfig) ValidateCreate() (admission.Warnings, error) {
 	ptpoperatorconfiglog.Info("validate create", "name", r.Name)
-	return nil
+	return admission.Warnings{}, nil
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *PtpOperatorConfig) ValidateUpdate(old runtime.Object) error {
+func (r *PtpOperatorConfig) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	ptpoperatorconfiglog.Info("validate update", "name", r.Name)
-	return r.validate()
+	if err := r.validate(); err != nil {
+		return admission.Warnings{}, err
+	}
+
+	return admission.Warnings{}, nil
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *PtpOperatorConfig) ValidateDelete() error {
+func (r *PtpOperatorConfig) ValidateDelete() (admission.Warnings, error) {
 	ptpoperatorconfiglog.Info("validate delete", "name", r.Name)
-	return nil
+	return admission.Warnings{}, nil
 }
 
 func (r *PtpOperatorConfig) checkStorageClass(scName string) bool {
