@@ -37,6 +37,7 @@ type GPSD struct {
 	ublxTool             *ublox.UBlox
 	gpsdSession          *gpsdlib.Session
 	gpsdDoneCh           chan bool
+	sourceLost           bool
 }
 
 // Subscriber ... event subscriber
@@ -209,7 +210,9 @@ retry:
 
 		if g.noFixStateOccurrence > noFixThreshold {
 			g.state = event.PTP_FREERUN
+			g.sourceLost = true
 		} else if tpv.Mode == gpsdlib.Mode2D || tpv.Mode == gpsdlib.Mode3D {
+			g.sourceLost = false
 			if g.isOffsetInRange() {
 				g.state = event.PTP_LOCKED
 			} else {
@@ -230,6 +233,7 @@ retry:
 			},
 			ClockType:  g.processConfig.ClockType,
 			Time:       time.Now().UnixMilli(),
+			SourceLost: g.sourceLost,
 			WriteToLog: true,
 			Reset:      false,
 		}:
@@ -339,6 +343,7 @@ retry:
 					},
 					ClockType:  processCfg.ClockType,
 					Time:       time.Now().UnixMilli(),
+					SourceLost: false,
 					WriteToLog: true,
 					Reset:      false,
 				}:

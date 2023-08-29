@@ -219,7 +219,10 @@ func (dn *Daemon) applyNodePTPProfiles() error {
 	for _, p := range dn.processManager.process {
 		if p != nil {
 			p.eventCh = dn.processManager.eventChannel
-			if p.depProcess != nil {
+			// start ptp4l process early , it doesnt have
+			if p.depProcess == nil {
+				go p.cmdRun(dn.stdoutToSocket)
+			} else {
 				for _, d := range p.depProcess {
 					if d != nil {
 						time.Sleep(3 * time.Second)
@@ -240,9 +243,8 @@ func (dn *Daemon) applyNodePTPProfiles() error {
 						glog.Infof("Max %d Min %d Holdover %d", p.ptpClockThreshold.MaxOffsetThreshold, p.ptpClockThreshold.MinOffsetThreshold, p.ptpClockThreshold.HoldOverTimeout)
 					}
 				}
+				go p.cmdRun()
 			}
-			go p.cmdRun()
-			time.Sleep(1 * time.Second)
 			dn.pluginManager.AfterRunPTPCommand(p.nodeProfile, p.name)
 		}
 	}
@@ -490,9 +492,9 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 }
 
 func (dn *Daemon) HandlePmcTicker() {
-	for _, process := range dn.processManager.process {
-		if process.name == ptp4lProcessName {
-			process.pmcCheck = true
+	for _, p := range dn.processManager.process {
+		if p.name == ptp4lProcessName {
+			p.pmcCheck = true
 		}
 	}
 
@@ -524,6 +526,11 @@ func processStatus(processName, messageTag string, status int64) {
 }
 
 func (p *ptpProcess) updateClockClass(c *net.Conn) {
+	defer func() {
+		if r := recover(); r != nil {
+			glog.Errorf("Recovered in f %#v", r)
+		}
+	}()
 	if _, matches, e := pmc.RunPMCExp(p.configName, pmc.CmdGetParentDataSet, pmc.ClockClassChangeRegEx); e == nil {
 		//regex: 'gm.ClockClass[[:space:]]+(\d+)'
 		//match  1: 'gm.ClockClass                         135'
@@ -538,10 +545,13 @@ func (p *ptpProcess) updateClockClass(c *net.Conn) {
 					//ptp4l[5196819.100]: [ptp4l.0.config] CLOCK_CLASS_CHANGE:248
 					clockClassOut := fmt.Sprintf("%s[%d]:[%s] CLOCK_CLASS_CHANGE %f\n", p.name, time.Now().Unix(), p.configName, clockClass)
 					fmt.Printf("%s", clockClassOut)
-
-					_, err := (*c).Write([]byte(clockClassOut))
-					if err != nil {
-						glog.Errorf("failed to write class change event %s", err.Error())
+					if c == nil {
+						glog.Error("failed to write class change event, connection object is nil ")
+					} else {
+						_, err := (*c).Write([]byte(clockClassOut))
+						if err != nil {
+							glog.Errorf("failed to write class change event %s", err.Error())
+						}
 					}
 				}
 			} else {
@@ -688,7 +698,8 @@ func (p *ptpProcess) ProcessTs2PhcEvents(ptpOffset float64, source string, iface
 		if len(p.ifaces) > 0 {
 			iface = p.ifaces[0]
 		}
-		p.eventCh <- event.EventChannel{
+		select {
+		case p.eventCh <- event.EventChannel{
 			ProcessName: event.TS2PHC,
 			State:       ptpState,
 			CfgName:     p.configName,
@@ -700,6 +711,10 @@ func (p *ptpProcess) ProcessTs2PhcEvents(ptpOffset float64, source string, iface
 			Time:       time.Now().UnixMilli(),
 			WriteToLog: false,
 			Reset:      false,
+		}:
+		default:
+
 		}
+
 	}
 }

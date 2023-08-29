@@ -13,6 +13,7 @@ import (
 const (
 	ClockClassFreerun       protocol.ClockClass = 248
 	ClockClassUninitialized protocol.ClockClass = 0
+	ClockClassOutOfSpec     protocol.ClockClass = 140
 )
 
 type GrandmasterSettings struct {

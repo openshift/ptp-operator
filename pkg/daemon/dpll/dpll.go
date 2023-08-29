@@ -146,8 +146,8 @@ func (s Subscriber) Notify(source event.EventSource, state event.PTPState) {
 	dependingProcessStateMap.Lock()
 	defer dependingProcessStateMap.Unlock()
 	currentState := dependingProcessStateMap.states[source]
-	glog.Infof("%s notified on state change: from state %v to state %v", source, currentState, state)
 	if currentState != state {
+		glog.Infof("%s notified on state change: from state %v to state %v", source, currentState, state)
 		dependingProcessStateMap.states[source] = state
 		if source == event.GNSS {
 			if state == event.PTP_LOCKED {
@@ -160,8 +160,6 @@ func (s Subscriber) Notify(source event.EventSource, state event.PTPState) {
 		s.dpll.stateDecision()
 		glog.Infof("%s notified on state change: state %v", source, state)
 		dependingProcessStateMap.UpdateState(source)
-	} else {
-		glog.Infof("ignoring state change notification for state %s", state)
 	}
 }
 
@@ -505,6 +503,7 @@ func (d *DpllConfig) stateDecision() {
 				d.holdoverCloseCh = make(chan bool)
 				go d.holdover()
 			}
+			return // sending events are handled by holdover return here
 		} else if !d.inSpec {
 			glog.Infof("dpll is not in spec ,state is DPLL_LOCKED_HO_ACQ or DPLL_HOLDOVER, offset is out of range, state is FREERUN")
 			d.state = event.PTP_FREERUN
@@ -531,6 +530,8 @@ func (d *DpllConfig) sendDpllEvent() {
 		},
 		ClockType:  d.processConfig.ClockType,
 		Time:       time.Now().UnixMilli(),
+		OutOfSpec:  !d.inSpec,
+		SourceLost: false,
 		WriteToLog: true,
 		Reset:      false,
 	}
@@ -630,23 +631,25 @@ func (d *DpllConfig) holdover() {
 		d.onHoldover = false
 		d.stateDecision()
 	}()
-
 	d.state = event.PTP_HOLDOVER
+	d.sendDpllEvent()
 	for timeout := time.After(time.Duration(d.timer * int64(time.Second))); ; {
 		select {
 		case <-ticker.C:
 			//calculate offset
 			d.offset = int64(math.Round((d.slope / 1000) * float64(time.Since(start).Seconds())))
 			glog.Infof("time since holdover start %f, offset %d nanosecond", float64(time.Since(start).Seconds()), d.offset)
+			d.sendDpllEvent()
 			if !d.isOffsetInRange() {
 				glog.Infof("offset is out of range: %v, min %v, max %v",
 					d.offset, d.processConfig.GMThreshold.Min, d.processConfig.GMThreshold.Max)
 				return
 			}
 		case <-timeout:
-			d.inSpec = false
+			d.inSpec = false // in HO, Out of spec
 			d.state = event.PTP_FREERUN
 			glog.Infof("holdover timer %d expired", d.timer)
+			d.sendDpllEvent()
 			return
 		case <-d.holdoverCloseCh:
 			glog.Info("holdover was closed")
