@@ -92,7 +92,7 @@ spec:
           image: {{.Image}}
           imagePullPolicy: IfNotPresent
           command: [ "/bin/bash", "-c", "--" ]
-          args: [ "/usr/local/bin/ptp --alsologtostderr -v 10" ]
+          args: [ "/usr/local/bin/linuxptp-daemon --alsologtostderr -v 10" ]
           resources:
             requests:
               cpu: 20m
