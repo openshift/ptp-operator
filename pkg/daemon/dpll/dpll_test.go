@@ -50,3 +50,33 @@ func TestSysfs(t *testing.T) {
 	assert.Nil(t, err2)
 	assert.GreaterOrEqual(t, index, int64(-26644444444444444))
 }
+
+type dpllTestCase struct {
+	localMaxHoldoverOffSet uint64
+	localHoldoverTimeout   uint64
+	maxInSpecOffset        uint64
+	expectedSlope          float64
+	expectedTimeout        int64
+}
+
+func TestSlopeAndTimer(t *testing.T) {
+
+	testCase := []dpllTestCase{
+		{
+			localMaxHoldoverOffSet: 2000,
+			localHoldoverTimeout:   100,
+			maxInSpecOffset:        100,
+			expectedSlope:          20000,
+			expectedTimeout:        5,
+		},
+	}
+	for _, tt := range testCase {
+		d := dpll.NewDpll(100, tt.localMaxHoldoverOffSet, tt.localHoldoverTimeout, tt.maxInSpecOffset,
+			"test", []event.EventSource{})
+		assert.Equal(t, tt.localMaxHoldoverOffSet, d.LocalMaxHoldoverOffSet, "localMaxHoldover offset")
+		assert.Equal(t, tt.localHoldoverTimeout, d.LocalHoldoverTimeout, "Local holdover timeout")
+		assert.Equal(t, tt.maxInSpecOffset, d.MaxInSpecOffset, "Max In Spec Offset")
+		assert.Equal(t, tt.expectedTimeout, d.Timer(), "Timer in secs")
+		assert.Equal(t, tt.expectedSlope, d.Slope(), "Slope")
+	}
+}

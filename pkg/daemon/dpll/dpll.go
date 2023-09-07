@@ -236,6 +236,13 @@ func NewDpll(clockId uint64, localMaxHoldoverOffSet, localHoldoverTimeout, maxIn
 	glog.Infof("slope %f ps/s, offset %f ns, timer %d sec", d.slope, float64(d.MaxInSpecOffset), d.timer)
 	return d
 }
+func (d *DpllConfig) Slope() float64 {
+	return d.slope
+}
+
+func (d *DpllConfig) Timer() int64 {
+	return d.timer
+}
 
 // nlUpdateState updates DPLL state in the DpllConfig structure.
 func (d *DpllConfig) nlUpdateState(replies []*nl.DoDeviceGetReply) bool {

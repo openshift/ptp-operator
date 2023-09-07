@@ -2,12 +2,12 @@ package daemon
 
 import (
 	"fmt"
+	"github.com/openshift/linuxptp-daemon/pkg/config"
 	"os"
 	"os/exec"
 	"sync"
 	"syscall"
-
-	"github.com/openshift/linuxptp-daemon/pkg/config"
+	"time"
 
 	"github.com/golang/glog"
 )
@@ -81,7 +81,7 @@ func (gp *gpspipe) CmdStop() {
 	if err != nil {
 		glog.Errorf("Failed to delete named pipe: %s", GPSPIPE_SERIALPORT)
 	}
-	glog.Infof("Process %s (%d) terminated", gp.name, gp.cmd.Process.Pid)
+	glog.Infof("Process %s terminated", gp.name)
 }
 
 // CmdInit ... initialize gpspipe
@@ -89,20 +89,47 @@ func (gp *gpspipe) CmdInit() {
 	if gp.name == "" {
 		gp.name = GPSPIPE_PROCESSNAME
 	}
-	gp.cmdLine = fmt.Sprintf("/usr/local/bin/gpspipe -v -d -r -l -o %s", gp.SerialPort())
+	gp.cmdLine = fmt.Sprintf("/usr/local/bin/gpspipe -v -r -l -o %s", gp.SerialPort())
 }
 
 // CmdRun ... run gpspipe
 func (gp *gpspipe) CmdRun(stdoutToSocket bool) {
-	glog.Infof("running process %s", gp.name)
-	stdout, err := gp.cmd.Output()
-	if err != nil {
-		glog.Errorf("error gpspipe %s", err.Error())
-		processStatus(nil, gp.name, gp.messageTag, PtpProcessDown)
-	} else {
-		processStatus(nil, gp.name, gp.messageTag, PtpProcessUp)
+	defer func() {
+		gp.exitCh <- struct{}{}
+	}()
+	processStatus(nil, gp.name, gp.messageTag, PtpProcessUp)
+	for {
+		glog.Infof("Starting %s...", gp.Name())
+		glog.Infof("%s cmd: %+v", gp.Name(), gp.cmd)
+		gp.cmd.Stderr = os.Stderr
+		var err error
+		if err != nil {
+			glog.Errorf("CmdRun() error creating StdoutPipe for %s: %v", gp.Name(), err)
+			if gp.Stopped() {
+				return
+			}
+			time.Sleep(1 * time.Second)
+			continue
+		}
+		// Don't restart after termination
+		if !gp.Stopped() {
+			time.Sleep(1 * time.Second)
+			err = gp.cmd.Start() // this is asynchronous call,
+			if err != nil {
+				glog.Errorf("CmdRun() error starting %s: %v", gp.Name(), err)
+			}
+			err = gp.cmd.Wait()
+			if err != nil {
+				glog.Errorf("CmdRun() error waiting for %s: %v", gp.Name(), err)
+			}
+			newCmd := exec.Command(gp.cmd.Args[0], gp.cmd.Args[1:]...)
+			gp.cmd = newCmd
+		} else {
+			processStatus(nil, gp.name, gp.messageTag, PtpProcessDown)
+			gp.exitCh <- struct{}{}
+			break
+		}
 	}
-	glog.Infof(string(stdout))
 }
 
 func mkFifo() error {

@@ -124,7 +124,7 @@ func (g *GPSD) CmdStop() {
 	}
 	event.StateRegisterer.Unregister(Subscriber{source: event.NIL, gpsd: g, monitoring: false, id: string(event.GNSS)})
 	<-g.exitCh
-	glog.Infof("Process %s (%d) terminated", g.name, g.cmd.Process.Pid)
+	glog.Infof("Process %s terminated", g.name)
 }
 
 // CmdInit ... initialize GPSD
@@ -148,7 +148,10 @@ func (g *GPSD) CmdRun(stdoutToSocket bool) {
 		var err error
 		if err != nil {
 			glog.Errorf("CmdRun() error creating StdoutPipe for %s: %v", g.Name(), err)
-			break
+			if g.stopped {
+				return
+			}
+			time.Sleep(5 * time.Second)
 		}
 		// Don't restart after termination
 		if !g.Stopped() {
@@ -161,6 +164,8 @@ func (g *GPSD) CmdRun(stdoutToSocket bool) {
 			if err != nil {
 				glog.Errorf("CmdRun() error waiting for %s: %v", g.Name(), err)
 			}
+			newCmd := exec.Command(g.cmd.Args[0], g.cmd.Args[1:]...)
+			g.cmd = newCmd
 		} else {
 			processStatus(nil, g.name, g.messageTag, PtpProcessDown)
 			g.exitCh <- struct{}{}
@@ -183,10 +188,6 @@ func (g *GPSD) MonitorGNSSEventsWithGPSD() {
 	g.offset = 5 // default to 5 nano secs
 	var err error
 	noFixThreshold := 3 // default
-	if g.ublxTool, err = ublox.NewUblox(); err != nil {
-		glog.Errorf("failed to initialize GNSS monitoring via ublox %s", err)
-		g.ublxTool = nil
-	}
 retry:
 	if g.gpsdSession, err = gpsdlib.Dial(gpsdlib.DefaultAddress); err != nil {
 		glog.Errorf("Failed to connect to GPSD: %s, retrying", err)
@@ -249,11 +250,16 @@ retry:
 			glog.Infof("GPSD Monitor() exitCh")
 			goto exit
 		case <-g.gpsdDoneCh:
+			if !g.stopped {
+				time.Sleep(1 * time.Second)
+				glog.Infof("restarting gpsd monitoring")
+				goto retry
+			}
 			glog.Infof("GPSD Monitor() gpsdDone closed")
 			goto exit
 		default:
 			// do nothing
-			time.Sleep(250 * time.Millisecond)
+			time.Sleep(500 * time.Millisecond)
 		}
 	}
 exit:
