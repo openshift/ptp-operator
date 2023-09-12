@@ -55,12 +55,12 @@ metadata:
     capabilities: Basic Install
     categories: Networking
     certified: "false"
-    containerImage: quay.io/openshift/origin-ptp-operator:4.14
+    containerImage: quay.io/openshift/origin-ptp-operator:4.15
     createdAt: "2019-10-14"
     description: This software enables configuration of Precision Time Protocol(PTP)
       on Kubernetes. It detects hardware capable PTP devices on each node, and configures
       linuxptp processes such as ptp4l, phc2sys and timemaster.
-    olm.skipRange: ">=4.3.0-0 <4.14.0"
+    olm.skipRange: ">=4.3.0-0 <4.15.0"
     operators.openshift.io/infrastructure-features: '["disconnected"]'
     provider: Red Hat
     repository: https://github.com/openshift/ptp-operator
