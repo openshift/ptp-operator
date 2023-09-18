@@ -39,8 +39,6 @@ const (
 
 type dpllApiType string
 
-var subscribers []Subscriber
-
 const (
 	SYSFS   dpllApiType = "sysfs"
 	NETLINK dpllApiType = "netlink"
@@ -53,12 +51,11 @@ type DependingStates struct {
 	currentState event.PTPState
 }
 
-// Subscriber ... event subscriber
-type Subscriber struct {
-	source     event.EventSource
-	dpll       *DpllConfig
-	monitoring bool
-	id         string
+// DpllSubscriber ... event subscriber
+type DpllSubscriber struct {
+	source event.EventSource
+	dpll   *DpllConfig
+	id     string
 }
 
 var dependingProcessStateMap = DependingStates{
@@ -115,29 +112,26 @@ type DpllConfig struct {
 	clockId uint64
 	sync.Mutex
 	isMonitoring bool
+	subscriber   []*DpllSubscriber
 }
 
 // Monitor ...
-func (s Subscriber) Monitor() {
+func (s DpllSubscriber) Monitor() {
 	glog.Infof("Starting dpll monitoring")
 	s.dpll.MonitorDpll()
 }
 
 // Topic ... event topic
-func (s Subscriber) Topic() event.EventSource {
+func (s DpllSubscriber) Topic() event.EventSource {
 	return s.source
 }
 
-func (s Subscriber) MonitoringStarted() bool {
-	return s.monitoring
-}
-
-func (s Subscriber) ID() string {
+func (s DpllSubscriber) ID() string {
 	return s.id
 }
 
 // Notify ... event notification
-func (s Subscriber) Notify(source event.EventSource, state event.PTPState) {
+func (s DpllSubscriber) Notify(source event.EventSource, state event.PTPState) {
 	if s.dpll == nil || !s.dpll.isMonitoring {
 		glog.Errorf("dpll subscriber %s is not initialized (monitoring state %t)", s.source, s.dpll.isMonitoring)
 		return
@@ -197,14 +191,14 @@ func (d *DpllConfig) CmdInit() {
 
 // CmdRun ... run command
 func (d *DpllConfig) CmdRun(stdToSocket bool) {
+	// noting to run, monitor() function takes care of dpll run
+
+}
+
+func (d *DpllConfig) unRegisterAll() {
 	// register to event notification from other processes
-	subscribers = []Subscriber{}
-	for _, dep := range d.dependsOn {
-		dependingProcessStateMap.states[dep] = event.PTP_UNKNOWN
-		// register to event notification from other processes
-		s := Subscriber{source: dep, dpll: d, monitoring: false, id: string(event.DPLL)}
-		subscribers = append(subscribers, s)
-		event.StateRegisterer.Register(s)
+	for _, s := range d.subscriber {
+		event.StateRegisterer.Unregister(s)
 	}
 }
 
@@ -397,6 +391,8 @@ func (d *DpllConfig) MonitorDpllNetlink() {
 			default:
 				glog.Error("failed to send dpll event terminated event")
 			}
+			// unregister from event notification from other processes
+			d.unRegisterAllSubscriber()
 
 			if d.onHoldover {
 				close(d.holdoverCloseCh)
@@ -441,17 +437,33 @@ func (d *DpllConfig) stopDpll() {
 // MonitorProcess is initiating monitoring of DPLL associated with a process
 func (d *DpllConfig) MonitorProcess(processCfg config.ProcessConfig) {
 	d.processConfig = processCfg
-	// register monitoring process to be called by event
-	m := Subscriber{
-		source:     event.NIL,
-		dpll:       d,
-		monitoring: false,
-		id:         string(event.DPLL),
+	// register to event notification from other processes
+	for _, dep := range d.dependsOn {
+		dependingProcessStateMap.states[dep] = event.PTP_UNKNOWN
+		// register to event notification from other processes
+		d.subscriber = append(d.subscriber, &DpllSubscriber{source: dep, dpll: d, id: string(event.DPLL)})
 	}
-	subscribers = append(subscribers, m)
-	event.StateRegisterer.Register(m)
-	//d.MonitorDpll()
-	// do not monitor here, the event will call monitoring when it is ready to serve
+	// register monitoring process to be called by event
+
+	d.subscriber = append(d.subscriber, &DpllSubscriber{
+		source: event.MONITORING,
+		dpll:   d,
+		id:     string(event.DPLL),
+	})
+	d.registerAllSubscriber()
+}
+
+func (d *DpllConfig) unRegisterAllSubscriber() {
+	for _, s := range d.subscriber {
+		event.StateRegisterer.Unregister(s)
+	}
+	d.subscriber = []*DpllSubscriber{}
+}
+
+func (d *DpllConfig) registerAllSubscriber() {
+	for _, s := range d.subscriber {
+		event.StateRegisterer.Register(s)
+	}
 }
 
 // MonitorDpll monitors DPLL on the discovered API, if any
@@ -598,12 +610,7 @@ func (d *DpllConfig) sendDpllTerminationEvent() {
 	}
 
 	// unregister from event notification from other processes
-	if subscribers != nil {
-		for _, s := range subscribers {
-			s.monitoring = false
-			event.StateRegisterer.Unregister(s)
-		}
-	}
+	d.unRegisterAllSubscriber()
 }
 
 // getStateQuality maps the state with relatively worse signal quality with

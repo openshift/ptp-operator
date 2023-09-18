@@ -38,44 +38,47 @@ type GPSD struct {
 	gpsdSession          *gpsdlib.Session
 	gpsdDoneCh           chan bool
 	sourceLost           bool
+	subscriber           *GPSDSubscriber
 }
 
-// Subscriber ... event subscriber
-type Subscriber struct {
-	source     event.EventSource
-	gpsd       *GPSD
-	monitoring bool
-	id         string
+// GPSDSubscriber ... event subscriber
+type GPSDSubscriber struct {
+	source event.EventSource
+	gpsd   *GPSD
+	id     string
 }
 
 // Monitor ...
-func (s Subscriber) Monitor() {
+func (s GPSDSubscriber) Monitor() {
 	glog.Info("Starting GNSS Monitoring")
 	go s.gpsd.MonitorGNSSEventsWithGPSD()
-	s.monitoring = true
 }
 
 // Topic ... event topic
-func (s Subscriber) Topic() event.EventSource {
+func (s GPSDSubscriber) Topic() event.EventSource {
 	return s.source
 }
-func (s Subscriber) ID() string {
+func (s GPSDSubscriber) ID() string {
 	return s.id
 }
 
 // Notify ... event notification
-func (s Subscriber) Notify(source event.EventSource, state event.PTPState) {
+func (s GPSDSubscriber) Notify(source event.EventSource, state event.PTPState) {
 	// not implemented
-}
-func (s Subscriber) MonitoringStarted() bool {
-	return s.monitoring
 }
 
 // MonitorProcess ... Monitor GPSD process
 func (g *GPSD) MonitorProcess(p config.ProcessConfig) {
 	g.processConfig = p
-	event.StateRegisterer.Register(Subscriber{source: event.NIL, gpsd: g, monitoring: false, id: string(event.GNSS)})
 	//go g.MonitorGNSSEventsWithGPSD(p, "E810")
+}
+
+func (g *GPSD) registerSubscriber() {
+	event.StateRegisterer.Register(g.subscriber)
+}
+
+func (g *GPSD) unRegisterSubscriber() {
+	event.StateRegisterer.Unregister(g.subscriber)
 }
 
 // Name ... Process name
@@ -117,12 +120,11 @@ func (g *GPSD) CmdStop() {
 	if g.cmd.Process != nil {
 		glog.Infof("Sending TERM to PID: %d", g.cmd.Process.Pid)
 		err := g.cmd.Process.Signal(syscall.SIGTERM)
-		glog.Infof("Process %s (%d) failed to terminate", g.name, g.cmd.Process.Pid)
 		if err != nil {
-			return
+			glog.Infof("Process %s (%d) failed to terminate", g.name, g.cmd.Process.Pid)
 		}
 	}
-	event.StateRegisterer.Unregister(Subscriber{source: event.NIL, gpsd: g, monitoring: false, id: string(event.GNSS)})
+	g.unRegisterSubscriber()
 	<-g.exitCh
 	glog.Infof("Process %s terminated", g.name)
 }
@@ -138,8 +140,16 @@ func (g *GPSD) CmdInit() {
 // CmdRun ... run GPSD
 func (g *GPSD) CmdRun(stdoutToSocket bool) {
 	defer func() {
-		g.exitCh <- struct{}{}
+		if g.subscriber != nil {
+			g.unRegisterSubscriber()
+		}
 	}()
+	// clean up
+	if g.subscriber != nil {
+		g.unRegisterSubscriber()
+	}
+	g.subscriber = &GPSDSubscriber{source: event.MONITORING, gpsd: g, id: string(event.GNSS)}
+	g.registerSubscriber()
 	processStatus(nil, g.name, g.messageTag, PtpProcessUp)
 	for {
 		glog.Infof("Starting %s...", g.Name())
@@ -188,6 +198,10 @@ func (g *GPSD) MonitorGNSSEventsWithGPSD() {
 	g.offset = 5 // default to 5 nano secs
 	var err error
 	noFixThreshold := 3 // default
+	// handle if its restarts
+	if g.gpsdSession != nil {
+		_ = g.gpsdSession.Close()
+	}
 retry:
 	if g.gpsdSession, err = gpsdlib.Dial(gpsdlib.DefaultAddress); err != nil {
 		glog.Errorf("Failed to connect to GPSD: %s, retrying", err)
@@ -243,6 +257,7 @@ retry:
 		}
 
 	})
+retryWatch:
 	g.gpsdDoneCh = g.gpsdSession.Watch()
 	for {
 		select {
@@ -252,6 +267,14 @@ retry:
 		case <-g.gpsdDoneCh:
 			if !g.stopped {
 				time.Sleep(1 * time.Second)
+				// check if gpsd is still running
+				if g.cmd.Process != nil {
+					killErr := syscall.Kill(g.cmd.Process.Pid, syscall.Signal(0))
+					if killErr == nil {
+						glog.Infof("restarting gpsd session watch")
+						goto retryWatch
+					}
+				}
 				glog.Infof("restarting gpsd monitoring")
 				goto retry
 			}
