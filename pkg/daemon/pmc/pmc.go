@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/golang/glog"
@@ -19,18 +20,33 @@ var (
 	CmdGetGMSettings      = "GET GRANDMASTER_SETTINGS_NP"
 	CmdSetGMSettings      = "SET GRANDMASTER_SETTINGS_NP"
 	cmdTimeout            = 2000 * time.Millisecond
+	sigTimeout            = 500 * time.Millisecond
 	numRetry              = 6
 )
 
 // RunPMCExp ... go expect to run PMC util cmd
 func RunPMCExp(configFileName, cmdStr string, promptRE *regexp.Regexp) (result string, matches []string, err error) {
-	glog.Infof("pmc read config from /var/run/%s", configFileName)
-	glog.Infof("pmc run command: %s", cmdStr)
-	e, _, err := expect.Spawn(fmt.Sprintf("pmc -u -b 1 -f /var/run/%s", configFileName), -1)
+	pmcCmd := fmt.Sprintf("pmc -u -b 0 -f /var/run/%s", configFileName)
+	glog.Infof("%s \"%s\"", pmcCmd, cmdStr)
+	e, r, err := expect.Spawn(pmcCmd, -1)
 	if err != nil {
 		return "", []string{}, err
 	}
-	defer e.Close()
+	defer func() {
+		e.SendSignal(syscall.SIGTERM)
+		for timeout := time.After(sigTimeout); ; {
+			select {
+			case <-r:
+				e.Close()
+				return
+			case <-timeout:
+				e.Send("\x03")
+				e.Close()
+				return
+			}
+		}
+	}()
+
 	if err = e.Send(cmdStr + "\n"); err == nil {
 		result, matches, err = e.Expect(promptRE, cmdTimeout)
 		if err != nil {
@@ -38,7 +54,6 @@ func RunPMCExp(configFileName, cmdStr string, promptRE *regexp.Regexp) (result s
 			return
 		}
 		glog.Infof("pmc result: %s", result)
-		err = e.Send("\x03")
 	}
 	return
 }
@@ -46,13 +61,27 @@ func RunPMCExp(configFileName, cmdStr string, promptRE *regexp.Regexp) (result s
 // RunPMCExpGetGMSettings ... get current GRANDMASTER_SETTINGS_NP
 func RunPMCExpGetGMSettings(configFileName string) (g protocol.GrandmasterSettings, err error) {
 	cmdStr := CmdGetGMSettings
-	glog.Infof("pmc read config from /var/run/%s", configFileName)
-	glog.Infof("pmc run command: %s", cmdStr)
-	e, _, err := expect.Spawn(fmt.Sprintf("pmc -u -b 1 -f /var/run/%s", configFileName), -1)
+	pmcCmd := fmt.Sprintf("pmc -u -b 0 -f /var/run/%s", configFileName)
+	glog.Infof("%s \"%s\"", pmcCmd, cmdStr)
+	e, r, err := expect.Spawn(pmcCmd, -1)
 	if err != nil {
 		return g, err
 	}
-	defer e.Close()
+	defer func() {
+		e.SendSignal(syscall.SIGTERM)
+		for timeout := time.After(sigTimeout); ; {
+			select {
+			case <-r:
+				e.Close()
+				return
+			case <-timeout:
+				e.Send("\x03")
+				e.Close()
+				return
+			}
+		}
+	}()
+
 	for i := 0; i < numRetry; i++ {
 		if err = e.Send(cmdStr + "\n"); err == nil {
 			result, matches, err := e.Expect(regexp.MustCompile(g.RegEx()), cmdTimeout)
@@ -60,14 +89,13 @@ func RunPMCExpGetGMSettings(configFileName string) (g protocol.GrandmasterSettin
 				if _, ok := err.(expect.TimeoutError); ok {
 					continue
 				}
-				fmt.Printf("pmc result match error %s\n", err)
+				glog.Errorf("pmc result match error %v", err)
 				return g, err
 			}
 			glog.Infof("pmc result: %s", result)
 			for i, m := range matches[1:] {
 				g.Update(g.Keys()[i], m)
 			}
-			err = e.Send("\x03")
 			break
 		}
 	}
@@ -78,19 +106,34 @@ func RunPMCExpGetGMSettings(configFileName string) (g protocol.GrandmasterSettin
 func RunPMCExpSetGMSettings(configFileName string, g protocol.GrandmasterSettings) (err error) {
 	cmdStr := CmdSetGMSettings
 	cmdStr += strings.Replace(g.String(), "\n", " ", -1)
-	e, _, err := expect.Spawn(fmt.Sprintf("pmc -u -b 1 -f /var/run/%s", configFileName), -1)
+	pmcCmd := fmt.Sprintf("pmc -u -b 0 -f /var/run/%s", configFileName)
+	glog.Infof("%s \"%s\"", pmcCmd, cmdStr)
+	e, r, err := expect.Spawn(pmcCmd, -1)
 	if err != nil {
 		return err
 	}
-	defer e.Close()
+	defer func() {
+		e.SendSignal(syscall.SIGTERM)
+		for timeout := time.After(sigTimeout); ; {
+			select {
+			case <-r:
+				e.Close()
+				return
+			case <-timeout:
+				e.Send("\x03")
+				e.Close()
+				return
+			}
+		}
+	}()
+
 	if err = e.Send(cmdStr + "\n"); err == nil {
 		result, _, err := e.Expect(regexp.MustCompile(g.RegEx()), cmdTimeout)
 		if err != nil {
-			fmt.Printf("pmc result match error %s\n", err)
+			glog.Errorf("pmc result match error %v", err)
 			return err
 		}
 		glog.Infof("pmc result: %s", result)
-		err = e.Send("\x03")
 	}
 	return
 }
