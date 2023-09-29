@@ -264,7 +264,7 @@ func RecoverySlaveNetworkOutage(fullConfig testconfig.TestConfig, skippedInterfa
 func toggleNetworkInterface(pod corev1.Pod, interfaceName string, slavePodNodeName string, fullConfig testconfig.TestConfig) {
 
 	const (
-		waitingPeriod      = 4 * time.Minute
+		waitingPeriod      = 5 * time.Minute
 		offsetRetryCounter = 5
 	)
 	By("Setting interface down then wait")
