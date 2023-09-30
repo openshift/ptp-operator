@@ -4,17 +4,13 @@ import (
 	"bufio"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"os"
 	"os/exec"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
-
-	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/pmc"
 
 	"github.com/golang/glog"
 	"k8s.io/client-go/kubernetes"
@@ -27,7 +23,6 @@ const (
 	PTP4L_CONF_FILE_PATH      = "/etc/ptp4l.conf"
 	PTP4L_CONF_DIR            = "/ptp4l-conf"
 	connectionRetryInterval   = 1 * time.Second
-	eventSocket               = "/cloud-native/events.sock"
 	ClockClassChangeIndicator = "selected best master clock"
 )
 
@@ -72,8 +67,6 @@ type Daemon struct {
 	// node name where daemon is running
 	nodeName  string
 	namespace string
-	// write logs to socket, this will also send metrics to the socket
-	stdoutToSocket bool
 
 	// kubeClient allows interaction with Kubernetes, including the node we are running on.
 	kubeClient *kubernetes.Clientset
@@ -96,21 +89,17 @@ type Daemon struct {
 func New(
 	nodeName string,
 	namespace string,
-	stdoutToSocket bool,
 	kubeClient *kubernetes.Clientset,
 	ptpUpdate *LinuxPTPConfUpdate,
 	stopCh <-chan struct{},
 	plugins []string,
 	hwconfigs *[]ptpv1.HwConfig,
 ) *Daemon {
-	if !stdoutToSocket {
-		RegisterMetrics(nodeName)
-	}
+	RegisterMetrics(nodeName)
 	pluginManager := registerPlugins(plugins)
 	return &Daemon{
 		nodeName:       nodeName,
 		namespace:      namespace,
-		stdoutToSocket: stdoutToSocket,
 		kubeClient:     kubeClient,
 		ptpUpdate:      ptpUpdate,
 		processManager: &ProcessManager{},
@@ -197,7 +186,7 @@ func (dn *Daemon) applyNodePTPProfiles() error {
 	for _, p := range dn.processManager.process {
 		if p != nil {
 			time.Sleep(1 * time.Second)
-			go cmdRun(p, dn.stdoutToSocket)
+			go cmdRun(p)
 		}
 	}
 	return nil
@@ -318,7 +307,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 		}
 
 		// This add the flags needed for monitor
-		addFlagsForMonitor(p, configOpts, output, dn.stdoutToSocket)
+		addFlagsForMonitor(p, configOpts, output, false)
 
 		configOutput, ifaces = output.renderPtp4lConf()
 
@@ -381,31 +370,18 @@ func addScheduling(nodeProfile *ptpv1.PtpProfile, cmdLine string) string {
 	return cmdLine
 }
 
-func processStatus(c *net.Conn, processName, messageTag string, status int64) {
+func processStatus(processName, messageTag string, status int64) {
 	cfgName := strings.Replace(strings.Replace(messageTag, "]", "", 1), "[", "", 1)
 	// ptp4l[5196819.100]: [ptp4l.0.config] PTP_PROCESS_STOPPED:0/1
 	deadProcessMsg := fmt.Sprintf("%s[%d]:[%s] PTP_PROCESS_STATUS:%d\n", processName, time.Now().Unix(), cfgName, status)
 	UpdateProcessStatusMetrics(processName, cfgName, status)
 	glog.Infof("%s\n", deadProcessMsg)
-	if c == nil {
-		return
-	}
-	_, err := (*c).Write([]byte(deadProcessMsg))
-	if err != nil {
-		glog.Errorf("Write error sending ptp4l/phc2sys process healths status%s:", err)
-	}
 }
 
 // cmdRun runs given ptpProcess and restarts on errors
-func cmdRun(p *ptpProcess, stdoutToSocket bool) {
-	var c net.Conn
+func cmdRun(p *ptpProcess) {
 	done := make(chan struct{}) // Done setting up logging.  Go ahead and wait for process
 	defer func() {
-		if stdoutToSocket && c != nil {
-			if err := c.Close(); err != nil {
-				glog.Errorf("closing connection returned error %s", err)
-			}
-		}
 		p.exitCh <- true
 	}()
 
@@ -427,81 +403,18 @@ func cmdRun(p *ptpProcess, stdoutToSocket bool) {
 			glog.Errorf("cmdRun() error creating StdoutPipe for %s: %v", p.name, err)
 			break
 		}
-		if !stdoutToSocket {
-			scanner := bufio.NewScanner(cmdReader)
-			processStatus(nil, p.name, p.messageTag, PtpProcessUp)
-			go func() {
-				for scanner.Scan() {
-					output := scanner.Text()
-					if regexErr != nil || !logFilterRegex.MatchString(output) {
-						fmt.Printf("%s\n", output)
-					}
-					extractMetrics(p.messageTag, p.name, p.ifaces, output)
+		scanner := bufio.NewScanner(cmdReader)
+		processStatus(p.name, p.messageTag, PtpProcessUp)
+		go func() {
+			for scanner.Scan() {
+				output := scanner.Text()
+				if regexErr != nil || !logFilterRegex.MatchString(output) {
+					fmt.Printf("%s\n", output)
 				}
-				done <- struct{}{}
-			}()
-		} else {
-			go func() {
-			connect:
-				select {
-				case <-p.exitCh:
-					done <- struct{}{}
-				default:
-					c, err = net.Dial("unix", eventSocket)
-					if err != nil {
-						glog.Errorf("error trying to connect to event socket")
-						time.Sleep(connectionRetryInterval)
-						goto connect
-					}
-				}
-				scanner := bufio.NewScanner(cmdReader)
-				processStatus(&c, p.name, p.messageTag, PtpProcessUp)
-				for scanner.Scan() {
-					output := scanner.Text()
-					if regexErr != nil || !logFilterRegex.MatchString(output) {
-						fmt.Printf("%s\n", output)
-					}
-					out := fmt.Sprintf("%s\n", output)
-					if p.name == ptp4lProcessName {
-						if strings.Contains(output, ClockClassChangeIndicator) {
-							go func(c *net.Conn, cfgName string) {
-								if _, matches, e := pmc.RunPMCExp(cfgName, pmc.CmdParentDataSet, pmc.ClockClassChangeRegEx); e == nil {
-									//regex: 'gm.ClockClass[[:space:]]+(\d+)'
-									//match  1: 'gm.ClockClass                         135'
-									//match  2: '135'
-									if len(matches) > 1 {
-										var parseError error
-										var clockClass float64
-										if clockClass, parseError = strconv.ParseFloat(matches[1], 64); parseError == nil {
-											glog.Infof("clock change event identified")
-											//ptp4l[5196819.100]: [ptp4l.0.config] CLOCK_CLASS_CHANGE:248
-											clockClassOut := fmt.Sprintf("%s[%d]:[%s] CLOCK_CLASS_CHANGE %f\n", p.name, time.Now().Unix(), p.configName, clockClass)
-											fmt.Printf("%s", clockClassOut)
-											_, err := (*c).Write([]byte(clockClassOut))
-											if err != nil {
-												glog.Errorf("failed to write class change event %s", err.Error())
-											}
-										} else {
-											glog.Errorf("parse error in clock class value %s", parseError)
-										}
-									} else {
-										glog.Infof("clock class change value not found via PMC")
-									}
-								} else {
-									glog.Error("error parsing PMC util for clock class change event")
-								}
-							}(&c, p.configName)
-						}
-					}
-					_, err := c.Write([]byte(out))
-					if err != nil {
-						glog.Errorf("Write error %s:", err)
-						goto connect
-					}
-				}
-				done <- struct{}{}
-			}()
-		}
+				extractMetrics(p.messageTag, p.name, p.ifaces, output)
+			}
+			done <- struct{}{}
+		}()
 		// Don't restart after termination
 		if !p.Stopped() {
 			err = p.cmd.Start() // this is asynchronous call,
@@ -514,11 +427,7 @@ func cmdRun(p *ptpProcess, stdoutToSocket bool) {
 		if err != nil {
 			glog.Errorf("cmdRun() error waiting for %s: %v", p.name, err)
 		}
-		if stdoutToSocket && c != nil {
-			processStatus(&c, p.name, p.messageTag, PtpProcessDown)
-		} else {
-			processStatus(nil, p.name, p.messageTag, PtpProcessDown)
-		}
+		processStatus(p.name, p.messageTag, PtpProcessDown)
 
 		time.Sleep(connectionRetryInterval) // Delay to prevent flooding restarts if startup fails
 		// Don't restart after termination
@@ -529,11 +438,6 @@ func cmdRun(p *ptpProcess, stdoutToSocket bool) {
 			glog.Infof("Recreating %s...", p.name)
 			newCmd := exec.Command(p.cmd.Args[0], p.cmd.Args[1:]...)
 			p.cmd = newCmd
-		}
-		if stdoutToSocket && c != nil {
-			if err := c.Close(); err != nil {
-				glog.Errorf("closing connection returned error %s", err)
-			}
 		}
 	}
 }
