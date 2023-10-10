@@ -61,6 +61,7 @@ metadata:
       on Kubernetes. It detects hardware capable PTP devices on each node, and configures
       linuxptp processes such as ptp4l, phc2sys and timemaster.
     olm.skipRange: ">=4.3.0-0 <4.13.0"
+    operatorframework.io/suggested-namespace: openshift-ptp
     operators.openshift.io/infrastructure-features: '["disconnected"]'
     provider: Red Hat
     repository: https://github.com/openshift/ptp-operator
