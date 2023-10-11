@@ -133,7 +133,9 @@ OPERATOR_SDK_VERSION = $(shell $(OPERATOR_SDK) version 2>/dev/null | sed 's/^ope
 OPERATOR_SDK_VERSION_REQ = v1.22.0-ocp
 operator-sdk: ## Download operator-sdk locally if necessary.
 ifneq ($(OPERATOR_SDK_VERSION_REQ),$(OPERATOR_SDK_VERSION))
-	curl https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/operator-sdk/4.11.0/operator-sdk-linux-x86_64.tar.gz? | tar -xz -C bin/
+	mkdir -p bin
+	wget https://github.com/operator-framework/operator-sdk/releases/download/v1.32.0/operator-sdk_linux_amd64 -O bin/operator-sdk
+	chmod 744 bin/operator-sdk
 endif
 
 KUSTOMIZE = $(shell pwd)/bin/kustomize
