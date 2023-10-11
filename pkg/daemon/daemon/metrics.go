@@ -60,11 +60,25 @@ const (
 	UNKNOWN
 )
 
+type masterOffsetInterface struct { // by slave iface with masked index
+	sync.RWMutex
+	name map[string]string
+}
+type slaveInterface struct { // current slave iface name
+	sync.RWMutex
+	name map[string]string
+}
+
+type masterOffsetSourceProcess struct { // current slave iface name
+	sync.RWMutex
+	name map[string]string
+}
+
 var (
-	masterOffsetIfaceName     map[string]string // by slave iface with masked index
-	slaveIfaceName            map[string]string // current slave iface name
-	masterOffsetSourceProfile map[string]string // which profile and source is used for master offset
-	NodeName                  = ""
+	masterOffsetIface  = &masterOffsetInterface{} // by slave iface with masked index
+	slaveIface         = &slaveInterface{}
+	masterOffsetSource = &masterOffsetSourceProcess{} // current slave iface name
+	NodeName           = ""
 
 	Offset = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -157,9 +171,18 @@ func RegisterMetrics(nodeName string) {
 
 // InitializeOffsetMaps ... initialize maps
 func InitializeOffsetMaps() {
-	masterOffsetIfaceName = map[string]string{}
-	slaveIfaceName = map[string]string{}
-	masterOffsetSourceProfile = map[string]string{}
+	masterOffsetIface = &masterOffsetInterface{
+		RWMutex: sync.RWMutex{},
+		name:    map[string]string{},
+	}
+	slaveIface = &slaveInterface{
+		RWMutex: sync.RWMutex{},
+		name:    map[string]string{},
+	}
+	masterOffsetSource = &masterOffsetSourceProcess{
+		RWMutex: sync.RWMutex{},
+		name:    map[string]string{},
+	}
 }
 
 // updatePTPMetrics ...
@@ -187,7 +210,7 @@ func extractMetrics(messageTag string, processName string, ifaces []string, outp
 				updatePTPMetrics(phc, processName, ifaceName, ptpOffset, maxPtpOffset, frequencyAdjustment, delay)
 			} else {
 				updatePTPMetrics(master, processName, ifaceName, ptpOffset, maxPtpOffset, frequencyAdjustment, delay)
-				masterOffsetSourceProfile[configName] = processName
+				masterOffsetSource.set(configName, processName)
 			}
 		}
 	} else if strings.Contains(output, " offset ") {
@@ -203,7 +226,7 @@ func extractMetrics(messageTag string, processName string, ifaces []string, outp
 				offsetSource = phc
 			}
 			if offsetSource == master {
-				masterOffsetSourceProfile[configName] = processName
+				masterOffsetSource.set(configName, processName)
 			}
 			updatePTPMetrics(offsetSource, processName, ifaceName, ptpOffset, maxPtpOffset, frequencyAdjustment, delay)
 			updateClockStateMetrics(processName, ifaceName, clockstate)
@@ -219,15 +242,15 @@ func extractMetrics(messageTag string, processName string, ifaces []string, outp
 				UpdateInterfaceRoleMetrics(processName, ifaces[portId-1], role)
 				if role == SLAVE {
 					r := []rune(ifaces[portId-1])
-					masterOffsetIfaceName[configName] = string(r[:len(r)-1]) + "x"
-					slaveIfaceName[configName] = ifaces[portId-1]
-				} else if role == FAULTY { // only if ptp4l is processing offset, ts2phc offset won't affect by port faulty
-					if isSlaveFaulty(configName, ifaces[portId-1]) &&
-						getMasterSourceProcess(configName) == ptp4lProcessName {
-						updatePTPMetrics(master, processName, getMasterOffsetIfaceName(configName), faultyOffset, faultyOffset, 0, 0)
+					masterOffsetIface.set(configName, string(r[:len(r)-1])+"x")
+					slaveIface.set(configName, ifaces[portId-1])
+				} else if role == FAULTY {
+					if slaveIface.isFaulty(configName, ifaces[portId-1]) &&
+						masterOffsetSource.get(configName) == ptp4lProcessName {
+						updatePTPMetrics(master, processName, masterOffsetIface.get(configName), faultyOffset, faultyOffset, 0, 0)
 						updatePTPMetrics(phc, phcProcessName, clockRealTime, faultyOffset, faultyOffset, 0, 0)
-						masterOffsetIfaceName[configName] = ""
-						slaveIfaceName[configName] = ""
+						masterOffsetIface.set(configName, "")
+						slaveIface.set(configName, "")
 					}
 				}
 			}
@@ -272,8 +295,8 @@ func extractSummaryMetrics(configName, processName, output string) (iface string
 		fields = append(fields, "") // Making space for the new element
 		//  0             1     2
 		//ptp4l.0.config rms   53 max   74 freq -16642 +/-  40 delay  1089 +/-  20
-		copy(fields[2:], fields[1:])                     // Shifting elements
-		fields[1] = getMasterOffsetIfaceName(configName) // Copying/inserting the value
+		copy(fields[2:], fields[1:])                  // Shifting elements
+		fields[1] = masterOffsetIface.get(configName) // Copying/inserting the value
 		//  0             0       1   2
 		//ptp4l.0.config master rms   53 max   74 freq -16642 +/-  40 delay  1089 +/-  20
 	} else if fields[1] != "CLOCK_REALTIME" {
@@ -339,8 +362,8 @@ func extractRegularMetrics(configName, processName, output string) (err error, i
 	if fields[3] == offset && processName == ts2phcProcessName {
 		// Remove the element at index 1 from fields.
 		r := []rune(fields[1])
-		masterOffsetIfaceName[configName] = string(r[:len(r)-1]) + "x"
-		slaveIfaceName[configName] = fields[1]
+		masterOffsetSource.set(configName, string(r[:len(r)-1])+"x")
+		slaveIface.set(configName, fields[1])
 		copy(fields[1:], fields[2:])
 		// ts2phc.0.cfg  master    offset          0 s2 freq      -0
 		fields = fields[:len(fields)-1] // Truncate slice.
@@ -367,7 +390,7 @@ func extractRegularMetrics(configName, processName, output string) (err error, i
 
 	// replace master offset from master to slaveInterface - index + x ens01== ens0X
 	if iface == master {
-		iface = getMasterOffsetIfaceName(configName)
+		iface = masterOffsetIface.get(configName)
 	}
 
 	ptpOffset, e := strconv.ParseFloat(fields[3], 64)
@@ -543,23 +566,47 @@ func StartMetricsServer(bindAddress string) {
 	}, 5*time.Second, utilwait.NeverStop)
 }
 
-func getMasterOffsetIfaceName(configName string) string {
-	if s, found := masterOffsetIfaceName[configName]; found {
+func (m *masterOffsetInterface) get(configName string) string {
+	m.RLock()
+	defer m.RUnlock()
+	if s, found := m.name[configName]; found {
 		return s
 	}
 	return ""
 }
 
-func isSlaveFaulty(configName string, iface string) bool {
-	if s, found := slaveIfaceName[configName]; found {
-		if s == iface {
+func (m *masterOffsetInterface) set(configName string, value string) {
+	m.Lock()
+	defer m.Unlock()
+	m.name[configName] = value
+}
+
+func (s *slaveInterface) set(configName string, value string) {
+	s.Lock()
+	defer s.Unlock()
+	s.name[configName] = value
+}
+
+func (s *slaveInterface) isFaulty(configName string, iface string) bool {
+	s.RLock()
+	defer s.RUnlock()
+
+	if si, found := s.name[configName]; found {
+		if si == iface {
 			return true
 		}
 	}
 	return false
 }
-func getMasterSourceProcess(configName string) string {
-	if s, found := masterOffsetSourceProfile[configName]; found {
+
+func (mp *masterOffsetSourceProcess) set(configName string, value string) {
+	mp.Lock()
+	defer mp.Unlock()
+	mp.name[configName] = value
+}
+
+func (mp *masterOffsetSourceProcess) get(configName string) string {
+	if s, found := mp.name[configName]; found {
 		return s
 	}
 	return ptp4lProcessName // default is ptp4l
