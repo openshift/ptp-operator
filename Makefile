@@ -3,7 +3,7 @@
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
-VERSION ?= 4.13
+VERSION ?= 0.1
 
 # CHANNELS define the bundle channels used in the bundle. 
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "preview,fast,stable")
@@ -29,14 +29,14 @@ BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 #
 # For example, running 'make bundle-build bundle-push catalog-build catalog-push' will build and push both
 # openshift.io/ptp-operator-bundle:$VERSION and openshift.io/ptp-operator-catalog:$VERSION.
-IMAGE_TAG_BASE ?= openshift.io/ptp-operator
+IMAGE_TAG_BASE ?= ghcr.io/k8snetworkplumbingwg/ptp-operator
 
 # BUNDLE_IMG defines the image:tag used for the bundle.
 # You can use it as an arg. (E.g make bundle-build BUNDLE_IMG=<some-registry>/<project-name-bundle>:<tag>)
 BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:v$(VERSION)
 
 # Image URL to use all building/pushing image targets
-IMG ?= quay.io/openshift/origin-ptp-operator:$(VERSION)
+IMG ?= ghcr.io/k8snetworkplumbingwg/ptp-operator:latest
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
@@ -101,7 +101,7 @@ run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go
 
 docker-build: #test ## Build docker image with the manager.
-	docker build -t ${IMG} .
+	docker build -t ${IMG} -f Dockerfile.operator .
 
 docker-push: ## Push docker image with the manager.
 	docker push ${IMG}
@@ -170,7 +170,7 @@ bundle: operator-sdk manifests kustomize
 
 .PHONY: bundle-build ## Build the bundle image.
 bundle-build:
-	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+	docker build -f Dockerfile.bundle -t $(BUNDLE_IMG) .
 
 .PHONY: bundle-push
 bundle-push: ## Push the bundle image.
@@ -225,9 +225,6 @@ deps-update:
 .PHONY: bin
 bin:
 	hack/build.sh
-
-image:
-	docker build -t openshift.io/ptp-operator -f Dockerfile.rhel7 .
 
 clean:
 	rm -rf build/_output/bin/ptp-operator

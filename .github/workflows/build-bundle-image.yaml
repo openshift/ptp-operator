@@ -1,4 +1,4 @@
-name: Deploy Daemon Images to GHCR
+name: Deploy Bundle Images to GHCR
 env:
   DOTNET_VERSION: '6.0.x'
 on:
@@ -7,7 +7,7 @@ on:
       - master
   workflow_dispatch:
 jobs:
-      push-daemon-image:
+      push-bundle-image:
         runs-on: ubuntu-latest
         defaults:
           run:
@@ -23,8 +23,9 @@ jobs:
               username: ${{github.actor}}
               password: ${{secrets.GITHUB_TOKEN}}
 
-          - name: 'Build Daemon Image'
+          - name: 'Build Bundle Image'
             run: |
-              make daemon-image
-              make daemon-push
+              make bundle
+              make bundle-build
+              make bundle-push
 
