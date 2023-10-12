@@ -542,7 +542,7 @@ func (d *DpllConfig) sendDpllEvent() {
 		State:       d.state,
 		IFace:       d.iface,
 		CfgName:     d.processConfig.ConfigName,
-		Values: map[event.ValueType]int64{
+		Values: map[event.ValueType]interface{}{
 			event.FREQUENCY_STATUS: d.frequencyStatus,
 			event.OFFSET:           d.phaseOffset,
 			event.PHASE_STATUS:     d.phaseStatus,

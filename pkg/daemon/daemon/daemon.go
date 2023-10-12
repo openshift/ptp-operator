@@ -19,12 +19,14 @@ import (
 )
 
 const (
-	PtpNamespace              = "ptp"
-	PTP4L_CONF_FILE_PATH      = "/etc/ptp4l.conf"
-	PTP4L_CONF_DIR            = "/ptp4l-conf"
-	connectionRetryInterval   = 1 * time.Second
-	ClockClassChangeIndicator = "selected best master clock"
-	GPSDDefaultGNSSSerialPort = "/dev/gnss0"
+	PtpNamespace                    = "openshift-ptp"
+	PTP4L_CONF_FILE_PATH            = "/etc/ptp4l.conf"
+	PTP4L_CONF_DIR                  = "/ptp4l-conf"
+	connectionRetryInterval         = 1 * time.Second
+	ClockClassChangeIndicator       = "selected best master clock"
+	GPSDDefaultGNSSSerialPort       = "/dev/gnss0"
+	NMEASourceDisabledIndicator     = "nmea source timed out"
+	InvalidMasterTimestampIndicator = "ignoring invalid master time stamp"
 )
 
 // ProcessManager manages a set of ptpProcess
@@ -603,10 +605,7 @@ func (p *ptpProcess) cmdRun() {
 				if regexErr != nil || !logFilterRegex.MatchString(output) {
 					fmt.Printf("%s\n", output)
 				}
-				source, ptpOffset, _, iface := extractMetrics(p.messageTag, p.name, p.ifaces, output)
-				if iface != "" {
-						p.ProcessTs2PhcEvents(ptpOffset, source, iface)
-				}
+				p.processPTPMetrics(output)
 			}
 			done <- struct{}{}
 		}()
@@ -633,6 +632,20 @@ func (p *ptpProcess) cmdRun() {
 			glog.Infof("Recreating %s...", p.name)
 			newCmd := exec.Command(p.cmd.Args[0], p.cmd.Args[1:]...)
 			p.cmd = newCmd
+		}
+	}
+}
+
+// for ts2phc along with processing metrics need to identify event
+func (p *ptpProcess) processPTPMetrics(output string) {
+	if p.name == ts2phcProcessName && (strings.Contains(output, NMEASourceDisabledIndicator) ||
+		strings.Contains(output, InvalidMasterTimestampIndicator)) {
+		p.ProcessTs2PhcEvents(faultyOffset, ts2phcProcessName, "", map[event.ValueType]interface{}{event.NMEA_STATUS: int64(0)})
+		glog.Error("nmea string lost")
+	} else {
+		source, ptpOffset, _, iface := extractMetrics(p.messageTag, p.name, p.ifaces, output)
+		if iface != "" { // for ptp4l/phc2sys this function only update metrics
+			p.ProcessTs2PhcEvents(ptpOffset, source, iface, map[event.ValueType]interface{}{event.NMEA_STATUS: int64(1)})
 		}
 	}
 }
@@ -683,20 +696,22 @@ func (p *ptpProcess) MonitorEvent(offset float64, clockState string) {
 	// not implemented
 }
 
-func (p *ptpProcess) ProcessTs2PhcEvents(ptpOffset float64, source string, iface string) {
+func (p *ptpProcess) ProcessTs2PhcEvents(ptpOffset float64, source string, iface string, extraValue map[event.ValueType]interface{}) {
 	var ptpState event.PTPState
 	ptpState = event.PTP_FREERUN
 	ptpOffsetInt64 := int64(ptpOffset)
 	if ptpOffsetInt64 <= p.ptpClockThreshold.MaxOffsetThreshold &&
 		ptpOffsetInt64 >= p.ptpClockThreshold.MinOffsetThreshold {
 		ptpState = event.PTP_LOCKED
-		updateClockStateMetrics(p.name, iface, LOCKED)
-	} else {
-		updateClockStateMetrics(p.name, iface, FREERUN)
 	}
-	if source == ts2phcProcessName && p.clockType == event.GM {
-		if len(p.ifaces) > 0 {
-			iface = p.ifaces[0]
+	if source == ts2phcProcessName { // for ts2phc send it to event to create metrics and events
+		var values = make(map[event.ValueType]interface{})
+		if iface == "" && len(p.ifaces) > 0 {
+			iface = p.ifaces[0] //TODO: with multi card we need to identify interface for PPS card
+		}
+		values[event.OFFSET] = ptpOffsetInt64
+		for k, v := range extraValue {
+			values[k] = v
 		}
 		select {
 		case p.eventCh <- event.EventChannel{
@@ -704,17 +719,20 @@ func (p *ptpProcess) ProcessTs2PhcEvents(ptpOffset float64, source string, iface
 			State:       ptpState,
 			CfgName:     p.configName,
 			IFace:       iface,
-			Values: map[event.ValueType]int64{
-				event.OFFSET: ptpOffsetInt64,
-			},
-			ClockType:  p.clockType,
-			Time:       time.Now().UnixMilli(),
-			WriteToLog: false,
-			Reset:      false,
+			Values:      values,
+			ClockType:   p.clockType,
+			Time:        time.Now().UnixMilli(),
+			WriteToLog:  true,
+			Reset:       false,
 		}:
 		default:
-
 		}
-
+	} else {
+		if ptpState == event.PTP_LOCKED {
+			updateClockStateMetrics(p.name, iface, LOCKED)
+		} else {
+			updateClockStateMetrics(p.name, iface, FREERUN)
+		}
 	}
+
 }

@@ -107,7 +107,6 @@ func RunPMCExpSetGMSettings(configFileName string, g protocol.GrandmasterSetting
 	cmdStr := CmdSetGMSettings
 	cmdStr += strings.Replace(g.String(), "\n", " ", -1)
 	pmcCmd := fmt.Sprintf("pmc -u -b 0 -f /var/run/%s", configFileName)
-	glog.Infof("%s \"%s\"", pmcCmd, cmdStr)
 	e, r, err := expect.Spawn(pmcCmd, -1)
 	if err != nil {
 		return err

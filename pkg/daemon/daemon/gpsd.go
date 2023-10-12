@@ -242,7 +242,7 @@ retry:
 			State:       g.state,
 			CfgName:     g.processConfig.ConfigName,
 			IFace:       g.gmInterface,
-			Values: map[event.ValueType]int64{
+			Values: map[event.ValueType]interface{}{
 				event.GPS_STATUS: int64(tpv.Mode),
 				event.OFFSET:     g.offset,
 			},
@@ -366,7 +366,7 @@ retry:
 					State:       g.state,
 					CfgName:     processCfg.ConfigName,
 					IFace:       g.gmInterface,
-					Values: map[event.ValueType]int64{
+					Values: map[event.ValueType]interface{}{
 						event.GPS_STATUS: nStatus,
 						event.OFFSET:     g.offset,
 					},

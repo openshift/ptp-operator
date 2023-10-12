@@ -75,9 +75,9 @@ type masterOffsetSourceProcess struct { // current slave iface name
 }
 
 var (
-	masterOffsetIface  = &masterOffsetInterface{} // by slave iface with masked index
-	slaveIface         = &slaveInterface{}
-	masterOffsetSource = &masterOffsetSourceProcess{} // current slave iface name
+	masterOffsetIface  *masterOffsetInterface     // by slave iface with masked index
+	slaveIface         *slaveInterface            // current slave iface name
+	masterOffsetSource *masterOffsetSourceProcess // master offset source
 	NodeName           = ""
 
 	Offset = prometheus.NewGaugeVec(
@@ -362,7 +362,7 @@ func extractRegularMetrics(configName, processName, output string) (err error, i
 	if fields[3] == offset && processName == ts2phcProcessName {
 		// Remove the element at index 1 from fields.
 		r := []rune(fields[1])
-		masterOffsetSource.set(configName, string(r[:len(r)-1])+"x")
+		masterOffsetIface.set(configName, string(r[:len(r)-1])+"x")
 		slaveIface.set(configName, fields[1])
 		copy(fields[1:], fields[2:])
 		// ts2phc.0.cfg  master    offset          0 s2 freq      -0
