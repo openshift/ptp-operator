@@ -75,7 +75,7 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 	$(CONTROLLER_GEN) crd rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	GOTOOLCHAIN=go1.22.3 GOSUMDB="sum.golang.org" $(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
 fmt: ## Go fmt your code
 	hack/gofmt.sh
@@ -95,10 +95,10 @@ vet: ## Run go vet against code.
 ##@ Build
 
 build: generate fmt vet ## Build manager binary.
-	go build -o bin/manager main.go
+	GOTOOLCHAIN=go1.22.3 GOSUMDB="sum.golang.org" go build -o bin/manager main.go
 
 run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./main.go
+	GOTOOLCHAIN=go1.22.3 GOSUMDB="sum.golang.org" go run ./main.go
 
 docker-build: #test ## Build docker image with the manager.
 	docker build -t ${IMG} -f Dockerfile.operator .
@@ -257,3 +257,7 @@ daemon-push:
 
 leapfile:
 	wget https://www.ietf.org/timezones/data/leap-seconds.list -O ./extra/leap-seconds.list
+
+gomod:
+	GOTOOLCHAIN=go1.22.3 GOSUMDB="sum.golang.org" go mod tidy
+	GOTOOLCHAIN=go1.22.3 GOSUMDB="sum.golang.org" go mod vendor
