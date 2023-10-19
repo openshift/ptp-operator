@@ -51,6 +51,10 @@ var _ = Describe("validation", func() {
 			}, testutils.TimeoutIn10Minutes, testutils.TimeoutInterval2Seconds).ShouldNot(HaveOccurred())
 		})
 
+		It("should set the lease duration to 270 seconds for SNO, 137 seconds otherwise", func() {
+			ptphelper.CheckLeaseDuration(testutils.PtpNamespace, 137, 270)
+		})
+
 		It("should have the linuxptp daemonset in running state", func() {
 			ptphelper.WaitForPtpDaemonToBeReady()
 		})
