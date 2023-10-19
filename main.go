@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"os"
@@ -35,10 +36,11 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	ptpv1 "github.com/openshift/ptp-operator/api/v1"
 	"github.com/openshift/ptp-operator/controllers"
-	"github.com/openshift/ptp-operator/pkg/leaderelection"
 	"github.com/openshift/ptp-operator/pkg/names"
 	//+kubebuilder:scaffold:imports
 )
@@ -57,26 +59,41 @@ func init() {
 func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
-	flag.StringVar(&metricsAddr, "metrics-addr", "0", "The address the metric endpoint binds to.") // Setting to 0, we don't need metrics
+	var probeAddr string
+	var enableHTTP2 bool
+	flag.BoolVar(&enableHTTP2, "enable-http2", enableHTTP2, "If HTTP/2 should be enabled for the metrics and webhook servers.")
+	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.Parse()
 	restConfig := ctrl.GetConfigOrDie()
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
-	le := leaderelection.GetLeaderElectionConfig(restConfig, enableLeaderElection)
 
-	namespace := os.Getenv("WATCH_NAMESPACE")
+	disableHTTP2 := func(c *tls.Config) {
+		if enableHTTP2 {
+			return
+		}
+		c.NextProtos = []string{"http/1.1"}
+	}
+
+	webhookServerOptions := webhook.Options{
+		TLSOpts: []func(config *tls.Config){disableHTTP2},
+		Port:    9443,
+	}
+
+	webhookServer := webhook.NewServer(webhookServerOptions)
+
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
-		Scheme:             scheme,
-		MetricsBindAddress: metricsAddr,
-		Port:               9443,
-		LeaderElection:     enableLeaderElection,
-		LeaseDuration:      &le.LeaseDuration.Duration,
-		RenewDeadline:      &le.RenewDeadline.Duration,
-		RetryPeriod:        &le.RetryPeriod.Duration,
-		LeaderElectionID:   "ptp.openshift.io",
-		Namespace:          namespace,
+		Scheme:                 scheme,
+		HealthProbeBindAddress: probeAddr,
+		LeaderElection:         enableLeaderElection,
+		LeaderElectionID:       "ptp.openshift.io",
+		Metrics: server.Options{
+			BindAddress: metricsAddr,
+		},
+		WebhookServer: webhookServer,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
