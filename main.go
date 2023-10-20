@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"os"
@@ -57,6 +58,9 @@ func init() {
 func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
+	var enableHTTP2 bool
+
+	flag.BoolVar(&enableHTTP2, "enable-http2", enableHTTP2, "If HTTP/2 should be enabled for the metrics and webhook servers.")
 	flag.StringVar(&metricsAddr, "metrics-addr", "0", "The address the metric endpoint binds to.") // Setting to 0, we don't need metrics
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. "+
@@ -65,6 +69,13 @@ func main() {
 	restConfig := ctrl.GetConfigOrDie()
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 	le := leaderelection.GetLeaderElectionConfig(restConfig, enableLeaderElection)
+
+	disableHTTP2 := func(c *tls.Config) {
+		if enableHTTP2 {
+			return
+		}
+		c.NextProtos = []string{"http/1.1"}
+	}
 
 	namespace := os.Getenv("WATCH_NAMESPACE")
 	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
@@ -77,6 +88,7 @@ func main() {
 		RetryPeriod:        &le.RetryPeriod.Duration,
 		LeaderElectionID:   "ptp.openshift.io",
 		Namespace:          namespace,
+		TLSOpts:            []func(config *tls.Config){disableHTTP2},
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
