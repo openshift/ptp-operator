@@ -46,11 +46,11 @@ const (
 	L2DaemonsetManagedString       = "MANAGED"
 	L2DaemonsetPreConfiguredString = "PRECONFIGURED"
 	L2DiscoveryDsName              = "l2discovery"
-	L2DiscoveryNsName              = "default"
+	L2DiscoveryNsName              = "l2discovery"
 	L2DiscoveryContainerName       = "l2discovery"
 	timeoutDaemon                  = time.Second * 60
 	L2DiscoveryDuration            = time.Second * 15
-	l2DiscoveryImage               = "quay.io/testnetworkfunction/l2discovery:v5"
+	l2DiscoveryImage               = "quay.io/testnetworkfunction/l2discovery:v9"
 )
 
 type L2DaemonsetMode int64
@@ -188,9 +188,9 @@ func (config *L2DiscoveryConfig) DiscoverL2Connectivity(ptpInterfacesOnly bool) 
 	}
 	// Delete L2 discovery daemonset
 	if config.L2DsMode == Managed {
-		err = daemonsets.DeleteDaemonSet(L2DiscoveryDsName, L2DiscoveryNsName)
+		err = daemonsets.DeleteNamespaceIfPresent(L2DiscoveryNsName)
 		if err != nil {
-			logrus.Errorf("error deleting l2 discovery daemonset, err=%s", err)
+			logrus.Errorf("error deleting l2 discovery namespace, err=%s", err)
 		}
 	}
 	// Create a graph from the discovered data
@@ -212,7 +212,7 @@ func (config *L2DiscoveryConfig) PrintAllNICs() {
 		for _, aIf := range island {
 			aLog += fmt.Sprintf("%s **** ", config.PtpIfList[aIf])
 		}
-		logrus.Info(aLog)
+		logrus.Debug(aLog)
 	}
 }
 
@@ -296,7 +296,7 @@ func (config *L2DiscoveryConfig) getInterfacesReceivingPTP(ptpInterfacesOnly boo
 			config.PortsGettingPTP = append(config.PortsGettingPTP, aPortGettingPTP)
 		}
 	}
-	logrus.Infof("interfaces receiving PTP frames: %v", config.PortsGettingPTP)
+	logrus.Debugf("interfaces receiving PTP frames: %v", config.PortsGettingPTP)
 }
 
 // Creates Mapping tables between interfaces index, mac address, and graph integer indexes
