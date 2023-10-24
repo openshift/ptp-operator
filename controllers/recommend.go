@@ -55,7 +55,6 @@ func getRecommendProfiles(ptpConfigList *ptpv1.PtpConfigList, node corev1.Node) 
 
 	profilesNames := getRecommendProfilesNames(ptpConfigList, node)
 	glog.V(2).Infof("recommended ptp profiles names are %v for node: %s", returnMapKeys(profilesNames), node.Name)
-
 	profiles := []ptpv1.PtpProfile{}
 	for _, cfg := range ptpConfigList.Items {
 		if cfg.Spec.Profile != nil {
@@ -70,6 +69,11 @@ func getRecommendProfiles(ptpConfigList *ptpv1.PtpConfigList, node corev1.Node) 
 	if len(profiles) != len(profilesNames) {
 		return nil, fmt.Errorf("failed to find all the profiles")
 	}
+	// sort profiles by name
+	sort.SliceStable(profiles, func(i, j int) bool {
+		return *profiles[i].Name < *profiles[j].Name
+	})
+
 	return profiles, nil
 }
 
