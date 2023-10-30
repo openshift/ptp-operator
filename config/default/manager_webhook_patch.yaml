@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ptp-operator
-  namespace: openshift-ptp
+  namespace: ptp
   annotations:
     service.beta.openshift.io/serving-cert-secret-name: webhook-server-cert
 spec:

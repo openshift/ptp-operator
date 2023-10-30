@@ -8,7 +8,7 @@ metadata:
   labels:
     app: linuxptp-daemon
   name:  ptp-event-publisher-service-{{.NodeName}}
-  namespace: openshift-ptp
+  namespace: ptp
 spec:
   selector:
     app: linuxptp-daemon

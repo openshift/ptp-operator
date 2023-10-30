@@ -5,7 +5,7 @@ package names
 // Namespace is the namespace where resources are created,
 // such as linuxptp daemonset, ptp-configmap-<node-name>
 // and nodePtpDevice.
-const Namespace = "openshift-ptp"
+const Namespace = "ptp"
 
 // DefaultPTPConfigMapName is the default ptp config map that created
 // by ptp-operator.

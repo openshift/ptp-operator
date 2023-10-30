@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: linuxptp-daemon
-  namespace: openshift-ptp
+  namespace: ptp
   annotations:
     release.openshift.io/version: "{{.ReleaseVersion}}"
 spec:
@@ -99,7 +99,7 @@ metadata:
   labels:
     name: monitor-ptp
   name: monitor-ptp
-  namespace: openshift-ptp
+  namespace: ptp
 spec:
   endpoints:
     - interval: 30s
@@ -112,7 +112,7 @@ spec:
   jobLabel: app
   namespaceSelector:
     matchNames:
-      - openshift-ptp
+      - ptp
   selector:
     matchLabels:
       name: ptp-monitor-service
@@ -126,7 +126,7 @@ metadata:
   labels:
     name: ptp-monitor-service
   name:  ptp-monitor-service
-  namespace: openshift-ptp
+  namespace: ptp
 spec:
   selector:
     app: linuxptp-daemon
@@ -142,7 +142,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: prometheus-k8s
-  namespace: openshift-ptp
+  namespace: ptp
 rules:
   - apiGroups:
       - ""
@@ -159,7 +159,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: prometheus-k8s
-  namespace: openshift-ptp
+  namespace: ptp
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -176,7 +176,7 @@ metadata:
     prometheus: k8s
     role: alert-rules
   name: ptp-rules
-  namespace: openshift-ptp
+  namespace: ptp
 spec:
   groups:
     - name: ptp.rules

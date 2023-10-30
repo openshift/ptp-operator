@@ -9,7 +9,7 @@ metadata:
           "kind": "PtpConfig",
           "metadata": {
             "name": "ptpconfig-1",
-            "namespace": "openshift-ptp"
+            "namespace": "ptp"
           },
           "spec": {
             "profile": [{
@@ -36,7 +36,7 @@ metadata:
           "kind": "NodePtpDevice",
           "metadata": {
             "name": "node.example.com",
-            "namespace": "openshift-ptp"
+            "namespace": "ptp"
           },
           "spec": {}
         },
@@ -45,7 +45,7 @@ metadata:
           "kind": "PtpOperatorConfig",
           "metadata": {
             "name": "default",
-            "namespace": "openshift-ptp"
+            "namespace": "ptp"
           },
           "spec": {
             "daemonNodeSelector": {}
@@ -66,7 +66,7 @@ metadata:
     repository: https://github.com/k8snetworkplumbingwg/ptp-operator
     support: Red Hat
   name: ptp-operator.v0.0.0
-  namespace: openshift-ptp
+  namespace: ptp
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
@@ -105,15 +105,15 @@ spec:
 
     ## Introdution
     PTP Operator manages cluster wide PTP configuration.
-    This operator has to run in namespace 'openshift-ptp'. An Operator Group is also required to install this operator:
+    This operator has to run in namespace 'ptp'. An Operator Group is also required to install this operator:
     ```
     $ oc create -f - <<EOF
     apiVersion: v1
     kind: Namespace
     metadata:
-      name: openshift-ptp
+      name: ptp
       labels:
-        name: openshift-ptp
+        name: ptp
         openshift.io/cluster-monitoring: "true"
     EOF
 
@@ -122,10 +122,10 @@ spec:
     kind: OperatorGroup
     metadata:
       name: ptp-operators
-      namespace: openshift-ptp
+      namespace: ptp
     spec:
       targetNamespaces:
-      - openshift-ptp
+      - ptp
     EOF
     ```
   displayName: PTP Operator

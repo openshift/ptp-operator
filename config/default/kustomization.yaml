@@ -1,5 +1,5 @@
 # Adds namespace to all resources.
-namespace: openshift-ptp
+namespace: ptp
 
 # Labels to add to all resources and selectors.
 #commonLabels:

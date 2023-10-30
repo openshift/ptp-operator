@@ -61,7 +61,7 @@ metadata:
     categories: Networking
     certified: "false"
     containerImage: quay.io/openshift/origin-ptp-operator:4.13
-    createdAt: "2023-10-11T18:04:49Z"
+    createdAt: "2023-10-30T03:26:15Z"
     description: This software enables configuration of Precision Time Protocol(PTP)
       on Kubernetes. It detects hardware capable PTP devices on each node, and configures
       linuxptp processes such as ptp4l, phc2sys and timemaster.
@@ -73,7 +73,7 @@ metadata:
     repository: https://github.com/k8snetworkplumbingwg/ptp-operator
     support: Red Hat
   name: ptp-operator.v0.1.0
-  namespace: openshift-ptp
+  namespace: ptp
 spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
@@ -112,15 +112,15 @@ spec:
 
     ## Introdution
     PTP Operator manages cluster wide PTP configuration.
-    This operator has to run in namespace 'openshift-ptp'. An Operator Group is also required to install this operator:
+    This operator has to run in namespace 'ptp'. An Operator Group is also required to install this operator:
     ```
     $ oc create -f - <<EOF
     apiVersion: v1
     kind: Namespace
     metadata:
-      name: openshift-ptp
+      name: ptp
       labels:
-        name: openshift-ptp
+        name: ptp
         openshift.io/cluster-monitoring: "true"
     EOF
 
@@ -129,10 +129,10 @@ spec:
     kind: OperatorGroup
     metadata:
       name: ptp-operators
-      namespace: openshift-ptp
+      namespace: ptp
     spec:
       targetNamespaces:
-      - openshift-ptp
+      - ptp
     EOF
     ```
   displayName: PTP Operator
