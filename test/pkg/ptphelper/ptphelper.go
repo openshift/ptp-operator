@@ -12,6 +12,7 @@ import (
 	"time"
 
 	. "github.com/onsi/gomega"
+	"github.com/openshift/library-go/pkg/config/clusterstatus"
 	"github.com/openshift/ptp-operator/test/pkg"
 	"github.com/sirupsen/logrus"
 	v1core "k8s.io/api/core/v1"
@@ -21,10 +22,12 @@ import (
 	ptpv1 "github.com/openshift/ptp-operator/api/v1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
+	configv1 "github.com/openshift/api/config/v1"
 	"github.com/openshift/ptp-operator/test/pkg/client"
 	"github.com/openshift/ptp-operator/test/pkg/nodes"
 	"github.com/openshift/ptp-operator/test/pkg/pods"
 	l2exports "github.com/test-network-function/l2discovery-exports"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 func GetProfileLogID(ptpConfigName string, label *string, nodeName *string) (id string, err error) {
@@ -375,6 +378,22 @@ func RestartPTPDaemon() {
 	}
 
 	WaitForPtpDaemonToBeReady()
+}
+
+func CheckLeaseDuration(namespace string, leaseDurationDefault int32, leaseDurationSNO int32) int {
+	expectedLeaseDurationSeconds := leaseDurationDefault
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+	defer cancel()
+	if infra, err := clusterstatus.GetClusterInfraStatus(ctx, ctrl.GetConfigOrDie()); err == nil && infra != nil {
+		if infra.ControlPlaneTopology == configv1.SingleReplicaTopologyMode {
+			expectedLeaseDurationSeconds = leaseDurationSNO
+		}
+	}
+
+	le, err := client.Client.CoordinationV1().Leases(namespace).Get(context.Background(), "ptp.openshift.io", metav1.GetOptions{})
+	Expect(err).ToNot(HaveOccurred())
+	Expect(*le.Spec.LeaseDurationSeconds).To(Equal(expectedLeaseDurationSeconds))
+	return 0
 }
 
 func WaitForPtpDaemonToBeReady() int {
