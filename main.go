@@ -22,6 +22,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -34,6 +35,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -41,6 +43,7 @@ import (
 
 	ptpv1 "github.com/openshift/ptp-operator/api/v1"
 	"github.com/openshift/ptp-operator/controllers"
+	"github.com/openshift/ptp-operator/pkg/leaderelection"
 	"github.com/openshift/ptp-operator/pkg/names"
 	//+kubebuilder:scaffold:imports
 )
@@ -70,6 +73,7 @@ func main() {
 	flag.Parse()
 	restConfig := ctrl.GetConfigOrDie()
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
+	le := leaderelection.GetLeaderElectionConfig(restConfig, enableLeaderElection)
 
 	disableHTTP2 := func(c *tls.Config) {
 		if enableHTTP2 {
@@ -85,16 +89,37 @@ func main() {
 
 	webhookServer := webhook.NewServer(webhookServerOptions)
 
-	mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
+	options := ctrl.Options{
 		Scheme:                 scheme,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
+		LeaseDuration:          &le.LeaseDuration.Duration,
+		RenewDeadline:          &le.RenewDeadline.Duration,
+		RetryPeriod:            &le.RetryPeriod.Duration,
 		LeaderElectionID:       "ptp.openshift.io",
 		Metrics: server.Options{
 			BindAddress: metricsAddr,
 		},
 		WebhookServer: webhookServer,
-	})
+	}
+
+	namespace := os.Getenv("WATCH_NAMESPACE")
+	// create multi namespace cache if list of namespaces
+	if namespace != "" {
+		defaultNamespaces := map[string]cache.Config{}
+
+		for _, namespace := range strings.Split(namespace, ",") {
+			defaultNamespaces[namespace] = cache.Config{}
+		}
+
+		options.NewCache = func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
+			opts.DefaultNamespaces = defaultNamespaces
+			return cache.New(config, opts)
+		}
+		setupLog.Info(fmt.Sprintf("Namespaces added to the cache: %s", namespace))
+	}
+
+	mgr, err := ctrl.NewManager(restConfig, options)
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
