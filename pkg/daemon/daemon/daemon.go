@@ -182,6 +182,14 @@ func getGMInterface(ifaces []config.Iface) config.Iface {
 	return config.Iface{}
 }
 
+func getEventSource(ifaces []config.Iface, iface string) event.EventSource {
+	for _, i := range ifaces {
+		if i.Name == iface {
+			return i.Source
+		}
+	}
+	return event.PTP4l
+}
 func (dn *Daemon) applyNodePTPProfiles() error {
 	glog.Infof("in applyNodePTPProfiles")
 	for _, p := range dn.processManager.process {
@@ -667,13 +675,22 @@ func (p *ptpProcess) cmdRun() {
 // for ts2phc along with processing metrics need to identify event
 func (p *ptpProcess) processPTPMetrics(output string) {
 	if p.name == ts2phcProcessName && (strings.Contains(output, NMEASourceDisabledIndicator) ||
-		strings.Contains(output, InvalidMasterTimestampIndicator)) {
-		p.ProcessTs2PhcEvents(faultyOffset, ts2phcProcessName, "", map[event.ValueType]interface{}{event.NMEA_STATUS: int64(0)})
-		glog.Error("nmea string lost")
+		strings.Contains(output, InvalidMasterTimestampIndicator)) { //TODO identify which interface lost nmea or 1pps
+		p.ProcessTs2PhcEvents(faultyOffset, ts2phcProcessName, getGMInterface(p.ifaces).Name, map[event.ValueType]interface{}{event.NMEA_STATUS: int64(0)})
+		glog.Error("nmea string lost") //TODO: add for 1pps lost
 	} else {
-		source, ptpOffset, _, iface := extractMetrics(p.messageTag, p.name, p.ifaces, output)
+		configName, source, ptpOffset, _, iface := extractMetrics(p.messageTag, p.name, p.ifaces, output)
 		if iface != "" { // for ptp4l/phc2sys this function only update metrics
-			p.ProcessTs2PhcEvents(ptpOffset, source, iface, map[event.ValueType]interface{}{event.NMEA_STATUS: int64(1)})
+			var values map[event.ValueType]interface{}
+			if iface != clockRealTime && p.name == ts2phcProcessName {
+				eventSource := getEventSource(p.ifaces, masterOffsetIface.getByAlias(configName, iface).name)
+				if eventSource == event.GNSS {
+					values = map[event.ValueType]interface{}{event.NMEA_STATUS: int64(1)}
+				} else if eventSource == event.PPS {
+					values = map[event.ValueType]interface{}{event.PPS_STATUS: int64(1)}
+				}
+			}
+			p.ProcessTs2PhcEvents(ptpOffset, source, iface, values)
 		}
 	}
 }
