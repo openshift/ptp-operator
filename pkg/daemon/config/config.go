@@ -16,6 +16,13 @@ const (
 	DefaultPmcPollInterval = 60
 )
 
+type Iface struct {
+	Name     string
+	IsMaster bool
+	Source   event.EventSource
+	PhcId    string
+}
+
 func GetKubeConfig() (*rest.Config, error) {
 	configFromFlags := func(kubeConfig string) (*rest.Config, error) {
 		if _, err := os.Stat(kubeConfig); err != nil {

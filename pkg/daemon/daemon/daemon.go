@@ -39,7 +39,7 @@ type ProcessManager struct {
 
 type ptpProcess struct {
 	name            string
-	ifaces          []string
+	ifaces          []config.Iface
 	ptp4lSocketPath string
 	ptp4lConfigPath string
 	configName      string
@@ -173,6 +173,15 @@ func printWhenNotNil(p interface{}, description string) {
 	}
 }
 
+func getGMInterface(ifaces []config.Iface) config.Iface {
+	for _, iface := range ifaces {
+		if iface.Source == event.GNSS {
+			return iface
+		}
+	}
+	return config.Iface{}
+}
+
 func (dn *Daemon) applyNodePTPProfiles() error {
 	glog.Infof("in applyNodePTPProfiles")
 	for _, p := range dn.processManager.process {
@@ -287,6 +296,20 @@ func printNodeProfile(nodeProfile *ptpv1.PtpProfile) {
 	glog.Infof("------------------------------------")
 }
 
+func getPhcId(iface string) (phcId string) {
+	deviceDir := fmt.Sprintf("/sys/class/net/%s/device/ptp/", iface)
+	phcs, err := os.ReadDir(deviceDir)
+	if err != nil {
+		glog.Error("failed to read " + deviceDir + ": " + err.Error())
+		return
+	}
+	phcId = fmt.Sprintf("/dev/%s", phcs[0].Name())
+	if _, err := os.Stat(phcId); os.IsNotExist(err) {
+		glog.Errorf("phcId %s for %s does not exist", phcId, iface)
+	}
+	return phcId
+}
+
 func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) error {
 
 	dn.pluginManager.OnPTPConfigChange(nodeProfile)
@@ -307,7 +330,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 	var configOpts *string
 	var messageTag string
 	var cmd *exec.Cmd
-	var ifaces string
+	var ifaces []config.Iface
 	var pProcess string
 
 	for _, p := range ptp_processes {
@@ -379,6 +402,9 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 		addFlagsForMonitor(p, configOpts, output, false)
 
 		configOutput, ifaces = output.renderPtp4lConf()
+		for i := range ifaces {
+			ifaces[i].PhcId = getPhcId(ifaces[i].Name)
+		}
 
 		if configInput != nil {
 			*configInput = configOutput
@@ -389,12 +415,9 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 		args := strings.Split(cmdLine, " ")
 		cmd = exec.Command(args[0], args[1:]...)
 
-		//end rendering config file
-		ifacesList := strings.Split(ifaces, ",")
-
 		dprocess := ptpProcess{
 			name:              p,
-			ifaces:            ifacesList,
+			ifaces:            ifaces,
 			ptp4lConfigPath:   configPath,
 			ptp4lSocketPath:   socketPath,
 			configName:        configFile,
@@ -414,10 +437,8 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 				output.gnss_serial_port = GPSPIPE_SERIALPORT
 			}
 			//TODO: move this to plugin or call it from hwplugin or leave it here and remove Hardcoded
-			gmInterface := ""
-			if len(ifacesList) > 0 {
-				gmInterface = ifacesList[0]
-			}
+			gmInterface := getGMInterface(ifaces).Name
+
 			if e := mkFifo(); e != nil {
 				glog.Errorf("Error creating named pipe, GNSS monitoring will not work as expected %s", e.Error())
 			}
@@ -452,34 +473,41 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 			args = strings.Split(gpsPipeDaemon.cmdLine, " ")
 			gpsPipeDaemon.cmd = exec.Command(args[0], args[1:]...)
 			dprocess.depProcess = append(dprocess.depProcess, gpsPipeDaemon)
+
 			// init dpll
 			// TODO: Try to inject DPLL depProcess via plugin ?
 			var localMaxHoldoverOffSet uint64 = dpll.LocalMaxHoldoverOffSet
 			var localHoldoverTimeout uint64 = dpll.LocalHoldoverTimeout
 			var maxInSpecOffset uint64 = dpll.MaxInSpecOffset
 			var clockId uint64
-			for k, v := range (*nodeProfile).PtpSettings {
-				i, err := strconv.ParseUint(v, 10, 64)
-				if err != nil {
-					continue
+
+			for _, iface := range ifaces {
+				if iface.Source == event.GNSS || iface.Source == event.PPS {
+					for k, v := range (*nodeProfile).PtpSettings {
+						i, err := strconv.ParseUint(v, 10, 64)
+						if err != nil {
+							continue
+						}
+						if k == dpll.LocalMaxHoldoverOffSetStr {
+							localMaxHoldoverOffSet = i
+						}
+						if k == dpll.LocalHoldoverTimeoutStr {
+							localHoldoverTimeout = i
+						}
+						if k == dpll.MaxInSpecOffsetStr {
+							maxInSpecOffset = i
+						}
+						if k == dpll.ClockIdStr {
+							clockId = i // TODO: get clockId for each interface
+						}
+					}
+					dpllDaemon := dpll.NewDpll(clockId, localMaxHoldoverOffSet, localHoldoverTimeout,
+						maxInSpecOffset, iface.Name, []event.EventSource{event.GNSS})
+					dpllDaemon.CmdInit()
+					dprocess.depProcess = append(dprocess.depProcess, dpllDaemon)
 				}
-				if k == dpll.LocalMaxHoldoverOffSetStr {
-					localMaxHoldoverOffSet = i
-				}
-				if k == dpll.LocalHoldoverTimeoutStr {
-					localHoldoverTimeout = i
-				}
-				if k == dpll.MaxInSpecOffsetStr {
-					maxInSpecOffset = i
-				}
-				if k == dpll.ClockIdStr {
-					clockId = i
-				}
+
 			}
-			dpllDaemon := dpll.NewDpll(clockId, localMaxHoldoverOffSet, localHoldoverTimeout, maxInSpecOffset,
-				gmInterface, []event.EventSource{event.GNSS})
-			dpllDaemon.CmdInit()
-			dprocess.depProcess = append(dprocess.depProcess, dpllDaemon)
 		}
 		err = os.WriteFile(configPath, []byte(configOutput), 0644)
 		if err != nil {
@@ -707,7 +735,7 @@ func (p *ptpProcess) ProcessTs2PhcEvents(ptpOffset float64, source string, iface
 	if source == ts2phcProcessName { // for ts2phc send it to event to create metrics and events
 		var values = make(map[event.ValueType]interface{})
 		if iface == "" && len(p.ifaces) > 0 {
-			iface = p.ifaces[0] //TODO: with multi card we need to identify interface for PPS card
+			iface = p.ifaces[0].Name //TODO: with multi card we need to identify interface for PPS card
 		}
 		values[event.OFFSET] = ptpOffsetInt64
 		for k, v := range extraValue {

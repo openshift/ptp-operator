@@ -11,6 +11,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 
+	"github.com/openshift/linuxptp-daemon/pkg/config"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	utilwait "k8s.io/apimachinery/pkg/util/wait"
 
@@ -201,7 +202,7 @@ func updatePTPMetrics(from, process, iface string, ptpOffset, maxPtpOffset, freq
 }
 
 // extractMetrics ...
-func extractMetrics(messageTag string, processName string, ifaces []string, output string) (source string, offset float64, state string, iface string) {
+func extractMetrics(messageTag string, processName string, ifaces []config.Iface, output string) (source string, offset float64, state string, iface string) {
 	configName := strings.Replace(strings.Replace(messageTag, "]", "", 1), "[", "", 1)
 	if strings.Contains(output, " max ") {
 		ifaceName, ptpOffset, maxPtpOffset, frequencyAdjustment, delay := extractSummaryMetrics(configName, processName, output)
@@ -239,13 +240,13 @@ func extractMetrics(messageTag string, processName string, ifaces []string, outp
 	if processName == ptp4lProcessName {
 		if portId, role := extractPTP4lEventState(output); portId > 0 {
 			if len(ifaces) >= portId-1 {
-				UpdateInterfaceRoleMetrics(processName, ifaces[portId-1], role)
+				UpdateInterfaceRoleMetrics(processName, ifaces[portId-1].Name, role)
 				if role == SLAVE {
-					r := []rune(ifaces[portId-1])
+					r := []rune(ifaces[portId-1].Name)
 					masterOffsetIface.set(configName, string(r[:len(r)-1])+"x")
-					slaveIface.set(configName, ifaces[portId-1])
+					slaveIface.set(configName, ifaces[portId-1].Name)
 				} else if role == FAULTY {
-					if slaveIface.isFaulty(configName, ifaces[portId-1]) &&
+					if slaveIface.isFaulty(configName, ifaces[portId-1].Name) &&
 						masterOffsetSource.get(configName) == ptp4lProcessName {
 						updatePTPMetrics(master, processName, masterOffsetIface.get(configName), faultyOffset, faultyOffset, 0, 0)
 						updatePTPMetrics(phc, phcProcessName, clockRealTime, faultyOffset, faultyOffset, 0, 0)

@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/openshift/linuxptp-daemon/pkg/config"
 	"github.com/openshift/linuxptp-daemon/pkg/event"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/golang/glog"
@@ -173,21 +175,58 @@ func (output *ptp4lConf) populatePtp4lConf(config *string) error {
 	return nil
 }
 
-func (conf *ptp4lConf) renderPtp4lConf() (string, string) {
-	configOut := fmt.Sprintf("#profile: %s\n", conf.profile_name)
-	conf.mapping = nil
+func getSource(is_ts2phc_master string) (source event.EventSource, err error) {
+	if master, err := strconv.ParseBool(strings.TrimSpace(is_ts2phc_master)); err == nil {
+		if master {
+			return event.GNSS, nil
+		} else {
+			return event.PPS, nil
+		}
+	}
+	return source, err
+}
 
+func (conf *ptp4lConf) renderPtp4lConf() (configOut string, ifaces []config.Iface) {
+	configOut = fmt.Sprintf("#profile: %s\n", conf.profile_name)
+	conf.mapping = nil
+	var err error
+	var nmea_source event.EventSource
 	for _, section := range conf.sections {
 		configOut = fmt.Sprintf("%s\n%s", configOut, section.sectionName)
+
+		if section.sectionName == "[nmea]" {
+			if source, ok := section.options["ts2phc.master"]; ok {
+				nmea_source, err = getSource(source)
+				if err != nil {
+					glog.Errorf("invalid ts2phc config in %s section: ts2phc.master %s", section.sectionName, source)
+				}
+			}
+		}
 		if section.sectionName != "[global]" && section.sectionName != "[nmea]" {
-			iface := section.sectionName
-			iface = strings.ReplaceAll(iface, "[", "")
-			iface = strings.ReplaceAll(iface, "]", "")
-			conf.mapping = append(conf.mapping, iface)
+			i := section.sectionName
+			i = strings.ReplaceAll(i, "[", "")
+			i = strings.ReplaceAll(i, "]", "")
+			conf.mapping = append(conf.mapping, i)
+			iface := config.Iface{Name: i}
+			if source, ok := section.options["ts2phc.master"]; ok {
+				iface.Source, err = getSource(source)
+				if err != nil {
+					glog.Errorf("invalid ts2phc config in %s section: ts2phc.master %s", section.sectionName, source)
+				}
+			} else {
+				// if not defined here, use source defined at nmea secion
+				iface.Source = nmea_source
+			}
+			if master, ok := section.options["masterOnly"]; ok {
+				// TODO add error handling
+				iface.IsMaster, _ = strconv.ParseBool(strings.TrimSpace(master))
+			}
+
+			ifaces = append(ifaces, iface)
 		}
 		for k, v := range section.options {
 			configOut = fmt.Sprintf("%s\n%s %s", configOut, k, v)
 		}
 	}
-	return configOut, strings.Join(conf.mapping, ",")
+	return configOut, ifaces
 }
