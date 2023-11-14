@@ -1,6 +1,8 @@
 package dpll_test
 
 import (
+	"fmt"
+	nl "github.com/openshift/linuxptp-daemon/pkg/dpll-netlink"
 	"strconv"
 	"strings"
 	"testing"
@@ -13,13 +15,173 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestDpllConfig_MonitorProcess(t *testing.T) {
+const (
+	clockid    = 123454566
+	id         = 123456
+	moduleName = "test"
+)
+
+type DpllTestCase struct {
+	reply                     *nl.DoDeviceGetReply
+	sourceLost                bool
+	source                    event.EventSource
+	offset                    int64
+	expectedIntermediateState event.PTPState
+	expectedState             event.PTPState
+	sleep                     time.Duration
+	expectedPhaseStatus       int64
+	expectedPhaseOffset       int64
+	expectedFrequencyStatus   int64
+	expectedInSpecState       bool
+	desc                      string
+}
+
+// mode 1: "manual",	2: "automatic", 3: "holdover", 4: "freerun",
+// 1: "unlocked", 2: "locked", 3: "locked-ho-acquired", 4: "holdover"
+func getTestData(source event.EventSource, pinType uint32) []DpllTestCase {
+	return []DpllTestCase{{
+		reply: &nl.DoDeviceGetReply{
+			Id:            id,
+			ModuleName:    moduleName,
+			Mode:          1,
+			ModeSupported: 0,
+			LockStatus:    2, //LOCKED,
+			ClockId:       clockid,
+			Type:          2, //1 pps 2 eec
+		},
+		sourceLost:                false,
+		source:                    source,
+		offset:                    dpll.FaultyPhaseOffset,
+		expectedIntermediateState: event.PTP_FREERUN,
+		expectedState:             event.PTP_FREERUN,
+		expectedPhaseStatus:       0, //no phase status event for eec
+		expectedPhaseOffset:       dpll.FaultyPhaseOffset,
+		expectedFrequencyStatus:   2, // locked
+		expectedInSpecState:       true,
+		desc:                      "1.locked frequency status, unknonw Phase status ",
+	}, {
+		reply: &nl.DoDeviceGetReply{
+			Id:            id,
+			ModuleName:    moduleName,
+			Mode:          1,
+			ModeSupported: 0,
+			LockStatus:    2, //LOCKED,
+			ClockId:       clockid,
+			Type:          1, //1 pps 2 eec
+		},
+		sourceLost:                false,
+		source:                    source,
+		offset:                    5,
+		expectedIntermediateState: event.PTP_LOCKED,
+		expectedState:             event.PTP_LOCKED,
+		expectedPhaseStatus:       2, //no phase status event for eec
+		expectedPhaseOffset:       5,
+		expectedFrequencyStatus:   2, // locked
+		expectedInSpecState:       true,
+		desc:                      "2. with locked frequency status, reading phase status ",
+	},
+		{
+			reply: &nl.DoDeviceGetReply{
+				Id:            id,
+				ModuleName:    moduleName,
+				Mode:          1,
+				ModeSupported: 0,
+				LockStatus: func() uint32 {
+					if pinType == 2 {
+						return 4 // holdover
+					} else {
+						return 4 // locked
+					}
+				}(), // holdover,
+				ClockId: clockid,
+				Type:    pinType, //1 pps 2 eec
+			},
+			sourceLost:                true,
+			sleep:                     2,
+			source:                    source,
+			offset:                    5,
+			expectedIntermediateState: event.PTP_FREERUN,
+			expectedState:             event.PTP_FREERUN,
+			expectedPhaseStatus: func() int64 {
+				if pinType == 2 {
+					return 2 // locked
+				} else {
+					return 4 //holdover
+				}
+			}(), //no phase status event for eec
+			expectedPhaseOffset: dpll.FaultyPhaseOffset,
+			expectedFrequencyStatus: func() int64 {
+				if pinType == 2 {
+					return 4
+				} else {
+					return 2
+				}
+			}(), // holdover to free run
+			expectedInSpecState: func() bool {
+				if pinType == 2 {
+					return false
+				} else {
+					return true
+				}
+			}(),
+			desc: "3. Holdover frequency/Phase status status times out in 1sec ",
+		},
+		{
+			reply: &nl.DoDeviceGetReply{
+				Id:            id,
+				ModuleName:    moduleName,
+				Mode:          1,
+				ModeSupported: 0,
+				LockStatus:    4, // holdover,
+				ClockId:       clockid,
+				Type:          pinType, //1 pps 2 eec
+			},
+			sourceLost:                true,
+			sleep:                     2,
+			source:                    source,
+			offset:                    6,
+			expectedIntermediateState: event.PTP_FREERUN,
+			expectedState:             event.PTP_FREERUN,
+			expectedPhaseStatus: func() int64 {
+				if pinType == 2 {
+					return 2
+				} else {
+					return 4
+				}
+			}(), //no phase status event for eec
+			expectedPhaseOffset: dpll.FaultyPhaseOffset,
+			expectedFrequencyStatus: func() int64 {
+				if pinType == 2 {
+					return 4
+				} else {
+					return 2
+				}
+			}(),
+			expectedInSpecState: func() bool {
+				if pinType == 2 {
+					return false
+				} else {
+					return true
+				}
+			}(),
+			desc: "4.Out of holdover state.or stays in free run for pps , gns:=declare outofSpec Freerun within a sec",
+		},
+	}
+}
+func TestDpllConfig_MonitorProcessGNSS(t *testing.T) {
+	dpll.MockDpllReplies = make(chan *nl.DoDeviceGetReply, 1)
+	assert.True(t, dpll.MockDpllReplies != nil)
 	eChannel := make(chan event.EventChannel, 10)
 	closeChn := make(chan bool)
 	// event has to be running before dpll is started
-	event.Init("node", false, "/tmp/go.sock", eChannel, closeChn, nil, nil)
-	d := dpll.NewDpll(248, 1400, 5, 10, "ens01", []event.EventSource{})
+	eventProcessor := event.Init("node", false, "/tmp/go.sock", eChannel, closeChn, nil, nil)
+	d := dpll.NewDpll(clockid, 1400, 2, 10, "ens01",
+		[]event.EventSource{event.GNSS}, dpll.MOCK)
+	d.CmdInit()
 	eventChannel := make(chan event.EventChannel, 10)
+	go eventProcessor.ProcessEvents()
+
+	time.Sleep(5 * time.Second)
 	if d != nil {
 		d.MonitorProcess(config.ProcessConfig{
 			ClockType:       "GM",
@@ -28,16 +190,64 @@ func TestDpllConfig_MonitorProcess(t *testing.T) {
 			GMThreshold:     config.Threshold{},
 			InitialPTPState: event.PTP_FREERUN,
 		})
-
-		select {
-		case ptpState := <-eventChannel:
-			assert.Equal(t, ptpState.ProcessName, event.DPLL)
-		case <-time.After(time.Millisecond * 250):
-			glog.Error("Failed to send DPLL event")
-		}
+	}
+	fmt.Println("starting Mock replies ")
+	for _, tt := range getTestData(event.GNSS, 2) {
+		d.SetSourceLost(tt.sourceLost)
+		d.SetDependsOn([]event.EventSource{tt.source})
+		dpll.MockDpllReplies <- tt.reply
+		d.MonitorDpllMock()
+		time.Sleep(1 * time.Second)
+		assert.Equal(t, tt.expectedIntermediateState, d.State(), tt.desc)
+		time.Sleep(tt.sleep * time.Second)
+		assert.Equal(t, tt.expectedPhaseStatus, d.PhaseStatus(), tt.desc)
+		assert.Equal(t, tt.expectedFrequencyStatus, d.FrequencyStatus(), tt.desc)
+		assert.Equal(t, tt.expectedPhaseOffset, d.PhaseOffset(), tt.desc)
+		assert.Equal(t, tt.expectedState, d.State(), tt.desc)
+		assert.Equal(t, tt.expectedInSpecState, d.InSpec())
 
 	}
+	closeChn <- true
+}
 
+func TestDpllConfig_MonitorProcessPPS(t *testing.T) {
+	dpll.MockDpllReplies = make(chan *nl.DoDeviceGetReply, 1)
+	assert.True(t, dpll.MockDpllReplies != nil)
+	eChannel := make(chan event.EventChannel, 10)
+	closeChn := make(chan bool)
+	// event has to be running before dpll is started
+	eventProcessor := event.Init("node", false, "/tmp/go.sock", eChannel, closeChn, nil, nil)
+	d := dpll.NewDpll(clockid, 1400, 2, 10, "ens01",
+		[]event.EventSource{event.GNSS}, dpll.MOCK)
+	d.CmdInit()
+	eventChannel := make(chan event.EventChannel, 10)
+	go eventProcessor.ProcessEvents()
+
+	time.Sleep(5 * time.Second)
+	if d != nil {
+		d.MonitorProcess(config.ProcessConfig{
+			ClockType:       "GM",
+			ConfigName:      "test",
+			EventChannel:    eventChannel,
+			GMThreshold:     config.Threshold{},
+			InitialPTPState: event.PTP_FREERUN,
+		})
+	}
+	fmt.Println("starting Mock replies ")
+	for _, tt := range getTestData(event.PPS, 1) {
+		d.SetSourceLost(tt.sourceLost)
+		d.SetDependsOn([]event.EventSource{tt.source})
+		dpll.MockDpllReplies <- tt.reply
+		d.MonitorDpllMock()
+		time.Sleep(tt.sleep * time.Second)
+		assert.Equal(t, tt.expectedPhaseStatus, d.PhaseStatus(), tt.desc)
+		assert.Equal(t, tt.expectedFrequencyStatus, d.FrequencyStatus(), tt.desc)
+		assert.Equal(t, tt.expectedPhaseOffset, d.PhaseOffset(), tt.desc)
+		assert.Equal(t, tt.expectedState, d.State(), tt.desc)
+		assert.Equal(t, tt.expectedInSpecState, d.InSpec(), tt.desc)
+
+	}
+	closeChn <- true
 }
 
 func TestSysfs(t *testing.T) {
@@ -63,16 +273,16 @@ func TestSlopeAndTimer(t *testing.T) {
 
 	testCase := []dpllTestCase{
 		{
-			localMaxHoldoverOffSet: 2000,
+			localMaxHoldoverOffSet: 6000,
 			localHoldoverTimeout:   100,
 			maxInSpecOffset:        100,
-			expectedSlope:          20000,
-			expectedTimeout:        5,
+			expectedSlope:          60000,
+			expectedTimeout:        2,
 		},
 	}
 	for _, tt := range testCase {
 		d := dpll.NewDpll(100, tt.localMaxHoldoverOffSet, tt.localHoldoverTimeout, tt.maxInSpecOffset,
-			"test", []event.EventSource{})
+			"test", []event.EventSource{}, dpll.MOCK)
 		assert.Equal(t, tt.localMaxHoldoverOffSet, d.LocalMaxHoldoverOffSet, "localMaxHoldover offset")
 		assert.Equal(t, tt.localHoldoverTimeout, d.LocalHoldoverTimeout, "Local holdover timeout")
 		assert.Equal(t, tt.maxInSpecOffset, d.MaxInSpecOffset, "Max In Spec Offset")

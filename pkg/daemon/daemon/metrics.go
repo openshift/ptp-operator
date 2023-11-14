@@ -395,7 +395,6 @@ func extractRegularMetrics(configName, processName, output string) (err error, i
 		return // ignore master port offsets
 	}
 
-	// replace master offset from master to slaveInterface - index + x ens01== ens0X
 	if iface == master {
 		iface = masterOffsetIface.get(configName).alias
 	}
@@ -593,8 +592,28 @@ func (m *masterOffsetInterface) getByAlias(configName string, alias string) ptpI
 		}
 	}
 	return ptpInterface{
-		name:  "",
-		alias: "",
+		name:  alias,
+		alias: alias,
+	}
+}
+
+func (m *masterOffsetInterface) getAliasByName(configName string, name string) ptpInterface {
+	if name == clockRealTime || name == master {
+		return ptpInterface{
+			name:  name,
+			alias: name,
+		}
+	}
+	m.RLock()
+	defer m.RUnlock()
+	if s, found := m.iface[configName]; found {
+		if s.name == name {
+			return s
+		}
+	}
+	return ptpInterface{
+		name:  name,
+		alias: name,
 	}
 }
 

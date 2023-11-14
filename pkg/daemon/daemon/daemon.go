@@ -40,7 +40,7 @@ type ProcessManager struct {
 
 type ptpProcess struct {
 	name            string
-	ifaces          []config.Iface
+	ifaces          config.IFaces
 	ptp4lSocketPath string
 	ptp4lConfigPath string
 	configName      string
@@ -174,23 +174,6 @@ func printWhenNotNil(p interface{}, description string) {
 	}
 }
 
-func getGMInterface(ifaces []config.Iface) config.Iface {
-	for _, iface := range ifaces {
-		if iface.Source == event.GNSS {
-			return iface
-		}
-	}
-	return config.Iface{}
-}
-
-func getEventSource(ifaces []config.Iface, iface string) event.EventSource {
-	for _, i := range ifaces {
-		if i.Name == iface {
-			return i.Source
-		}
-	}
-	return event.PTP4l
-}
 func (dn *Daemon) applyNodePTPProfiles() error {
 	glog.Infof("in applyNodePTPProfiles")
 	for _, p := range dn.processManager.process {
@@ -320,12 +303,10 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 	var configPath string
 	var socketPath string
 	var configFile string
-	var configOutput string
 	var configInput *string
 	var configOpts *string
 	var messageTag string
 	var cmd *exec.Cmd
-	var ifaces []config.Iface
 	var pProcess string
 
 	for _, p := range ptp_processes {
@@ -395,8 +376,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 
 		// This adds the flags needed for monitor
 		addFlagsForMonitor(p, configOpts, output, false)
-
-		configOutput, ifaces = output.renderPtp4lConf()
+		configOutput, ifaces := output.renderPtp4lConf()
 		for i := range ifaces {
 			ifaces[i].PhcId = ptpnetwork.GetPhcId(ifaces[i].Name)
 		}
@@ -432,7 +412,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 				output.gnss_serial_port = GPSPIPE_SERIALPORT
 			}
 			//TODO: move this to plugin or call it from hwplugin or leave it here and remove Hardcoded
-			gmInterface := getGMInterface(ifaces).Name
+			gmInterface := dprocess.ifaces.GetGMInterface().Name
 
 			if e := mkFifo(); e != nil {
 				glog.Errorf("Error creating named pipe, GNSS monitoring will not work as expected %s", e.Error())
@@ -475,8 +455,8 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 			var localHoldoverTimeout uint64 = dpll.LocalHoldoverTimeout
 			var maxInSpecOffset uint64 = dpll.MaxInSpecOffset
 			var clockId uint64
-
-			for _, iface := range ifaces {
+			for _, iface := range dprocess.ifaces {
+				var eventSource []event.EventSource
 				if iface.Source == event.GNSS || iface.Source == event.PPS {
 					for k, v := range (*nodeProfile).PtpSettings {
 						i, err := strconv.ParseUint(v, 10, 64)
@@ -496,8 +476,14 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 							clockId = i
 						}
 					}
+					if iface.Source == event.PPS {
+						eventSource = []event.EventSource{event.PPS}
+					} else {
+						eventSource = []event.EventSource{event.GNSS}
+					}
+					// pass array of ifaces which has source + clockId -
 					dpllDaemon := dpll.NewDpll(clockId, localMaxHoldoverOffSet, localHoldoverTimeout,
-						maxInSpecOffset, iface.Name, []event.EventSource{event.GNSS})
+						maxInSpecOffset, iface.Name, eventSource, dpll.NONE)
 					dpllDaemon.CmdInit()
 					dprocess.depProcess = append(dprocess.depProcess, dpllDaemon)
 				}
@@ -663,18 +649,21 @@ func (p *ptpProcess) cmdRun() {
 func (p *ptpProcess) processPTPMetrics(output string) {
 	if p.name == ts2phcProcessName && (strings.Contains(output, NMEASourceDisabledIndicator) ||
 		strings.Contains(output, InvalidMasterTimestampIndicator)) { //TODO identify which interface lost nmea or 1pps
-		p.ProcessTs2PhcEvents(faultyOffset, ts2phcProcessName, getGMInterface(p.ifaces).Name, map[event.ValueType]interface{}{event.NMEA_STATUS: int64(0)})
+		iface := p.ifaces.GetGMInterface().Name
+		if iface != "" {
+			r := []rune(iface)
+			iface = string(r[:len(r)-1]) + "x"
+		}
+		p.ProcessTs2PhcEvents(faultyOffset, ts2phcProcessName, iface, map[event.ValueType]interface{}{event.NMEA_STATUS: int64(0)})
 		glog.Error("nmea string lost") //TODO: add for 1pps lost
 	} else {
 		configName, source, ptpOffset, _, iface := extractMetrics(p.messageTag, p.name, p.ifaces, output)
 		if iface != "" { // for ptp4l/phc2sys this function only update metrics
 			var values map[event.ValueType]interface{}
 			if iface != clockRealTime && p.name == ts2phcProcessName {
-				eventSource := getEventSource(p.ifaces, masterOffsetIface.getByAlias(configName, iface).name)
+				eventSource := p.ifaces.GetEventSource(masterOffsetIface.getByAlias(configName, iface).name)
 				if eventSource == event.GNSS {
 					values = map[event.ValueType]interface{}{event.NMEA_STATUS: int64(1)}
-				} else if eventSource == event.PPS {
-					values = map[event.ValueType]interface{}{event.PPS_STATUS: int64(1)}
 				}
 			}
 			p.ProcessTs2PhcEvents(ptpOffset, source, iface, values)
@@ -738,9 +727,7 @@ func (p *ptpProcess) ProcessTs2PhcEvents(ptpOffset float64, source string, iface
 	}
 	if source == ts2phcProcessName { // for ts2phc send it to event to create metrics and events
 		var values = make(map[event.ValueType]interface{})
-		if iface == "" && len(p.ifaces) > 0 {
-			iface = p.ifaces[0].Name //TODO: with multi card we need to identify interface for PPS card
-		}
+
 		values[event.OFFSET] = ptpOffsetInt64
 		for k, v := range extraValue {
 			values[k] = v
@@ -754,8 +741,13 @@ func (p *ptpProcess) ProcessTs2PhcEvents(ptpOffset float64, source string, iface
 			Values:      values,
 			ClockType:   p.clockType,
 			Time:        time.Now().UnixMilli(),
-			WriteToLog:  true,
-			Reset:       false,
+			WriteToLog: func() bool { // only write to log if there is something extra
+				if len(extraValue) > 0 {
+					return true
+				}
+				return false
+			}(),
+			Reset: false,
 		}:
 		default:
 		}

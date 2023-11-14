@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"strings"
 
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -16,11 +17,49 @@ const (
 	DefaultPmcPollInterval = 60
 )
 
+type IFaces []Iface
 type Iface struct {
 	Name     string
 	IsMaster bool
 	Source   event.EventSource
 	PhcId    string
+}
+
+// GetGMInterface ... get grandmaster interface
+func (i *IFaces) GetGMInterface() Iface {
+	for _, iface := range *i {
+		if iface.Source == event.GNSS {
+			return iface
+		}
+	}
+	return Iface{}
+}
+
+// Add ...  append interfaces
+func (i *IFaces) Add(iface Iface) {
+	*i = append(*i, iface)
+}
+
+// GetEventSource ... get event source
+func (i *IFaces) GetEventSource(iface string) event.EventSource {
+	for _, ii := range *i {
+		if ii.Name == iface {
+			return ii.Source
+		}
+	}
+	return event.PTP4l
+}
+
+// String ... get string
+func (i *IFaces) String() string {
+	b := strings.Builder{}
+	for _, ii := range *i {
+		b.WriteString("name :" + ii.Name + "\n")
+		b.WriteString(fmt.Sprintf("source %s\n", ii.Source))
+		b.WriteString(fmt.Sprintf("IsMaster %v\n", ii.IsMaster))
+		b.WriteString("phcid :" + ii.PhcId + "\n")
+	}
+	return b.String()
 }
 
 func GetKubeConfig() (*rest.Config, error) {
