@@ -505,8 +505,8 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 						if k == dpll.MaxInSpecOffsetStr {
 							maxInSpecOffset = i
 						}
-						if k == dpll.ClockIdStr {
-							clockId = i // TODO: get clockId for each interface
+						if k == fmt.Sprintf("%s[%s]", dpll.ClockIdStr, iface.Name) {
+							clockId = i
 						}
 					}
 					dpllDaemon := dpll.NewDpll(clockId, localMaxHoldoverOffSet, localHoldoverTimeout,

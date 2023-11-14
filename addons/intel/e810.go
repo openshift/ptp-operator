@@ -70,9 +70,9 @@ func OnPTPConfigChangeE810(data *interface{}, nodeProfile *ptpv1.PtpProfile) err
 				stdout, err = exec.Command("/usr/bin/bash", "-c", EnableE810PTPConfig).Output()
 				glog.Infof(string(stdout))
 			}
-			var dpllDevice string
 			for device, pins := range e810Opts.DevicePins {
-				dpllDevice = device //Any of E810 devices is good to determine clock ID
+				dpllClockIdStr := fmt.Sprintf("%s[%s]", dpll.ClockIdStr, device)
+				(*nodeProfile).PtpSettings[dpllClockIdStr] = strconv.FormatUint(getClockIdE810(device), 10)
 				for pin, value := range pins {
 					deviceDir := fmt.Sprintf("/sys/class/net/%s/device/ptp/", device)
 					phcs, err := os.ReadDir(deviceDir)
@@ -98,7 +98,6 @@ func OnPTPConfigChangeE810(data *interface{}, nodeProfile *ptpv1.PtpProfile) err
 					(*nodeProfile).PtpSettings[k] = strconv.FormatUint(v, 10)
 				}
 			}
-			(*nodeProfile).PtpSettings[dpll.ClockIdStr] = strconv.FormatUint(getClockIdE810(dpllDevice), 10)
 		}
 	}
 	return nil
