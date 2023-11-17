@@ -1,4 +1,4 @@
-FROM golang:1.19 AS builder
+FROM registry.ci.openshift.org/ocp/builder:rhel-8-golang-1.19-openshift-4.13 AS builder
 WORKDIR /go/src/github.com/openshift/ptp-operator
 COPY . .
 ENV GO111MODULE=off
