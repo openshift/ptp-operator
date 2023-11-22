@@ -14,6 +14,7 @@ import (
 
 	testutils "github.com/openshift/ptp-operator/test/pkg"
 	testclient "github.com/openshift/ptp-operator/test/pkg/client"
+	"github.com/openshift/ptp-operator/test/pkg/ptphelper"
 )
 
 var _ = Describe("validation", func() {
@@ -34,6 +35,10 @@ var _ = Describe("validation", func() {
 
 			Expect(len(pods.Items)).To(Equal(1))
 			Expect(pods.Items[0].Status.Phase).To(Equal(corev1.PodRunning))
+		})
+
+		It("should set the lease duration to 270 seconds for SNO, 137 seconds otherwise", func() {
+			ptphelper.CheckLeaseDuration(testutils.PtpNamespace, 137, 270)
 		})
 
 		It("should have the linuxptp daemonset in running state", func() {

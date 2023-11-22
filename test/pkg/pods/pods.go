@@ -180,7 +180,7 @@ func CheckRestart(pod corev1.Pod) {
 	)
 
 	gomega.Eventually(func() error {
-		_, err := pods.ExecCommand(&pod, "container-00", []string{"chroot", "/host", "shutdown", "-r"})
+		_, err := ExecCommand(client.Client, &pod, "container-00", []string{"chroot", "/host", "shutdown", "-r"})
 		return err
 	}, pkg.TimeoutIn10Minutes, pollingInterval).Should(gomega.BeNil())
 }
