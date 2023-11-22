@@ -113,7 +113,7 @@ func DeleteDaemonSet(daemonSetName, namespace string) error {
 	if err := client.Client.AppsV1Interface.DaemonSets(namespace).Delete(context.TODO(), daemonSetName, metav1.DeleteOptions{
 		PropagationPolicy: &deletePolicy,
 	}); err != nil {
-		logrus.Infof("The daemonset (%d) deletion is unsuccessful due to %+v", daemonSetName, err.Error())
+		logrus.Infof("The daemonset (%s) deletion is unsuccessful due to %+v", daemonSetName, err.Error())
 	}
 
 	timeout := 5 * time.Minute
@@ -153,7 +153,7 @@ func CreateDaemonSet(daemonSetName, namespace, containerName, imageWithVersion s
 	if doesDaemonSetExist(daemonSetName, namespace) {
 		err := DeleteDaemonSet(daemonSetName, namespace)
 		if err != nil {
-			logrus.Debug("Failed to delete L2discovery daemonset because: %s", err)
+			logrus.Debugf("Failed to delete L2discovery daemonset because: %s", err)
 		}
 	}
 
