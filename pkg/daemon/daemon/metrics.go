@@ -126,6 +126,15 @@ var (
 			Help:      "0 = FREERUN, 1 = LOCKED, 2 = HOLDOVER",
 		}, []string{"process", "node", "iface"})
 
+	// ClockClassMetrics metrics to show current clock class
+	ClockClassMetrics = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: PTPNamespace,
+			Subsystem: PTPSubsystem,
+			Name:      "clock_class",
+			Help:      "6 = Locked, 7 = PRC unlocked in-spec, 52/187 = PRC unlocked out-of-spec, 248 = Default, 255 = Slave Only Clock",
+		}, []string{"process", "node"})
+
 	// InterfaceRole metrics to show current interface role
 	InterfaceRole = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -164,6 +173,7 @@ func RegisterMetrics(nodeName string) {
 		prometheus.MustRegister(ClockState)
 		prometheus.MustRegister(ProcessStatus)
 		prometheus.MustRegister(ProcessRestartCount)
+		prometheus.MustRegister(ClockClassMetrics)
 
 		// Including these stats kills performance when Prometheus polls with multiple targets
 		prometheus.Unregister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
@@ -458,6 +468,12 @@ func updateClockStateMetrics(process, iface string, state string) {
 func UpdateInterfaceRoleMetrics(process string, iface string, role ptpPortRole) {
 	InterfaceRole.With(prometheus.Labels{
 		"process": process, "node": NodeName, "iface": iface}).Set(float64(role))
+}
+
+// UpdateClockClassMetrics ... update clock class metrics
+func UpdateClockClassMetrics(clockClass float64) {
+	ClockClassMetrics.With(prometheus.Labels{
+		"process": ptp4lProcessName, "node": NodeName}).Set(float64(clockClass))
 }
 
 func UpdateProcessStatusMetrics(process, cfgName string, status int64) {
