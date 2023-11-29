@@ -90,13 +90,14 @@ func main() {
 	webhookServer := webhook.NewServer(webhookServerOptions)
 
 	options := ctrl.Options{
-		Scheme:                 scheme,
-		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         enableLeaderElection,
-		LeaseDuration:          &le.LeaseDuration.Duration,
-		RenewDeadline:          &le.RenewDeadline.Duration,
-		RetryPeriod:            &le.RetryPeriod.Duration,
-		LeaderElectionID:       "ptp.openshift.io",
+		Scheme:                        scheme,
+		HealthProbeBindAddress:        probeAddr,
+		LeaderElection:                enableLeaderElection,
+		LeaseDuration:                 &le.LeaseDuration.Duration,
+		RenewDeadline:                 &le.RenewDeadline.Duration,
+		RetryPeriod:                   &le.RetryPeriod.Duration,
+		LeaderElectionID:              "ptp.openshift.io",
+		LeaderElectionReleaseOnCancel: true,
 		Metrics: server.Options{
 			BindAddress: metricsAddr,
 		},
