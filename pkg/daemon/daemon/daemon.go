@@ -655,23 +655,20 @@ func (p *ptpProcess) processPTPMetrics(output string) {
 	if p.name == ts2phcProcessName && (strings.Contains(output, NMEASourceDisabledIndicator) ||
 		strings.Contains(output, InvalidMasterTimestampIndicator)) { //TODO identify which interface lost nmea or 1pps
 		iface := p.ifaces.GetGMInterface().Name
-		if iface != "" {
-			r := []rune(iface)
-			iface = string(r[:len(r)-1]) + "x"
-		}
 		p.ProcessTs2PhcEvents(faultyOffset, ts2phcProcessName, iface, map[event.ValueType]interface{}{event.NMEA_STATUS: int64(0)})
 		glog.Error("nmea string lost") //TODO: add for 1pps lost
 	} else {
 		configName, source, ptpOffset, _, iface := extractMetrics(p.messageTag, p.name, p.ifaces, output)
 		if iface != "" { // for ptp4l/phc2sys this function only update metrics
 			var values map[event.ValueType]interface{}
+			ifaceName := masterOffsetIface.getByAlias(configName, iface).name
 			if iface != clockRealTime && p.name == ts2phcProcessName {
-				eventSource := p.ifaces.GetEventSource(masterOffsetIface.getByAlias(configName, iface).name)
+				eventSource := p.ifaces.GetEventSource(ifaceName)
 				if eventSource == event.GNSS {
 					values = map[event.ValueType]interface{}{event.NMEA_STATUS: int64(1)}
 				}
 			}
-			p.ProcessTs2PhcEvents(ptpOffset, source, iface, values)
+			p.ProcessTs2PhcEvents(ptpOffset, source, ifaceName, values)
 		}
 	}
 }
@@ -757,6 +754,10 @@ func (p *ptpProcess) ProcessTs2PhcEvents(ptpOffset float64, source string, iface
 		default:
 		}
 	} else {
+		if iface != "" && iface != clockRealTime {
+			r := []rune(iface)
+			iface = string(r[:len(r)-1]) + "x"
+		}
 		if ptpState == event.PTP_LOCKED {
 			updateClockStateMetrics(p.name, iface, LOCKED)
 		} else {
