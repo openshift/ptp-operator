@@ -1,6 +1,7 @@
 package ublox
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	expect "github.com/google/goexpect"
@@ -34,13 +36,20 @@ const (
 	CMD_VOLTAGE_CONTROLER = " -v 1 -z CFG-HW-ANT_CFG_VOLTCTRL,%d"
 	// CMD_NAV_STATUS ...
 	CMD_NAV_STATUS = " -t -p NAV-STATUS"
-	UBXCommand     = "ubxtool"
+	UBXCommand     = "/usr/local/bin/ubxtool"
 )
 
 // UBlox ... UBlox type
 type UBlox struct {
+	active       bool
 	protoVersion *string
 	mockExp      func(cmdStr string) ([]string, error)
+	cmd          *exec.Cmd
+	reader       *bufio.Reader
+	match        string
+	buffer       []string
+	bufferlen    int
+	buffermutex  sync.Mutex
 }
 
 // NewUblox ... create new Ublox
@@ -48,9 +57,12 @@ func NewUblox() (*UBlox, error) {
 	u := &UBlox{
 		protoVersion: &ubloxProtoVersion,
 		mockExp:      nil,
+		active:       false,
+		bufferlen:    0,
 	}
 	u.EnableNMEA()
 	u.DisableBinary()
+
 	//u.DisableNMEA()
 	return u, nil
 }
@@ -174,32 +186,6 @@ func (u *UBlox) EnableDisableVoltageController(command string, value int) ([]byt
 	return stdout, err
 }
 
-// NavStatus ...
-/* NavStatus ...
-ubxtool -t -w 3 -p NAV-STATUS -P 29.20
-1683631651.3422
-UBX-NAV-STATUS:
-iTOW 214069000 gpsFix 5 flags 0xdd fixStat 0x0 flags2 0x8
-ttff 22392, msss 1029803710
-*/
-// NavStatus ... GPS status 0-1 Out of sync  3-5 in sync
-func (u *UBlox) NavStatus() (int64, error) {
-	var stdout string
-	var err error
-	// -t -w 3 -p NAV-STATUS
-	glog.Infof("Fetching GNSS status %s", fmt.Sprintf("-P %s %s", *u.protoVersion, CMD_NAV_STATUS))
-	stdout, err = u.query(fmt.Sprintf("-P %s %s", *u.protoVersion, CMD_NAV_STATUS), NavStatusRegEx)
-	glog.Infof("queried ublox output %s", stdout)
-	if err != nil {
-		glog.Errorf("error in reading gnss status %s", err)
-		return 0, err
-	}
-	var parseError error
-	var status int64
-	status, parseError = strconv.ParseInt(stdout, 10, 64)
-	return status, parseError
-}
-
 func (u *UBlox) query(command string, promptRE *regexp.Regexp) (string, error) {
 	var stdBuffer bytes.Buffer
 	mw := io.MultiWriter(os.Stdout, &stdBuffer)
@@ -226,17 +212,57 @@ func match(stdout string, ubLoxRegex *regexp.Regexp) (string, error) {
 	return "", fmt.Errorf("error parsing %s", stdout)
 }
 
-// GetNavOffset ... get gnss offset
-func (u *UBlox) GetNavOffset() (string, error) {
-	args := []string{"-t", "-p", "NAV-CLOCK", "-P", "29.20"}
-
-	output, err := exec.Command(UBXCommand, args...).Output()
-	if err != nil {
-		return "", fmt.Errorf("error executing ubxtool command: %s", err)
+func (u *UBlox) UbloxPollPull() string {
+	output := ""
+	u.buffermutex.Lock()
+	if u.bufferlen > 0 {
+		output = u.buffer[0]
+		u.buffer = u.buffer[1:]
+		u.bufferlen--
 	}
+	u.buffermutex.Unlock()
+	return output
+}
 
-	offset := extractOffset(string(output))
-	return offset, nil
+func (u *UBlox) UbloxPollInit() {
+	if !u.active {
+		u.buffermutex.Lock()
+		u.bufferlen = 0
+		u.buffer = nil
+		u.buffermutex.Unlock()
+		wait := 1000000000
+		args := []string{"-u", UBXCommand, "-t", "-P", "29.20", "-w", fmt.Sprintf("%d", wait)}
+		//python -u /usr/local/bin/ubxtool -t -p NAV-CLOCK -p NAV-STATUS -P 29.20 -w 10
+		u.cmd = exec.Command("python", args...)
+		stdoutreader, _ := u.cmd.StdoutPipe()
+		u.reader = bufio.NewReader(stdoutreader)
+		u.active = true
+		err := u.cmd.Start()
+		if err != nil {
+			glog.Errorf("UbloxPoll err=%s", err.Error())
+			u.active = false
+		}
+		go u.UbloxPollPushThread()
+	}
+}
+
+func (u *UBlox) UbloxPollPushThread() {
+	for {
+		output, err := u.reader.ReadString('\n')
+		if err != nil {
+			u.active = false
+			return
+		} else if len(output) > 0 {
+			u.buffermutex.Lock()
+			u.bufferlen++
+			u.buffer = append(u.buffer, output)
+			u.buffermutex.Unlock()
+		}
+	}
+}
+
+func (u *UBlox) UbloxPollReset() {
+	u.cmd.Process.Kill()
 }
 
 // DisableBinary ...  disable binary
@@ -261,7 +287,7 @@ func (u *UBlox) EnableNMEA() {
 	}
 }
 
-func extractOffset(output string) string {
+func ExtractOffset(output string) int64 {
 	// Find the line that contains "tAcc"
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
@@ -270,11 +296,30 @@ func extractOffset(output string) string {
 			fields := strings.Fields(line)
 			for i, field := range fields {
 				if field == "tAcc" {
-					return fields[i+1]
+					ret, _ := strconv.ParseInt(fields[i+1], 10, 64)
+					return ret
 				}
 			}
 		}
 	}
 
-	return ""
+	return -1
+}
+
+func ExtractNavStatus(output string) int64 {
+	// Find the line that contains "gpsFix"
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		if strings.Contains(line, "gpsFix") {
+			// Extract the offset value
+			fields := strings.Fields(line)
+			for i, field := range fields {
+				if field == "gpsFix" {
+					ret, _ := strconv.ParseInt(fields[i+1], 10, 64)
+					return ret
+				}
+			}
+		}
+	}
+	return -1
 }
