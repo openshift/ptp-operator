@@ -50,6 +50,25 @@ done
 echo "Disabled all SMA and U.FL Connections"
 `
 
+func getDefaultUblxCmds() []E810UblxCmds {
+	// Ublx command to output NAV-CLOCK every second
+	cfgMsgNavClock := E810UblxCmds{
+		ReportOutput: false,
+		Args:         []string{"-p", "CFG-MSG,1,34,1"},
+	}
+	// Ublx command to output NAV-STATUS every second
+	cfgMsgNavStatus := E810UblxCmds{
+		ReportOutput: false,
+		Args:         []string{"-p", "CFG-MSG,1,3,1"},
+	}
+	// Ublx command to save configuration to storage
+	cfgSave := E810UblxCmds{
+		ReportOutput: false,
+		Args:         []string{"-p", "SAVE"},
+	}
+	return []E810UblxCmds{cfgMsgNavClock, cfgMsgNavStatus, cfgSave}
+}
+
 func OnPTPConfigChangeE810(data *interface{}, nodeProfile *ptpv1.PtpProfile) error {
 	glog.Info("calling onPTPConfigChange for e810 plugin")
 	var e810Opts E810Opts
@@ -121,7 +140,7 @@ func AfterRunPTPCommandE810(data *interface{}, nodeProfile *ptpv1.PtpProfile, co
 			}
 			if command == "gpspipe" {
 				glog.Infof("AfterRunPTPCommandE810 doing ublx config for command: %s", command)
-				for _, ublxOpt := range e810Opts.UblxCmds {
+				for _, ublxOpt := range append(e810Opts.UblxCmds, getDefaultUblxCmds()...) {
 					ublxArgs := ublxOpt.Args
 					glog.Infof("Running /usr/bin/ubxtool with args %s", strings.Join(ublxArgs, ", "))
 					stdout, err = exec.Command("/usr/local/bin/ubxtool", ublxArgs...).CombinedOutput()
