@@ -25,7 +25,7 @@ soaktest:
       duration: 5
       failure_threshold: 3
       custom_params:
-        prometheus_rate_time_window: "60s"
+        prometheus_rate_time_window: "120s"
         node:
           cpu_threshold_mcores: 100
         pod:
