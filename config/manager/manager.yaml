@@ -9,6 +9,8 @@ metadata:
     pod-security.kubernetes.io/warn: "privileged"
     name: openshift-ptp
     openshift.io/cluster-monitoring: "true"
+  annotations:
+    workload.openshift.io/allowed: management
 ---
 apiVersion: apps/v1
 kind: Deployment
