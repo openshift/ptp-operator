@@ -45,6 +45,7 @@ type TestCase struct {
 	expectedNmeaStatus          float64 // nmea_status
 	expectedPpsStatus           float64 // pps_status
 	expectedClockClassMetrics   float64 // clock_class
+	expectedInterfaceRole       float64 // role
 }
 
 func (tc *TestCase) init() {
@@ -56,7 +57,7 @@ func (tc *TestCase) init() {
 	tc.expectedNmeaStatus = SKIP
 	tc.expectedPpsStatus = SKIP
 	tc.expectedClockClassMetrics = SKIP
-
+	tc.expectedInterfaceRole = SKIP
 }
 
 func (tc *TestCase) String() string {
@@ -76,6 +77,7 @@ func (tc *TestCase) cleanupMetrics() {
 	daemon.Delay.With(map[string]string{"from": tc.from, "process": tc.process, "node": tc.node, "iface": tc.iface}).Set(CLEANUP)
 	daemon.ClockState.With(map[string]string{"process": tc.process, "node": tc.node, "iface": tc.iface}).Set(CLEANUP)
 	daemon.ClockClassMetrics.With(map[string]string{"process": tc.process, "node": tc.node}).Set(CLEANUP)
+	daemon.InterfaceRole.With(map[string]string{"process": tc.process, "node": tc.node, "iface": tc.iface}).Set(CLEANUP)
 }
 
 var testCases = []TestCase{
@@ -94,6 +96,7 @@ var testCases = []TestCase{
 		expectedNmeaStatus:          SKIP,
 		expectedPpsStatus:           SKIP,
 		expectedClockClassMetrics:   SKIP,
+		expectedInterfaceRole:       SKIP,
 	},
 	{
 		log:                         "ts2phc[1896327.319]: [ts2phc.0.config] ens2f0 master offset         -1 s2 freq      -2",
@@ -110,6 +113,7 @@ var testCases = []TestCase{
 		expectedNmeaStatus:          SKIP,
 		expectedPpsStatus:           SKIP,
 		expectedClockClassMetrics:   SKIP,
+		expectedInterfaceRole:       SKIP,
 	},
 	{
 		log:                         "ts2phc[1896327.319]: [ts2phc.0.config] ens2f0 master offset         3 s0 freq      4",
@@ -126,6 +130,57 @@ var testCases = []TestCase{
 		expectedNmeaStatus:          SKIP,
 		expectedPpsStatus:           SKIP,
 		expectedClockClassMetrics:   SKIP,
+		expectedInterfaceRole:       SKIP,
+	},
+	{
+		log:                         "ptp4l[8542280.698]: [ptp4l.0.config] port 1: UNCALIBRATED to SLAVE on MASTER_CLOCK_SELECTED",
+		MessageTag:                  "[ptp4l.0.config]",
+		Name:                        "ptp4l",
+		from:                        "master",
+		process:                     "ptp4l",
+		iface:                       "ens3f2",
+		expectedOffset:              SKIP,
+		expectedMaxOffset:           SKIP,
+		expectedFrequencyAdjustment: SKIP,
+		expectedDelay:               SKIP,
+		expectedClockState:          SKIP,
+		expectedNmeaStatus:          SKIP,
+		expectedPpsStatus:           SKIP,
+		expectedClockClassMetrics:   SKIP,
+		expectedInterfaceRole:       1,
+		Ifaces: []config.Iface{
+			{
+				Name:     "ens3f2",
+				IsMaster: false,
+				Source:   "",
+				PhcId:    "phcid-2",
+			},
+		},
+	},
+	{
+		log:                         "ptp4l[8537738.636]: [ptp4l.0.config] port 1: SLAVE to FAULTY on FAULT_DETECTED (FT_UNSPECIFIED)",
+		MessageTag:                  "[ptp4l.0.config]",
+		Name:                        "ptp4l",
+		from:                        "master",
+		process:                     "ptp4l",
+		iface:                       "ens3fx",
+		expectedOffset:              999999, // faultyOffset
+		expectedMaxOffset:           999999, // faultyOffset
+		expectedFrequencyAdjustment: 0,
+		expectedDelay:               0,
+		expectedClockState:          s0, // FREERUN
+		expectedNmeaStatus:          SKIP,
+		expectedPpsStatus:           SKIP,
+		expectedClockClassMetrics:   SKIP,
+		expectedInterfaceRole:       SKIP,
+		Ifaces: []config.Iface{
+			{
+				Name:     "ens3f2",
+				IsMaster: false,
+				Source:   "",
+				PhcId:    "phcid-2",
+			},
+		},
 	},
 }
 
@@ -188,6 +243,10 @@ func Test_ProcessPTPMetrics(t *testing.T) {
 		if tc.expectedClockClassMetrics != SKIP {
 			clockClassMetrics := daemon.ClockClassMetrics.With(map[string]string{"process": tc.process, "node": tc.node})
 			assert.Equal(tc.expectedClockClassMetrics, testutil.ToFloat64(clockClassMetrics), "ClockClassMetrics does not match\n%s", tc.String())
+		}
+		if tc.expectedInterfaceRole != SKIP {
+			role := daemon.InterfaceRole.With(map[string]string{"process": tc.process, "node": tc.node, "iface": tc.iface})
+			assert.Equal(tc.expectedInterfaceRole, testutil.ToFloat64(role), "InterfaceRole does not match\n%s", tc.String())
 		}
 	}
 }

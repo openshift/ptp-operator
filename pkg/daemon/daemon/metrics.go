@@ -132,7 +132,7 @@ var (
 			Namespace: PTPNamespace,
 			Subsystem: PTPSubsystem,
 			Name:      "clock_class",
-			Help:      "6 = Locked, 7 = PRC unlocked in-spec, 52/187 = PRC unlocked out-of-spec, 248 = Default, 255 = Slave Only Clock",
+			Help:      "6 = Locked, 7 = PRC unlocked in-spec, 52/187 = PRC unlocked out-of-spec, 135 = T-BC holdover in-spec, 165 = T-BC holdover out-of-spec, 248 = Default, 255 = Slave Only Clock",
 		}, []string{"process", "node"})
 
 	// InterfaceRole metrics to show current interface role
@@ -263,6 +263,7 @@ func extractMetrics(messageTag string, processName string, ifaces []config.Iface
 						masterOffsetSource.get(configName) == ptp4lProcessName {
 						updatePTPMetrics(master, processName, masterOffsetIface.get(configName).alias, faultyOffset, faultyOffset, 0, 0)
 						updatePTPMetrics(phc, phcProcessName, clockRealTime, faultyOffset, faultyOffset, 0, 0)
+						updateClockStateMetrics(processName, masterOffsetIface.get(configName).alias, FREERUN)
 						masterOffsetIface.set(configName, "")
 						slaveIface.set(configName, "")
 					}
