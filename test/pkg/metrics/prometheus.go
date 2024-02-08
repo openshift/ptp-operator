@@ -22,7 +22,7 @@ const (
 	prometheusResponseSuccess    = "success"
 	kubeletServiceMonitor        = "kubelet"
 
-	PrometheusQueryRetries       = 10
+	PrometheusQueryRetries       = 30
 	PrometheusQueryRetryInterval = 1 * time.Second
 )
 
