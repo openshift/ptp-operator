@@ -1,0 +1,14 @@
+# References:
+# https://docs.snyk.io/scan-applications/snyk-code/using-snyk-code-from-the-cli/excluding-directories-and-files-from-the-snyk-code-cli-test
+# https://docs.snyk.io/snyk-cli/commands/ignore
+exclude:
+  global:
+    # - "vendor/**" # ProdSec encourages not to ignore the entire vendor/* directories
+    # - "unpacked_remote_sources/cachito-gomod-with-deps/app/vendor/**"
+    - "**/*_test.go"
+    - "test/**" # test code only
+    - "pkg/render/testdata/**" # this is only used in test
+    - "vendor/github.com/onsi/ginkgo/**" # test code only
+    - hack # scripts only
+    - scripts # scripts only
+    - bin # this binary folder is not in git repo. Exclude this when run snyk locally.
