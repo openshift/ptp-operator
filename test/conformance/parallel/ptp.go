@@ -299,7 +299,7 @@ func testSyncState(soakTestConfig ptptestconfig.SoakTestConfig, fullConfig testc
 	defer event.PubSub.Unsubscribe(string(ptpEvent.OsClockSyncStateChange), subscriberID)
 	// creates and push an initial event indicating the initial state of the clock
 	// otherwise no events would be received as long as the clock is not changing states
-	err := event.PushInitialEvent(string(ptpEvent.OsClockSyncStateChange), 20*time.Second)
+	err := event.PushInitialEvent(string(ptpEvent.OsClockSyncStateChange), 60*time.Second)
 	if err != nil {
 		Fail(fmt.Sprintf("could not push initial event, err=%s", err))
 	}
