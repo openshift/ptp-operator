@@ -83,7 +83,7 @@ metadata:
     provider: Red Hat
     repository: https://github.com/openshift/ptp-operator
     support: Red Hat
-  name: ptp-operator.v4.15.0
+  name: ptp-operator.v4.16.0
   namespace: openshift-ptp
 spec:
   apiservicedefinitions: {}
@@ -381,7 +381,7 @@ spec:
                 - name: OPERATOR_NAME
                   value: ptp-operator
                 - name: RELEASE_VERSION
-                  value: v4.15.0
+                  value: v4.16.0
                 - name: LINUXPTP_DAEMON_IMAGE
                   value: quay.io/openshift/origin-ptp:4.15
                 - name: KUBE_RBAC_PROXY_IMAGE
@@ -394,7 +394,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.name
-                image: quay.io/openshift/origin-ptp-operator:4.15
+                image: quay.io/openshift/origin-ptp-operator:4.16
                 imagePullPolicy: IfNotPresent
                 name: ptp-operator
                 ports:
@@ -489,7 +489,7 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat
-  version: 4.15.0
+  version: 4.16.0
   webhookdefinitions:
   - admissionReviewVersions:
     - v1
