@@ -29,10 +29,11 @@ func WaitForDeletion(cs *testclient.ClientSet, nsName string, timeout time.Durat
 
 // Create creates a new namespace with the given name.
 // If the namespace exists, it returns.
-func Create(namespace string, cs *testclient.ClientSet) error {
+func Create(namespace string, cs *testclient.ClientSet, labels map[string]string) error {
 	_, err := cs.CoreV1().Namespaces().Create(context.Background(), &k8sv1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: namespace,
+			Name:   namespace,
+			Labels: labels,
 		}},
 		metav1.CreateOptions{},
 	)

@@ -164,15 +164,27 @@ func testPtpCpuUtilization(fullConfig testconfig.TestConfig, testParameters *ptp
 	// Make sure the configured time interval for prometheus's rate() func is at least twice
 	// the current scrape interval for the kubelet's cadvisor endpoint. Otherwise, rate() will
 	// never get the minimum samples number (2) to work.
-	Expect(int(prometheusRateTimeWindow.Seconds())).To(BeNumerically(">=", 2*cadvisorScrapeInterval),
-		fmt.Sprintf("configured time window (%s) is lower than twice the cadvisor scraping interval (%d secs)",
-			prometheusRateTimeWindow, cadvisorScrapeInterval))
+	if int(prometheusRateTimeWindow.Seconds()) < 2*cadvisorScrapeInterval {
+		// add extra 10 seconds as a safeguard
+		timeAdjusted := fmt.Sprintf("%ds", 2*cadvisorScrapeInterval+10)
+		logrus.Infof("configured time window (%s) is lower than twice the cadvisor scraping interval (%d secs). Adjusted to (%s).",
+			prometheusRateTimeWindow, cadvisorScrapeInterval, timeAdjusted)
+		prometheusRateTimeWindow, _ = time.ParseDuration(timeAdjusted)
+	}
 
 	// Warmup: waiting until prometheus can scrape a couple of cpu samples from ptp pods.
-	warmupTime := time.Duration(2*cadvisorScrapeInterval) * time.Second
-	By(fmt.Sprintf("Waiting %s so prometheus can get at least 2 metric samples from the ptp pods.", warmupTime))
+	time.Sleep(prometheusRateTimeWindow)
 
-	time.Sleep(warmupTime)
+	// Trial run to see if prometheus metrics is ready. If not wait for up to 10 minutes.
+	for i := 0; i < 10; i++ {
+		_, err = isCpuUsageThresholdReachedInPtpPods(prometheusPod, ptpPodsPerNode, &params, prometheusRateTimeWindow)
+		if err != nil {
+			logrus.Infof("Prometheus metrics is not ready. Wait for one more minutes")
+			time.Sleep(time.Minute)
+		} else {
+			break
+		}
+	}
 
 	// Create timer channel for test case timeout.
 	testCaseDuration := time.Duration(params.CpuTestSpec.Duration) * time.Minute
@@ -193,7 +205,7 @@ func testPtpCpuUtilization(fullConfig testconfig.TestConfig, testParameters *ptp
 		case <-cpuUsageCheckTicker.C:
 			logrus.Infof("Retrieving cpu usage of the ptp pods.")
 
-			thresholdReached, err := isCpuUsageThresholdReachedInPtpPods(prometheusPod, ptpPodsPerNode, &params)
+			thresholdReached, err := isCpuUsageThresholdReachedInPtpPods(prometheusPod, ptpPodsPerNode, &params, prometheusRateTimeWindow)
 			logrus.Infof("Cpu usage threshold reached: %v", thresholdReached)
 			Expect(err).To(BeNil(), "failed to get cpu usage")
 
@@ -208,11 +220,8 @@ func testPtpCpuUtilization(fullConfig testconfig.TestConfig, testParameters *ptp
 
 // isCpuUsageThresholdReachedInPtpPods is a helper that checks whether the cpu usage of
 // each node, pod and or container is below preconfigured (via yaml) threshold/s.
-func isCpuUsageThresholdReachedInPtpPods(prometheusPod *v1core.Pod, ptpPodsPerNode map[string][]*v1core.Pod, cpuTestConfig *ptptestconfig.CpuUtilization) (bool, error) {
+func isCpuUsageThresholdReachedInPtpPods(prometheusPod *v1core.Pod, ptpPodsPerNode map[string][]*v1core.Pod, cpuTestConfig *ptptestconfig.CpuUtilization, rateTimeWindow time.Duration) (bool, error) {
 	thresholdReached := false
-
-	// No need to check error for the rateTimeWindow: it was already checked.
-	rateTimeWindow, _ := cpuTestConfig.PromRateTimeWindow()
 
 	checkNodeTotalCpuUsage, nodeCpuUsageThreshold := cpuTestConfig.ShouldCheckNodeTotalCpuUsage()
 

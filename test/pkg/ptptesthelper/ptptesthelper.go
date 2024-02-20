@@ -375,68 +375,6 @@ func GetPtpPodsPerNode() (map[string][]*corev1.Pod, error) {
 	return podsPerNode, nil
 }
 
-// GetPodsTotalCpuUsage uses prometheus metric "container_cpu_usage_seconds_total"
-// to return the total cpu usage by all the given pods.
-// As each query needs to be done inside one of the prometheus pods, an optional
-// param prometheusPod can be set for that purpose. If it's nil, the function
-// will try to get it on every call.
-func GetPodsTotalCpuUsage(pods []*corev1.Pod, prometheusPod *corev1.Pod) (float64, error) {
-	const (
-		// To make sure that prometheus can use rate() with at least two samples,
-		// we should use at least two sampling periods (2 * 30s = 60). We'll add 10
-		// extra seconds as a safeguard.
-		timeWindow = 70 * time.Second
-		// queryFormat params: pod name & time window.
-		queryFormat = `rate(container_cpu_usage_seconds_total{container="", pod="%s"}[%s])`
-	)
-
-	if prometheusPod == nil {
-		logrus.Debugf("Getting prometheus pod...")
-		var err error
-		prometheusPod, err = metrics.GetPrometheusPod()
-		if err != nil {
-			return 0, fmt.Errorf("failed to get prometheus pod: %w", err)
-		}
-	}
-
-	queryTimeWindow := time.Duration(timeWindow).String()
-	totalCpu := float64(0)
-	for _, pod := range pods {
-		query := fmt.Sprintf(queryFormat, pod.Name, queryTimeWindow)
-
-		// Preparing the result part so the unmarshaller can set it accordingly.
-		resultVector := metrics.PrometheusVectorResult{}
-		promResponse := metrics.PrometheusQueryResponse{}
-		promResponse.Data.Result = &resultVector
-
-		err := metrics.RunPrometheusQueryWithRetries(prometheusPod, query, metrics.PrometheusQueryRetries, metrics.PrometheusQueryRetryInterval, &promResponse, func(*metrics.PrometheusQueryResponse) bool {
-			// Make sure the result's value is not empty
-			logrus.Infof("Checking result vector len: %v", len(resultVector))
-			if len(resultVector) != 1 {
-				logrus.Infof("Invalid result vector length in prometheus response: %+v", promResponse)
-				return false
-			}
-			return true
-		})
-
-		if err != nil {
-			return 0, fmt.Errorf("prometheus query failure: %w", err)
-		}
-
-		// The rate query should return only one metric, so it's safe to access the first result.
-		podCpuUsage, tsMillis, err := metrics.GetPrometheusResultFloatValue(resultVector[0].Value)
-		if err != nil {
-			return 0, fmt.Errorf("failed to get value from prometheus response from pod %s (ns %s): %w", pod.Name, pod.Namespace, err)
-		}
-
-		logrus.Debugf("Pod %s (ns %s) cpu usage: %v (ts: %s)", pod.Name, pod.Namespace, podCpuUsage, time.UnixMilli(tsMillis).String())
-
-		totalCpu += podCpuUsage
-	}
-
-	return totalCpu, nil
-}
-
 // GetPodTotalCpuUsage uses prometheus metric "container_cpu_usage_seconds_total"
 // to return the total cpu usage by all the given pods.
 // As each query needs to be done inside one of the prometheus pods, an optional

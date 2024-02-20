@@ -65,7 +65,7 @@ func Configs() {
 			ptpConfig.Name == pkg.PtpTempPolicyName {
 			err = client.Client.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Delete(context.Background(), ptpConfig.Name, metav1.DeleteOptions{})
 			if err != nil {
-				logrus.Errorf("clean.All: Failed to delete ptp config %s %v", ptpConfig.Name, err)
+				logrus.Infof("clean.All: Failed to delete ptp config %s %v", ptpConfig.Name, err)
 			}
 		}
 	}

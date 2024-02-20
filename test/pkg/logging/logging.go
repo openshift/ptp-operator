@@ -9,10 +9,13 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 func InitLogLevel() {
 	logLevelString, isSet := os.LookupEnv("PTP_LOG_LEVEL")
+	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 	var logLevel, err = logrus.ParseLevel(logLevelString)
 	if err != nil {
 		logrus.Error("PTP_LOG_LEVEL environment set with an invalid value, defaulting to INFO \n Valid values are:  trace, debug, info, warn, error, fatal, panic")

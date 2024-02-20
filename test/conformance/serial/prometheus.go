@@ -10,6 +10,7 @@ import (
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/metrics"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/pods"
 	. "github.com/onsi/gomega"
+	"github.com/sirupsen/logrus"
 
 	k8sv1 "k8s.io/api/core/v1"
 )
@@ -46,12 +47,26 @@ func collectPrometheusMetrics(uniqueMetricKeys []string) map[string][]string {
 	Expect(err).ToNot(HaveOccurred(), "failed to get prometheus pod")
 
 	podsPerPrometheusMetricKey := map[string][]string{}
+	isFirstQuery := true
 	for _, metricsKey := range uniqueMetricKeys {
 		promResult := []result{}
 		promResponse := metrics.PrometheusQueryResponse{}
 		promResponse.Data.Result = &promResult
 
-		err := metrics.RunPrometheusQuery(prometheusPod, metricsKey, &promResponse)
+		// Trial run to see if prometheus metrics is ready. If not wait for up to 10 minutes.
+		if isFirstQuery {
+			for i := 0; i < 10; i++ {
+				err = metrics.RunPrometheusQuery(prometheusPod, metricsKey, &promResponse)
+				if err != nil {
+					logrus.Infof("Prometheus metrics is not ready. Wait for one more minutes")
+					time.Sleep(time.Minute)
+				} else {
+					isFirstQuery = false
+					break
+				}
+			}
+		}
+		err = metrics.RunPrometheusQuery(prometheusPod, metricsKey, &promResponse)
 		Expect(err).ToNot(HaveOccurred(), "failed to run prometheus query")
 
 		podsPerKey := []string{}
