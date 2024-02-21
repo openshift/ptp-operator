@@ -143,8 +143,15 @@ func CreateEventProxySidecar(nodeNameFull string) (err error) {
 		logrus.Infof("namespace %s deleted", ConsumerSidecarTestNamespace)
 	}
 
+	labels := map[string]string{
+		"security.openshift.io/scc.podSecurityLabelSync": "false",
+		"pod-security.kubernetes.io/audit":               "privileged",
+		"pod-security.kubernetes.io/enforce":             "privileged",
+		"pod-security.kubernetes.io/warn":                "privileged",
+		"openshift.io/cluster-monitoring":                "true",
+	}
 	// create sidecar namespace
-	err = namespaces.Create(ConsumerSidecarTestNamespace, client.Client)
+	err = namespaces.Create(ConsumerSidecarTestNamespace, client.Client, labels)
 	if err != nil {
 		return fmt.Errorf("could not create namespace=%s, err=%s", ConsumerSidecarTestNamespace, err)
 	}
