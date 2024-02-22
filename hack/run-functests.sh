@@ -10,6 +10,7 @@ export PATH="${REPO_BIN_PATH}/go/bin:$PATH"
 if go version | grep -q "${GO_VERSION}"; then
 	echo "Go ${GO_VERSION} is already installed."
 else
+    mkdir -p ${REPO_BIN_PATH}
 	# Check the operating system type
 	if [[ "$(uname)" == "Darwin" ]]; then
 		# macOS
