@@ -7,7 +7,7 @@ GO_VERSION=1.20.4
 REPO_BIN_PATH=$(pwd)/bin
 echo "REPO_BIN_PATH is ${REPO_BIN_PATH}"
 export PATH="${REPO_BIN_PATH}/go/bin:$PATH"
-if go version | grep -q "${GO_VERSION}"; then
+if go version | grep -q "go${GO_VERSION}"; then
 	echo "Go ${GO_VERSION} is already installed."
 else
     mkdir -p ${REPO_BIN_PATH}
@@ -23,7 +23,13 @@ else
 	fi
 	temp_dir=$(mktemp -d)
 	wget https://go.dev/dl/${GO_BINARY} -P "$temp_dir"
-	tar -C ${REPO_BIN_PATH} -xzf "$temp_dir/${GO_BINARY}"
+	if uname -a | grep -q "e2e-telco5g"; then
+		# if it is on a Prow job, replace the current go version
+		rm -rf /usr/local/go
+		tar -C /usr/local -xzf "$temp_dir/${GO_BINARY}"
+	else
+		tar -C ${REPO_BIN_PATH} -xzf "$temp_dir/${GO_BINARY}"
+	fi
 	rm -rf "$temp_dir"
 fi
 
