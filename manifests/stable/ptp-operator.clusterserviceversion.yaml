@@ -60,7 +60,7 @@ metadata:
     capabilities: Basic Install
     categories: Networking
     certified: "false"
-    containerImage: quay.io/openshift/origin-ptp-operator:4.15
+    containerImage: quay.io/openshift/origin-ptp-operator:4.16
     createdAt: "2019-10-14"
     description: This software enables configuration of Precision Time Protocol(PTP)
       on Kubernetes. It detects hardware capable PTP devices on each node, and configures
@@ -75,7 +75,7 @@ metadata:
     features.operators.openshift.io/token-auth-aws: "false"
     features.operators.openshift.io/token-auth-azure: "false"
     features.operators.openshift.io/token-auth-gcp: "false"
-    olm.skipRange: ">=4.3.0-0 <4.15.0"
+    olm.skipRange: ">=4.3.0-0 <4.16.0"
     operatorframework.io/suggested-namespace: openshift-ptp
     operators.openshift.io/infrastructure-features: '["disconnected"]'
     operators.operatorframework.io/builder: operator-sdk-v1.22.0-ocp
@@ -383,11 +383,11 @@ spec:
                 - name: RELEASE_VERSION
                   value: v4.16.0
                 - name: LINUXPTP_DAEMON_IMAGE
-                  value: quay.io/openshift/origin-ptp:4.15
+                  value: quay.io/openshift/origin-ptp:4.16
                 - name: KUBE_RBAC_PROXY_IMAGE
-                  value: quay.io/openshift/origin-kube-rbac-proxy:4.15
+                  value: quay.io/openshift/origin-kube-rbac-proxy:4.16
                 - name: SIDECAR_EVENT_IMAGE
-                  value: quay.io/openshift/origin-cloud-event-proxy:4.15
+                  value: quay.io/openshift/origin-cloud-event-proxy:4.16
                 - name: WATCH_NAMESPACE
                   value: ""
                 - name: POD_NAME
