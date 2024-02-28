@@ -64,7 +64,6 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-parallel]", func() 
 
 	Context("Event based tests", func() {
 		BeforeEach(func() {
-
 			if !ptphelper.PtpEventEnabled() {
 				Skip("Skipping, PTP events not enabled")
 			}
@@ -75,7 +74,6 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-parallel]", func() 
 		})
 
 		It("PTP Slave Clock Sync", func() {
-
 			testPtpSlaveClockSync(fullConfig, testParameters) // Implementation of the test case
 
 		})
@@ -246,17 +244,16 @@ func isCpuUsageThresholdReachedInPtpPods(prometheusPod *v1core.Pod, ptpPodsPerNo
 
 			for i := range pod.Spec.Containers {
 				container := &pod.Spec.Containers[i]
-				cpuUsage, err := ptptesthelper.GetContainerCpuUsage(pod.Name, container.Name, pod.Namespace, rateTimeWindow, prometheusPod)
-				if err != nil {
-					return false, fmt.Errorf("failed to get total cpu usage for ptp pods on node %s: %w", nodeName, err)
-				}
-
-				logrus.Infof("Node %s: pod: %s, container: %s (ns:%s) cpu usage: %.5f", nodeName, pod.Name, container.Name, pod.Namespace, cpuUsage)
 
 				// Should we check the total cpu usage for this container?
 				checkCpuUsage, cpuUsageThreshold := cpuTestConfig.ShouldCheckContainerCpuUsage(pod.Name, container.Name)
 				if !checkCpuUsage {
 					continue
+				}
+
+				cpuUsage, err := ptptesthelper.GetContainerCpuUsage(pod.Name, container.Name, pod.Namespace, rateTimeWindow, prometheusPod)
+				if err != nil {
+					return false, fmt.Errorf("failed to get total cpu usage for ptp pods on node %s: %w", nodeName, err)
 				}
 
 				logrus.Debugf("Checking cpu usage of container %s (pod %s). Cpu Usage: %.5f - Threshold: %.5f", container.Name, pod.Name, cpuUsage, cpuUsageThreshold)
