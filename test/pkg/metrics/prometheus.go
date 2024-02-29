@@ -50,7 +50,7 @@ func GetPrometheusResultFloatValue(promValue []interface{}) (value float64, tsMi
 	)
 
 	if len(promValue) != 2 {
-		return 0, 0, fmt.Errorf("invalid value slice lenght - value %+v", promValue)
+		return 0, 0, fmt.Errorf("invalid value slice length - value %+v", promValue)
 	}
 
 	floatValue, err := strconv.ParseFloat(reflect.ValueOf(promValue[resultValuePos]).String(), 64)
@@ -113,16 +113,21 @@ func RunPrometheusQuery(prometheusPod *corev1.Pod, query string, response *Prome
 
 // RunPrometheusQueryWithRetries runs RunPrometheusQuery but retries in case of failure, waiting
 // retryInterval perdiod before the next attempt.
-func RunPrometheusQueryWithRetries(prometheusPod *corev1.Pod, query string, retries int, retryInterval time.Duration, response *PrometheusQueryResponse,
+func RunPrometheusQueryWithRetries(prometheusPod *corev1.Pod, query string, rateTimeWindow time.Duration, retries int, retryInterval time.Duration, response *PrometheusQueryResponse,
 	checkerFunc func(response *PrometheusQueryResponse) bool) error {
+
+	queryTemplate := `rate(%s[%ds])`
+
 	for i := 0; i <= retries; i++ {
-		logrus.Debugf("Querying prometheus, query %s, attempt %d", query, i)
+		// increase the rateTimeWindow by 10 seconds with each retry to avoid returning empty data
+		window := int(rateTimeWindow.Seconds()) + i*10
+		newQuery := fmt.Sprintf(queryTemplate, query, window)
+		logrus.Debugf("Querying prometheus, query %s, attempt %d", newQuery, i)
 		// In case it's not the first try, sleep before trying again.
 		if i != 0 {
 			time.Sleep(retryInterval)
 		}
-
-		err := RunPrometheusQuery(prometheusPod, query, response)
+		err := RunPrometheusQuery(prometheusPod, newQuery, response)
 		if err == nil {
 			// If we don't need to use the callback the check the response, or
 			// the callback approves the response, we can return without error.

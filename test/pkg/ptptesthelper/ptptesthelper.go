@@ -391,10 +391,6 @@ func GetPodTotalCpuUsage(podName, podNamespace string, rateTimeWindow time.Durat
 // param prometheusPod can be set for that purpose. If it's nil, the function
 // will try to get it on every call.
 func GetContainerCpuUsage(podName, containerName, podNamespace string, rateTimeWindow time.Duration, prometheusPod *corev1.Pod) (float64, error) {
-	const (
-		// queryFormat params: pod name & time window.
-		queryFormat = `rate(container_cpu_usage_seconds_total{namespace="%s", pod="%s", container="%s"}[%s])`
-	)
 
 	if prometheusPod == nil {
 		logrus.Debugf("Getting prometheus pod...")
@@ -405,16 +401,13 @@ func GetContainerCpuUsage(podName, containerName, podNamespace string, rateTimeW
 		}
 	}
 
-	queryTimeWindow := rateTimeWindow.String()
-
-	query := fmt.Sprintf(queryFormat, podNamespace, podName, containerName, queryTimeWindow)
-
 	// Preparing the result part so the unmarshaller can set it accordingly.
 	resultVector := metrics.PrometheusVectorResult{}
 	promResponse := metrics.PrometheusQueryResponse{}
 	promResponse.Data.Result = &resultVector
 
-	err := metrics.RunPrometheusQueryWithRetries(prometheusPod, query, metrics.PrometheusQueryRetries, metrics.PrometheusQueryRetryInterval, &promResponse, func(response *metrics.PrometheusQueryResponse) bool {
+	query := fmt.Sprintf(`container_cpu_usage_seconds_total{namespace="%s", pod="%s", container="%s"}`, podNamespace, podName, containerName)
+	err := metrics.RunPrometheusQueryWithRetries(prometheusPod, query, rateTimeWindow, metrics.PrometheusQueryRetries, metrics.PrometheusQueryRetryInterval, &promResponse, func(response *metrics.PrometheusQueryResponse) bool {
 		if len(resultVector) != 1 {
 			logrus.Warnf("Invalid result vector length in prometheus response: %+v", promResponse)
 			return false
