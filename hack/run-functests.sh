@@ -3,6 +3,7 @@ set -x
 # Set go version
 pattern="4.[0-9]+"
 if [[ "$T5CI_VERSION" =~ $pattern ]]; then
+  #This is to differentiate CI jobs from local runs please do not set this T5CI_VERSION locally
   source $HOME/golang-1.20
 else
   # make sure the test runs with specific go vervsion.
@@ -27,13 +28,7 @@ else
     fi
     temp_dir=$(mktemp -d)
     wget https://go.dev/dl/${GO_BINARY} -P "$temp_dir"
-    if uname -a | grep -q "e2e-telco5g"; then
-      # if it is on a Prow job, replace the current go version
-      rm -rf /usr/local/go
-      tar -C /usr/local -xzf "$temp_dir/${GO_BINARY}"
-    else
-      tar -C ${REPO_BIN_PATH} -xzf "$temp_dir/${GO_BINARY}"
-    fi
+    tar -C ${REPO_BIN_PATH} -xzf "$temp_dir/${GO_BINARY}"
     rm -rf "$temp_dir"
   fi
 fi
