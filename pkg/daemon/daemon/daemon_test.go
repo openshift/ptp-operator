@@ -9,7 +9,6 @@ import (
 
 	"github.com/openshift/linuxptp-daemon/pkg/config"
 	"github.com/openshift/linuxptp-daemon/pkg/daemon"
-	ptpv1 "github.com/openshift/ptp-operator/api/v1"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
@@ -25,7 +24,7 @@ const (
 	CLEANUP = -12345678
 )
 
-var process *daemon.PtpProcess
+var pm *daemon.ProcessManager
 var registry *prometheus.Registry
 
 type TestCase struct {
@@ -191,12 +190,7 @@ func setup() {
 	flag.Lookup("v").Value.Set(logLevel)
 
 	daemon.InitializeOffsetMaps()
-	process = &daemon.PtpProcess{}
-	process.PtpClockThreshold = &ptpv1.PtpClockThreshold{
-		HoldOverTimeout:    5,
-		MaxOffsetThreshold: 100,
-		MinOffsetThreshold: -100,
-	}
+	pm = daemon.NewProcessManager()
 	daemon.RegisterMetrics(MYNODE)
 }
 
@@ -215,10 +209,8 @@ func Test_ProcessPTPMetrics(t *testing.T) {
 	for _, tc := range testCases {
 		tc.node = MYNODE
 		tc.cleanupMetrics()
-		process.Name = tc.Name
-		process.MessageTag = tc.MessageTag
-		process.Ifaces = tc.Ifaces
-		process.ProcessPTPMetrics(tc.log)
+		pm.SetTestData(tc.Name, tc.MessageTag, tc.Ifaces)
+		pm.RunProcessPTPMetrics(tc.log)
 
 		if tc.expectedOffset != SKIP {
 			ptpOffset := daemon.Offset.With(map[string]string{"from": tc.from, "process": tc.process, "node": tc.node, "iface": tc.iface})
