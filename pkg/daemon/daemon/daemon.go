@@ -2,11 +2,13 @@ package daemon
 
 import (
 	"bufio"
+	"cmp"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -210,6 +212,9 @@ func (dn *Daemon) applyNodePTPProfiles() error {
 
 	glog.Infof("updating NodePTPProfiles to:")
 	runID := 0
+	slices.SortFunc(dn.ptpUpdate.NodeProfiles, func(a, b ptpv1.PtpProfile) int {
+		return cmp.Compare(*a.Name, *b.Name)
+	})
 	for _, profile := range dn.ptpUpdate.NodeProfiles {
 		err := dn.applyNodePtpProfile(runID, &profile)
 		if err != nil {
