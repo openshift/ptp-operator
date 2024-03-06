@@ -4,6 +4,8 @@ package dpll_netlink
 
 import (
 	"errors"
+	"log"
+	"math"
 
 	"github.com/mdlayher/genetlink"
 	"github.com/mdlayher/netlink"
@@ -132,7 +134,6 @@ func ParseDeviceReplies(msgs []genetlink.Message) ([]*DoDeviceGetReply, error) {
 		if err != nil {
 			return nil, err
 		}
-
 		var reply DoDeviceGetReply
 		for ad.Next() {
 			switch ad.Type() {
@@ -141,7 +142,7 @@ func ParseDeviceReplies(msgs []genetlink.Message) ([]*DoDeviceGetReply, error) {
 			case DPLL_A_MODULE_NAME:
 				reply.ModuleName = ad.String()
 			case DPLL_A_MODE:
-				reply.Mode = ad.Uint32()
+				//reply.Mode = ad.Uint32()
 			case DPLL_A_MODE_SUPPORTED:
 				// do we need it? if yes, ModeSupported should be a slice
 				// reply.ModeSupported = ad.Uint32()
@@ -154,6 +155,8 @@ func ParseDeviceReplies(msgs []genetlink.Message) ([]*DoDeviceGetReply, error) {
 				reply.ClockId = ad.Uint64()
 			case DPLL_A_TYPE:
 				reply.Type = ad.Uint32()
+			default:
+				log.Println("default", ad.Type(), len(ad.Bytes()), ad.Bytes())
 			}
 		}
 
@@ -234,8 +237,8 @@ func (c *Conn) DumpDeviceGet() ([]*DoDeviceGetReply, error) {
 
 // DoDeviceGetRequest is used with the DoDeviceGet method.
 type DoDeviceGetRequest struct {
-	Id uint32
-	// TODO: field "ModuleName", type "string"
+	Id         uint32
+	ModuleName string
 }
 
 // DoDeviceGetReply is used with the DoDeviceGet method.
@@ -245,7 +248,214 @@ type DoDeviceGetReply struct {
 	Mode          uint32
 	ModeSupported uint32
 	LockStatus    uint32
-	// TODO: field "Temp", type "s32"
-	ClockId uint64
-	Type    uint32
+	Temp          int32
+	ClockId       uint64
+	Type          uint32
+}
+
+func ParsePinReplies(msgs []genetlink.Message) ([]*DoPinGetReply, error) {
+	replies := make([]*DoPinGetReply, 0, len(msgs))
+
+	for _, m := range msgs {
+		ad, err := netlink.NewAttributeDecoder(m.Data)
+		if err != nil {
+			return nil, err
+		}
+		// Initialize phase offset to a max value, so later we can detect it has been updated
+		reply := DoPinGetReply{
+			ParentDevice: PinParentDevice{
+				PhaseOffset: math.MaxInt64,
+			},
+		}
+		for ad.Next() {
+			switch ad.Type() {
+			case DPLL_A_PIN_CLOCK_ID:
+				reply.ClockId = ad.Uint64()
+			case DPLL_A_PIN_ID:
+				reply.Id = ad.Uint32()
+			case DPLL_A_PIN_BOARD_LABEL:
+				reply.BoardLabel = ad.String()
+			case DPLL_A_PIN_PANEL_LABEL:
+				reply.PanelLabel = ad.String()
+			case DPLL_A_PIN_PACKAGE_LABEL:
+				reply.PackageLabel = ad.String()
+			case DPLL_A_PIN_TYPE:
+				reply.Type = ad.Uint32()
+			case DPLL_A_PIN_FREQUENCY:
+				reply.Frequency = ad.Uint64()
+			case DPLL_A_PIN_FREQUENCY_SUPPORTED:
+				ad.Nested(func(ad *netlink.AttributeDecoder) error {
+					for ad.Next() {
+						switch ad.Type() {
+						case DPLL_A_PIN_FREQUENCY_MIN:
+							reply.FrequencySupported.FrequencyMin = ad.Uint64()
+						case DPLL_A_PIN_FREQUENCY_MAX:
+							reply.FrequencySupported.FrequencyMax = ad.Uint64()
+						}
+					}
+					return nil
+				})
+			case DPLL_A_PIN_CAPABILITIES:
+				reply.Capabilities = ad.Uint32()
+			case DPLL_A_PIN_PARENT_DEVICE:
+				ad.Nested(func(ad *netlink.AttributeDecoder) error {
+					for ad.Next() {
+						switch ad.Type() {
+						case DPLL_A_PIN_PARENT_ID:
+							reply.ParentDevice.ParentId = ad.Uint32()
+						case DPLL_A_PIN_DIRECTION:
+							reply.ParentDevice.Direction = ad.Uint32()
+						case DPLL_A_PIN_PRIO:
+							reply.ParentDevice.Prio = ad.Uint32()
+						case DPLL_A_PIN_STATE:
+							reply.ParentDevice.State = ad.Uint32()
+						case DPLL_A_PIN_PHASE_OFFSET:
+							reply.ParentDevice.PhaseOffset = ad.Int64()
+						}
+					}
+					return nil
+				})
+			case DPLL_A_PIN_PARENT_PIN:
+				ad.Nested(func(ad *netlink.AttributeDecoder) error {
+					for ad.Next() {
+						switch ad.Type() {
+						case DPLL_A_PIN_PARENT_ID:
+							reply.ParentPin.ParentId = ad.Uint32()
+						case DPLL_A_PIN_STATE:
+							reply.ParentPin.State = ad.Uint32()
+						}
+					}
+
+					return nil
+				})
+			case DPLL_A_PIN_PHASE_ADJUST_MIN:
+				reply.PhaseAdjustMin = ad.Int32()
+			case DPLL_A_PIN_PHASE_ADJUST_MAX:
+				reply.PhaseAdjustMax = ad.Int32()
+			case DPLL_A_PIN_PHASE_ADJUST:
+				reply.PhaseAdjust = ad.Int32()
+			case DPLL_A_PIN_FRACTIONAL_FREQUENCY_OFFSET:
+				reply.FractionalFrequencyOffset = int(ad.Int32())
+			case DPLL_A_PIN_MODULE_NAME:
+				reply.ModuleName = ad.String()
+			default:
+				log.Println(ad.Bytes())
+			}
+		}
+		if err := ad.Err(); err != nil {
+			return nil, err
+		}
+		replies = append(replies, &reply)
+	}
+	return replies, nil
+}
+
+// DoPinGet wraps the "pin-get" operation:
+func (c *Conn) DoPinGet(req DoPinGetRequest) (*DoPinGetReply, error) {
+	ae := netlink.NewAttributeEncoder()
+	if req.Id != 0 {
+		ae.Uint32(DPLL_A_PIN_ID, req.Id)
+	}
+
+	b, err := ae.Encode()
+	if err != nil {
+		return nil, err
+	}
+
+	msg := genetlink.Message{
+		Header: genetlink.Header{
+			Command: DPLL_CMD_PIN_GET,
+			Version: c.f.Version,
+		},
+		Data: b,
+	}
+	msgs, err := c.c.Execute(msg, c.f.ID, netlink.Request)
+	if err != nil {
+		return nil, err
+	}
+
+	replies, err := ParsePinReplies(msgs)
+	if err != nil {
+		return nil, err
+	}
+	if len(replies) != 1 {
+		return nil, errors.New("dpll: expected exactly one DoPinGetReply")
+	}
+
+	return replies[0], nil
+}
+
+func (c *Conn) DumpPinGet() ([]*DoPinGetReply, error) {
+	ae := netlink.NewAttributeEncoder()
+
+	b, err := ae.Encode()
+	if err != nil {
+		return nil, err
+	}
+
+	msg := genetlink.Message{
+		Header: genetlink.Header{
+			Command: DPLL_CMD_PIN_GET,
+			Version: c.f.Version,
+		},
+		Data: b,
+	}
+
+	msgs, err := c.c.Execute(msg, c.f.ID, netlink.Request|netlink.Dump)
+	if err != nil {
+		return nil, err
+	}
+
+	replies, err := ParsePinReplies(msgs)
+	if err != nil {
+		return nil, err
+	}
+
+	return replies, nil
+}
+
+// DoPinGetRequest is used with the DoPinGet method.
+type DoPinGetRequest struct {
+	Id uint32
+}
+
+// DoPinGetReply is used with the DoPinGet method.
+type DoPinGetReply struct {
+	Id                        uint32
+	ClockId                   uint64
+	BoardLabel                string
+	PanelLabel                string
+	PackageLabel              string
+	Type                      uint32
+	Frequency                 uint64
+	FrequencySupported        FrequencyRange
+	Capabilities              uint32
+	ParentDevice              PinParentDevice
+	ParentPin                 PinParentPin
+	PhaseAdjustMin            int32
+	PhaseAdjustMax            int32
+	PhaseAdjust               int32
+	FractionalFrequencyOffset int
+	ModuleName                string
+}
+
+// FrequencyRange contains nested netlink attributes.
+type FrequencyRange struct {
+	FrequencyMin uint64 `json:"frequencyMin"`
+	FrequencyMax uint64 `json:"frequencyMax"`
+}
+
+// PinParentDevice contains nested netlink attributes.
+type PinParentDevice struct {
+	ParentId    uint32
+	Direction   uint32
+	Prio        uint32
+	State       uint32
+	PhaseOffset int64
+}
+
+// PinParentPin contains nested netlink attributes.
+type PinParentPin struct {
+	ParentId uint32
+	State    uint32
 }

@@ -75,7 +75,7 @@ func getTestData(source event.EventSource, pinType uint32) []DpllTestCase {
 		expectedIntermediateState: event.PTP_LOCKED,
 		expectedState:             event.PTP_LOCKED,
 		expectedPhaseStatus:       2, //no phase status event for eec
-		expectedPhaseOffset:       5,
+		expectedPhaseOffset:       5000000,
 		expectedFrequencyStatus:   2, // locked
 		expectedInSpecState:       true,
 		desc:                      "2. with locked frequency status, reading phase status ",
@@ -176,7 +176,7 @@ func TestDpllConfig_MonitorProcessGNSS(t *testing.T) {
 	// event has to be running before dpll is started
 	eventProcessor := event.Init("node", false, "/tmp/go.sock", eChannel, closeChn, nil, nil, nil)
 	d := dpll.NewDpll(clockid, 1400, 2, 10, "ens01",
-		[]event.EventSource{event.GNSS}, dpll.MOCK)
+		[]event.EventSource{event.GNSS}, dpll.MOCK, map[string]map[string]string{})
 	d.CmdInit()
 	eventChannel := make(chan event.EventChannel, 10)
 	go eventProcessor.ProcessEvents()
@@ -194,6 +194,7 @@ func TestDpllConfig_MonitorProcessGNSS(t *testing.T) {
 	fmt.Println("starting Mock replies ")
 	for _, tt := range getTestData(event.GNSS, 2) {
 		d.SetSourceLost(tt.sourceLost)
+		d.SetPhaseOffset(tt.expectedPhaseOffset)
 		d.SetDependsOn([]event.EventSource{tt.source})
 		dpll.MockDpllReplies <- tt.reply
 		d.MonitorDpllMock()
@@ -202,7 +203,7 @@ func TestDpllConfig_MonitorProcessGNSS(t *testing.T) {
 		time.Sleep(tt.sleep * time.Second)
 		assert.Equal(t, tt.expectedPhaseStatus, d.PhaseStatus(), tt.desc)
 		assert.Equal(t, tt.expectedFrequencyStatus, d.FrequencyStatus(), tt.desc)
-		assert.Equal(t, tt.expectedPhaseOffset, d.PhaseOffset(), tt.desc)
+		assert.Equal(t, tt.expectedPhaseOffset/1000000, d.PhaseOffset(), tt.desc)
 		assert.Equal(t, tt.expectedState, d.State(), tt.desc)
 		assert.Equal(t, tt.expectedInSpecState, d.InSpec())
 
@@ -218,7 +219,7 @@ func TestDpllConfig_MonitorProcessPPS(t *testing.T) {
 	// event has to be running before dpll is started
 	eventProcessor := event.Init("node", false, "/tmp/go.sock", eChannel, closeChn, nil, nil, nil)
 	d := dpll.NewDpll(clockid, 1400, 2, 10, "ens01",
-		[]event.EventSource{event.GNSS}, dpll.MOCK)
+		[]event.EventSource{event.GNSS}, dpll.MOCK, map[string]map[string]string{})
 	d.CmdInit()
 	eventChannel := make(chan event.EventChannel, 10)
 	go eventProcessor.ProcessEvents()
@@ -236,13 +237,14 @@ func TestDpllConfig_MonitorProcessPPS(t *testing.T) {
 	fmt.Println("starting Mock replies ")
 	for _, tt := range getTestData(event.PPS, 1) {
 		d.SetSourceLost(tt.sourceLost)
+		d.SetPhaseOffset(tt.expectedPhaseOffset)
 		d.SetDependsOn([]event.EventSource{tt.source})
 		dpll.MockDpllReplies <- tt.reply
 		d.MonitorDpllMock()
 		time.Sleep(tt.sleep * time.Second)
 		assert.Equal(t, tt.expectedPhaseStatus, d.PhaseStatus(), tt.desc)
 		assert.Equal(t, tt.expectedFrequencyStatus, d.FrequencyStatus(), tt.desc)
-		assert.Equal(t, tt.expectedPhaseOffset, d.PhaseOffset(), tt.desc)
+		assert.Equal(t, tt.expectedPhaseOffset/1000000, d.PhaseOffset(), tt.desc)
 		assert.Equal(t, tt.expectedState, d.State(), tt.desc)
 		assert.Equal(t, tt.expectedInSpecState, d.InSpec(), tt.desc)
 
@@ -282,7 +284,7 @@ func TestSlopeAndTimer(t *testing.T) {
 	}
 	for _, tt := range testCase {
 		d := dpll.NewDpll(100, tt.localMaxHoldoverOffSet, tt.localHoldoverTimeout, tt.maxInSpecOffset,
-			"test", []event.EventSource{}, dpll.MOCK)
+			"test", []event.EventSource{}, dpll.MOCK, map[string]map[string]string{})
 		assert.Equal(t, tt.localMaxHoldoverOffSet, d.LocalMaxHoldoverOffSet, "localMaxHoldover offset")
 		assert.Equal(t, tt.localHoldoverTimeout, d.LocalHoldoverTimeout, "Local holdover timeout")
 		assert.Equal(t, tt.maxInSpecOffset, d.MaxInSpecOffset, "Max In Spec Offset")

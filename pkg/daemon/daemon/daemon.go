@@ -394,7 +394,9 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 		output.profile_name = *nodeProfile.Name
 
 		if nodeProfile.Interface != nil && *nodeProfile.Interface != "" {
-			output.sections = append([]ptp4lConfSection{{options: map[string]string{}, sectionName: fmt.Sprintf("[%s]", *nodeProfile.Interface)}}, output.sections...)
+			output.sections = append([]ptp4lConfSection{{
+				options:     map[string]string{},
+				sectionName: fmt.Sprintf("[%s]", *nodeProfile.Interface)}}, output.sections...)
 		} else {
 			iface := string("")
 			nodeProfile.Interface = &iface
@@ -493,10 +495,20 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 			var localHoldoverTimeout uint64 = dpll.LocalHoldoverTimeout
 			var maxInSpecOffset uint64 = dpll.MaxInSpecOffset
 			var clockId uint64
+			phaseOffsetPinFilter := map[string]string{}
 			for _, iface := range dprocess.ifaces {
 				var eventSource []event.EventSource
 				if iface.Source == event.GNSS || iface.Source == event.PPS {
+					glog.Info("Init dpll: ptp settings ", (*nodeProfile).PtpSettings)
 					for k, v := range (*nodeProfile).PtpSettings {
+						glog.Info("Init dpll: ptp kv ", k, " ", v)
+						if strings.Contains(k, strings.Join([]string{iface.Name, "phaseOffset"}, ".")) {
+							filterKey := strings.Split(k, ".")
+							property := filterKey[len(filterKey)-1]
+							phaseOffsetPinFilter[property] = v
+							glog.Infof("dpll phase offset filter property: %s[%s]=%s", iface.Name, property, v)
+							continue
+						}
 						i, err := strconv.ParseUint(v, 10, 64)
 						if err != nil {
 							continue
@@ -521,7 +533,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 					}
 					// pass array of ifaces which has source + clockId -
 					dpllDaemon := dpll.NewDpll(clockId, localMaxHoldoverOffSet, localHoldoverTimeout,
-						maxInSpecOffset, iface.Name, eventSource, dpll.NONE)
+						maxInSpecOffset, iface.Name, eventSource, dpll.NONE, dn.GetPhaseOffsetPinFilter(nodeProfile))
 					dpllDaemon.CmdInit()
 					dprocess.depProcess = append(dprocess.depProcess, dpllDaemon)
 				}
@@ -538,6 +550,23 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 	}
 
 	return nil
+}
+
+func (dn *Daemon) GetPhaseOffsetPinFilter(nodeProfile *ptpv1.PtpProfile) map[string]map[string]string {
+	phaseOffsetPinFilter := map[string]map[string]string{}
+	for k, v := range (*nodeProfile).PtpSettings {
+		if strings.Contains(k, "phaseOffsetFilter") {
+			filterKey := strings.Split(k, ".")
+			property := filterKey[len(filterKey)-1]
+			clockIdStr := filterKey[len(filterKey)-2]
+			if len(phaseOffsetPinFilter[clockIdStr]) == 0 {
+				phaseOffsetPinFilter[clockIdStr] = map[string]string{}
+			}
+			phaseOffsetPinFilter[clockIdStr][property] = v
+			continue
+		}
+	}
+	return phaseOffsetPinFilter
 }
 
 func (dn *Daemon) HandlePmcTicker() {

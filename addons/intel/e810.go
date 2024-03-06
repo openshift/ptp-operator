@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -20,6 +21,7 @@ type E810Opts struct {
 	UblxCmds            []E810UblxCmds               `json:"ublxCmds"`
 	DevicePins          map[string]map[string]string `json:"pins"`
 	DpllSettings        map[string]uint64            `json:"settings"`
+	PhaseOffsetPins     map[string]map[string]string `json:"phaseOffsetPins"`
 }
 
 type E810UblxCmds struct {
@@ -115,6 +117,24 @@ func OnPTPConfigChangeE810(data *interface{}, nodeProfile *ptpv1.PtpProfile) err
 			for k, v := range e810Opts.DpllSettings {
 				if _, ok := (*nodeProfile).PtpSettings[k]; !ok {
 					(*nodeProfile).PtpSettings[k] = strconv.FormatUint(v, 10)
+				}
+			}
+			for iface, properties := range e810Opts.PhaseOffsetPins {
+				ifaceFound := false
+				for dev := range e810Opts.DevicePins {
+					if strings.Compare(iface, dev) == 0 {
+						ifaceFound = true
+						break
+					}
+				}
+				if !ifaceFound {
+					glog.Errorf("e810 phase offset pin filter initialization failed: interface %s not found among  %v",
+						iface, reflect.ValueOf(e810Opts.DevicePins).MapKeys())
+					break
+				}
+				for pinProperty, value := range properties {
+					key := strings.Join([]string{iface, "phaseOffsetFilter", strconv.FormatUint(getClockIdE810(iface), 10), pinProperty}, ".")
+					(*nodeProfile).PtpSettings[key] = value
 				}
 			}
 		}
