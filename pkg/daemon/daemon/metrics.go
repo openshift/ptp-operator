@@ -23,11 +23,11 @@ const (
 	PTPNamespace = "openshift"
 	PTPSubsystem = "ptp"
 
-	ptp4lProcessName  = "ptp4l"
-	phcProcessName    = "phc2sys"
-	ts2phcProcessName = "ts2phc"
-	clockRealTime     = "CLOCK_REALTIME"
-	master            = "master"
+	ptp4lProcessName   = "ptp4l"
+	phc2sysProcessName = "phc2sys"
+	ts2phcProcessName  = "ts2phc"
+	clockRealTime      = "CLOCK_REALTIME"
+	master             = "master"
 
 	faultyOffset = 999999
 
@@ -262,7 +262,7 @@ func extractMetrics(messageTag string, processName string, ifaces []config.Iface
 					if slaveIface.isFaulty(configName, ifaces[portId-1].Name) &&
 						masterOffsetSource.get(configName) == ptp4lProcessName {
 						updatePTPMetrics(master, processName, masterOffsetIface.get(configName).alias, faultyOffset, faultyOffset, 0, 0)
-						updatePTPMetrics(phc, phcProcessName, clockRealTime, faultyOffset, faultyOffset, 0, 0)
+						updatePTPMetrics(phc, phc2sysProcessName, clockRealTime, faultyOffset, faultyOffset, 0, 0)
 						updateClockStateMetrics(processName, masterOffsetIface.get(configName).alias, FREERUN)
 						masterOffsetIface.set(configName, "")
 						slaveIface.set(configName, "")
