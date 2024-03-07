@@ -495,6 +495,17 @@ func (in *PtpProfile) DeepCopyInto(out *PtpProfile) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.HaProfiles != nil {
+		in, out := &in.HaProfiles, &out.HaProfiles
+		*out = make([]*string, len(*in))
+		for i := range *in {
+			if (*in)[i] != nil {
+				in, out := &(*in)[i], &(*out)[i]
+				*out = new(string)
+				**out = **in
+			}
+		}
+	}
 	if in.Ts2PhcOpts != nil {
 		in, out := &in.Ts2PhcOpts, &out.Ts2PhcOpts
 		*out = new(string)

@@ -37,6 +37,10 @@ spec:
               profile:
                 items:
                   properties:
+                    haProfiles:
+                      items:
+                        type: string
+                      type: array
                     interface:
                       type: string
                     name:

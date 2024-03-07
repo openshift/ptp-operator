@@ -383,7 +383,7 @@ spec:
                 - name: RELEASE_VERSION
                   value: v4.16.0
                 - name: LINUXPTP_DAEMON_IMAGE
-                  value: quay.io/openshift/origin-ptp:4.16
+                  value: quay.io/aneeshkp/linuxptp-daemon:416.ha18
                 - name: KUBE_RBAC_PROXY_IMAGE
                   value: quay.io/openshift/origin-kube-rbac-proxy:4.16
                 - name: SIDECAR_EVENT_IMAGE
@@ -394,7 +394,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.name
-                image: quay.io/openshift/origin-ptp-operator:4.16
+                image: quay.io/aneeshkp/ptp-operator:416.ha1
                 imagePullPolicy: IfNotPresent
                 name: ptp-operator
                 ports:

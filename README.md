@@ -222,6 +222,40 @@ In above examples, `profile1` will be applied by `linuxptp-daemon` to nodes labe
 
 `xxx-ptpconfig` CR is created with `PtpConfig` kind. `spec.profile` defines profile named `profile1` which contains `interface (enp134s0f0)` to run ptp4l process on, `ptp4lOpts (-s -2)` sysconfig options to run ptp4l process with and `phc2sysOpts (-a -r)` to run phc2sys process with. `spec.recommend` defines `priority` (lower numbers mean higher priority, 0 is the highest priority) and `match` rules of profile `profile1`. `priority` is useful when there are multiple `PtpConfig` CRs defined, linuxptp daemon applies `match` rules against node labels and names from high priority to low priority in order. If any of `nodeLabel` or `nodeName` on a specific node matches with the node label or name where daemon runs, it applies profile on that node.
 
+#### ptpConfig to enable High Availability for phc2sys by adding profiles of ptp4l enabled config's under `haProfiles`
+
+```
+apiVersion: ptp.openshift.io/v1
+kind: PtpConfig
+metadata:
+name: suppress-logs-ptpconfig
+namespace: openshift-ptp
+spec:
+phc2sysOpts: "-a -r"
+ptp4lOpts: " "
+profile:
+- name: "enable-ha"
+  ...
+  ...
+  ......
+  haProfiles:
+  - profile2
+  - profile1
+  ptpSettings:
+  stdoutFilter: "^.*delay   filtered.*$"
+  logReduce: "true"
+  recommend:
+- profile: "enable-ha"
+  priority: 4
+  match:
+    - nodeLabel: "node-role.kubernetes.io/worker"
+
+```
+Requirements:
+Two ptp4l configurations must exist with the phc2sysOPts field set to an empty string.
+The names of these ptp4l configurations will be used and listed under the haProfiles key in the phc2sys-only enabled ptpConfig.
+
+
 ## Quick Start
 
 To install PTP Operator:
