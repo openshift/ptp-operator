@@ -40,6 +40,7 @@ const (
 
 // log is for logging in this package.
 var ptpconfiglog = logf.Log.WithName("ptpconfig-resource")
+var profileRegEx = regexp.MustCompile(`^(\w+)(,\s*([\w-_]+))`)
 
 func (r *PtpConfig) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
@@ -132,6 +133,10 @@ func (r *PtpConfig) validate() error {
 					v = strings.ToLower(v)
 					if v != "true" && v != "false" {
 						return errors.New("logReduce='" + v + "' is invalid; must be in 'true' or 'false'")
+					}
+				case k == "haProfiles":
+					if !profileRegEx.MatchString(v) {
+						return errors.New("haProfiles='" + v + "' is invalid; must be comma seperated profile names")
 					}
 				default:
 					return errors.New("profile.PtpSettings '" + k + "' is not a configurable setting")
