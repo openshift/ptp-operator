@@ -31,6 +31,13 @@ const (
 	NMEASourceDisabledIndicator     = "nmea source timed out"
 	InvalidMasterTimestampIndicator = "ignoring invalid master time stamp"
 	PTP_HA_IDENTIFIER               = "haProfiles"
+	HAInDomainIndicator             = "as domain source clock"
+	HAOutOfDomainIndicator          = "as out-of-domain source"
+)
+
+var (
+	haInDomainRegEx  = regexp.MustCompile("selecting ([\\w\\-]+) as domain source clock")
+	haOutDomainRegEx = regexp.MustCompile("selecting ([\\w\\-]+) as out-of-domain source clock")
 )
 
 // ProcessManager manages a set of ptpProcess
@@ -43,15 +50,28 @@ type ProcessManager struct {
 
 // NewProcessManager is used by unit tests
 func NewProcessManager() *ProcessManager {
-	process := &ptpProcess{}
-	process.ptpClockThreshold = &ptpv1.PtpClockThreshold{
+	processPTP := &ptpProcess{}
+	processPTP.ptpClockThreshold = &ptpv1.PtpClockThreshold{
 		HoldOverTimeout:    5,
 		MaxOffsetThreshold: 100,
 		MinOffsetThreshold: -100,
 	}
 	return &ProcessManager{
-		process: []*ptpProcess{process},
+		process: []*ptpProcess{processPTP},
 	}
+}
+
+// SetTestProfile ...
+func (p *ProcessManager) SetTestProfileProcess(name string, ifaces config.IFaces, socketPath,
+	ptp4lConfigPath string, nodeProfile ptpv1.PtpProfile) {
+	p.process = append(p.process, &ptpProcess{
+		name:            name,
+		ifaces:          ifaces,
+		ptp4lSocketPath: socketPath,
+		ptp4lConfigPath: ptp4lConfigPath,
+		execMutex:       sync.Mutex{},
+		nodeProfile:     nodeProfile,
+	})
 }
 
 // SetTestData is used by unit tests
@@ -92,6 +112,7 @@ type ptpProcess struct {
 	pmcCheck          bool
 	clockType         event.ClockType
 	ptpClockThreshold *ptpv1.PtpClockThreshold
+	haProfile         map[string][]string // stores list of interface name for each profile
 }
 
 func (p *ptpProcess) Stopped() bool {
@@ -210,6 +231,11 @@ func printWhenNotNil(p interface{}, description string) {
 	}
 }
 
+// SetProcessManager ...
+func (dn *Daemon) SetProcessManager(p *ProcessManager) {
+	dn.processManager = p
+}
+
 func (dn *Daemon) applyNodePTPProfiles() error {
 	glog.Infof("in applyNodePTPProfiles")
 	for _, p := range dn.processManager.process {
@@ -225,6 +251,8 @@ func (dn *Daemon) applyNodePTPProfiles() error {
 				}
 			}
 			p.depProcess = nil
+			//cleanup metrics
+			deleteMetrics(p.ifaces, p.haProfile, p.name, p.configName)
 			p = nil
 		}
 	}
@@ -362,6 +390,9 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 	var messageTag string
 	var cmd *exec.Cmd
 	var pProcess string
+	var haProfile map[string][]string
+
+	ptpHAEnabled := len(listHaProfiles(nodeProfile)) > 0
 
 	for _, p := range ptpProcesses {
 		pProcess = p
@@ -380,13 +411,12 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 		case phc2sysProcessName:
 			configInput = nodeProfile.Phc2sysConf
 			configOpts = nodeProfile.Phc2sysOpts
-			if _, ok := (*nodeProfile).PtpSettings[PTP_HA_IDENTIFIER]; !ok {
+			if !ptpHAEnabled {
 				socketPath = fmt.Sprintf("/var/run/ptp4l.%d.socket", runID)
 			}
 			configFile = fmt.Sprintf("phc2sys.%d.config", runID)
 			configPath = fmt.Sprintf("/var/run/%s", configFile)
 			messageTag = fmt.Sprintf("[ptp4l.%d.config]", runID)
-
 		case ts2phcProcessName:
 			clockType = event.GM
 			configInput = nodeProfile.Ts2PhcConf
@@ -424,8 +454,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 		for index, section := range output.sections {
 			if section.sectionName == "[global]" {
 				section.options["message_tag"] = messageTag
-				// if ha profile is mentioned then you don't need uds_address here
-				if _, ok := (*nodeProfile).PtpSettings[PTP_HA_IDENTIFIER]; !ok {
+				if socketPath != "" {
 					section.options["uds_address"] = socketPath
 				}
 				if gnssSerialPort, ok := section.options["ts2phc.nmea_serialport"]; ok {
@@ -450,7 +479,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 		cmdLine = fmt.Sprintf("/usr/sbin/%s -f %s  %s ", pProcess, configPath, *configOpts)
 		cmdLine = addScheduling(nodeProfile, cmdLine)
 		if pProcess == phc2sysProcessName {
-			cmdLine = dn.applyHaProfiles(nodeProfile, cmdLine)
+			haProfile, cmdLine = dn.ApplyHaProfiles(nodeProfile, cmdLine)
 		}
 		args := strings.Split(cmdLine, " ")
 		cmd = exec.Command(args[0], args[1:]...)
@@ -470,13 +499,14 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 			nodeProfile:       *nodeProfile,
 			clockType:         clockType,
 			ptpClockThreshold: getPTPThreshold(nodeProfile),
+			haProfile:         haProfile,
 		}
-		//TODO HARDWARE PLUGIN for e810
+		// TODO HARDWARE PLUGIN for e810
 		if pProcess == ts2phcProcessName { //& if the x plugin is enabled
 			if output.gnss_serial_port == "" {
 				output.gnss_serial_port = GPSPIPE_SERIALPORT
 			}
-			//TODO: move this to plugin or call it from hwplugin or leave it here and remove Hardcoded
+			// TODO: move this to plugin or call it from hwplugin or leave it here and remove Hardcoded
 			gmInterface := dprocess.ifaces.GetGMInterface().Name
 
 			if e := mkFifo(); e != nil {
@@ -713,6 +743,8 @@ func (p *ptpProcess) cmdRun() {
 					if strings.Contains(output, ClockClassChangeIndicator) {
 						go p.updateClockClass(nil)
 					}
+				} else if p.name == phc2sysProcessName && len(p.haProfile) > 0 {
+					p.announceHAFailOver(nil, output) // do not use go routine since order of execution is important here
 				}
 			}
 			done <- struct{}{}
@@ -861,22 +893,107 @@ func (p *ptpProcess) ProcessTs2PhcEvents(ptpOffset float64, source string, iface
 	}
 }
 
-func (dn *Daemon) applyHaProfiles(nodeProfile *ptpv1.PtpProfile, cmdLine string) string {
-	if profiles, ok := (*nodeProfile).PtpSettings[PTP_HA_IDENTIFIER]; ok {
-		haProfiles := strings.Split(profiles, ",")
-		updateHaProfileToSocketPath := make([]string, 0, len(haProfiles))
-		for _, profileName := range haProfiles {
-			if strings.TrimSpace(profileName) != "" {
-				for _, dmProcess := range dn.processManager.process {
-					if strings.TrimSpace(*dmProcess.nodeProfile.Name) == strings.TrimSpace(profileName) {
-						updateHaProfileToSocketPath = append(updateHaProfileToSocketPath, "-z "+dmProcess.ptp4lSocketPath)
-						break // Exit inner loop if profile found
-					}
+func (dn *Daemon) ApplyHaProfiles(nodeProfile *ptpv1.PtpProfile, cmdLine string) (map[string][]string, string) {
+	lsProfiles := listHaProfiles(nodeProfile)
+	haProfiles := make(map[string][]string, len(lsProfiles))
+	updateHaProfileToSocketPath := make([]string, 0, len(lsProfiles))
+	for _, profileName := range lsProfiles {
+		for _, dmProcess := range dn.processManager.process {
+			if dmProcess.nodeProfile.Name != nil && *dmProcess.nodeProfile.Name == profileName {
+				updateHaProfileToSocketPath = append(updateHaProfileToSocketPath, "-z "+dmProcess.ptp4lSocketPath)
+				var ifaces []string
+				for _, iface := range dmProcess.ifaces {
+					ifaces = append(ifaces, iface.Name)
 				}
+				haProfiles[profileName] = ifaces
+				break // Exit inner loop if profile found
 			}
 		}
-		cmdLine = fmt.Sprintf("%s %s", cmdLine, strings.Join(updateHaProfileToSocketPath, " "))
+	}
+	if len(updateHaProfileToSocketPath) > 0 {
+		cmdLine = fmt.Sprintf("%s%s", cmdLine, strings.Join(updateHaProfileToSocketPath, " "))
 	}
 	glog.Infof(cmdLine)
-	return cmdLine
+	return haProfiles, cmdLine
+}
+
+func listHaProfiles(nodeProfile *ptpv1.PtpProfile) (haProfiles []string) {
+	if profiles, ok := nodeProfile.PtpSettings[PTP_HA_IDENTIFIER]; ok {
+		haProfiles = strings.Split(profiles, ",")
+		for index, profile := range haProfiles {
+			haProfiles[index] = strings.TrimSpace(profile)
+		}
+	}
+	return
+}
+
+func (p *ptpProcess) announceHAFailOver(c *net.Conn, output string) {
+	defer func() {
+		if r := recover(); r != nil {
+			glog.Errorf("Recovered in f %#v", r)
+		}
+	}()
+	var activeIFace string
+	var match []string
+	// selecting ens2f2 as out-of-domain source clock - 0
+	// selecting ens2f0 as domain source clock - 1
+	domainState, activeState := failOverIndicator(output, len(p.haProfile))
+
+	if domainState == 1 {
+		match = haInDomainRegEx.FindStringSubmatch(output)
+	} else if domainState == 0 && activeState == 1 {
+		match = haOutDomainRegEx.FindStringSubmatch(output)
+	} else {
+		return
+	}
+
+	if match != nil {
+		activeIFace = match[1]
+	} else {
+		glog.Errorf("couldn't retrieve interface name from fail over logs %s\n", output)
+		return
+	}
+	// find profile name and construct the log-out and metrics
+	var currentProfile string
+	var inActiveProfiles []string
+	for profile, ifaces := range p.haProfile {
+		for _, iface := range ifaces {
+			if iface == activeIFace {
+				currentProfile = profile
+				break
+			}
+		}
+		// mark all other profiles as inactive
+		if currentProfile != profile && activeState == 1 {
+			inActiveProfiles = append(inActiveProfiles, profile)
+		}
+	}
+
+	logString := fmt.Sprintf("%s[%d]:[%s] ptp_ha_profile %s state %d\n", p.name, time.Now().Unix(), p.configName, currentProfile, activeState)
+	if c == nil {
+		fmt.Printf("%s", logString)
+		UpdatePTPHAMetrics(currentProfile, inActiveProfiles, activeState)
+	} else {
+		_, err := (*c).Write([]byte(logString))
+		if err != nil {
+			glog.Errorf("failed to write class change event %s", err.Error())
+		}
+	}
+}
+
+// 1= In domain 0 out of domain
+// All the profiles are in domain for their own domain.
+// If there are multiple domains/profiles, then both are active in their own domain, and one of them is also active out of domain
+// returns domain state and activeState 3 and 1 = Active,2 is inActive
+func failOverIndicator(output string, count int) (int64, int64) {
+	if strings.Contains(output, HAInDomainIndicator) { // when single profile then it's always 1
+		if count == 1 {
+			return 1, 1 // 1= in ; 1= active profile =3
+		} else {
+			return 1, 0 // 1= in ,1= inactive ==2
+		}
+	} else if strings.Contains(output, HAOutOfDomainIndicator) {
+		return 0, 1 //0=out; 1=active == 1
+	}
+	return 0, 0
 }

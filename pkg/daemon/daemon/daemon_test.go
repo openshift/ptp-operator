@@ -3,6 +3,8 @@ package daemon_test
 import (
 	"flag"
 	"fmt"
+	ptpv1 "github.com/openshift/ptp-operator/api/v1"
+	"k8s.io/utils/pointer"
 	"os"
 	"strings"
 	"testing"
@@ -241,4 +243,44 @@ func Test_ProcessPTPMetrics(t *testing.T) {
 			assert.Equal(tc.expectedInterfaceRole, testutil.ToFloat64(role), "InterfaceRole does not match\n%s", tc.String())
 		}
 	}
+}
+
+func TestDaemon_ApplyHaProfiles(t *testing.T) {
+	p1 := ptpv1.PtpProfile{
+		Name: pointer.String("profile1"),
+	}
+	p2 := ptpv1.PtpProfile{
+		Name: pointer.String("profile2"),
+	}
+	p3 := ptpv1.PtpProfile{
+		Name:        pointer.String("ha_profile1"),
+		PtpSettings: map[string]string{daemon.PTP_HA_IDENTIFIER: "profile1,profile2"},
+	}
+	processManager := daemon.NewProcessManager()
+	ifaces1 := []config.Iface{
+		{
+			Name:     "ens2f2",
+			IsMaster: false,
+			Source:   "",
+			PhcId:    "phcid-2",
+		},
+	}
+	ifaces2 := []config.Iface{
+		{
+			Name:     "ens3f2",
+			IsMaster: false,
+			Source:   "",
+			PhcId:    "phcid-2",
+		},
+	}
+
+	processManager.SetTestProfileProcess(*p1.Name, ifaces1, "socket1", "config1", p1)
+	processManager.SetTestProfileProcess(*p2.Name, ifaces2, "socket2", "config1", p2)
+	processManager.SetTestProfileProcess(*p3.Name, nil, "", "config1", p3)
+	dd := &daemon.Daemon{}
+	dd.SetProcessManager(processManager)
+	haProfiles, cmdLine := dd.ApplyHaProfiles(&p3, "")
+	assert.NotEmpty(t, cmdLine, "cmdLine is not empty")
+	assert.Equal(t, len(haProfiles), 2, "ha has two profiles")
+	assert.Equal(t, cmdLine, "-z socket1 -z socket2", "CmdLine is empty")
 }

@@ -20,9 +20,10 @@ import (
 )
 
 const (
-	PTPNamespace = "openshift"
-	PTPSubsystem = "ptp"
-
+	PTPNamespace       = "openshift"
+	PTPSubsystem       = "ptp"
+	GNSS               = "gnss"
+	DPLL               = "dpll"
 	ptp4lProcessName   = "ptp4l"
 	phc2sysProcessName = "phc2sys"
 	ts2phcProcessName  = "ts2phc"
@@ -159,6 +160,15 @@ var (
 			Name:      "process_restart_count",
 			Help:      "",
 		}, []string{"process", "node", "config"})
+
+	// PTPHAMetrics metrics to show current ha profiles
+	PTPHAMetrics = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: PTPNamespace,
+			Subsystem: PTPSubsystem,
+			Name:      "ha_profile_status",
+			Help:      "0 = INACTIVE 1 = ACTIVE",
+		}, []string{"process", "node", "profile"})
 )
 
 var registerMetrics sync.Once
@@ -174,6 +184,7 @@ func RegisterMetrics(nodeName string) {
 		prometheus.MustRegister(ProcessStatus)
 		prometheus.MustRegister(ProcessRestartCount)
 		prometheus.MustRegister(ClockClassMetrics)
+		prometheus.MustRegister(PTPHAMetrics)
 
 		// Including these stats kills performance when Prometheus polls with multiple targets
 		prometheus.Unregister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
@@ -486,6 +497,65 @@ func UpdateProcessStatusMetrics(process, cfgName string, status int64) {
 	}
 }
 
+// UpdatePTPHAMetrics ... update ptp ha  metrics
+func UpdatePTPHAMetrics(profile string, inActiveProfiles []string, state int64) {
+	PTPHAMetrics.With(prometheus.Labels{
+		"process": phc2sysProcessName, "node": NodeName, "profile": profile}).Set(float64(state))
+	for _, inActive := range inActiveProfiles {
+		PTPHAMetrics.With(prometheus.Labels{
+			"process": phc2sysProcessName, "node": NodeName, "profile": inActive}).Set(0)
+	}
+}
+
+// DeleteMetrics ... update ptp ha  metrics
+func deleteMetrics(ifaces config.IFaces, haProfiles map[string][]string, process, config string) {
+	if process == phc2sysProcessName {
+		deleteOsClockStateMetrics(haProfiles)
+		return
+	}
+	deleteProcessStatusMetrics(config, process)
+	for _, iface := range ifaces {
+		InterfaceRole.Delete(prometheus.Labels{
+			"process": ptp4lProcessName, "node": NodeName, "iface": iface.Name})
+	}
+	for _, iface := range masterOffsetIface.iface {
+		ClockState.Delete(prometheus.Labels{
+			"process": process, "node": NodeName, "iface": iface.alias})
+		Delay.Delete(prometheus.Labels{
+			"from": master, "process": process, "node": NodeName, "iface": iface.alias})
+		FrequencyAdjustment.Delete(prometheus.Labels{
+			"from": master, "process": process, "node": NodeName, "iface": iface.alias})
+		MaxOffset.Delete(prometheus.Labels{
+			"from": master, "process": process, "node": NodeName, "iface": iface.alias})
+		Offset.Delete(prometheus.Labels{
+			"from": master, "process": process, "node": NodeName, "iface": iface.alias})
+	}
+}
+
+func deleteOsClockStateMetrics(profiles map[string][]string) {
+	ClockState.Delete(prometheus.Labels{
+		"process": phc2sysProcessName, "node": NodeName, "iface": clockRealTime})
+	Delay.Delete(prometheus.Labels{
+		"from": phc, "process": phc2sysProcessName, "node": NodeName, "iface": clockRealTime})
+	FrequencyAdjustment.Delete(prometheus.Labels{
+		"from": phc, "process": phc2sysProcessName, "node": NodeName, "iface": clockRealTime})
+	MaxOffset.Delete(prometheus.Labels{
+		"from": phc, "process": phc2sysProcessName, "node": NodeName, "iface": clockRealTime})
+	Offset.Delete(prometheus.Labels{
+		"from": phc, "process": phc2sysProcessName, "node": NodeName, "iface": clockRealTime})
+	for profile := range profiles {
+		PTPHAMetrics.Delete(prometheus.Labels{
+			"process": phc2sysProcessName, "node": NodeName, "profile": profile})
+	}
+}
+
+func deleteProcessStatusMetrics(config, process string) {
+	ProcessStatus.Delete(prometheus.Labels{
+		"process": process, "node": NodeName, "config": config})
+	ProcessRestartCount.Delete(prometheus.Labels{
+		"process": process, "node": NodeName, "config": config})
+
+}
 func extractPTP4lEventState(output string) (portId int, role ptpPortRole) {
 	replacer := strings.NewReplacer("[", " ", "]", " ", ":", " ")
 	output = replacer.Replace(output)
