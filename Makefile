@@ -35,6 +35,13 @@ IMAGE_TAG_BASE ?= openshift.io/ptp-operator
 # You can use it as an arg. (E.g make bundle-build BUNDLE_IMG=<some-registry>/<project-name-bundle>:<tag>)
 BUNDLE_IMG ?= $(IMAGE_TAG_BASE)-bundle:v$(VERSION)
 
+# BUNDLE_GEN_FLAGS are the flags passed to the operator-sdk generate bundle command
+BUNDLE_GEN_FLAGS ?= -q --overwrite --version $(VERSION).0 $(BUNDLE_METADATA_OPTS) --extra-service-accounts "linuxptp-daemon"
+
+# Set the Operator SDK version to use. By default, what is installed on the system is used.
+# This is useful for CI or a project to utilize a specific version of the operator-sdk toolkit.
+OPERATOR_SDK_VERSION ?= v1.22.0-ocp
+
 # Image URL to use all building/pushing image targets
 IMG ?= quay.io/openshift/origin-ptp-operator:$(VERSION)
 
@@ -45,11 +52,19 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+# CONTAINER_TOOL defines the container tool to be used for building images.
+# Be aware that the target commands are only tested with Docker which is
+# scaffolded by default. However, you might want to replace it to use other
+# tools. (i.e. podman)
+CONTAINER_TOOL ?= docker
+
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # This is a requirement for 'setup-envtest.sh' in the test target.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
+
+OS := $(shell uname -s)
 
 all: bin
 
@@ -101,10 +116,10 @@ run: manifests generate fmt vet ## Run a controller from your host.
 	go run ./main.go
 
 docker-build: #test ## Build docker image with the manager.
-	docker build -t ${IMG} .
+	$(CONTAINER_TOOL) build -t ${IMG} .
 
 docker-push: ## Push docker image with the manager.
-	docker push ${IMG}
+	$(CONTAINER_TOOL) push ${IMG}
 
 ##@ Deployment
 
@@ -123,50 +138,64 @@ undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/confi
 	$(KUSTOMIZE) build config/default | kubectl delete -f -
 	$(KUSTOMIZE) build config/custom | kubectl delete -f -
 
+##@ Build Dependencies
 
-CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
-controller-gen: ## Download controller-gen locally if necessary.
-	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.9.2)
+## Location to install dependencies to
+LOCALBIN ?= $(shell pwd)/bin
+$(LOCALBIN):
+	mkdir -p $(LOCALBIN)/x86_64/
 
-OPERATOR_SDK = $(shell pwd)/bin/operator-sdk
-OPERATOR_SDK_VERSION = $(shell $(OPERATOR_SDK) version 2>/dev/null | sed 's/^operator-sdk version: "\([^"]*\).*/\1/')
-OPERATOR_SDK_VERSION_REQ = v1.22.0-ocp
+## Tool Binaries
+KUSTOMIZE ?= $(LOCALBIN)/kustomize
+CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
+ENVTEST ?= $(LOCALBIN)/setup-envtest
+
+## Tool Versions
+KUSTOMIZE_VERSION ?= v4.5.7
+CONTROLLER_TOOLS_VERSION ?= v0.9.2
+
+KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
+.PHONY: kustomize
+kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary. If wrong version is installed, it will be removed before downloading.
+$(KUSTOMIZE): $(LOCALBIN)
+	@if test -x $(LOCALBIN)/kustomize && ! $(LOCALBIN)/kustomize version | grep -q $(KUSTOMIZE_VERSION); then \
+		echo "$(LOCALBIN)/kustomize version is not expected $(KUSTOMIZE_VERSION). Removing it before installing."; \
+		rm -rf $(LOCALBIN)/kustomize; \
+	fi
+	test -s $(LOCALBIN)/kustomize || { curl -Ss $(KUSTOMIZE_INSTALL_SCRIPT) | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN); }
+
+.PHONY: controller-gen
+controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary. If wrong version is installed, it will be overwritten.
+$(CONTROLLER_GEN): $(LOCALBIN)
+	test -s $(LOCALBIN)/controller-gen && $(LOCALBIN)/controller-gen --version | grep -q $(CONTROLLER_TOOLS_VERSION) || \
+	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
+
+.PHONY: operator-sdk
+OPERATOR_SDK ?= $(LOCALBIN)/x86_64/operator-sdk
+OPERATOR_SDK_VERSION_INSTALLED = $(shell $(OPERATOR_SDK) version 2>/dev/null | sed 's/^operator-sdk version: "\([^"]*\).*/\1/')
 operator-sdk: ## Download operator-sdk locally if necessary.
-ifneq ($(OPERATOR_SDK_VERSION_REQ),$(OPERATOR_SDK_VERSION))
+ifneq ($(OPERATOR_SDK_VERSION),$(OPERATOR_SDK_VERSION_INSTALLED))
+ifeq ($(OS), Darwin)
+	curl https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/operator-sdk/4.11.0/operator-sdk-darwin-x86_64.tar.gz? | tar -xz -C bin/x86_64/
+else
 	curl https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/operator-sdk/4.11.0/operator-sdk-linux-x86_64.tar.gz? | tar -xz -C bin/
 endif
+endif
 
-KUSTOMIZE = $(shell pwd)/bin/kustomize
-kustomize: ## Download kustomize locally if necessary.
-	$(call go-install-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v4@v4.5.7)
-
-# go-install-tool will 'go get' any package $2 and install it to $1.
-PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
-define go-install-tool
-@[ -f $(1) ] || { \
-set -e ;\
-TMP_DIR=$$(mktemp -d) ;\
-cd $$TMP_DIR ;\
-go mod init tmp ;\
-echo "Downloading $(2)" ;\
-GOBIN=$(PROJECT_DIR)/bin GOFLAGS=-mod=mod go install $(2) ;\
-rm -rf $$TMP_DIR ;\
-}
-endef
-
-.PHONY: bundle ## Generate bundle manifests and metadata, then validate generated files.
-bundle: operator-sdk manifests kustomize
+.PHONY: bundle
+bundle: manifests kustomize operator-sdk ## Generate bundle manifests and metadata, then validate generated files.
 	$(OPERATOR_SDK) generate kustomize manifests --interactive=false -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
-	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle -q --overwrite --version $(VERSION).0 $(BUNDLE_METADATA_OPTS) --extra-service-accounts "linuxptp-daemon"
+	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle $(BUNDLE_GEN_FLAGS)
 	$(OPERATOR_SDK) bundle validate ./bundle
 	rm -rf manifests/stable
 	cp -r bundle/manifests manifests/stable
 	# Use double quotes in values of olm.skipRange to match the expected regexp in art.yaml
+ifeq ($(OS), Darwin)
+	find . -type f -name "*.clusterserviceversion.yaml" -print0 | xargs -0 sed -i '' '/olm.skipRange:/s#'\''#"#g'
+else
 	find . -type f -name "*.clusterserviceversion.yaml" -print0 | xargs -0 sed -i '/olm.skipRange:/s#'\''#"#g'
-	# Set WATCH_NAMESPACE to "" to enable the operator to moniter resources in other namespaces e.g. watch pod status in amq-router namespace.
-	find . -type f -name "*.clusterserviceversion.yaml" -print0 | xargs -0 sed -i '/name: WATCH_NAMESPACE/{:a;N;/name: POD_NAME/!ba;s/valueFrom.*\n/value: ""\n/};'
-
+endif
 
 .PHONY: bundle-build ## Build the bundle image.
 bundle-build:
