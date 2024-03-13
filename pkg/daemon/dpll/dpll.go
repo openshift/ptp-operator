@@ -35,7 +35,7 @@ const (
 	LocalHoldoverTimeoutStr   = "LocalHoldoverTimeout"
 	MaxInSpecOffsetStr        = "MaxInSpecOffset"
 	ClockIdStr                = "clockId"
-	FaultyPhaseOffset         = math.MaxInt64
+	FaultyPhaseOffset         = 99999999999
 )
 
 type dpllApiType string
@@ -637,6 +637,7 @@ func (d *DpllConfig) stateDecision() {
 			d.sourceLost = true
 		}
 		d.state = event.PTP_FREERUN
+		d.phaseOffset = FaultyPhaseOffset
 		glog.Infof("dpll is in FREERUN, state is FREERUN (%s)", d.iface)
 		d.sendDpllEvent()
 	case DPLL_LOCKED:
@@ -656,10 +657,12 @@ func (d *DpllConfig) stateDecision() {
 		if d.hasPPSAsSource() {
 			if dpllStatus == DPLL_HOLDOVER {
 				d.state = event.PTP_FREERUN // pps when moved to HOLDOVER we declare freerun
+				d.phaseOffset = FaultyPhaseOffset
 				d.sourceLost = true
 			} else if dpllStatus == DPLL_LOCKED_HO_ACQ && d.isOffsetInRange() {
 				d.state = event.PTP_LOCKED
 				d.sourceLost = false
+				d.inSpec = true
 			} else {
 				d.state = event.PTP_FREERUN
 				d.sourceLost = false
@@ -683,6 +686,7 @@ func (d *DpllConfig) stateDecision() {
 		} else if !d.inSpec {
 			glog.Infof("dpll is not in spec ,state is DPLL_LOCKED_HO_ACQ or DPLL_HOLDOVER, offset is out of range, state is FREERUN(%s)", d.iface)
 			d.state = event.PTP_FREERUN
+			d.phaseOffset = FaultyPhaseOffset
 		}
 		d.sendDpllEvent()
 	}
