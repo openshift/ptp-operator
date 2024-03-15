@@ -413,10 +413,12 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 			configOpts = nodeProfile.Phc2sysOpts
 			if !ptpHAEnabled {
 				socketPath = fmt.Sprintf("/var/run/ptp4l.%d.socket", runID)
+				messageTag = fmt.Sprintf("[ptp4l.%d.config]", runID)
+			} else { // when ptp ha enabled it has its own valid config
+				messageTag = fmt.Sprintf("[phc2sys.%d.config]", runID)
 			}
 			configFile = fmt.Sprintf("phc2sys.%d.config", runID)
 			configPath = fmt.Sprintf("/var/run/%s", configFile)
-			messageTag = fmt.Sprintf("[ptp4l.%d.config]", runID)
 		case ts2phcProcessName:
 			clockType = event.GM
 			configInput = nodeProfile.Ts2PhcConf
