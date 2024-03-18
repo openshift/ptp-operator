@@ -17,13 +17,15 @@ import (
 )
 
 const (
-	OpenshiftPtpInterfaceRole = "openshift_ptp_interface_role"
-	OpenshiftPtpClockState    = "openshift_ptp_clock_state"
-	OpenshiftPtpOffsetNs      = "openshift_ptp_offset_ns"
-	OpenshiftPtpThreshold     = "openshift_ptp_threshold"
-	metricsEndPoint           = "127.0.0.1:9091/metrics"
-	MaxOffsetDefaultNs        = 100
-	MinOffsetDefaultNs        = -100
+	OpenshiftPtpInterfaceRole        = "openshift_ptp_interface_role"
+	OpenshiftPtpProcessRestartCounts = "openshift_ptp_process_restart_count"
+	OpenshiftPtpClockState           = "openshift_ptp_clock_state"
+	OpenshiftPtpOffsetNs             = "openshift_ptp_offset_ns"
+	OpenshiftPtpThreshold            = "openshift_ptp_threshold"
+	metricsEndPoint                  = "127.0.0.1:9091/metrics"
+	MaxOffsetDefaultNs               = 100
+	MinOffsetDefaultNs               = -100
+	ExpectedRestartCounts            = 1
 )
 
 var MaxOffsetNs int
@@ -119,6 +121,22 @@ func CheckClockState(state MetricClockState, aIf string, nodeName *string) (err 
 	}
 	if MetricClockState(clockStateInt) != state {
 		return fmt.Errorf("incorrect clock state")
+	}
+	return nil
+}
+
+func CheckProcessRestartCounts(label *string, nodeName *string) (err error) {
+
+	processRestartCountString, err := getMetric(*nodeName, *label, OpenshiftPtpProcessRestartCounts)
+	if err != nil {
+		return fmt.Errorf("error getting process restart counts err:%s", err)
+	}
+	processRestartCountInt, err := strconv.Atoi(processRestartCountString)
+	if err != nil {
+		return fmt.Errorf("error strconv for clockStateString=%s, err:%s", processRestartCountString, err)
+	}
+	if processRestartCountInt != ExpectedRestartCounts {
+		return fmt.Errorf("unexpected restart counts:%d expected it to be %d", processRestartCountInt, ExpectedRestartCounts)
 	}
 	return nil
 }
