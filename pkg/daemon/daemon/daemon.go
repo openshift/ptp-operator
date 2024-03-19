@@ -970,15 +970,22 @@ func (p *ptpProcess) announceHAFailOver(c *net.Conn, output string) {
 			inActiveProfiles = append(inActiveProfiles, profile)
 		}
 	}
-
-	logString := fmt.Sprintf("%s[%d]:[%s] ptp_ha_profile %s state %d\n", p.name, time.Now().Unix(), p.configName, currentProfile, activeState)
+	// log both active and inactive profiles
+	logString := []string{fmt.Sprintf("%s[%d]:[%s] ptp_ha_profile %s state %d\n", p.name, time.Now().Unix(), p.configName, currentProfile, activeState)}
+	for _, inActive := range inActiveProfiles {
+		logString = append(logString, fmt.Sprintf("%s[%d]:[%s] ptp_ha_profile %s state %d\n", p.name, time.Now().Unix(), p.configName, inActive, 0))
+	}
 	if c == nil {
-		fmt.Printf("%s", logString)
+		for _, logProfile := range logString {
+			fmt.Printf("%s", logProfile)
+		}
 		UpdatePTPHAMetrics(currentProfile, inActiveProfiles, activeState)
 	} else {
-		_, err := (*c).Write([]byte(logString))
-		if err != nil {
-			glog.Errorf("failed to write class change event %s", err.Error())
+		for _, logProfile := range logString {
+			_, err := (*c).Write([]byte(logProfile))
+			if err != nil {
+				glog.Errorf("failed to write class change event %s", err.Error())
+			}
 		}
 	}
 }
