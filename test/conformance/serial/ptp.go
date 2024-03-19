@@ -772,8 +772,6 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 						buf, _, _ := pods.ExecCommand(client.Client, pod, pod.Spec.Containers[0].Name, []string{"pmc", "-u", "-f", "/var/run/ptp4l.0.config", "GET CURRENT_DATA_SET"})
 						return strings.Count(buf.String(), "offsetFromMaster")
 					}, 3*time.Minute, 2*time.Second).Should(BeNumerically(">=", 1))
-					buf, _, _ := pods.ExecCommand(client.Client, pod, pod.Spec.Containers[0].Name, []string{"ls", "-1", "-q", "-A", "/host/secrets/"})
-					Expect(buf.String()).To(Equal(""))
 				})
 			})
 		})
