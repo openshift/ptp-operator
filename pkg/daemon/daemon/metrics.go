@@ -229,6 +229,10 @@ func updatePTPMetrics(from, process, iface string, ptpOffset, maxPtpOffset, freq
 // extractMetrics ...
 func extractMetrics(messageTag string, processName string, ifaces []config.Iface, output string) (configName, source string, offset float64, state string, iface string) {
 	configName = strings.Replace(strings.Replace(messageTag, "]", "", 1), "[", "", 1)
+	if configName != "" {
+		configName = strings.Split(configName, MessageTagSuffixSeperator)[0] // remove any suffix added to the configName
+	}
+	output = removeMessageSuffix(output)
 	if strings.Contains(output, " max ") {
 		ifaceName, ptpOffset, maxPtpOffset, frequencyAdjustment, delay := extractSummaryMetrics(configName, processName, output)
 		if ifaceName != "" {
