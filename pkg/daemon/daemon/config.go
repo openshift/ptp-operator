@@ -214,10 +214,9 @@ func (conf *ptp4lConf) renderPtp4lConf() (configOut string, ifaces config.IFaces
 				iface.IsMaster, _ = strconv.ParseBool(strings.TrimSpace(masterOnly))
 			}
 			ifaces = append(ifaces, config.Iface{
-				Name:     iface.Name,
-				IsMaster: false,
-				Source:   iface.Source,
-				PhcId:    iface.PhcId,
+				Name:   iface.Name,
+				Source: iface.Source,
+				PhcId:  iface.PhcId,
 			})
 		}
 		for k, v := range section.options {

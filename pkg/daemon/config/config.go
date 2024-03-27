@@ -50,6 +50,16 @@ func (i *IFaces) GetEventSource(iface string) event.EventSource {
 	return event.PTP4l
 }
 
+// GetPhcID2IFace ... get interface name match phcID
+func (i *IFaces) GetPhcID2IFace(phcId string) string {
+	for _, ii := range *i {
+		if ii.PhcId == phcId {
+			return ii.Name
+		}
+	}
+	return phcId
+}
+
 // String ... get string
 func (i *IFaces) String() string {
 	b := strings.Builder{}
@@ -57,7 +67,7 @@ func (i *IFaces) String() string {
 		b.WriteString("name :" + ii.Name + "\n")
 		b.WriteString(fmt.Sprintf("source %s\n", ii.Source))
 		b.WriteString(fmt.Sprintf("IsMaster %v\n", ii.IsMaster))
-		b.WriteString("phcid :" + ii.PhcId + "\n")
+		b.WriteString(fmt.Sprintf("phcid %s\n", ii.PhcId))
 	}
 	return b.String()
 }
@@ -65,7 +75,7 @@ func (i *IFaces) String() string {
 func GetKubeConfig() (*rest.Config, error) {
 	configFromFlags := func(kubeConfig string) (*rest.Config, error) {
 		if _, err := os.Stat(kubeConfig); err != nil {
-			return nil, fmt.Errorf("Cannot stat kubeconfig '%s'", kubeConfig)
+			return nil, fmt.Errorf("cannot start kubeconfig '%s'", kubeConfig)
 		}
 		return clientcmd.BuildConfigFromFlags("", kubeConfig)
 	}

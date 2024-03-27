@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 
 	"github.com/golang/glog"
@@ -16,7 +17,6 @@ const (
 	_ETHTOOL_HARDWARE_RECEIVE_CAP   = "hardware-receive"
 	_ETHTOOL_HARDWARE_TRANSMIT_CAP  = "hardware-transmit"
 	_ETHTOOL_HARDWARE_RAW_CLOCK_CAP = "hardware-raw-clock"
-	_ETHTOOL_PTP_HARDWARE_CLOCK     = "PTP Hardware Clock:"
 )
 
 func ethtoolInstalled() bool {
@@ -105,39 +105,42 @@ func DiscoverPTPDevices() ([]string, error) {
 	return nics, nil
 }
 
-func GetPhcId(iface string) (phcId string) {
-	var out bytes.Buffer
-
-	if !ethtoolInstalled() {
-		glog.Errorf("discoverDevices(): ethtool not installed. Cannot grab NIC capabilities")
-		return
-	}
-
-	ethtoolPath, _ := exec.LookPath("ethtool")
-
-	cmd := exec.Command(ethtoolPath, "-T", iface)
-	cmd.Stdout = &out
-	err := cmd.Run()
-	if err != nil {
-		glog.Infof("GetPhcId: could not grab NIC timestamp capability for %s: %v", iface, err)
-		return
-	}
-
-	phcId = parsePhcId(&out)
-	if phcId != "" {
-		return fmt.Sprintf("/dev/%s", phcId)
-	}
-	return
-}
-
-func parsePhcId(cmdOut *bytes.Buffer) string {
-	scanner := bufio.NewScanner(cmdOut)
-	for scanner.Scan() {
-		line := strings.TrimPrefix(scanner.Text(), "\t")
-		if strings.Contains(line, _ETHTOOL_PTP_HARDWARE_CLOCK) {
-			parts := strings.Fields(line)
-			return parts[len(parts)-1]
-		}
+func GetPhcId(iface string) string {
+	var err error
+	var id int
+	if id, err = getPTPClockIndex(iface); err != nil {
+		glog.Error(err.Error())
+	} else {
+		return fmt.Sprintf("/dev/ptp%d", id)
 	}
 	return ""
+}
+
+func getPTPClockIndex(iface string) (int, error) {
+	if !ethtoolInstalled() {
+		return 0, fmt.Errorf("discoverDevices(): ethtool not installed. Cannot grab NIC capabilities")
+	}
+
+	// Command to get PTP clock info
+	cmd := exec.Command("ethtool", "-T", iface)
+
+	// Execute the command and capture output
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return -1, fmt.Errorf("failed to run ethtool: %w", err)
+	}
+
+	// Regex to extract clock index
+	re := regexp.MustCompile(`PTP Hardware Clock: (\d+)`)
+	match := re.FindSubmatch(out)
+	if match == nil {
+		return -1, fmt.Errorf("no PTP hardware clock found on %s", iface)
+	}
+	// Convert captured index string to integer
+	var clockIndex int
+	_, err = fmt.Sscanln(string(match[1]), &clockIndex)
+	if err != nil {
+		return 0, err
+	}
+	return clockIndex, nil
 }

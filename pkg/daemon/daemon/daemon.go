@@ -37,9 +37,9 @@ const (
 )
 
 var (
-	haInDomainRegEx      = regexp.MustCompile("selecting ([\\w\\-]+) as domain source clock")
-	haOutDomainRegEx     = regexp.MustCompile("selecting ([\\w\\-]+) as out-of-domain source clock")
-	MessagTagSuffixRegEx = regexp.MustCompile(`([a-zA-Z0-9]+\.[a-zA-Z0-9]+\.config):[a-zA-Z0-9]+(:[a-zA-Z0-9]+)?`)
+	haInDomainRegEx       = regexp.MustCompile("selecting ([\\w\\-]+) as domain source clock")
+	haOutDomainRegEx      = regexp.MustCompile("selecting ([\\w\\-]+) as out-of-domain source clock")
+	MessageTagSuffixRegEx = regexp.MustCompile(`([a-zA-Z0-9]+\.[a-zA-Z0-9]+\.config):[a-zA-Z0-9]+(:[a-zA-Z0-9]+)?`)
 )
 
 // ProcessManager manages a set of ptpProcess
@@ -475,7 +475,6 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 		for i := range ifaces {
 			ifaces[i].PhcId = ptpnetwork.GetPhcId(ifaces[i].Name)
 		}
-
 		if configInput != nil {
 			*configInput = configOutput
 		}
@@ -1020,6 +1019,6 @@ func removeMessageSuffix(input string) (output string) {
 	replacer := strings.NewReplacer("{", "", "}", "")
 	output = replacer.Replace(input)
 	// Replace matching parts in the input string
-	output = MessagTagSuffixRegEx.ReplaceAllString(output, "$1")
+	output = MessageTagSuffixRegEx.ReplaceAllString(output, "$1")
 	return output
 }

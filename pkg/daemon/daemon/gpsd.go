@@ -185,11 +185,6 @@ func (g *GPSD) CmdRun(stdoutToSocket bool) {
 
 // MonitorGNSSEventsWithUblox ... monitor GNSS events with ublox
 func (g *GPSD) MonitorGNSSEventsWithUblox() {
-	//done := make(chan struct{}) // Done setting up logging.  Go ahead and wait for process
-	// var currentNavStatus int64
-	processCfg := g.processConfig
-
-	//currentNavStatus = 0
 	//var ublx *ublox.UBlox
 	g.state = event.PTP_FREERUN
 retry:
@@ -211,9 +206,7 @@ retry:
 		for {
 			select {
 			case <-ticker.C:
-
 				emptyCount := 0
-
 				for {
 					//UbloxPollInit only initializes if not running
 					ublx.UbloxPollInit()
@@ -243,44 +236,47 @@ retry:
 					}
 
 				}
-
 				//glog.Infof("MonitorGNSSEventsWithUblox nStatus=%d ; nOffset=%d", nStatus, nOffset)
-
 				g.offset = nOffset
-				if nStatus >= 3 && g.isOffsetInRange() {
+				g.sourceLost = false
+				if nStatus >= 3 {
 					g.state = event.PTP_LOCKED
+					if !g.isOffsetInRange() {
+						g.state = event.PTP_LOCKED
+					}
 				} else {
 					g.state = event.PTP_FREERUN
+					g.sourceLost = true
 				}
+
 				//if lastState != nStatus || lastOffset != g.offset {
 				//lastState = nStatus
 				//lastOffset = g.offset
 				select {
-				case processCfg.EventChannel <- event.EventChannel{
+				case g.processConfig.EventChannel <- event.EventChannel{
 					ProcessName: event.GNSS,
 					State:       g.state,
-					CfgName:     processCfg.ConfigName,
+					CfgName:     g.processConfig.ConfigName,
 					IFace:       g.gmInterface,
 					Values: map[event.ValueType]interface{}{
 						event.GPS_STATUS: nStatus,
 						event.OFFSET:     g.offset,
 					},
-					ClockType:  processCfg.ClockType,
+					ClockType:  g.processConfig.ClockType,
 					Time:       time.Now().UnixMilli(),
-					SourceLost: false,
+					SourceLost: g.sourceLost,
 					WriteToLog: true,
 					Reset:      false,
 				}:
 				default:
 					glog.Error("failed to send gnss terminated event to eventHandler")
 				}
-				//}
 			case <-g.exitCh:
 				select {
-				case processCfg.EventChannel <- event.EventChannel{
+				case g.processConfig.EventChannel <- event.EventChannel{
 					ProcessName: event.GNSS,
-					CfgName:     processCfg.ConfigName,
-					ClockType:   processCfg.ClockType,
+					CfgName:     g.processConfig.ConfigName,
+					ClockType:   g.processConfig.ClockType,
 					Time:        time.Now().UnixMilli(),
 					Reset:       true,
 				}:

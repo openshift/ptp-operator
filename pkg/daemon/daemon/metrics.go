@@ -227,7 +227,7 @@ func updatePTPMetrics(from, process, iface string, ptpOffset, maxPtpOffset, freq
 }
 
 // extractMetrics ...
-func extractMetrics(messageTag string, processName string, ifaces []config.Iface, output string) (configName, source string, offset float64, state string, iface string) {
+func extractMetrics(messageTag string, processName string, ifaces config.IFaces, output string) (configName, source string, offset float64, state string, iface string) {
 	configName = strings.Replace(strings.Replace(messageTag, "]", "", 1), "[", "", 1)
 	if configName != "" {
 		configName = strings.Split(configName, MessageTagSuffixSeperator)[0] // remove any suffix added to the configName
@@ -244,7 +244,7 @@ func extractMetrics(messageTag string, processName string, ifaces []config.Iface
 			}
 		}
 	} else if strings.Contains(output, " offset ") {
-		err, ifaceName, clockstate, ptpOffset, maxPtpOffset, frequencyAdjustment, delay := extractRegularMetrics(configName, processName, output)
+		err, ifaceName, clockstate, ptpOffset, maxPtpOffset, frequencyAdjustment, delay := extractRegularMetrics(configName, processName, output, ifaces)
 		if err != nil {
 			glog.Error(err.Error())
 
@@ -364,7 +364,7 @@ func extractSummaryMetrics(configName, processName, output string) (iface string
 	return
 }
 
-func extractRegularMetrics(configName, processName, output string) (err error, iface, clockState string, ptpOffset, maxPtpOffset, frequencyAdjustment, delay float64) {
+func extractRegularMetrics(configName, processName, output string, ifaces config.IFaces) (err error, iface, clockState string, ptpOffset, maxPtpOffset, frequencyAdjustment, delay float64) {
 	indx := strings.Index(output, offset)
 	if indx < 0 {
 		return
@@ -387,25 +387,32 @@ func extractRegularMetrics(configName, processName, output string) (err error, i
 	// ts2phc.0.cfg  ens2f1  master    offset          0 s2 freq      -0
 	// for multi card GNSS
 	// ts2phc.0.cfg  /dev/ptp0  master    offset          0 s2 freq      -0
-	// ts2phc.0.cfg  /def/ptp4  master    offset          0 s2 freq      -0
+	// ts2phc.0.cfg  /dev/ptp4  master    offset          0 s2 freq      -0
+	// ts2phc.0.cfg  /dev/ptp4 offset          0 s2 freq      -0
 	// (ts2phc.0.cfg  master  offset      0    s2 freq     -0)
 	if len(fields) < 7 {
 		return
 	}
-
-	if fields[3] == offset && processName == ts2phcProcessName {
-		// Remove the element at index 1 from fields.
-		masterOffsetIface.set(configName, fields[1])
-		slaveIface.set(configName, fields[1])
-		copy(fields[1:], fields[2:])
-		// ts2phc.0.cfg  master    offset          0 s2 freq      -0
-		fields = fields[:len(fields)-1] // Truncate slice.
-		delay = 0
+	// linux 4.2 doesnt have master so we need to add that
+	//    0                1      2              3
+	//ts2phc.0.config  /dev/ptp6 offset          0 s2 freq      +0 (in linux 4.2)
+	if processName == ts2phcProcessName {
+		if fields[2] == offset || fields[3] == offset { // no master in log string
+			fields[1] = ifaces.GetPhcID2IFace(fields[1])
+			masterOffsetIface.set(configName, fields[1])
+			slaveIface.set(configName, fields[1])
+			if fields[2] == offset {
+				fields[1] = master
+			} else {
+				copy(fields[1:], fields[2:])
+				fields = fields[:len(fields)-1] // Truncate slice.
+			}
+			delay = 0
+		}
 	}
-
-	//       0         1      2          3    4   5    6          7     8
-	//ptp4l.0.config master offset          4 s2 freq   -3964 path delay        91
-	//ts2phc.0.cfg  ens2f1  master    offset          0 s2 freq      -0
+	//       0         1      2          3    4   5       6     7     8
+	//ptp4l.0.config master offset       4    s2  freq   -3964 path delay  91
+	// ts2phc.0.cfg  master  offset      0    s2  freq     -0
 	if len(fields) < 7 {
 		err = fmt.Errorf("%s failed to parse output %s: unexpected number of fields", processName, output)
 		return
