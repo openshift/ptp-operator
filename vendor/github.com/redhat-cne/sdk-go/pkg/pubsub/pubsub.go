@@ -22,12 +22,14 @@ import (
 
 // PubSub represents the canonical representation of a Cloud Native Event Publisher and Sender .
 // PubSub Json request payload is as follows,
-// {
-//  "id": "789be75d-7ac3-472e-bbbc-6d62878aad4a",
-//  "endpointUri": "http://localhost:9090/ack/event",
-//  "uriLocation":  "http://localhost:8080/api/ocloudNotifications/v1/publishers/{publisherid}",
-//  "resource":  "/east-edge-10/vdu3/o-ran-sync/sync-group/sync-status/sync-state"
-// }
+//
+//	{
+//	 "id": "789be75d-7ac3-472e-bbbc-6d62878aad4a",
+//	 "endpointUri": "http://localhost:9090/ack/event",
+//	 "uriLocation":  "http://localhost:8080/api/ocloudNotifications/v1/publishers/{publisherid}",
+//	 "resource":  "/east-edge-10/vdu3/o-ran-sync/sync-group/sync-status/sync-state"
+//	}
+//
 // PubSub request model
 type PubSub struct {
 	// ID of the pub/sub; is updated on successful creation of publisher/subscription.

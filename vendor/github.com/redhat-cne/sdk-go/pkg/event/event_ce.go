@@ -23,7 +23,7 @@ import (
 	"github.com/redhat-cne/sdk-go/pkg/pubsub"
 )
 
-//NewCloudEvent create new cloud event from cloud native events and pubsub
+// NewCloudEvent create new cloud event from cloud native events and pubsub
 func (e *Event) NewCloudEvent(ps *pubsub.PubSub) (*cloudevent.Event, error) {
 	ce := cloudevent.NewEvent(cloudevent.VersionV03)
 	ce.SetTime(e.GetTime())

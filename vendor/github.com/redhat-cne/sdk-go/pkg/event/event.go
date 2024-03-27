@@ -25,27 +25,29 @@ import (
 
 // Event represents the canonical representation of a Cloud Native Event.
 // Event Json  payload is as follows,
-//{
-//	"id": "5ce55d17-9234-4fee-a589-d0f10cb32b8e",
-//	"type": "event.sync.sync-status.synchronization-state-change",
-//	"source": "/cluster/node/example.com/ptp/clock_realtime",
-//	"time": "2021-02-05T17:31:00Z",
-//	"data": {
-//		"version": "v1.0",
-//		"values": [{
-//			"resource": "/sync/sync-status/sync-state",
-//			"dataType": "notification",
-//			"valueType": "enumeration",
-//			"value": "ACQUIRING-SYNC"
-//			}, {
-//			"resource": "/sync/sync-status/sync-state",
-//			"dataType": "metric",
-//			"valueType": "decimal64.3",
-//			"value": 100.3
-//			}]
-//		}
-//}
-//Event request model
+//
+//	{
+//		"id": "5ce55d17-9234-4fee-a589-d0f10cb32b8e",
+//		"type": "event.sync.sync-status.synchronization-state-change",
+//		"source": "/cluster/node/example.com/ptp/clock_realtime",
+//		"time": "2021-02-05T17:31:00Z",
+//		"data": {
+//			"version": "v1.0",
+//			"values": [{
+//				"resource": "/sync/sync-status/sync-state",
+//				"dataType": "notification",
+//				"valueType": "enumeration",
+//				"value": "ACQUIRING-SYNC"
+//				}, {
+//				"resource": "/sync/sync-status/sync-state",
+//				"dataType": "metric",
+//				"valueType": "decimal64.3",
+//				"value": 100.3
+//				}]
+//			}
+//	}
+//
+// Event request model
 type Event struct {
 	// ID of the event; must be non-empty and unique within the scope of the producer.
 	// +required

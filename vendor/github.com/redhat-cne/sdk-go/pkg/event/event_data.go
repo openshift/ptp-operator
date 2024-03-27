@@ -43,32 +43,33 @@ const (
 
 // Data ... cloud native events data
 // Data Json payload is as follows,
-//{
-//	"version": "v1.0",
-//	"values": [{
-//		"resource": "/sync/sync-status/sync-state",
-//		"dataType": "notification",
-//		"valueType": "enumeration",
-//		"value": "ACQUIRING-SYNC"
-//		}, {
-//		"resource": "/sync/sync-status/sync-state",
-//		"dataType": "metric",
-//		"valueType": "decimal64.3",
-//		"value": 100.3
-//		}, {
-//		"resource": "/redfish/v1/Systems",
-//		"dataType": "notification",
-//		"valueType": "redfish-event",
-//		"value": {
-// 		    "@odata.context": "/redfish/v1/$metadata#Event.Event",
-// 		    "@odata.type": "#Event.v1_3_0.Event",
-// 		    "Context": "any string is valid",
-// 		    "Events": [{"EventId": "2162", "MemberId": "615703", "MessageId": "TMP0100"}],
-// 		    "Id": "5e004f5a-e3d1-11eb-ae9c-3448edf18a38",
-// 		    "Name": "Event Array"
-//		}
-//	}]
-//}
+//
+//	{
+//		"version": "v1.0",
+//		"values": [{
+//			"resource": "/sync/sync-status/sync-state",
+//			"dataType": "notification",
+//			"valueType": "enumeration",
+//			"value": "ACQUIRING-SYNC"
+//			}, {
+//			"resource": "/sync/sync-status/sync-state",
+//			"dataType": "metric",
+//			"valueType": "decimal64.3",
+//			"value": 100.3
+//			}, {
+//			"resource": "/redfish/v1/Systems",
+//			"dataType": "notification",
+//			"valueType": "redfish-event",
+//			"value": {
+//			    "@odata.context": "/redfish/v1/$metadata#Event.Event",
+//			    "@odata.type": "#Event.v1_3_0.Event",
+//			    "Context": "any string is valid",
+//			    "Events": [{"EventId": "2162", "MemberId": "615703", "MessageId": "TMP0100"}],
+//			    "Id": "5e004f5a-e3d1-11eb-ae9c-3448edf18a38",
+//			    "Name": "Event Array"
+//			}
+//		}]
+//	}
 type Data struct {
 	Version string      `json:"version" example:"v1"`
 	Values  []DataValue `json:"values"`
@@ -76,12 +77,13 @@ type Data struct {
 
 // DataValue ...
 // DataValue Json payload is as follows,
-//{
-//	"resource": "/cluster/node/ptp",
-//	"dataType": "notification",
-//	"valueType": "enumeration",
-//	"value": "ACQUIRING-SYNC"
-//}
+//
+//	{
+//		"resource": "/cluster/node/ptp",
+//		"dataType": "notification",
+//		"valueType": "enumeration",
+//		"value": "ACQUIRING-SYNC"
+//	}
 type DataValue struct {
 	Resource  string      `json:"resource" example:"/cluster/node/clock"`
 	DataType  DataType    `json:"dataType" example:"metric"`
