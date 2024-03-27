@@ -97,7 +97,8 @@ func Format(v interface{}) (string, error) {
 }
 
 // Validate v is a valid CNE attribute value, convert it to one of:
-//     bool, int32, string, []byte, types.URI, types.URIRef, types.Timestamp
+//
+//	bool, int32, string, []byte, types.URI, types.URIRef, types.Timestamp
 func Validate(v interface{}) (interface{}, error) {
 	switch v := v.(type) {
 	case bool, int32, string, []byte:
@@ -155,7 +156,9 @@ func Validate(v interface{}) (interface{}, error) {
 }
 
 // Clone v clones a CNE attribute value, which is one of the valid types:
-//     bool, int32, string, []byte, types.URI, types.URIRef, types.Timestamp
+//
+//	bool, int32, string, []byte, types.URI, types.URIRef, types.Timestamp
+//
 // Returns the same type
 // Panics if the type is not valid
 func Clone(v interface{}) interface{} {

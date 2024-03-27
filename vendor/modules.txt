@@ -13,8 +13,8 @@ github.com/beorn7/perks/quantile
 # github.com/cespare/xxhash/v2 v2.2.0
 ## explicit; go 1.11
 github.com/cespare/xxhash/v2
-# github.com/cloudevents/sdk-go/v2 v2.6.0
-## explicit; go 1.14
+# github.com/cloudevents/sdk-go/v2 v2.15.2
+## explicit; go 1.18
 github.com/cloudevents/sdk-go/v2
 github.com/cloudevents/sdk-go/v2/binding
 github.com/cloudevents/sdk-go/v2/binding/format
@@ -106,7 +106,7 @@ github.com/google/gofuzz/bytesource
 # github.com/google/pprof v0.0.0-20210720184732-4bb14d4b1be1
 ## explicit; go 1.14
 github.com/google/pprof/profile
-# github.com/google/uuid v1.3.0
+# github.com/google/uuid v1.6.0
 ## explicit
 github.com/google/uuid
 # github.com/huandu/xstrings v1.3.2
@@ -237,8 +237,8 @@ github.com/redhat-cne/channel-pubsub
 # github.com/redhat-cne/ptp-listener-exports v0.0.7
 ## explicit; go 1.19
 github.com/redhat-cne/ptp-listener-exports
-# github.com/redhat-cne/sdk-go v0.1.1-0.20221202175356-6d25e1b3c0be
-## explicit; go 1.17
+# github.com/redhat-cne/sdk-go v0.1.1-0.20240321130308-a635605654ab
+## explicit; go 1.21
 github.com/redhat-cne/sdk-go/pkg/event
 github.com/redhat-cne/sdk-go/pkg/event/ptp
 github.com/redhat-cne/sdk-go/pkg/event/redfish

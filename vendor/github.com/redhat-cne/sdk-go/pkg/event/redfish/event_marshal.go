@@ -23,7 +23,7 @@ import (
 )
 
 // WriteJSONEvent ...
-func WriteJSONEvent(in *Event, writer io.Writer, stream *jsoniter.Stream) error {
+func WriteJSONEvent(in *Event, _ io.Writer, stream *jsoniter.Stream) error {
 	stream.WriteObjectStart()
 
 	// Let's write the body
@@ -59,6 +59,7 @@ func WriteJSONEvent(in *Event, writer io.Writer, stream *jsoniter.Stream) error 
 			if err != nil {
 				return fmt.Errorf("error writing Oem: %w", err)
 			}
+			stream.WriteMore()
 		}
 		if data.OdataType != "" {
 			stream.WriteObjectField("@odata.type")
