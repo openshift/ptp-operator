@@ -39,7 +39,8 @@ const (
 var (
 	haInDomainRegEx       = regexp.MustCompile("selecting ([\\w\\-]+) as domain source clock")
 	haOutDomainRegEx      = regexp.MustCompile("selecting ([\\w\\-]+) as out-of-domain source clock")
-	MessageTagSuffixRegEx = regexp.MustCompile(`([a-zA-Z0-9]+\.[a-zA-Z0-9]+\.config):[a-zA-Z0-9]+(:[a-zA-Z0-9]+)?`)
+	messageTagSuffixRegEx = regexp.MustCompile(`([a-zA-Z0-9]+\.[a-zA-Z0-9]+\.config):[a-zA-Z0-9]+(:[a-zA-Z0-9]+)?`)
+	clockIDRegEx          = regexp.MustCompile(`\/dev\/ptp\d+`)
 )
 
 // ProcessManager manages a set of ptpProcess
@@ -475,6 +476,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 		for i := range ifaces {
 			ifaces[i].PhcId = ptpnetwork.GetPhcId(ifaces[i].Name)
 		}
+
 		if configInput != nil {
 			*configInput = configOutput
 		}
@@ -1019,6 +1021,28 @@ func removeMessageSuffix(input string) (output string) {
 	replacer := strings.NewReplacer("{", "", "}", "")
 	output = replacer.Replace(input)
 	// Replace matching parts in the input string
-	output = MessageTagSuffixRegEx.ReplaceAllString(output, "$1")
+	output = messageTagSuffixRegEx.ReplaceAllString(output, "$1")
+	return output
+}
+
+// linuxptp 4.2 uses clock id ; this function will replace the clockid to interface name
+func (p *ptpProcess) replaceClockID(input string) (output string) {
+	if p.name != ts2phcProcessName {
+		return input
+	}
+	// replace only for value with offset
+	if indx := strings.Index(input, offset); indx < 0 {
+		return input
+	}
+	// Replace all occurrences of the pattern with the replacement string
+	// ts2phc[1896327.319]: [ts2phc.0.config] dev/ptp4  offset    -1 s2 freq      -2
+	// Find the first match
+	match := clockIDRegEx.FindStringSubmatch(input)
+	if match == nil {
+		return input
+	}
+	// Extract the captured interface string (group 1)
+	iface := p.ifaces.GetPhcID2IFace(match[0])
+	output = clockIDRegEx.ReplaceAllString(input, iface)
 	return output
 }
