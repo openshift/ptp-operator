@@ -124,7 +124,7 @@ func (g *GPSD) CmdStop() {
 		}
 	}
 	g.unRegisterSubscriber()
-	<-g.exitCh
+	<-g.exitCh // waiting for all child routines to exit; we could add timeout to avoid waiting
 	glog.Infof("Process %s terminated", g.name)
 }
 
@@ -173,12 +173,17 @@ func (g *GPSD) CmdRun(stdoutToSocket bool) {
 			if err != nil {
 				glog.Errorf("CmdRun() error waiting for %s: %v", g.Name(), err)
 			}
+		}
+		time.Sleep(connectionRetryInterval) // Delay to prevent flooding restarts if startup fails
+		// Don't restart after termination
+		if g.Stopped() {
+			glog.Infof("not recreating %s...", g.name)
+			g.exitCh <- struct{}{} // cmdStop is waiting for confirmation
+			break
+		} else {
+			glog.Infof("Recreating %s...", g.name)
 			newCmd := exec.Command(g.cmd.Args[0], g.cmd.Args[1:]...)
 			g.cmd = newCmd
-		} else {
-			processStatus(nil, g.name, g.messageTag, PtpProcessDown)
-			g.exitCh <- struct{}{}
-			break
 		}
 	}
 }
@@ -187,6 +192,22 @@ func (g *GPSD) CmdRun(stdoutToSocket bool) {
 func (g *GPSD) MonitorGNSSEventsWithUblox() {
 	//var ublx *ublox.UBlox
 	g.state = event.PTP_FREERUN
+	ticker := time.NewTicker(GNSSMONITOR_INTERVAL)
+	doneFn := func() {
+		select {
+		case g.processConfig.EventChannel <- event.EventChannel{
+			ProcessName: event.GNSS,
+			CfgName:     g.processConfig.ConfigName,
+			ClockType:   g.processConfig.ClockType,
+			Time:        time.Now().UnixMilli(),
+			Reset:       true,
+		}:
+		default:
+			glog.Error("failed to send gnss terminated event to eventHandler")
+		}
+		ticker.Stop()
+		return // exit
+	}
 retry:
 	if ublx, err := ublox.NewUblox(); err != nil {
 		glog.Errorf("failed to initialize GNSS monitoring via ublox %s", err)
@@ -194,15 +215,9 @@ retry:
 		goto retry
 	} else {
 		//TODO: monitor on 1PPS  events trigger
-		ticker := time.NewTicker(GNSSMONITOR_INTERVAL)
-		//var lastState int64
-		//var lastOffset int64
-		//lastState = -1
-		//	lastOffset = -1
 		nStatus := int64(0)
 		nOffset := int64(99999999)
 		missedTickers := 0
-
 		for {
 			select {
 			case <-ticker.C:
@@ -235,7 +250,11 @@ retry:
 						break
 					}
 				}
-
+				//check if process is stopped
+				if g.Stopped() {
+					doneFn()
+					return
+				}
 				g.offset = nOffset
 				if nStatus < 3 {
 					g.sourceLost = true
@@ -265,20 +284,6 @@ retry:
 				default:
 					glog.Error("failed to send gnss terminated event to eventHandler")
 				}
-			case <-g.exitCh:
-				select {
-				case g.processConfig.EventChannel <- event.EventChannel{
-					ProcessName: event.GNSS,
-					CfgName:     g.processConfig.ConfigName,
-					ClockType:   g.processConfig.ClockType,
-					Time:        time.Now().UnixMilli(),
-					Reset:       true,
-				}:
-				default:
-					glog.Error("failed to send gnss terminated event to eventHandler")
-				}
-				ticker.Stop()
-				return // exit
 			}
 		}
 	}
