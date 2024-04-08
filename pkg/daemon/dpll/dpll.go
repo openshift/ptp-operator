@@ -92,7 +92,6 @@ type DpllConfig struct {
 	slope                  float64
 	timer                  int64 //secs
 	inSpec                 bool
-	offset                 int64
 	state                  event.PTPState
 	onHoldover             bool
 	sourceLost             bool
@@ -194,7 +193,6 @@ func (s DpllSubscriber) Notify(source event.EventSource, state event.PTPState) {
 		glog.Errorf("dpll subscriber %s is not initialized (monitoring state %t)", s.source, s.dpll.isMonitoring)
 		return
 	}
-	glog.Infof("state change notification received  for %s", s.source)
 	dependingProcessStateMap.Lock()
 	defer dependingProcessStateMap.Unlock()
 	currentState := dependingProcessStateMap.states[source]
@@ -290,7 +288,6 @@ func NewDpll(clockId uint64, localMaxHoldoverOffSet, localHoldoverTimeout, maxIn
 			return (float64(localMaxHoldoverOffSet) / float64(localHoldoverTimeout)) * 1000.0
 		}(),
 		timer:                0,
-		offset:               0,
 		state:                event.PTP_FREERUN,
 		iface:                iface,
 		onHoldover:           false,
@@ -531,6 +528,7 @@ func (d *DpllConfig) MonitorDpllNetlink() {
 
 			if d.onHoldover {
 				close(d.holdoverCloseCh)
+				glog.Infof("closing holdover for %s", d.iface)
 				d.onHoldover = false
 			}
 
@@ -623,7 +621,7 @@ func (d *DpllConfig) MonitorDpll() {
 func (d *DpllConfig) stateDecision() {
 	dpllStatus := d.getWorseState(d.phaseStatus, d.frequencyStatus)
 	glog.Infof("%s-dpll decision: Status %d, Offset %d, In spec %v, Source lost %v, On holdover %v",
-		d.iface, dpllStatus, d.offset, d.inSpec, d.sourceLost, d.onHoldover)
+		d.iface, dpllStatus, d.phaseOffset, d.inSpec, d.sourceLost, d.onHoldover)
 	if d.hasPPSAsSource() {
 		d.sourceLost = false //TODO: do not have a handler to catch pps source , so we will set to false
 		// and to true if state changes to holdover for source PPS based DPLL
@@ -641,7 +639,7 @@ func (d *DpllConfig) stateDecision() {
 		glog.Infof("dpll is in FREERUN, state is FREERUN (%s)", d.iface)
 		d.sendDpllEvent()
 	case DPLL_LOCKED:
-		if !d.sourceLost && d.isOffsetInRange() { // right ow pps always source  not lost
+		if !d.sourceLost && d.isOffsetInRange() { // right now pps always source not lost
 			if d.hasGNSSAsSource() && d.onHoldover {
 				d.holdoverCloseCh <- true
 			}
@@ -662,16 +660,17 @@ func (d *DpllConfig) stateDecision() {
 			} else if dpllStatus == DPLL_LOCKED_HO_ACQ && d.isOffsetInRange() {
 				d.state = event.PTP_LOCKED
 				d.sourceLost = false
-				d.inSpec = true
 			} else {
 				d.state = event.PTP_FREERUN
 				d.sourceLost = false
+				d.phaseOffset = FaultyPhaseOffset
 			}
 		} else if !d.sourceLost && d.isOffsetInRange() {
 			glog.Infof("dpll is locked, source is not lost, offset is in range, state is DPLL_LOCKED_HO_ACQ or DPLL_HOLDOVER(%s)", d.iface)
 			if d.hasGNSSAsSource() {
 				if d.onHoldover {
 					d.holdoverCloseCh <- true
+					glog.Infof("closing holdover for %s", d.iface)
 				}
 				d.inSpec = true
 			}
@@ -680,6 +679,8 @@ func (d *DpllConfig) stateDecision() {
 			glog.Infof("dpll state is DPLL_LOCKED_HO_ACQ or DPLL_HOLDOVER,  source is lost, state is HOLDOVER(%s)", d.iface)
 			if !d.onHoldover {
 				d.holdoverCloseCh = make(chan bool)
+				d.onHoldover = true
+				d.state = event.PTP_HOLDOVER
 				go d.holdover()
 			}
 			return // sending events are handled by holdover return here
@@ -804,7 +805,6 @@ func (d *DpllConfig) getWorseState(pstate, fstate int64) int64 {
 }
 
 func (d *DpllConfig) holdover() {
-	d.onHoldover = true
 	start := time.Now()
 	ticker := time.NewTicker(1 * time.Second)
 	defer func() {
@@ -812,23 +812,23 @@ func (d *DpllConfig) holdover() {
 		d.onHoldover = false
 		d.stateDecision()
 	}()
-	d.state = event.PTP_HOLDOVER
 	d.sendDpllEvent()
 	for timeout := time.After(time.Duration(d.timer * int64(time.Second))); ; {
 		select {
 		case <-ticker.C:
 			//calculate offset
-			d.offset = int64(math.Round((d.slope / 1000) * float64(time.Since(start).Seconds())))
-			glog.Infof("(%s) time since holdover start %f, offset %d nanosecond", d.iface, float64(time.Since(start).Seconds()), d.offset)
+			d.phaseOffset = int64(math.Round((d.slope / 1000) * float64(time.Since(start).Seconds())))
+			glog.Infof("(%s) time since holdover start %f, offset %d nanosecond holdover %s", d.iface, float64(time.Since(start).Seconds()), d.phaseOffset, strconv.FormatBool(d.onHoldover))
 			d.sendDpllEvent()
-			if !d.isOffsetInRange() {
-				glog.Infof("offset is out of range: %v, min %v, max %v",
-					d.offset, d.processConfig.GMThreshold.Min, d.processConfig.GMThreshold.Max)
+			if !d.isLocalOffsetInRange() { // when holdover verify with local max holdover not with regular threshold
+				glog.Infof("offset is out of range: %v, max %v",
+					d.phaseOffset, d.LocalMaxHoldoverOffSet)
 				return
 			}
 		case <-timeout:
 			d.inSpec = false // in HO, Out of spec
 			d.state = event.PTP_FREERUN
+			d.phaseOffset = FaultyPhaseOffset
 			glog.Infof("holdover timer %d expired", d.timer)
 			d.sendDpllEvent()
 			return
@@ -840,12 +840,21 @@ func (d *DpllConfig) holdover() {
 	}
 }
 
+func (d *DpllConfig) isLocalOffsetInRange() bool {
+	if d.phaseOffset <= int64(d.LocalMaxHoldoverOffSet) {
+		return true
+	}
+	glog.Infof("in holdover- dpll offset is out of range:  max %d, current %d",
+		d.LocalMaxHoldoverOffSet, d.phaseOffset)
+	return false
+}
+
 func (d *DpllConfig) isOffsetInRange() bool {
-	if d.offset <= d.processConfig.GMThreshold.Max && d.offset >= d.processConfig.GMThreshold.Min {
+	if d.phaseOffset <= d.processConfig.GMThreshold.Max && d.phaseOffset >= d.processConfig.GMThreshold.Min {
 		return true
 	}
 	glog.Infof("dpll offset out of range: min %d, max %d, current %d",
-		d.processConfig.GMThreshold.Min, d.processConfig.GMThreshold.Max, d.offset)
+		d.processConfig.GMThreshold.Min, d.processConfig.GMThreshold.Max, d.phaseOffset)
 	return false
 }
 

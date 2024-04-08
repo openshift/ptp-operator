@@ -1,10 +1,10 @@
 package daemon
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
-
 	"strings"
 	"sync"
 	"syscall"
@@ -39,6 +39,8 @@ type GPSD struct {
 	gpsdDoneCh           chan bool
 	sourceLost           bool
 	subscriber           *GPSDSubscriber
+	monitorCtx           context.Context
+	monitorCancel        context.CancelFunc
 }
 
 // GPSDSubscriber ... event subscriber
@@ -51,6 +53,7 @@ type GPSDSubscriber struct {
 // Monitor ...
 func (s GPSDSubscriber) Monitor() {
 	glog.Info("Starting GNSS Monitoring")
+
 	go s.gpsd.MonitorGNSSEventsWithUblox()
 }
 
@@ -125,6 +128,7 @@ func (g *GPSD) CmdStop() {
 	}
 	g.unRegisterSubscriber()
 	<-g.exitCh // waiting for all child routines to exit; we could add timeout to avoid waiting
+	g.monitorCancel()
 	glog.Infof("Process %s terminated", g.name)
 }
 
@@ -133,6 +137,7 @@ func (g *GPSD) CmdInit() {
 	if g.name == "" {
 		g.name = GPSD_PROCESSNAME
 	}
+	g.monitorCtx, g.monitorCancel = context.WithCancel(context.Background())
 	g.cmdLine = fmt.Sprintf("/usr/local/sbin/%s -p -n -S 2947 -G -N %s", g.Name(), g.SerialPort())
 }
 
@@ -250,21 +255,18 @@ retry:
 						break
 					}
 				}
-				//check if process is stopped
-				if g.Stopped() {
-					doneFn()
-					return
-				}
 				g.offset = nOffset
-				if nStatus < 3 {
-					g.sourceLost = true
-				} else if nStatus >= 3 && g.isOffsetInRange() {
+				g.sourceLost = false
+				switch nStatus >= 3 {
+				case true:
 					g.state = event.PTP_LOCKED
-					g.sourceLost = false
-				} else {
+					if !g.isOffsetInRange() {
+						g.state = event.PTP_FREERUN
+					}
+				default:
 					g.state = event.PTP_FREERUN
+					g.sourceLost = true
 				}
-
 				select {
 				case g.processConfig.EventChannel <- event.EventChannel{
 					ProcessName: event.GNSS,
@@ -284,6 +286,9 @@ retry:
 				default:
 					glog.Error("failed to send gnss terminated event to eventHandler")
 				}
+			case <-g.monitorCtx.Done():
+				doneFn()
+				return
 			}
 		}
 	}

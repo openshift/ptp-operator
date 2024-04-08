@@ -75,7 +75,7 @@ func getTestData(source event.EventSource, pinType uint32) []DpllTestCase {
 		expectedIntermediateState: event.PTP_LOCKED,
 		expectedState:             event.PTP_LOCKED,
 		expectedPhaseStatus:       2, //no phase status event for eec
-		expectedPhaseOffset:       5000000,
+		expectedPhaseOffset:       50,
 		expectedFrequencyStatus:   2, // locked
 		expectedInSpecState:       true,
 		desc:                      "2. with locked frequency status, reading phase status ",

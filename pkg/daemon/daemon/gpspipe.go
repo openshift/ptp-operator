@@ -120,7 +120,7 @@ func (gp *gpspipe) CmdRun(stdoutToSocket bool) {
 			}
 			err = gp.cmd.Wait()
 			if err != nil {
-				glog.Errorf("CmdRun() error waiting for %s: %v", gp.Name(), err)
+				glog.Errorf("CmdRun() error waiting for %s: %v, atempting to restart", gp.Name(), err)
 			}
 			newCmd := exec.Command(gp.cmd.Args[0], gp.cmd.Args[1:]...)
 			gp.cmd = newCmd
