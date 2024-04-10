@@ -119,7 +119,9 @@ func CreateEventProxySidecar(nodeNameFull string) (err error) {
 
 					Args: []string{"--local-api-addr=127.0.0.1:9089",
 						"--api-path=/api/ocloudNotifications/v1/",
-						"--api-addr=127.0.0.1:8089"},
+						"--api-addr=127.0.0.1:8089",
+						"--http-event-publishers=ptp-event-publisher-service-NODE_NAME.openshift-ptp.svc.cluster.local:9043"},
+
 					Env: []corev1.EnvVar{{Name: "NODE_NAME", Value: nodeNameFull},
 						{Name: "CONSUMER_TYPE", Value: "PTP"},
 						{Name: "ENABLE_STATUS_CHECK", Value: "true"},
