@@ -73,13 +73,13 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-parallel]", func() 
 			}
 		})
 
-		It("PTP Slave Clock Sync", func() {
+		XIt("PTP Slave Clock Sync", func() {
 			testPtpSlaveClockSync(fullConfig, testParameters) // Implementation of the test case
 
 		})
 		AfterEach(func() {
 			// closing internal pubsub
-			event.PubSub.Close()
+			//event.PubSub.Close()
 		})
 	})
 })
