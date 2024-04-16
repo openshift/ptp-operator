@@ -404,14 +404,13 @@ func PushInitialEvent(eventType string, timeout time.Duration) (err error) {
 	defer stream.Close()
 	start := time.Now()
 	for {
-		t := time.Now()
-		elapsed := t.Sub(start)
-		if elapsed > timeout {
-			return fmt.Errorf("timedout PushInitialValue, waiting for log in ns=%s pod=%s, looking for = %s", namespace, podName, regex)
-		}
-
 		scanner := bufio.NewScanner(stream)
 		for scanner.Scan() {
+			t := time.Now()
+			elapsed := t.Sub(start)
+			if elapsed > timeout {
+				return fmt.Errorf("timedout PushInitialValue, waiting for log in ns=%s pod=%s, looking for = %s", namespace, podName, regex)
+			}
 			line := scanner.Text()
 			logrus.Trace(line)
 
