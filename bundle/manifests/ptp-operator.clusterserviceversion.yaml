@@ -525,6 +525,7 @@ spec:
       apiVersions:
       - v1
       operations:
+      - CREATE
       - UPDATE
       resources:
       - ptpoperatorconfigs

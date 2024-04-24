@@ -19,8 +19,6 @@ package v1
 import (
 	"context"
 	"errors"
-	"net/url"
-
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -42,28 +40,11 @@ func (r *PtpOperatorConfig) SetupWebhookWithManager(mgr ctrl.Manager, client cli
 		Complete()
 }
 
-//+kubebuilder:webhook:path=/validate-ptp-openshift-io-v1-ptpoperatorconfig,mutating=false,failurePolicy=fail,sideEffects=None,groups=ptp.openshift.io,resources=ptpoperatorconfigs,verbs=update,versions=v1,name=vptpoperatorconfig.kb.io,admissionReviewVersions=v1
-
-const (
-	AmqScheme = "amqp"
-	// storageTypeEmptyDir is used for developer tests to map pubsubstore volume to emptyDir
-	storageTypeEmptyDir = "emptyDir"
-)
+//+kubebuilder:webhook:path=/validate-ptp-openshift-io-v1-ptpoperatorconfig,mutating=false,failurePolicy=fail,sideEffects=None,groups=ptp.openshift.io,resources=ptpoperatorconfigs,verbs=create;update,versions=v1,name=vptpoperatorconfig.kb.io,admissionReviewVersions=v1
 
 func (r *PtpOperatorConfig) validate() error {
-	eventConfig := r.Spec.EventConfig
-	if eventConfig != nil && eventConfig.EnableEventPublisher {
-		transportUrl, err := url.Parse(eventConfig.TransportHost)
-		if err == nil && transportUrl.Scheme == AmqScheme {
-			return nil
-		}
-		if eventConfig.StorageType == "" {
-			// default to emptyDir to pass the check since cloud-event-proxy overwrites this to configMap for HTTP transport
-			eventConfig.StorageType = storageTypeEmptyDir
-		}
-		if eventConfig.StorageType != storageTypeEmptyDir && !r.checkStorageClass(eventConfig.StorageType) {
-			return errors.New("ptpEventConfig.storageType is set to StorageClass " + eventConfig.StorageType + " which does not exist")
-		}
+	if r.GetName() != "default" {
+		return errors.New("PtpOperatorConfig name must be 'default'. Only one 'default' PtpOperatorConfig configuration is allowed")
 	}
 	return nil
 }
@@ -73,6 +54,9 @@ var _ webhook.Validator = &PtpOperatorConfig{}
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
 func (r *PtpOperatorConfig) ValidateCreate() (admission.Warnings, error) {
 	ptpoperatorconfiglog.Info("validate create", "name", r.Name)
+	if err := r.validate(); err != nil {
+		return admission.Warnings{}, err
+	}
 	return admission.Warnings{}, nil
 }
 
@@ -82,7 +66,6 @@ func (r *PtpOperatorConfig) ValidateUpdate(old runtime.Object) (admission.Warnin
 	if err := r.validate(); err != nil {
 		return admission.Warnings{}, err
 	}
-
 	return admission.Warnings{}, nil
 }
 
