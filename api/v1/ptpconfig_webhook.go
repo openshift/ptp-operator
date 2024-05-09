@@ -40,7 +40,7 @@ const (
 
 // log is for logging in this package.
 var ptpconfiglog = logf.Log.WithName("ptpconfig-resource")
-var profileRegEx = regexp.MustCompile(`^(\w+)(,\s*([\w-_]+))`)
+var profileRegEx = regexp.MustCompile(`^([\w\-_]+)(,\s*([\w\-_]+))*$`)
 
 func (r *PtpConfig) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
