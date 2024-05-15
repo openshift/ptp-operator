@@ -28,6 +28,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 type PtpRole int
@@ -144,21 +145,21 @@ func (r *PtpConfig) validate() error {
 var _ webhook.Validator = &PtpConfig{}
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *PtpConfig) ValidateCreate() error {
+func (r *PtpConfig) ValidateCreate() (admission.Warnings, error) {
 	ptpconfiglog.Info("validate create", "name", r.Name)
-	return r.validate()
+	return nil, r.validate()
 }
 
 // ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *PtpConfig) ValidateUpdate(old runtime.Object) error {
+func (r *PtpConfig) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	ptpconfiglog.Info("validate update", "name", r.Name)
-	return r.validate()
+	return nil, r.validate()
 }
 
 // ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *PtpConfig) ValidateDelete() error {
+func (r *PtpConfig) ValidateDelete() (admission.Warnings, error) {
 	ptpconfiglog.Info("validate delete", "name", r.Name)
-	return nil
+	return nil, nil
 }
 
 func getInterfaces(input *ptp4lConf, mode PtpRole) (interfaces []string) {
