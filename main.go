@@ -41,7 +41,6 @@ import (
 	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
 	"github.com/k8snetworkplumbingwg/ptp-operator/controllers"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/names"
-
 	//+kubebuilder:scaffold:imports
 )
 
