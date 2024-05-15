@@ -17,10 +17,10 @@ import (
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/namespaces"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/pods"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/testconfig"
-	chanpubsub "github.com/redhat-cne/channel-pubsub"
-	exports "github.com/redhat-cne/ptp-listener-exports"
-	lib "github.com/redhat-cne/ptp-listener-lib"
-	cneevent "github.com/redhat-cne/sdk-go/pkg/event"
+	//chanpubsub "github.com/redhat-cne/channel-pubsub"
+	//exports "github.com/redhat-cne/ptp-listener-exports"
+	//lib "github.com/redhat-cne/ptp-listener-lib"
+	//cneevent "github.com/redhat-cne/sdk-go/pkg/event"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -43,12 +43,12 @@ const (
 	sidecarNamespaceDeleteTimeout = time.Minute * 2
 )
 
-var (
-	PubSub *chanpubsub.Pubsub
-)
+// var (
+// 	PubSub *chanpubsub.Pubsub
+// )
 
 func InitPubSub() {
-	PubSub = chanpubsub.NewPubsub()
+	//PubSub = chanpubsub.NewPubsub()
 }
 
 // enables event if ptp event is required
