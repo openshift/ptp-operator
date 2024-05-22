@@ -279,8 +279,8 @@ func (dn *Daemon) applyNodePTPProfiles() error {
 	glog.Infof("updating NodePTPProfiles to:")
 	runID := 0
 	slices.SortFunc(dn.ptpUpdate.NodeProfiles, func(a, b ptpv1.PtpProfile) int {
-		aHasPhc2sysOpts := a.Phc2sysOpts != nil && strings.TrimSpace(*a.Phc2sysOpts) != ""
-		bHasPhc2sysOpts := b.Phc2sysOpts != nil && strings.TrimSpace(*b.Phc2sysOpts) != ""
+		aHasPhc2sysOpts := a.Phc2sysOpts != nil && *a.Phc2sysOpts != ""
+		bHasPhc2sysOpts := b.Phc2sysOpts != nil && *b.Phc2sysOpts != ""
 		//sorted in ascending order
 		// here having phc2sysOptions is considered a high number
 		if !aHasPhc2sysOpts && bHasPhc2sysOpts {
@@ -433,7 +433,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 			messageTag = fmt.Sprintf("[ts2phc.%d.config:{level}]", runID)
 		}
 
-		if configOpts == nil || strings.TrimSpace(*configOpts) == "" {
+		if configOpts == nil || *configOpts == "" {
 			glog.Infof("configOpts empty, skipping: %s", pProcess)
 			continue
 		}
