@@ -76,16 +76,20 @@ spec:
                   fieldPath: metadata.name
             - name: PLUGINS
               value: "{{ .EnabledPlugins }}"
-
           volumeMounts:
             - name: config-volume
               mountPath: /etc/linuxptp
+            - name: leap-volume
+              mountPath: /etc/leap
             - name: socket-dir
               mountPath: /var/run
       volumes:
         - name: config-volume
           configMap:
             name: ptp-configmap
+        - name: leap-volume
+          configMap:
+            name: leap-configmap            
         - name: linuxptp-certs
           secret:
             secretName: linuxptp-daemon-secret
