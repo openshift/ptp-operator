@@ -19,6 +19,7 @@ import (
 	ptpclient "github.com/k8snetworkplumbingwg/ptp-operator/pkg/client/clientset/versioned"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/config"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/daemon"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/leap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -102,6 +103,14 @@ func main() {
 	hwconfigs := []ptpv1.HwConfig{}
 	refreshNodePtpDevice := true
 	closeProcessManager := make(chan bool)
+	lm, err := leap.New(kubeClient, daemon.PtpNamespace)
+	if err != nil {
+		glog.Error("failed to initialize Leap manager, ", err)
+		return
+	}
+	go lm.Run()
+
+	defer close(lm.Close)
 	go daemon.New(
 		nodeName,
 		daemon.PtpNamespace,
@@ -113,6 +122,7 @@ func main() {
 		&refreshNodePtpDevice,
 		closeProcessManager,
 		cp.pmcPollInterval,
+		lm,
 	).Run()
 
 	tickerPull := time.NewTicker(time.Second * time.Duration(cp.updateInterval))

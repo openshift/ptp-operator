@@ -94,6 +94,10 @@ spec:
               - "-p"
               - "MON-HW"
             reportOutput: true
+          - args:
+              - "-p"
+              - "NAV-TIMELS"
+            reportOutput: true
     ts2phcOpts: " "
     ts2phcConf: |
       [nmea]

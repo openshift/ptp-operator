@@ -17,6 +17,8 @@ import (
 	"github.com/golang/glog"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/leap"
+
 	ptpnetwork "github.com/openshift/linuxptp-daemon/pkg/network"
 	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
 )
@@ -158,6 +160,8 @@ type Daemon struct {
 
 	// Allow vendors to include plugins
 	pluginManager PluginManager
+
+	leapManager *leap.LeapManager
 }
 
 // New LinuxPTP is called by daemon to generate new linuxptp instance
@@ -171,6 +175,7 @@ func New(
 	hwconfigs *[]ptpv1.HwConfig,
 	refreshNodePtpDevice *bool,
 	pmcPollInterval int,
+	leapManager *leap.LeapManager,
 ) *Daemon {
 	RegisterMetrics(nodeName)
 	InitializeOffsetMaps()
@@ -181,6 +186,7 @@ func New(
 		kubeClient:     kubeClient,
 		ptpUpdate:      ptpUpdate,
 		processManager: &ProcessManager{},
+		leapManager: leapManager,
 		stopCh:         stopCh,
 		pluginManager:  pluginManager,
 		hwconfigs:      hwconfigs,
@@ -517,6 +523,15 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 			if e := mkFifo(); e != nil {
 				glog.Errorf("Error creating named pipe, GNSS monitoring will not work as expected %s", e.Error())
 			}
+
+			for _, section := range output.sections {
+				if section.sectionName == "[global]" {
+					section.options["leapfile"] = fmt.Sprintf("%s/%s", config.DefaultLeapConfigPath, os.Getenv("NODE_NAME"))
+					break
+				}
+			}
+			// Write ts2phc.x.conf with leap-file path per node name
+			configOutput, _ = output.renderPtp4lConf()
 			gpsDaemon := &GPSD{
 				name:        GPSD_PROCESSNAME,
 				execMutex:   sync.Mutex{},
@@ -526,6 +541,7 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 				gmInterface: gmInterface,
 				stopped:     false,
 				messageTag:  messageTag,
+				leapManager: dn.leapManager,
 			}
 			gpsDaemon.CmdInit()
 			gpsDaemon.cmdLine = addScheduling(nodeProfile, gpsDaemon.cmdLine)

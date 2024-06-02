@@ -323,3 +323,88 @@ func ExtractNavStatus(output string) int64 {
 	}
 	return -1
 }
+
+type TimeLs struct {
+	//Information source for the current number
+	// of leap seconds
+	SrcOfCurrLs uint8
+	// Current number of leap seconds since
+	// start of GPS time (Jan 6, 1980). It reflects
+	// how much GPS time is ahead of UTC time.
+	// Galileo number of leap seconds is the
+	// same as GPS. BeiDou number of leap
+	// seconds is 14 less than GPS. GLONASS
+	// follows UTC time, so no leap seconds
+	CurrLs int8
+	// Information source for the future leap
+	// second event.
+	SrcOfLsChange uint8
+	// Future leap second change if one is
+	// scheduled. +1 = positive leap second, -1 =
+	// negative leap second, 0 = no future leap
+	// second event scheduled or no information
+	// available. If the value is 0, then the
+	// amount of leap seconds did not change
+	// and the event should be ignored
+	LsChange int8
+	// Number of seconds until the next leap
+	// second event, or from the last leap second
+	// event if no future event scheduled. If > 0
+	// event is in the future, = 0 event is now, < 0
+	// event is in the past. Valid only if
+	// validTimeToLsEvent = 1
+	TimeToLsEvent int
+	// GPS week number (WN) of the next leap
+	// second event or the last one if no future
+	// event scheduled. Valid only if
+	// validTimeToLsEvent = 1.
+	DateOfLsGpsWn uint
+	// GPS day of week number (DN) for the next
+	// leap second event or the last one if no
+	// future event scheduled. Valid only if
+	// validTimeToLsEvent = 1. (GPS and Galileo
+	// DN: from 1 = Sun to 7 = Sat. BeiDou DN:
+	// from 0 = Sun to 6 = Sat.
+	DateOfLsGpsDn uint8
+	// Validity flags
+	// 1<<0 validCurrLs 1 = Valid current number of leap seconds value.
+	// 1<<1 validTimeToLsEvent 1 = Valid time to next leap second event
+	// or from the last leap second event if no future event scheduled.
+	Valid uint8
+}
+
+func ExtractLeapSec(output []string) *TimeLs {
+	var data = TimeLs{}
+	for _, line := range output {
+		fields := strings.Fields(line)
+		for i, field := range fields {
+			switch field {
+			case "srcOfCurrLs":
+				tmp, _ := strconv.ParseUint(fields[i+1], 10, 8)
+				data.SrcOfCurrLs = uint8(tmp)
+			case "currLs":
+				tmp, _ := strconv.ParseInt(fields[i+1], 10, 8)
+				data.CurrLs = int8(tmp)
+			case "srcOfLsChange":
+				tmp, _ := strconv.ParseUint(fields[i+1], 10, 8)
+				data.SrcOfLsChange = uint8(tmp)
+			case "lsChange":
+				tmp, _ := strconv.ParseInt(fields[i+1], 10, 8)
+				data.LsChange = int8(tmp)
+			case "timeToLsEvent":
+				tmp, _ := strconv.ParseInt(fields[i+1], 10, 32)
+				data.TimeToLsEvent = int(tmp)
+			case "dateOfLsGpsWn":
+				tmp, _ := strconv.ParseUint(fields[i+1], 10, 16)
+				data.DateOfLsGpsWn = uint(tmp)
+			case "dateOfLsGpsDn":
+				tmp, _ := strconv.ParseUint(fields[i+1], 10, 16)
+				data.DateOfLsGpsDn = uint8(tmp)
+			case "valid":
+				tmp, _ := strconv.ParseUint(fmt.Sprintf("0%s", fields[i+1]), 0, 8)
+				data.Valid = uint8(tmp)
+			}
+		}
+	}
+	return &data
+}
