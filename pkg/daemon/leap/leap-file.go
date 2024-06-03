@@ -148,7 +148,7 @@ func (l *LeapManager) PopulateLeapData() error {
 		l.leapFile = *leapData
 		// Set expiration time to 2036
 		exp := time.Date(2036, time.January, 1, 0, 0, 0, 0, time.UTC)
-		start := time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC)
+		start := time.Date(1900, time.January, 1, 0, 0, 0, 0, time.UTC)
 		expSec := int(exp.Sub(start).Seconds())
 		l.leapFile.ExpirationTime = fmt.Sprint(expSec)
 		data, err := l.RenderLeapData()
@@ -212,6 +212,7 @@ func (l *LeapManager) AddLeapEvent(leapTime time.Time,
 			leapTime.Day(), leapTime.Month().String()[:3], leapTime.Year()),
 	}
 	l.leapFile.LeapEvents = append(l.leapFile.LeapEvents, ev)
+	l.leapFile.UpdateTime = fmt.Sprint(int(currentTime.Sub(startTime).Seconds()))
 	l.RehashLeapData()
 
 }
