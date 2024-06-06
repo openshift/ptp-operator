@@ -60,7 +60,7 @@ type LeapFile struct {
 
 func New(kubeclient *kubernetes.Clientset, namespace string) (*LeapManager, error) {
 	lm := &LeapManager{
-		UbloxLsInd: make(chan ublox.TimeLs),
+		UbloxLsInd: make(chan ublox.TimeLs, 2),
 		Close:      make(chan bool),
 		client:     kubeclient,
 		namespace:  namespace,

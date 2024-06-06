@@ -226,10 +226,12 @@ retry:
 		nStatus := int64(0)
 		nOffset := int64(99999999)
 		missedTickers := 0
+		var timeLs *ublox.TimeLs
 		for {
 			select {
 			case <-ticker.C:
 				emptyCount := 0
+				timeLs = nil
 				for {
 					//UbloxPollInit only initializes if not running
 					ublx.UbloxPollInit()
@@ -249,13 +251,12 @@ retry:
 					} else if strings.Contains(output, "UBX-NAV-TIMELS") {
 						emptyCount = 0
 						missedTickers = 0
-						lines := []string{}
+						var lines []string
 						for i := 0; i < timeLsResultLines; i++ {
 							line := ublx.UbloxPollPull()
 							lines = append(lines, line)
 						}
-						timeLs := ublox.ExtractLeapSec(lines)
-						g.leapManager.UbloxLsInd <- *timeLs
+						timeLs = ublox.ExtractLeapSec(lines)
 					} else if len(output) == 0 {
 						emptyCount++
 					}
@@ -267,9 +268,17 @@ retry:
 						}
 						break
 					}
-				}
+				} // loop ends
 				g.offset = nOffset
 				g.sourceLost = false
+				if timeLs != nil {
+					select {
+					case g.leapManager.UbloxLsInd <- *timeLs:
+					case <-time.After(100 * time.Millisecond):
+						glog.Infof("failied to send leap event updates")
+					}
+				}
+
 				switch nStatus >= 3 {
 				case true:
 					g.state = event.PTP_LOCKED

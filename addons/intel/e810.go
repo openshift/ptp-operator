@@ -63,6 +63,7 @@ func getDefaultUblxCmds() []E810UblxCmds {
 		ReportOutput: false,
 		Args:         []string{"-p", "CFG-MSG,1,3,1"},
 	}
+
 	// Ublx command to save configuration to storage
 	cfgSave := E810UblxCmds{
 		ReportOutput: false,

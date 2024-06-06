@@ -251,6 +251,7 @@ func (u *UBlox) UbloxPollPushThread() {
 		output, err := u.reader.ReadString('\n')
 		if err != nil {
 			u.active = false
+			glog.Errorf("ublox poll thread error %s", err)
 			return
 		} else if len(output) > 0 {
 			u.buffermutex.Lock()
@@ -262,7 +263,8 @@ func (u *UBlox) UbloxPollPushThread() {
 }
 
 func (u *UBlox) UbloxPollReset() {
-	u.cmd.Process.Kill()
+	glog.Info("stopping ublox poll process.")
+	_ = u.cmd.Process.Kill()
 }
 
 // DisableBinary ...  disable binary
