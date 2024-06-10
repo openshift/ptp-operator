@@ -17,9 +17,8 @@ limitations under the License.
 package v1
 
 import (
-	"context"
 	"errors"
-	storagev1 "k8s.io/api/storage/v1"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -73,21 +72,4 @@ func (r *PtpOperatorConfig) ValidateUpdate(old runtime.Object) (admission.Warnin
 func (r *PtpOperatorConfig) ValidateDelete() (admission.Warnings, error) {
 	ptpoperatorconfiglog.Info("validate delete", "name", r.Name)
 	return admission.Warnings{}, nil
-}
-
-func (r *PtpOperatorConfig) checkStorageClass(scName string) bool {
-
-	scList := &storagev1.StorageClassList{}
-	opts := []client.ListOption{}
-	err := k8sclient.List(context.TODO(), scList, opts...)
-	if err != nil {
-		return false
-	}
-
-	for _, sc := range scList.Items {
-		if sc.Name == scName {
-			return true
-		}
-	}
-	return false
 }
