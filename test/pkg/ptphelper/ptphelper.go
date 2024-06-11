@@ -31,7 +31,7 @@ import (
 )
 
 func GetProfileLogID(ptpConfigName string, label *string, nodeName *string) (id string, err error) {
-	const logIDRegex = `(?m).*?Ptp4lConf: #profile: %s(.|\n)*?message_tag \[(.*)\]`
+	const logIDRegex = `(?m).*?Ptp4lConf: #profile: %s(.|\n)*?message_tag \[(.*)(:{level})?\]`
 	const logIDIndex = 2
 	ptpPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
 	if err != nil {
@@ -54,7 +54,7 @@ func GetProfileLogID(ptpConfigName string, label *string, nodeName *string) (id 
 		if err != nil {
 			return id, fmt.Errorf("could not get any profile line, err=%s", err)
 		}
-		return matches[len(matches)-1][logIDIndex], nil
+		return strings.ReplaceAll(matches[len(matches)-1][logIDIndex], ":{level}", ""), nil
 
 	}
 	return id, nil
