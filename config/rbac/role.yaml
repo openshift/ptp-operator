@@ -14,17 +14,6 @@ rules:
   - list
   - watch
 - apiGroups:
-  - ""
-  resources:
-  - persistentvolumeclaims
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - update
-  - watch
-- apiGroups:
   - ptp.openshift.io
   resources:
   - ptpconfigs

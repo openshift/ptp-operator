@@ -58,7 +58,6 @@ items:
   spec:
     ptpEventConfig:
       enableEventPublisher: true
-      # For AMQP transport, transportHost: "amqp://amq-router.amq-router.svc.cluster.local"
       transportHost: "http://ptp-event-publisher-service-NODE_NAME.openshift-ptp.svc.cluster.local:9043"
       storageType: local-sc
     daemonNodeSelector:

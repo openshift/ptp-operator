@@ -21,14 +21,15 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
-	"github.com/openshift/ptp-operator/pkg/names"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
 	"os"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"strings"
 	"time"
+
+	"github.com/openshift/ptp-operator/pkg/names"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -130,15 +131,9 @@ func main() {
 	}
 
 	if err = (&controllers.PtpOperatorConfigReconciler{
-		Client:        mgr.GetClient(),
-		Log:           ctrl.Log.WithName("controllers").WithName("PtpOperatorConfig"),
-		Scheme:        mgr.GetScheme(),
-		IsInitialSync: true,
-		TransportHostStatus: &controllers.EventTransportHostStatus{
-			TransportHostRetryCount: 0,
-			LastTransportHostValue:  "",
-			Success:                 false,
-		},
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("PtpOperatorConfig"),
+		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PtpOperatorConfig")
 		os.Exit(1)
