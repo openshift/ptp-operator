@@ -1,21 +1,22 @@
 # Snyk (https://snyk.io) policy file, patches or ignores known vulnerabilities.
 version: v1.25.0
-
-# References:
-# https://docs.snyk.io/scan-applications/snyk-code/using-snyk-code-from-the-cli/excluding-directories-and-files-from-the-snyk-code-cli-test
-# https://docs.snyk.io/snyk-cli/commands/ignore
 exclude:
   global:
-    # - "vendor/**" # ProdSec encourages not to ignore the entire vendor/* directories
-    # - "unpacked_remote_sources/cachito-gomod-with-deps/app/vendor/**"
-    - "**/*_test.go"
-    - "test/**" # test code only
-    - "pkg/render/testdata/**" # this is only used in test
-    - "vendor/github.com/onsi/ginkgo/**" # test code only
-    - hack # scripts only
-    - scripts # scripts only
-    - bin # this binary folder is not in git repo. Exclude this when run snyk locally.
-
+    - '**/*_test.go'
+    - test/**
+    - pkg/render/testdata/**
+    - vendor/**
+    - hack
+    - scripts
+    - bin
 # ignores vulnerabilities until expiry date; change duration by modifying expiry date
 ignore:
+  f0fd13c9-82e6-4cd6-bf2e-2cec2ec48a44:
+    - 'vendor/sigs.k8s.io/controller-runtime/pkg/log/log.go, line 64':
+        reason: >-
+          False Positive: The stack trace is possibly invoked only when
+          log.SetLogger() was never called. The log.SetLogger() is called in
+          main.go in ptp-operator so this is not an issue.
+        expires: 2054-12-31T00:00:00.000Z
+        created: 2024-06-14T20:52:14.051Z
 patch: {}
