@@ -3,7 +3,7 @@
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
-VERSION ?= 4.16
+VERSION ?= 4.17
 
 # CHANNELS define the bundle channels used in the bundle. 
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "preview,fast,stable")
@@ -171,7 +171,11 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 	GOFLAGS=-mod=mod GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
 
 .PHONY: operator-sdk
+ifeq ($(OS), Darwin)
 OPERATOR_SDK ?= $(LOCALBIN)/x86_64/operator-sdk
+else
+OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk
+endif
 OPERATOR_SDK_VERSION_INSTALLED = $(shell $(OPERATOR_SDK) version 2>/dev/null | sed 's/^operator-sdk version: "\([^"]*\).*/\1/')
 operator-sdk: ## Download operator-sdk locally if necessary.
 ifneq ($(OPERATOR_SDK_VERSION),$(OPERATOR_SDK_VERSION_INSTALLED))
