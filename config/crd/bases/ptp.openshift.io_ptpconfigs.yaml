@@ -86,6 +86,10 @@ spec:
                       additionalProperties:
                         type: string
                       type: object
+                    syncEConf:
+                      type: string
+                    syncEOpts:
+                      type: string
                     ts2phcConf:
                       type: string
                     ts2phcOpts:
