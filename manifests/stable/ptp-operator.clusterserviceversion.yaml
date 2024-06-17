@@ -360,7 +360,7 @@ spec:
                 - name: LINUXPTP_DAEMON_IMAGE
                   value: quay.io/openshift/origin-ptp:4.17
                 - name: KUBE_RBAC_PROXY_IMAGE
-                  value: quay.io/openshift/origin-kube-rbac-proxy:4.17
+                  value: quay.io/openshift/origin-kube-rbac-proxy:4.16
                 - name: SIDECAR_EVENT_IMAGE
                   value: quay.io/openshift/origin-cloud-event-proxy:4.17
                 - name: WATCH_NAMESPACE
