@@ -7,7 +7,7 @@ import (
 	"time"
 
 	leaphash "github.com/facebook/time/leaphash"
-	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/daemon/ublox"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/ublox"
 	"github.com/stretchr/testify/assert"
 )
 

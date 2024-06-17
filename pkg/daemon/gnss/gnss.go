@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/event"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/ublox"
 )
 
