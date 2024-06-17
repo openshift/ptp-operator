@@ -5,10 +5,13 @@ go 1.22.3
 require (
 	github.com/Masterminds/sprig v2.22.0+incompatible
 	github.com/creasty/defaults v1.7.0
+	github.com/facebook/time v0.0.0-20240617150129-8111a2d1476c
 	github.com/go-logr/logr v1.4.1
 	github.com/golang/glog v1.2.1
 	github.com/google/goexpect v0.0.0-20210430020637-ab937bf7fd6f
 	github.com/jaypipes/ghw v0.12.0
+	github.com/mdlayher/genetlink v1.3.2
+	github.com/mdlayher/netlink v1.7.2
 	github.com/onsi/ginkgo/v2 v2.17.3
 	github.com/onsi/gomega v1.33.1
 	github.com/openshift/api v0.0.0-20240515141918-0f9dbca23dbd
@@ -21,11 +24,13 @@ require (
 	github.com/redhat-cne/ptp-listener-exports v0.0.7
 	github.com/redhat-cne/sdk-go v1.5.0
 	github.com/sirupsen/logrus v1.9.3
+	github.com/stratoberry/go-gpsd v1.3.0
 	github.com/stretchr/testify v1.9.0
 	github.com/test-network-function/graphsolver-lib v0.0.3
 	github.com/test-network-function/l2discovery-exports v0.0.3
 	github.com/test-network-function/l2discovery-lib v0.0.9
 	github.com/test-network-function/privileged-daemonset v1.0.22
+	golang.org/x/sync v0.7.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.30.1
 	k8s.io/apiextensions-apiserver v0.30.1
@@ -68,8 +73,10 @@ require (
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/jaypipes/pcidb v1.0.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
+	github.com/josharian/native v1.1.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
+	github.com/mdlayher/socket v0.4.1 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect

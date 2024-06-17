@@ -9,7 +9,7 @@ import (
 
 	"github.com/golang/glog"
 	expect "github.com/google/goexpect"
-	"github.com/k8snetworkplumbingwg/pkg/protocol"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/protocol"
 )
 
 var (
