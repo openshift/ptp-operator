@@ -48,7 +48,6 @@ import (
 	"github.com/k8snetworkplumbingwg/ptp-operator/controllers"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/leaderelection"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/names"
-
 )
 
 var (

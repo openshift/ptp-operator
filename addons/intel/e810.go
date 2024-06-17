@@ -11,9 +11,9 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
+	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/dpll"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/plugin"
-	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
 )
 
 type E810Opts struct {

@@ -19,8 +19,8 @@ import (
 
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/leap"
 
-	ptpnetwork "github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/network"
 	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
+	ptpnetwork "github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/network"
 )
 
 const (
@@ -103,18 +103,18 @@ func (p *ProcessManager) RunProcessPTPMetrics(log string) {
 type ptpProcess struct {
 	name              string
 	ifaces            config.IFaces
-	ptp4lSocketPath string
-	ptp4lConfigPath string
-	configName      string
-	messageTag      string
-	exitCh          chan bool
-	execMutex       sync.Mutex
-	stopped         bool
-	logFilterRegex  string
-	cmd             *exec.Cmd
-	depProcess      []process // these are list of dependent process which needs to be started/stopped if the parent process is starts/stops
-	nodeProfile      ptpv1.PtpProfile
-	parentClockClass float64
+	ptp4lSocketPath   string
+	ptp4lConfigPath   string
+	configName        string
+	messageTag        string
+	exitCh            chan bool
+	execMutex         sync.Mutex
+	stopped           bool
+	logFilterRegex    string
+	cmd               *exec.Cmd
+	depProcess        []process // these are list of dependent process which needs to be started/stopped if the parent process is starts/stops
+	nodeProfile       ptpv1.PtpProfile
+	parentClockClass  float64
 	pmcCheck          bool
 	clockType         event.ClockType
 	ptpClockThreshold *ptpv1.PtpClockThreshold
@@ -154,9 +154,8 @@ type Daemon struct {
 
 	// channel ensure LinuxPTP.Run() exit when main function exits.
 	// stopCh is created by main function and passed by Daemon via NewLinuxPTP()
-	stopCh <-chan struct{}
+	stopCh          <-chan struct{}
 	pmcPollInterval int
-
 
 	// Allow vendors to include plugins
 	pluginManager PluginManager
@@ -181,15 +180,15 @@ func New(
 	InitializeOffsetMaps()
 	pluginManager := registerPlugins(plugins)
 	return &Daemon{
-		nodeName:       nodeName,
-		namespace:      namespace,
-		kubeClient:     kubeClient,
-		ptpUpdate:      ptpUpdate,
-		processManager: &ProcessManager{},
-		leapManager: leapManager,
-		stopCh:         stopCh,
-		pluginManager:  pluginManager,
-		hwconfigs:      hwconfigs,
+		nodeName:             nodeName,
+		namespace:            namespace,
+		kubeClient:           kubeClient,
+		ptpUpdate:            ptpUpdate,
+		processManager:       &ProcessManager{},
+		leapManager:          leapManager,
+		stopCh:               stopCh,
+		pluginManager:        pluginManager,
+		hwconfigs:            hwconfigs,
 		refreshNodePtpDevice: refreshNodePtpDevice,
 	}
 }
@@ -652,6 +651,7 @@ func (dn *Daemon) HandlePmcTicker() {
 			p.pmcCheck = true
 		}
 	}
+}
 
 // Add fifo scheduling if specified in nodeProfile
 func addScheduling(nodeProfile *ptpv1.PtpProfile, cmdLine string) string {

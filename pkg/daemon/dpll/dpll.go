@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/mdlayher/genetlink"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/config"
 	nl "github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/dpll-netlink"
+	"github.com/mdlayher/genetlink"
 	"golang.org/x/sync/semaphore"
 )
 

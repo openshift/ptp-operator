@@ -25,8 +25,8 @@ import (
 )
 
 type cliParams struct {
-	updateInterval int
-	profileDir     string
+	updateInterval  int
+	profileDir      string
 	pmcPollInterval int
 }
 
