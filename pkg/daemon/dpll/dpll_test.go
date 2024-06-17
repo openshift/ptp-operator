@@ -2,16 +2,16 @@ package dpll_test
 
 import (
 	"fmt"
-	nl "github.com/openshift/linuxptp-daemon/pkg/dpll-netlink"
+	nl "github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/dpll-netlink"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/openshift/linuxptp-daemon/pkg/config"
-	"github.com/openshift/linuxptp-daemon/pkg/daemon/dpll"
-	"github.com/openshift/linuxptp-daemon/pkg/event"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/config"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/dpll"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/event"
 	"github.com/stretchr/testify/assert"
 )
 

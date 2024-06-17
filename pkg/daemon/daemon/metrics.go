@@ -11,7 +11,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 
-	"github.com/openshift/linuxptp-daemon/pkg/config"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/config"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	utilwait "k8s.io/apimachinery/pkg/util/wait"
 

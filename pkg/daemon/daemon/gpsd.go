@@ -10,9 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/openshift/linuxptp-daemon/pkg/event"
-	"github.com/openshift/linuxptp-daemon/pkg/gnss"
-	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/leap"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/gnss"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/leap"
 	gpsdlib "github.com/stratoberry/go-gpsd"
 )
 

@@ -4,8 +4,8 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/openshift/linuxptp-daemon/pkg/event"
-	"github.com/openshift/linuxptp-daemon/pkg/daemon/ublox/"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/event"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/ublox"
 )
 
 const (

@@ -1,7 +1,7 @@
 package ublox_test
 
 import (
-	"github.com/openshift/linuxptp-daemon/pkg/daemon/ublox/"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/daemon/ublox/"
 	"github.com/stretchr/testify/assert"
 	"regexp"
 	"testing"

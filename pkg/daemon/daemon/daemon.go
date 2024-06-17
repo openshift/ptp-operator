@@ -17,9 +17,9 @@ import (
 	"github.com/golang/glog"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/leap"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/leap"
 
-	ptpnetwork "github.com/openshift/linuxptp-daemon/pkg/network"
+	ptpnetwork "github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/network"
 	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
 )
 

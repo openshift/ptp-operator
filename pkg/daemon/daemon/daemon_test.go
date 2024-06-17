@@ -3,14 +3,14 @@ package daemon_test
 import (
 	"flag"
 	"fmt"
-	ptpv1 "github.com/openshift/ptp-operator/api/v1"
+	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
 	"k8s.io/utils/pointer"
 	"os"
 	"strings"
 	"testing"
 
-	"github.com/openshift/linuxptp-daemon/pkg/config"
-	"github.com/openshift/linuxptp-daemon/pkg/daemon"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/config"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/daemon"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"

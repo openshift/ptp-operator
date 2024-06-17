@@ -12,9 +12,8 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/mdlayher/genetlink"
-	"github.com/openshift/linuxptp-daemon/pkg/config"
-	nl "github.com/openshift/linuxptp-daemon/pkg/daemon/dpll-netlink"
-	"github.com/openshift/linuxptp-daemon/pkg/event"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/config"
+	nl "github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/dpll-netlink"
 	"golang.org/x/sync/semaphore"
 )
 

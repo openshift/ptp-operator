@@ -1,6 +1,6 @@
 package daemon
 
-import "github.com/openshift/linuxptp-daemon/pkg/config"
+import "github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/config"
 
 type process interface {
 	Name() string

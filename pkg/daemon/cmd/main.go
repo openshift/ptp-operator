@@ -19,7 +19,7 @@ import (
 	ptpclient "github.com/k8snetworkplumbingwg/ptp-operator/pkg/client/clientset/versioned"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/config"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/daemon"
-	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/leap"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/leap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )

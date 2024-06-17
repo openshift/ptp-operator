@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/openshift/linuxptp-daemon/pkg/daemon/ublox"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/ublox"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
