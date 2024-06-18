@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/config"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/event"
 	"os"
 	"strconv"
 	"strings"

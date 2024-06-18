@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/pmc"
-	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/protocol"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/protocol"
 
 	fbprotocol "github.com/facebook/time/ptp/protocol"
 	"github.com/golang/glog"

@@ -3,13 +3,14 @@ package daemon
 import (
 	"bufio"
 	"cmp"
+	"net"
 	"fmt"
-	"k8s.io/utils/pointer"
 	"os"
 	"os/exec"
 	"regexp"
 	"slices"
 	"strings"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -17,6 +18,10 @@ import (
 	"github.com/golang/glog"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/config"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/dpll"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/event"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/pmc"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/leap"
 
 	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
@@ -309,7 +314,7 @@ func (dn *Daemon) applyNodePTPProfiles() error {
 			p.eventCh = dn.processManager.eventChannel
 			// start ptp4l process early , it doesn't have
 			if p.depProcess == nil {
-				go p.cmdRun(dn.stdoutToSocket)
+				go p.cmdRun()
 			} else {
 				for _, d := range p.depProcess {
 					if d != nil {

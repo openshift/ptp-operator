@@ -10,9 +10,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/gnss"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/config"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/event"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/leap"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/ublox"
 	gpsdlib "github.com/stratoberry/go-gpsd"
+	"github.com/golang/glog"
 )
 
 const (
@@ -119,7 +122,7 @@ func (g *GPSD) CmdStop() {
 		return
 	}
 	g.setStopped(true)
-	processStatus(nil, g.name, g.messageTag, PtpProcessDown)
+	processStatus(g.name, g.messageTag, PtpProcessDown)
 	if g.cmd.Process != nil {
 		glog.Infof("Sending TERM to PID: %d", g.cmd.Process.Pid)
 		err := g.cmd.Process.Signal(syscall.SIGTERM)
@@ -155,7 +158,7 @@ func (g *GPSD) CmdRun(stdoutToSocket bool) {
 	}
 	g.subscriber = &GPSDSubscriber{source: event.MONITORING, gpsd: g, id: string(event.GNSS)}
 	g.registerSubscriber()
-	processStatus(nil, g.name, g.messageTag, PtpProcessUp)
+	processStatus(g.name, g.messageTag, PtpProcessUp)
 	for {
 		glog.Infof("Starting %s...", g.Name())
 		glog.Infof("%s cmd: %+v", g.Name(), g.cmd)
