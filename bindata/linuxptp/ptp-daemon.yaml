@@ -39,6 +39,7 @@ spec:
             - "--metrics-addr=127.0.0.1:9091"
             - "--store-path=/store"
             - "--transport-host={{ .EventTransportHost }}"
+            - "--api-version={{ .EventApiVersion }}"
             - "--api-port=9085"
           volumeMounts:
             - name: config-volume
