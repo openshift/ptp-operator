@@ -120,7 +120,6 @@ func main() {
 		plugins,
 		&hwconfigs,
 		&refreshNodePtpDevice,
-		closeProcessManager,
 		cp.pmcPollInterval,
 		lm,
 	).Run()

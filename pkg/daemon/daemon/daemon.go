@@ -57,6 +57,7 @@ var (
 // or stopped simultaneously.
 type ProcessManager struct {
 	process []*ptpProcess
+	eventChannel    chan event.EventChannel
 }
 
 // NewProcessManager is used by unit tests
@@ -112,6 +113,7 @@ type ptpProcess struct {
 	ptp4lConfigPath   string
 	configName        string
 	messageTag        string
+	eventCh           chan event.EventChannel
 	exitCh            chan bool
 	execMutex         sync.Mutex
 	stopped           bool
@@ -434,7 +436,6 @@ func (dn *Daemon) applyNodePtpProfile(runID int, nodeProfile *ptpv1.PtpProfile) 
 			configFile = fmt.Sprintf("phc2sys.%d.config", runID)
 			configPath = fmt.Sprintf("/var/run/%s", configFile)
 		case ts2phcProcessName:
-			clockType = event.GM
 			configInput = nodeProfile.Ts2PhcConf
 			configOpts = nodeProfile.Ts2PhcOpts
 			socketPath = fmt.Sprintf("/var/run/ptp4l.%d.socket", runID)
@@ -760,7 +761,7 @@ func (p *ptpProcess) cmdRun() {
 				output := scanner.Text()
 				if p.pmcCheck {
 					p.pmcCheck = false
-					go p.updateClockClass(&c)
+					go p.updateClockClass(nil)
 				}
 
 				if regexErr != nil || !logFilterRegex.MatchString(output) {
