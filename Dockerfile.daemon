@@ -1,11 +1,11 @@
 FROM golang:1.22.4 AS builder
-WORKDIR /go/src/github.com/k8snetworkplumbingwg/ptp-operator/bin
+WORKDIR /go/src/github.com/k8snetworkplumbingwg/ptp-operator
 COPY . .
 RUN make clean-daemon && make daemon
 
 FROM quay.io/centos/centos:stream9
 RUN dnf update -y && dnf --setopt=skip_missing_names_on_install=False -y install linuxptp ethtool hwdata && dnf clean all
-COPY --from=builder /go/src/github.com/k8snetworkplumbingwg/ptp-operator/bin/ /usr/local/bin/
+COPY --from=builder /go/src/github.com/k8snetworkplumbingwg/ptp-operator/bin/linuxptp-daemon /usr/local/bin/linuxptp-daemon
 COPY ./extra/leap-seconds.list /usr/share/zoneinfo/leap-seconds.list
 
 CMD ["/usr/local/bin/linuxptp-daemon"]
