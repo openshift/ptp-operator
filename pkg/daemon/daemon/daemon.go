@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	PtpNamespace                    = "openshift-ptp"
+	PtpNamespace                    = "ptp"
 	PTP4L_CONF_FILE_PATH            = "/etc/ptp4l.conf"
 	PTP4L_CONF_DIR                  = "/ptp4l-conf"
 	connectionRetryInterval         = 1 * time.Second
