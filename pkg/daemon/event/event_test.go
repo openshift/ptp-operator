@@ -3,7 +3,7 @@ package event_test
 import (
 	"bufio"
 	fbprotocol "github.com/facebook/time/ptp/protocol"
-	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/protocol"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/protocol"
 	"github.com/stretchr/testify/assert"
 	"log"
 	"net"
