@@ -105,7 +105,7 @@ func main() {
 	closeProcessManager := make(chan bool)
 	lm, err := leap.New(kubeClient, daemon.PtpNamespace)
 	if err != nil {
-		glog.Error("failed to initialize Leap manager, ", err)
+		glog.Warning("failed to initialize Leap manager, ", err)
 		return
 	} else {
 		go lm.Run()
