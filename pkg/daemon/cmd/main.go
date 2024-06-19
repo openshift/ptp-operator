@@ -107,8 +107,9 @@ func main() {
 	if err != nil {
 		glog.Error("failed to initialize Leap manager, ", err)
 		return
+	} else {
+		go lm.Run()
 	}
-	go lm.Run()
 
 	defer close(lm.Close)
 	go daemon.New(
