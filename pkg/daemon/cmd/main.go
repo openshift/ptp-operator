@@ -108,9 +108,9 @@ func main() {
 		glog.Warning("failed to initialize Leap manager, ", err)
 	} else {
 		go lm.Run()
+		defer close(lm.Close)
 	}
-
-	defer close(lm.Close)
+	
 	go daemon.New(
 		nodeName,
 		daemon.PtpNamespace,
