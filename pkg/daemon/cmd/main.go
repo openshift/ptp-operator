@@ -106,7 +106,6 @@ func main() {
 	lm, err := leap.New(kubeClient, daemon.PtpNamespace)
 	if err != nil {
 		glog.Warning("failed to initialize Leap manager, ", err)
-		return
 	} else {
 		go lm.Run()
 	}
