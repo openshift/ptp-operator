@@ -4,7 +4,7 @@ COPY . .
 ENV GO111MODULE=off
 RUN make
 
-FROM quay.io/openshift/origin-base:4.14
+FROM quay.io/centos/centos:stream9
 COPY --from=builder /go/src/github.com/k8snetworkplumbingwg/ptp-operator/build/_output/bin/ptp-operator /usr/local/bin/
 COPY --from=builder /go/src/github.com/k8snetworkplumbingwg/ptp-operator/manifests /manifests
 COPY bindata /bindata
