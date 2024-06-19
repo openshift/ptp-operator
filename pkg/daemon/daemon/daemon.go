@@ -197,6 +197,7 @@ func New(
 		pluginManager:        pluginManager,
 		hwconfigs:            hwconfigs,
 		refreshNodePtpDevice: refreshNodePtpDevice,
+		pmcPollInterval:      pmcPollInterval,
 	}
 }
 

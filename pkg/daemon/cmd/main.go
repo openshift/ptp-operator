@@ -110,7 +110,7 @@ func main() {
 		go lm.Run()
 		defer close(lm.Close)
 	}
-	
+
 	go daemon.New(
 		nodeName,
 		daemon.PtpNamespace,
