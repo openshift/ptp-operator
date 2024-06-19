@@ -385,7 +385,7 @@ spec:
                     fieldRef:
                       fieldPath: metadata.name
                 image: ghcr.io/k8snetworkplumbingwg/ptp-operator:latest
-                imagePullPolicy: IfNotPresent
+                imagePullPolicy: Always
                 name: ptp-operator
                 ports:
                 - containerPort: 9443

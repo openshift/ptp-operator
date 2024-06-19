@@ -45,7 +45,7 @@ spec:
           key: some-key
           name: some-name
     image: some-image-name
-    imagePullPolicy: IfNotPresent
+    imagePullPolicy: Always
     name: some-name
     resources:
       requests:

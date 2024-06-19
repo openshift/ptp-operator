@@ -33,7 +33,7 @@ spec:
       containers:
         - name: kube-rbac-proxy
           image: {{.KubeRbacProxy}}
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           args:
             - --logtostderr
             - --secure-listen-address=:8443
@@ -58,7 +58,7 @@ spec:
           securityContext:
             privileged: true
           image: {{.Image}}
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           command: [ "/bin/bash", "-c", "--" ]
           args: [ "/usr/local/bin/linuxptp-daemon --alsologtostderr -v 10" ]
           resources:
