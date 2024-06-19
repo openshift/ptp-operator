@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/event"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/event"
 )
 
 const (

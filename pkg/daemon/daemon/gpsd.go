@@ -10,12 +10,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/config"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/event"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/leap"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/ublox"
 	gpsdlib "github.com/stratoberry/go-gpsd"
-	"github.com/golang/glog"
 )
 
 const (

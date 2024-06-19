@@ -3,14 +3,14 @@ package daemon
 import (
 	"bufio"
 	"cmp"
-	"net"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"regexp"
 	"slices"
-	"strings"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -21,8 +21,8 @@ import (
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/config"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/dpll"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/event"
-	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/pmc"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/leap"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/pmc"
 
 	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
 	ptpnetwork "github.com/k8snetworkplumbingwg/ptp-operator/pkg/daemon/network"
@@ -56,8 +56,8 @@ var (
 // Processes in ProcessManager will be started
 // or stopped simultaneously.
 type ProcessManager struct {
-	process []*ptpProcess
-	eventChannel    chan event.EventChannel
+	process      []*ptpProcess
+	eventChannel chan event.EventChannel
 }
 
 // NewProcessManager is used by unit tests
