@@ -61,7 +61,7 @@ metadata:
     categories: Networking
     certified: "false"
     containerImage: quay.io/openshift/origin-ptp-operator:4.14
-    createdAt: "2024-06-19T20:56:43Z"
+    createdAt: "2024-06-19T21:02:47Z"
     description: This software enables configuration of Precision Time Protocol(PTP)
       on Kubernetes. It detects hardware capable PTP devices on each node, and configures
       linuxptp processes such as ptp4l, phc2sys and timemaster.
@@ -373,7 +373,7 @@ spec:
                 - name: RELEASE_VERSION
                   value: v4.14.0
                 - name: LINUXPTP_DAEMON_IMAGE
-                  value: quay.io/openshift/origin-ptp:4.14
+                  value: ghcr.io/k8snetworkplumbingwg/linuxptp-daemon:latest
                 - name: KUBE_RBAC_PROXY_IMAGE
                   value: quay.io/openshift/origin-kube-rbac-proxy:4.14
                 - name: SIDECAR_EVENT_IMAGE
