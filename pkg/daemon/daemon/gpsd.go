@@ -157,7 +157,7 @@ func (g *GPSD) CmdRun(stdoutToSocket bool) {
 		g.unRegisterSubscriber()
 	}
 	g.subscriber = &GPSDSubscriber{source: event.MONITORING, gpsd: g, id: string(event.GNSS)}
-	g.registerSubscriber()
+	//g.registerSubscriber()
 	processStatus(g.name, g.messageTag, PtpProcessUp)
 	for {
 		glog.Infof("Starting %s...", g.Name())
