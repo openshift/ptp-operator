@@ -584,7 +584,7 @@ func (d *DpllConfig) MonitorProcess(processCfg config.ProcessConfig) {
 		dpll:   d,
 		id:     fmt.Sprintf("%s-%x", event.DPLL, d.clockId),
 	})
-	d.registerAllSubscriber()
+	//d.registerAllSubscriber()
 }
 
 func (d *DpllConfig) unRegisterAllSubscriber() {
