@@ -270,9 +270,9 @@ func (d *DpllConfig) CmdRun(stdToSocket bool) {
 
 func (d *DpllConfig) unRegisterAll() {
 	// register to event notification from other processes
-	for _, s := range d.subscriber {
-		event.StateRegisterer.Unregister(s)
-	}
+	//for _, s := range d.subscriber {
+	//	event.StateRegisterer.Unregister(s)
+	//}
 }
 
 // NewDpll ... create new DPLL process
@@ -588,16 +588,16 @@ func (d *DpllConfig) MonitorProcess(processCfg config.ProcessConfig) {
 }
 
 func (d *DpllConfig) unRegisterAllSubscriber() {
-	for _, s := range d.subscriber {
-		event.StateRegisterer.Unregister(s)
-	}
+	//for _, s := range d.subscriber {
+	//	event.StateRegisterer.Unregister(s)
+	//}
 	d.subscriber = []*DpllSubscriber{}
 }
 
 func (d *DpllConfig) registerAllSubscriber() {
-	for _, s := range d.subscriber {
-		event.StateRegisterer.Register(s)
-	}
+	//for _, s := range d.subscriber {
+	//	event.StateRegisterer.Register(s)
+	//}
 }
 
 // MonitorDpll monitors DPLL on the discovered API, if any

@@ -131,7 +131,7 @@ func (g *GPSD) CmdStop() {
 		}
 	}
 	if g.subscriber != nil {
-		g.unRegisterSubscriber()
+		//g.unRegisterSubscriber()
 	}
 	<-g.exitCh // waiting for all child routines to exit; we could add timeout to avoid waiting
 	g.monitorCancel()
@@ -151,14 +151,14 @@ func (g *GPSD) CmdInit() {
 func (g *GPSD) CmdRun(stdoutToSocket bool) {
 	defer func() {
 		if g.subscriber != nil {
-			g.unRegisterSubscriber()
+			//g.unRegisterSubscriber()
 		}
 	}()
 	// clean up
 	if g.subscriber != nil {
-		g.unRegisterSubscriber()
+		//g.unRegisterSubscriber()
 	}
-	g.subscriber = &GPSDSubscriber{source: event.MONITORING, gpsd: g, id: string(event.GNSS)}
+	//g.subscriber = &GPSDSubscriber{source: event.MONITORING, gpsd: g, id: string(event.GNSS)}
 	//g.registerSubscriber()
 	processStatus(g.name, g.messageTag, PtpProcessUp)
 	for {
