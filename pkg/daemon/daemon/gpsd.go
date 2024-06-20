@@ -130,7 +130,9 @@ func (g *GPSD) CmdStop() {
 			glog.Infof("Process %s (%d) failed to terminate", g.name, g.cmd.Process.Pid)
 		}
 	}
-	g.unRegisterSubscriber()
+	if g.subscriber != nil {
+		g.unRegisterSubscriber()
+	}
 	<-g.exitCh // waiting for all child routines to exit; we could add timeout to avoid waiting
 	g.monitorCancel()
 	glog.Infof("Process %s terminated", g.name)
