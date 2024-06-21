@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -665,4 +666,112 @@ func IsExternalGM() (out bool) {
 	out = isSet && !strings.Contains(value, "false")
 	logrus.Infof("EXTERNAL_GM=%t", out)
 	return out
+}
+
+func GetListOfWPCEnabledInterfaces(nodeName string) ([]string, string) {
+	var retList = make([]string, 0)
+	var deviceId = ""
+	WPCifaces := getWPCEnabledIfaces(nodeName)
+	for _, iFace := range WPCifaces {
+		if strings.HasSuffix(iFace, "0") {
+			deviceId, ret := checkGNSSAvailabilityForIface(nodeName, iFace)
+			if ret {
+				retList = append(retList, addAllInterfacesForNic(WPCifaces, iFace)...)
+				return retList, deviceId
+			}
+		}
+	}
+	return retList, deviceId
+}
+func addAllInterfacesForNic(WPCifaces map[string]string, firstIface string) []string {
+	var ret = make([]string, 0)
+	for _, iFace := range WPCifaces {
+		if strings.HasPrefix(iFace, strings.TrimSuffix(firstIface, "0")) {
+			ret = append(ret, iFace)
+		}
+	}
+	sort.Slice(ret, func(i, j int) bool {
+		return ret[i] < ret[j]
+	})
+	return ret
+}
+
+func getWPCEnabledIfaces(nodeName string) map[string]string {
+	resMap := make(map[string]string)
+	cmd := []string{"/bin/sh", "-c", "grep 000e /sys/class/net/*/device/subsystem_device | awk -F '/' '{print $5}'"}
+	so, se, err := execPodCommand(nodeName, cmd)
+	if err != nil {
+		logrus.Errorf("could not get WPC enabled interfaces, err: %s stderr: %s", err, se.String())
+		return resMap
+	}
+	ifaceArr := strings.Split(so.String(), "\n")
+	replacer := strings.NewReplacer("\r", "", "\n", "")
+	for _, iFace := range ifaceArr {
+		if iFace != "" {
+			iFace = replacer.Replace(iFace)
+			resMap[iFace] = iFace
+		}
+	}
+	return resMap
+}
+
+func checkGNSSAvailabilityForIface(nodeName string, IfaceName string) (string, bool) {
+	cmd := []string{"/bin/sh", "-c", fmt.Sprintf("ls /sys/class/net/%s/device/gnss", IfaceName)}
+	logrus.Infof("cmd = %s ", cmd)
+	so, se, err := execPodCommand(nodeName, cmd)
+	if err != nil {
+		logrus.Errorf("could not gnss device, err: %s \n stderr: %s interfaceName: %s, nodeName: %s", err, se.String(), IfaceName, nodeName)
+		return "", false
+	}
+	devs := strings.Split(so.String(), "\n")
+
+	for _, dev := range devs {
+		if dev != "" {
+			logrus.Infof("gnss device string: %s", dev)
+			if checkGNMRCString(dev, nodeName) {
+				return dev, true
+			}
+		}
+	}
+	return "", false
+}
+
+func checkGNMRCString(deviceName string, nodeName string) bool {
+	replacer := strings.NewReplacer("\r", "", "\n", "")
+	deviceName = replacer.Replace(deviceName)
+	cmd := []string{"/bin/sh", "-c", fmt.Sprintf("head -n 1 /dev/%s", deviceName)}
+	so, se, err := execPodCommand(nodeName, cmd)
+	if err != nil {
+		logrus.Errorf("could not cat gnss device log, err: %s, stderr %s, device name: %s", err, se.String(), deviceName)
+		return false
+	}
+	logs := strings.Split(so.String(), "\n")
+	for _, log := range logs {
+		if strings.Contains(log, "GNRMC") {
+			timeVal := strings.Split(log, ",")[1]
+			logrus.Infof("log value: %s", timeVal)
+			formattedTime := time.Now().UTC().Format("150405") + ".00"
+			logrus.Infof("time value: %s", formattedTime)
+			if strings.EqualFold(timeVal, formattedTime) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func execPodCommand(nodeName string, cmd []string) (stdoutBuf, stderrBuf bytes.Buffer, err error) {
+
+	WaitForPtpDaemonToBeReady()
+	pod, err := GetPtpPodOnNode(nodeName)
+	so, se := bytes.Buffer{}, bytes.Buffer{}
+	if err != nil {
+		logrus.Errorf("Could not get ptp pod from node due to err: %s, nodeName: %s", err, nodeName)
+		return so, se, err
+	}
+	so, se, err = pods.ExecCommand(client.Client, &pod, pkg.PtpContainerName, cmd)
+	if err != nil {
+		logrus.Errorf("Could not run command %s on pod because of err: %s \n stderr: %s", cmd, err, se.String())
+	}
+	return so, se, err
 }

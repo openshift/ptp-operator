@@ -1,14 +1,9 @@
 package testconfig
 
 import (
-	"fmt"
-	"os"
-	"strconv"
-	"strings"
-	"time"
-
 	"context"
-
+	"encoding/json"
+	"fmt"
 	ptpv1 "github.com/openshift/ptp-operator/api/v1"
 	ptptestconfig "github.com/openshift/ptp-operator/test/conformance/config"
 	"github.com/openshift/ptp-operator/test/pkg"
@@ -19,9 +14,15 @@ import (
 	"github.com/sirupsen/logrus"
 	solver "github.com/test-network-function/graphsolver-lib"
 	l2lib "github.com/test-network-function/l2discovery-lib"
+	"gopkg.in/yaml.v3"
 	v1core "k8s.io/api/core/v1"
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
+	"os"
+	"strconv"
+	"strings"
+	"time"
 )
 
 const (
@@ -50,13 +51,15 @@ const (
 	// BoundaryClockString matches the BC clock mode in Environement
 	BoundaryClockString = "BC"
 	// DualNICBoundaryClockString matches the DualNICBC clock mode in Environement
-	DualNICBoundaryClockString = "DualNICBC"
-	ptp4lEthernet              = "-2 --summary_interval -4"
-	ptp4lEthernetSlave         = "-2 -s --summary_interval -4"
-	phc2sysGM                  = "a -r -r -n 24" // use phc2sys to sync phc to system clock
-	phc2sysSlave               = "-a -r -n 24 -m -N 8 -R 16"
-	SCHED_OTHER                = "SCHED_OTHER"
-	SCHED_FIFO                 = "SCHED_FIFO"
+	DualNICBoundaryClockString  = "DualNICBC"
+	TelcoGrandMasterClockString = "T-GM"
+	ptp4lEthernet               = "-2 --summary_interval -4"
+	ptp4lEthernetSlave          = "-2 -s --summary_interval -4"
+	phc2sysGM                   = "-a -r -r -n 24" // use phc2sys to sync phc to system clock
+	phc2sysSlave                = "-a -r -n 24 -m -N 8 -R 16"
+	SCHED_OTHER                 = "SCHED_OTHER"
+	SCHED_FIFO                  = "SCHED_FIFO"
+	WPC_NIC_CODE                = "E810-XXV"
 )
 
 type ConfigStatus int64
@@ -83,6 +86,8 @@ const (
 	BoundaryClock
 	// DualNICBoundaryClock DualNIC Boundary Clock mode
 	DualNICBoundaryClock
+	// GrandMaster mode
+	TelcoGrandMasterClock
 	// Discovery Discovery mode
 	Discovery
 	// None initial empty mode
@@ -117,6 +122,7 @@ var enabledProblems = []string{AlgoOCString,
 	AlgoBCWithSlavesString,
 	AlgoDualNicBCString,
 	AlgoDualNicBCWithSlavesString,
+	AlgoTelcoGMString,
 	AlgoOCExtGMString,
 	AlgoBCExtGMString,
 	AlgoBCWithSlavesExtGMString,
@@ -147,6 +153,7 @@ const (
 	AlgoBCString                       = "BC"
 	AlgoBCWithSlavesString             = "BCWithSlaves"
 	AlgoDualNicBCString                = "DualNicBC"
+	AlgoTelcoGMString                  = "T-GM"
 	AlgoDualNicBCWithSlavesString      = "DualNicBCWithSlaves"
 	AlgoOCExtGMString                  = "OCExtGM"
 	AlgoBCExtGMString                  = "BCExtGM"
@@ -162,7 +169,17 @@ tx_timestamp_timeout 50
 ptp_dst_mac 01:1B:19:00:00:00
 p2p_dst_mac 01:80:C2:00:00:0E
 domainNumber 24
-logging_level 7`
+logging_level 7
+`
+const BaseTs2PhcConfig = `[nmea]
+ts2phc.master 1
+[global]
+use_syslog  0
+verbose 1
+logging_level 7
+ts2phc.pulsewidth 100000000
+leapfile  /usr/share/zoneinfo/leap-seconds.list
+`
 
 func (obj *ptpDiscoveryRes) String() string {
 	if obj == nil {
@@ -218,6 +235,8 @@ func (mode PTPMode) String() string {
 		return BoundaryClockString
 	case DualNICBoundaryClock:
 		return DualNICBoundaryClockString
+	case TelcoGrandMasterClock:
+		return TelcoGrandMasterClockString
 	case Discovery:
 		return DiscoveryString
 	case None:
@@ -235,6 +254,8 @@ func StringToMode(aString string) PTPMode {
 		return BoundaryClock
 	case strings.ToLower(DualNICBoundaryClockString):
 		return DualNICBoundaryClock
+	case strings.ToLower(TelcoGrandMasterClockString):
+		return TelcoGrandMasterClock
 	case strings.ToLower(DiscoveryString), strings.ToLower(legacyDiscoveryString):
 		return Discovery
 	case strings.ToLower(NoneString):
@@ -281,7 +302,7 @@ func GetDesiredConfig(forceUpdate bool) TestConfig {
 	}
 
 	switch mode {
-	case OrdinaryClock, BoundaryClock, DualNICBoundaryClock, Discovery:
+	case OrdinaryClock, BoundaryClock, DualNICBoundaryClock, TelcoGrandMasterClock, Discovery:
 		logrus.Infof("%s mode detected", mode)
 		GlobalConfig.PtpModeDesired = mode
 		GlobalConfig.Status = InitStatus
@@ -346,6 +367,9 @@ func CreatePtpConfigurations() error {
 			return PtpConfigBC(isExternalMaster)
 		case DualNICBoundaryClock:
 			return PtpConfigDualNicBC(isExternalMaster)
+		case TelcoGrandMasterClock:
+			isExternalMaster = false // WPC GM is the only GM under test
+			return PtpConfigTelcoGM(isExternalMaster)
 		}
 	}
 	return nil
@@ -385,6 +409,10 @@ func initAndSolveProblems() {
 		{{int(solver.StepSameNic), 2, 3, 4},
 			{int(solver.StepDifferentNic), 2, 1, 3}}, // step5
 	}
+	data.problems[AlgoTelcoGMString] = &[][][]int{
+		{{int(solver.StepIsPTP), 1, 0}}, // step1
+	}
+
 	data.problems[AlgoDualNicBCWithSlavesString] = &[][][]int{
 		{{int(solver.StepNil), 0, 0}},         // step1
 		{{int(solver.StepSameLan2), 2, 0, 1}}, // step2
@@ -473,6 +501,9 @@ func initAndSolveProblems() {
 	(*data.testClockRolesAlgoMapping[AlgoDualNicBCWithSlavesString])[BC2Master] = 5
 	(*data.testClockRolesAlgoMapping[AlgoDualNicBCWithSlavesString])[Slave2] = 6
 
+	// GM
+	(*data.testClockRolesAlgoMapping[AlgoTelcoGMString])[Grandmaster] = 0
+
 	// OC, External GM
 	(*data.testClockRolesAlgoMapping[AlgoOCExtGMString])[Slave1] = 0
 
@@ -544,6 +575,7 @@ func CreatePtpConfigGrandMaster(nodeName, ifName string) error {
 		ptpSchedulingPolicy = SCHED_FIFO
 	}
 	// Labeling the grandmaster node
+	_, err = nodes.LabelNode(nodeName, pkg.PtpClockUnderTestNodeLabel, "")
 	_, err = nodes.LabelNode(nodeName, pkg.PtpGrandmasterNodeLabel, "")
 	if err != nil {
 		logrus.Errorf("Error setting Grandmaster node role label: %s", err)
@@ -562,6 +594,138 @@ func CreatePtpConfigGrandMaster(nodeName, ifName string) error {
 		pointer.Int64Ptr(int5),
 		ptpSchedulingPolicy,
 		pointer.Int64Ptr(int65))
+}
+
+func CreatePtpConfigWPCGrandMaster(policyName string, nodeName string, ifList []string, deviceID string) error {
+	ptpSchedulingPolicy := SCHED_OTHER
+	configureFifo, err := strconv.ParseBool(os.Getenv("CONFIGURE_FIFO"))
+	if err == nil && configureFifo {
+		ptpSchedulingPolicy = SCHED_FIFO
+	}
+	// Sleep for a second to allow previous label on the same node to complete
+	time.Sleep(time.Second)
+	_, err = nodes.LabelNode(nodeName, pkg.PtpClockUnderTestNodeLabel, "")
+	if err != nil {
+		logrus.Errorf("Error setting BC node role label: %s", err)
+	}
+
+	ts2phcConfig := BaseTs2PhcConfig + fmt.Sprintf("\nts2phc.nmea_serialport  /dev/%s\n", deviceID)
+	ts2phcConfig = fmt.Sprintf("%s\n[%s]\nts2phc.extts_polarity rising\nts2phc.extts_correction 0\n", ts2phcConfig, ifList[0])
+	ptp4lConfig := BasePtp4lConfig + "\nboundary_clock_jbod 1\n"
+	ptp4lConfig = AddInterface(ptp4lConfig, ifList[0], 1)
+	ptp4lConfig = AddInterface(ptp4lConfig, ifList[1], 1)
+	ptp4lsysOpts := ptp4lEthernet
+	ts2phcOpts := " "
+	ph2sysOpts := fmt.Sprintf("-r -u 0 -m -w -N 8 -R 16 -s %s -n 24", ifList[0])
+	plugins := make(map[string]*apiextensions.JSON)
+	const yamlData = `
+plugins:
+  e810:
+    enableDefaultConfig: false
+    settings:
+      LocalMaxHoldoverOffSet: 1500
+      LocalHoldoverTimeout: 14400
+      MaxInSpecOffset: 100
+    pins: 
+      "$iface_master":
+         "U.FL2": "0 2"
+         "U.FL1": "0 1"
+         "SMA2": "0 2"
+         "SMA1": "0 1"
+    ublxCmds:
+      - args: 
+          - "-P"
+          - "29.20"
+          - "-z"
+          - "CFG-HW-ANT_CFG_VOLTCTRL,1"
+        reportOutput: false
+      - args: 
+          - "-P"
+          - "29.20"
+          - "-e"
+          - "GPS"
+        reportOutput: false
+      - args: 
+          - "-P"
+          - "29.20"
+          - "-d"
+          - "Galileo"
+        reportOutput: false
+      - args: 
+          - "-P"
+          - "29.20"
+          - "-d"
+          - "GLONASS"
+        reportOutput: false
+      - args: 
+          - "-P"
+          - "29.20"
+          - "-d"
+          - "BeiDou"
+        reportOutput: false
+      - args: 
+          - "-P"
+          - "29.20"
+          - "-d"
+          - "SBAS"
+        reportOutput: false
+      - args: 
+          - "-P"
+          - "29.20"
+          - "-t"
+          - "-w"
+          - "5"
+          - "-v"
+          - "1"
+          - "-e"
+          - "SURVEYIN,600,50000"
+        reportOutput: true  
+      - args: 
+          - "-P"
+          - "29.20"
+          - "-p"
+          - "MON-HW"
+        reportOutput: true
+      - args: 
+          - "-P"
+          - "29.20"
+          - "-p"
+          - "CFG-MSG,1,38,300"
+        reportOutput: true
+`
+
+	// Unmarshal the YAML data into a generic map
+	var genericMap map[string]interface{}
+	err = yaml.Unmarshal([]byte(strings.Replace(yamlData, "$iface_master", ifList[0], -1)), &genericMap)
+	if err != nil {
+		logrus.Fatalf("error: %v", err)
+	}
+
+	// Marshal the generic map to JSON
+	jsonData, err := json.Marshal(genericMap)
+	if err != nil {
+		logrus.Fatalf("error: %v", err)
+	}
+
+	// Unmarshal the JSON data into a map[string]*apiextensions.JSON
+	result := make(map[string]*apiextensions.JSON)
+	err = json.Unmarshal(jsonData, &result)
+	if err != nil {
+		logrus.Fatalf("error: %v", err)
+	}
+	plugins = result
+	return createConfigWithTs2PhcAndPlugins(policyName,
+		nil,
+		&ptp4lsysOpts,
+		ptp4lConfig,
+		ts2phcConfig,
+		&ph2sysOpts,
+		pkg.PtpClockUnderTestNodeLabel,
+		pointer.Int64Ptr(int5),
+		ptpSchedulingPolicy,
+		pointer.Int64Ptr(int65),
+		&ts2phcOpts,
+		plugins)
 }
 
 func CreatePtpConfigBC(policyName, nodeName, ifMasterName, ifSlaveName string, phc2sys bool) (err error) {
@@ -974,9 +1138,64 @@ func PtpConfigDualNicBC(isExtGM bool) error {
 	return nil
 }
 
+func PtpConfigTelcoGM(isExtGM bool) error {
+	var grandmaster int
+	BestSolution := ""
+	if len(*data.solutions[AlgoTelcoGMString]) != 0 {
+		BestSolution = AlgoTelcoGMString
+	}
+	switch BestSolution {
+	case AlgoTelcoGMString:
+
+		// Check GM interface available
+		grandmaster = (*data.testClockRolesAlgoMapping[BestSolution])[Grandmaster]
+		gmIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][grandmaster]]
+
+		// Check the Iface has a WPC NIC associated to it
+		IfList, deviceID := ptphelper.GetListOfWPCEnabledInterfaces(gmIf.NodeName)
+
+		if len(IfList) == 0 {
+			logrus.Error("WPC NIC not found in list of interfaces on the cluster")
+			return fmt.Errorf("WPC NIC not found in list of interfaces on the cluster %d", len(IfList))
+		}
+		err := CreatePtpConfigWPCGrandMaster(pkg.PtpGrandMasterPolicyName, gmIf.NodeName, IfList, deviceID)
+		if err != nil {
+			logrus.Errorf("Error creating Grandmaster ptpconfig: %s", err)
+		}
+	}
+	return nil
+}
+
 // helper function to add an interface to the ptp4l config
 func AddInterface(ptpConfig, iface string, masterOnly int) (updatedPtpConfig string) {
 	return fmt.Sprintf("%s\n[%s]\nmasterOnly %d", ptpConfig, iface, masterOnly)
+}
+
+func createConfigWithTs2PhcAndPlugins(profileName string, ifaceName, ptp4lOpts *string, ptp4lConfig string, ts2phcConfig string, phc2sysOpts *string, nodeLabel string, priority *int64, ptpSchedulingPolicy string, ptpSchedulingPriority *int64, ts2phcOpts *string, plugins map[string]*apiextensions.JSON) error {
+	thresholds := ptpv1.PtpClockThreshold{}
+
+	testParameters, err := ptptestconfig.GetPtpTestConfig()
+	if err != nil {
+		return fmt.Errorf("failed to get test config: %v", err)
+	}
+	thresholds.MaxOffsetThreshold = int64(testParameters.GlobalConfig.MaxOffset)
+	thresholds.MinOffsetThreshold = int64(testParameters.GlobalConfig.MinOffset)
+	ptpProfile := ptpv1.PtpProfile{Name: &profileName, Interface: ifaceName, Phc2sysOpts: phc2sysOpts, Ptp4lOpts: ptp4lOpts, PtpSchedulingPolicy: &ptpSchedulingPolicy, PtpSchedulingPriority: ptpSchedulingPriority,
+		PtpClockThreshold: &thresholds, Ts2PhcOpts: ts2phcOpts, Plugins: plugins}
+	if ptp4lConfig != "" {
+		ptpProfile.Ptp4lConf = &ptp4lConfig
+	}
+	if ts2phcConfig != "" {
+		ptpProfile.Ts2PhcConf = &ts2phcConfig
+	}
+	matchRule := ptpv1.MatchRule{NodeLabel: &nodeLabel}
+	ptpRecommend := ptpv1.PtpRecommend{Profile: &profileName, Priority: priority, Match: []ptpv1.MatchRule{matchRule}}
+
+	policy := ptpv1.PtpConfig{ObjectMeta: metav1.ObjectMeta{Name: profileName, Namespace: PtpLinuxDaemonNamespace},
+		Spec: ptpv1.PtpConfigSpec{Profile: []ptpv1.PtpProfile{ptpProfile},
+			Recommend: []ptpv1.PtpRecommend{ptpRecommend}}}
+	_, err = client.Client.PtpConfigs(PtpLinuxDaemonNamespace).Create(context.Background(), &policy, metav1.CreateOptions{})
+	return err
 }
 
 // helper function to create a ptpconfig
@@ -1076,6 +1295,14 @@ func discoverMode(ptpConfigClockUnderTest []*ptpv1.PtpConfig) {
 			if ptphelper.IsSecondaryBc(ptpConfig) {
 				numSecondaryBC++
 			}
+		}
+		//WPC GM state
+		if masterIf >= 2 && slaveIf == 0 && !strings.EqualFold(*ptpConfig.Spec.Profile[0].Ts2PhcConf, "") {
+
+			GlobalConfig.DiscoveredClockUnderTestPtpConfig = (*ptpDiscoveryRes)(ptpConfig)
+			GlobalConfig.PtpModeDiscovered = TelcoGrandMasterClock
+			GlobalConfig.Status = DiscoverySuccessStatus
+			GlobalConfig.DiscoveredGrandMasterPtpConfig = (*ptpDiscoveryRes)(ptpConfig)
 		}
 	}
 	if numBc == 1 {

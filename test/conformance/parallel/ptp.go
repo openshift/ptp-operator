@@ -79,7 +79,10 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-parallel]", func() 
 		})
 		AfterEach(func() {
 			// closing internal pubsub
-			event.PubSub.Close()
+			if ptphelper.PtpEventEnabled() {
+				event.PubSub.Close()
+			}
+
 		})
 	})
 })
