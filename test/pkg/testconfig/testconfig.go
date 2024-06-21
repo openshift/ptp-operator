@@ -50,13 +50,14 @@ const (
 	// BoundaryClockString matches the BC clock mode in Environement
 	BoundaryClockString = "BC"
 	// DualNICBoundaryClockString matches the DualNICBC clock mode in Environement
-	DualNICBoundaryClockString = "DualNICBC"
-	ptp4lEthernet              = "-2 --summary_interval -4"
-	ptp4lEthernetSlave         = "-2 -s --summary_interval -4"
-	phc2sysGM                  = "a -r -r -n 24" // use phc2sys to sync phc to system clock
-	phc2sysSlave               = "-a -r -n 24 -m -N 8 -R 16"
-	SCHED_OTHER                = "SCHED_OTHER"
-	SCHED_FIFO                 = "SCHED_FIFO"
+	DualNICBoundaryClockString  = "DualNICBC"
+	TelcoGrandMasterClockString = "T-GM"
+	ptp4lEthernet               = "-2 --summary_interval -4"
+	ptp4lEthernetSlave          = "-2 -s --summary_interval -4"
+	phc2sysGM                   = "-a -r -r -n 24" // use phc2sys to sync phc to system clock
+	phc2sysSlave                = "-a -r -n 24 -m -N 8 -R 16"
+	SCHED_OTHER                 = "SCHED_OTHER"
+	SCHED_FIFO                  = "SCHED_FIFO"
 )
 
 type ConfigStatus int64
@@ -83,6 +84,8 @@ const (
 	BoundaryClock
 	// DualNICBoundaryClock DualNIC Boundary Clock mode
 	DualNICBoundaryClock
+	// GrandMaster mode
+	TelcoGrandMasterClock
 	// Discovery Discovery mode
 	Discovery
 	// None initial empty mode
@@ -147,6 +150,7 @@ const (
 	AlgoBCString                       = "BC"
 	AlgoBCWithSlavesString             = "BCWithSlaves"
 	AlgoDualNicBCString                = "DualNicBC"
+	AlgoGMString                       = "GM"
 	AlgoDualNicBCWithSlavesString      = "DualNicBCWithSlaves"
 	AlgoOCExtGMString                  = "OCExtGM"
 	AlgoBCExtGMString                  = "BCExtGM"
@@ -218,6 +222,8 @@ func (mode PTPMode) String() string {
 		return BoundaryClockString
 	case DualNICBoundaryClock:
 		return DualNICBoundaryClockString
+	case TelcoGrandMasterClock:
+		return TelcoGrandMasterClockString
 	case Discovery:
 		return DiscoveryString
 	case None:
@@ -235,6 +241,8 @@ func StringToMode(aString string) PTPMode {
 		return BoundaryClock
 	case strings.ToLower(DualNICBoundaryClockString):
 		return DualNICBoundaryClock
+	case strings.ToLower(TelcoGrandMasterClockString):
+		return TelcoGrandMasterClock
 	case strings.ToLower(DiscoveryString), strings.ToLower(legacyDiscoveryString):
 		return Discovery
 	case strings.ToLower(NoneString):
@@ -281,7 +289,7 @@ func GetDesiredConfig(forceUpdate bool) TestConfig {
 	}
 
 	switch mode {
-	case OrdinaryClock, BoundaryClock, DualNICBoundaryClock, Discovery:
+	case OrdinaryClock, BoundaryClock, DualNICBoundaryClock, TelcoGrandMasterClock, Discovery:
 		logrus.Infof("%s mode detected", mode)
 		GlobalConfig.PtpModeDesired = mode
 		GlobalConfig.Status = InitStatus
@@ -346,6 +354,8 @@ func CreatePtpConfigurations() error {
 			return PtpConfigBC(isExternalMaster)
 		case DualNICBoundaryClock:
 			return PtpConfigDualNicBC(isExternalMaster)
+		case TelcoGrandMasterClock:
+			return PtpConfigTelcoGM(isExternalMaster)
 		}
 	}
 	return nil
@@ -385,6 +395,10 @@ func initAndSolveProblems() {
 		{{int(solver.StepSameNic), 2, 3, 4},
 			{int(solver.StepDifferentNic), 2, 1, 3}}, // step5
 	}
+	data.problems[AlgoGMString] = &[][][]int{
+		{{int(solver.StepIsPTP), 1, 0}}, // step1
+	}
+
 	data.problems[AlgoDualNicBCWithSlavesString] = &[][][]int{
 		{{int(solver.StepNil), 0, 0}},         // step1
 		{{int(solver.StepSameLan2), 2, 0, 1}}, // step2
@@ -472,6 +486,9 @@ func initAndSolveProblems() {
 	(*data.testClockRolesAlgoMapping[AlgoDualNicBCWithSlavesString])[BC2Slave] = 4
 	(*data.testClockRolesAlgoMapping[AlgoDualNicBCWithSlavesString])[BC2Master] = 5
 	(*data.testClockRolesAlgoMapping[AlgoDualNicBCWithSlavesString])[Slave2] = 6
+
+	// GM
+	(*data.testClockRolesAlgoMapping[AlgoGMString])[Grandmaster] = 0
 
 	// OC, External GM
 	(*data.testClockRolesAlgoMapping[AlgoOCExtGMString])[Slave1] = 0
@@ -969,6 +986,25 @@ func PtpConfigDualNicBC(isExtGM bool) error {
 			slave2If.IfName, false, pkg.PtpSlave2NodeLabel)
 		if err != nil {
 			logrus.Errorf("Error creating Slave2 ptpconfig: %s", err)
+		}
+	}
+	return nil
+}
+
+func PtpConfigTelcoGM(isExtGM bool) error {
+	var grandmaster int
+	BestSolution := ""
+	if len(*data.solutions[AlgoGMString]) != 0 {
+		BestSolution = AlgoGMString
+	}
+	switch BestSolution {
+	case AlgoGMString:
+		grandmaster = (*data.testClockRolesAlgoMapping[BestSolution])[Grandmaster]
+		gmIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][grandmaster]]
+		err := CreatePtpConfigGrandMaster(gmIf.NodeName,
+			gmIf.IfName)
+		if err != nil {
+			logrus.Errorf("Error creating Grandmaster ptpconfig: %s", err)
 		}
 	}
 	return nil
