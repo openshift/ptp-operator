@@ -86,9 +86,9 @@ spec:
                       additionalProperties:
                         type: string
                       type: object
-                    syncEConf:
+                    synce4lConf:
                       type: string
-                    syncEOpts:
+                    synce4lOpts:
                       type: string
                     ts2phcConf:
                       type: string
