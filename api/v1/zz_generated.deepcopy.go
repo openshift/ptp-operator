@@ -500,8 +500,8 @@ func (in *PtpProfile) DeepCopyInto(out *PtpProfile) {
 		*out = new(string)
 		**out = **in
 	}
-	if in.SyncEOpts != nil {
-		in, out := &in.SyncEOpts, &out.SyncEOpts
+	if in.Synce4lOpts != nil {
+		in, out := &in.Synce4lOpts, &out.Synce4lOpts
 		*out = new(string)
 		**out = **in
 	}
@@ -520,8 +520,8 @@ func (in *PtpProfile) DeepCopyInto(out *PtpProfile) {
 		*out = new(string)
 		**out = **in
 	}
-	if in.SyncEConf != nil {
-		in, out := &in.SyncEConf, &out.SyncEConf
+	if in.Synce4lConf != nil {
+		in, out := &in.Synce4lConf, &out.Synce4lConf
 		*out = new(string)
 		**out = **in
 	}

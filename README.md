@@ -209,35 +209,31 @@ spec:
       [ens2f0]
       ts2phc.extts_polarity rising
       ts2phc.extts_correction 0
-    SyncEOpts: " "
-    syncEConf: |
-      [global]
-      logging_level              7
-      use_syslog                 0
-      verbose                    1
-      message_tag                [synce4l]
-      [<synce1>]
-      input_mode                 line
-      network_option             1
-      external_input_QL          11
-      external_input_ext_QL      33
-      extended_tlv               1
-      recover_time               20
-      eec_get_state_cmd         cat /sys/class/net/ens2f0/device/cgu_state
-      eec_holdover_value        4
-      eec_locked_ho_value       3
-      eec_locked_value          2
-      eec_freerun_value         1
-      eec_invalid_value         0
+    synce4lOpts: " "
+    synce4lConf: |
+     [global]
+     logging_level 7
+     use_syslog 0
+     verbose 1
+     message_tag [synce4l]
 
-      [ens2f0]
-      tx_heartbeat_msec          1000
-      rx_heartbeat_msec          500
-      recover_clock_enable_cmd   echo 1 0 > /sys/class/net/ens2f0/device/phy/synce
-      recover_clock_disable_cmd  echo 0 0 > /sys/class/net/ens2f0/device/phy/synce
-      allowed_qls                2,11
-      #example config from ReadMe had this triplet: 3,4,7
-      allowed_ext_qls            33, 255
+     [<synce1>]
+     dnu_prio 0xFF
+     network_option 2
+     extended_tlv 1
+     recover_time 60
+     clock_id 
+     module_name ice
+
+     [enp59s0f0np0]
+     tx_heartbeat_msec 1000
+     rx_heartbeat_msec 500
+     allowed_qls 0x4
+     allowed_ext_qls 0xFF
+     [{SMA1}]
+     board_label SMA1
+     input_QL 0x1
+     input_ext_QL 0x20
   recommend:
   - profile: "profile1"
     priority: 4
