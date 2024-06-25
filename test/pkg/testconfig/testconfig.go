@@ -58,6 +58,7 @@ const (
 	phc2sysSlave                = "-a -r -n 24 -m -N 8 -R 16"
 	SCHED_OTHER                 = "SCHED_OTHER"
 	SCHED_FIFO                  = "SCHED_FIFO"
+	WPC_NIC_CODE                = "E810-XXVA4T"
 )
 
 type ConfigStatus int64
@@ -120,6 +121,7 @@ var enabledProblems = []string{AlgoOCString,
 	AlgoBCWithSlavesString,
 	AlgoDualNicBCString,
 	AlgoDualNicBCWithSlavesString,
+	AlgoTelcoGMString,
 	AlgoOCExtGMString,
 	AlgoBCExtGMString,
 	AlgoBCWithSlavesExtGMString,
@@ -150,7 +152,7 @@ const (
 	AlgoBCString                       = "BC"
 	AlgoBCWithSlavesString             = "BCWithSlaves"
 	AlgoDualNicBCString                = "DualNicBC"
-	AlgoGMString                       = "GM"
+	AlgoTelcoGMString                  = "T-GM"
 	AlgoDualNicBCWithSlavesString      = "DualNicBCWithSlaves"
 	AlgoOCExtGMString                  = "OCExtGM"
 	AlgoBCExtGMString                  = "BCExtGM"
@@ -395,8 +397,9 @@ func initAndSolveProblems() {
 		{{int(solver.StepSameNic), 2, 3, 4},
 			{int(solver.StepDifferentNic), 2, 1, 3}}, // step5
 	}
-	data.problems[AlgoGMString] = &[][][]int{
+	data.problems[AlgoTelcoGMString] = &[][][]int{
 		{{int(solver.StepIsPTP), 1, 0}}, // step1
+		GetWPCNICIface()
 	}
 
 	data.problems[AlgoDualNicBCWithSlavesString] = &[][][]int{
@@ -488,7 +491,7 @@ func initAndSolveProblems() {
 	(*data.testClockRolesAlgoMapping[AlgoDualNicBCWithSlavesString])[Slave2] = 6
 
 	// GM
-	(*data.testClockRolesAlgoMapping[AlgoGMString])[Grandmaster] = 0
+	(*data.testClockRolesAlgoMapping[AlgoTelcoGMString])[Grandmaster] = 0
 
 	// OC, External GM
 	(*data.testClockRolesAlgoMapping[AlgoOCExtGMString])[Slave1] = 0
@@ -994,13 +997,26 @@ func PtpConfigDualNicBC(isExtGM bool) error {
 func PtpConfigTelcoGM(isExtGM bool) error {
 	var grandmaster int
 	BestSolution := ""
-	if len(*data.solutions[AlgoGMString]) != 0 {
-		BestSolution = AlgoGMString
+	if len(*data.solutions[AlgoTelcoGMString]) != 0 {
+		BestSolution = AlgoTelcoGMString
 	}
 	switch BestSolution {
-	case AlgoGMString:
+	case AlgoTelcoGMString:
+
+		// Check GM interface available
 		grandmaster = (*data.testClockRolesAlgoMapping[BestSolution])[Grandmaster]
 		gmIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][grandmaster]]
+
+		// Check the Iface has a WPC NIC associated to it
+		IfName, hasWPC := GetWPCNICIface()
+		if !hasWPC || !strings.EqualFold(gmIf.IfName, IfName) {
+			logrus.Error("WPC NIC not found in list of interfaces on the cluster")
+		}
+
+		// Check gnss is enabled on the interface.
+		if !CheckIfaceForGNSS(IfName) {
+			logrus.Error("gnss not enabled or not recieving NMEA string")
+		}
 		err := CreatePtpConfigGrandMaster(gmIf.NodeName,
 			gmIf.IfName)
 		if err != nil {
@@ -1127,4 +1143,24 @@ func discoverMode(ptpConfigClockUnderTest []*ptpv1.PtpConfig) {
 		logrus.Error("Could not determine ptp daemon pod selected by ptpconfig")
 	}
 	GlobalConfig.DiscoveredClockUnderTestPod = pod
+}
+
+//Helper function to identify WPC NIC
+func GetWPCNICIface() (string,bool) {
+	ptpInterfacesList := GlobalConfig.L2Config.GetPtpIfList()
+	for _, ptpInterface := range ptpInterfacesList {
+		if strings.Contains(ptpInterface.IfPci.Description, WPC_NIC_CODE) {
+			logrus.Infof( "Found ptp interface with WPC NIC %s", ptpInterface.IfName)
+			return ptpInterface.IfName, true
+		}
+	}
+	logrus.Info( "No ptp interface with WPC NIC found")
+	return "", false
+}
+
+//Helper function to identify interface running gnss
+func CheckIfaceForGNSS(IfName string) bool {
+
+	//TODO Implement check for gnss
+	return false
 }
