@@ -129,6 +129,11 @@ func (r *PtpOperatorConfigReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		return reconcile.Result{}, err
 	}
 
+	if err = r.createLeapConfigMap(ctx, defaultCfg); err != nil {
+		glog.Errorf("failed to create leap config map: %v", err)
+		return reconcile.Result{}, err
+	}
+
 	if err = r.syncLinuxptpDaemon(ctx, defaultCfg, nodeList); err != nil {
 		glog.Errorf("failed to sync linux ptp daemon: %v", err)
 		if err.Error() == AmqReadyStateError {
@@ -138,6 +143,34 @@ func (r *PtpOperatorConfigReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	}
 
 	return reconcile.Result{RequeueAfter: ResyncPeriod}, nil
+}
+
+// createLeapConfigMap creates an empty leap second config map
+func (r *PtpOperatorConfigReconciler) createLeapConfigMap(ctx context.Context, defaultCfg *ptpv1.PtpOperatorConfig) error {
+	var err error
+
+	cm := &corev1.ConfigMap{}
+	err = r.Get(ctx, types.NamespacedName{
+		Namespace: names.Namespace, Name: names.DefaultLeapConfigMapName}, cm)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			cm.Name = names.DefaultLeapConfigMapName
+			cm.Namespace = names.Namespace
+			cm.Data = make(map[string]string)
+
+			if err = controllerutil.SetControllerReference(defaultCfg, cm, r.Scheme); err != nil {
+				return fmt.Errorf("failed to set owner reference: %v", err)
+			}
+			err = r.Create(ctx, cm)
+			if err != nil {
+				return fmt.Errorf("failed to create leap config map: %v", err)
+			}
+			glog.Infof("leap config map created successfully")
+		} else {
+			return fmt.Errorf("failed to create leap config map: %v", err)
+		}
+	}
+	return nil
 }
 
 // createPTPConfigMap creates PTP config map
