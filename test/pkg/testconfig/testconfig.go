@@ -58,7 +58,7 @@ const (
 	phc2sysSlave                = "-a -r -n 24 -m -N 8 -R 16"
 	SCHED_OTHER                 = "SCHED_OTHER"
 	SCHED_FIFO                  = "SCHED_FIFO"
-	WPC_NIC_CODE                = "E810-XXVA4T"
+	WPC_NIC_CODE                = "E810-XXV"
 )
 
 type ConfigStatus int64
@@ -399,7 +399,6 @@ func initAndSolveProblems() {
 	}
 	data.problems[AlgoTelcoGMString] = &[][][]int{
 		{{int(solver.StepIsPTP), 1, 0}}, // step1
-		GetWPCNICIface()
 	}
 
 	data.problems[AlgoDualNicBCWithSlavesString] = &[][][]int{
@@ -1008,17 +1007,16 @@ func PtpConfigTelcoGM(isExtGM bool) error {
 		gmIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][grandmaster]]
 
 		// Check the Iface has a WPC NIC associated to it
-		IfName, hasWPC := GetWPCNICIface()
-		if !hasWPC || !strings.EqualFold(gmIf.IfName, IfName) {
+		IfName, hasWPC := GetWPCNICIface(gmIf.NodeName, gmIf.IfName)
+		if !hasWPC && strings.EqualFold(IfName, "") {
 			logrus.Error("WPC NIC not found in list of interfaces on the cluster")
 		}
 
-		// Check gnss is enabled on the interface.
-		if !CheckIfaceForGNSS(IfName) {
-			logrus.Error("gnss not enabled or not recieving NMEA string")
+		if !strings.EqualFold(gmIf.IfName, IfName) {
+			logrus.Errorf("WPC NIC enabled interface found doesnpt match solution iface proceed with first WPC enabled iface: %s", IfName)
 		}
 		err := CreatePtpConfigGrandMaster(gmIf.NodeName,
-			gmIf.IfName)
+			IfName)
 		if err != nil {
 			logrus.Errorf("Error creating Grandmaster ptpconfig: %s", err)
 		}
@@ -1145,22 +1143,21 @@ func discoverMode(ptpConfigClockUnderTest []*ptpv1.PtpConfig) {
 	GlobalConfig.DiscoveredClockUnderTestPod = pod
 }
 
-//Helper function to identify WPC NIC
-func GetWPCNICIface() (string,bool) {
-	ptpInterfacesList := GlobalConfig.L2Config.GetPtpIfList()
-	for _, ptpInterface := range ptpInterfacesList {
-		if strings.Contains(ptpInterface.IfPci.Description, WPC_NIC_CODE) {
-			logrus.Infof( "Found ptp interface with WPC NIC %s", ptpInterface.IfName)
-			return ptpInterface.IfName, true
+// Helper function to identify WPC NIC
+func GetWPCNICIface(nodeName string, solIfName string) (string, bool) {
+	WPCEnabledIfaces := ptphelper.GetListOfWPCEnabledInterfaces(nodeName)
+
+	for _, iface := range WPCEnabledIfaces {
+		if strings.EqualFold(iface, solIfName) {
+			return iface, true
 		}
 	}
-	logrus.Info( "No ptp interface with WPC NIC found")
-	return "", false
-}
-
-//Helper function to identify interface running gnss
-func CheckIfaceForGNSS(IfName string) bool {
-
-	//TODO Implement check for gnss
-	return false
+	if len(WPCEnabledIfaces) == 0 {
+		logrus.Info("No ptp interface with WPC NIC found")
+		return "", false
+	} else {
+		logrus.Info("Solution Iface and WPC Interface donot match using first WPC enabled iface")
+		iFaceName := WPCEnabledIfaces[0]
+		return iFaceName, true
+	}
 }

@@ -30,6 +30,11 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
+const (
+	E810_NIC_IDENTIFER = "E810-C for SFP (rev 02)"
+	WPC_NIC_IDENTIFIER = "E810-XXV-4T"
+)
+
 func GetProfileLogID(ptpConfigName string, label *string, nodeName *string) (id string, err error) {
 	const logIDRegex = `(?m).*?Ptp4lConf: #profile: %s(.|\n)*?message_tag \[(.*)\]`
 	const logIDIndex = 2
@@ -665,4 +670,87 @@ func IsExternalGM() (out bool) {
 	out = isSet && !strings.Contains(value, "false")
 	logrus.Infof("EXTERNAL_GM=%t", out)
 	return out
+}
+
+func GetListOfWPCEnabledInterfaces(nodeName string) []string {
+	var retList = make([]string, 0)
+	bus2ifaceMap := getIfaceToPCIBusMapping(nodeName)
+	ret, err := nodes.ExecAndLogCommand(true, 20*time.Second, "lspci", nodeName)
+	if err != nil {
+		logrus.Errorf("could not get List of PCIBUSES with E810 NICs, err: %s", err)
+		return retList
+	}
+	iFaceList := strings.Split(string(ret), "\n")
+	for _, iFace := range iFaceList {
+		if strings.Contains(iFace, E810_NIC_IDENTIFER) {
+			busName := strings.Split(iFace, " ")[0]
+			ifName := bus2ifaceMap[busName]
+			if checkPCIBusLinkedToWPCNIC(busName, nodeName) && checkGNSSAvailabilityForIface(ifName, nodeName) {
+				retList = append(retList, ifName)
+			}
+		}
+	}
+	return retList
+}
+
+func getIfaceToPCIBusMapping(nodeName string) map[string]string {
+	resMap := make(map[string]string)
+	ret, err := nodes.ExecAndLogCommand(true, 20*time.Second, "grep PCI_SLOT_NAME /sys/class/net/*/device/uevent", nodeName)
+	if err != nil {
+		logrus.Errorf("could not get Interface to PCI Bus Mapping, err: %s", err)
+		return resMap
+	}
+	iFaceList := strings.Split(string(ret), "\n")
+	for _, iFace := range iFaceList {
+		busName := strings.Split(iFace, "=0000:")[1]
+		iFaceString := strings.Split(iFace, "/sys/class/net/")[1]
+		iFaceName := strings.Split(iFaceString, "/")[0]
+		resMap[busName] = iFaceName
+	}
+	return resMap
+}
+
+func checkPCIBusLinkedToWPCNIC(pciBus string, nodeName string) bool {
+	ret, err := nodes.ExecAndLogCommand(true, 20*time.Second, fmt.Sprintf("lspci -vv -s %s", pciBus), nodeName)
+	if err != nil {
+		logrus.Errorf("could not get verbose bus details from lspci, err: %s", err)
+		return false
+	}
+	return strings.Contains(string(ret), WPC_NIC_IDENTIFIER)
+}
+
+func checkGNSSAvailabilityForIface(nodeName string, IfaceName string) bool {
+	ret, err := nodes.ExecAndLogCommand(true, 20*time.Second, fmt.Sprintf("ls /sys/class/net/%s/device/gnss", IfaceName), nodeName)
+	if err != nil {
+		logrus.Errorf("could not gnss device, err: %s", err)
+		return false
+	}
+	devs := strings.Split(string(ret), "\n")
+
+	for _, dev := range devs {
+		if checkGNMRCString(dev, nodeName) {
+			return true
+		}
+	}
+	return false
+}
+
+func checkGNMRCString(deviceName string, nodeName string) bool {
+	ret, err := nodes.ExecAndLogCommand(true, 20*time.Second, "head", "-n", "1", fmt.Sprintf("/dev/%s", deviceName), nodeName)
+
+	if err != nil {
+		logrus.Errorf("could not cat gnss device log, err: %s", err)
+		return false
+	}
+	logs := strings.Split(string(ret), "\n")
+	for _, log := range logs {
+		if strings.Contains(log, "GNMRC") {
+			timeVal := strings.Split(log, ",")[1]
+			formattedTime := time.Now().Format("235") + ".00"
+			if strings.EqualFold(timeVal, formattedTime) {
+				return true
+			}
+		}
+	}
+	return false
 }
