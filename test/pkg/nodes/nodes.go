@@ -145,8 +145,7 @@ func WaitForNodeReachability(nodeName string, timeout time.Duration, expectedRea
 }
 
 func IsNodeReachable(nodeName string) bool {
-	_, err := ExecAndLogCommand(false, 20*time.Second, "ping", "-c", "3", "-W", "10", nodeName)
-
+	_, err := ExecAndLogCommand(true, 20*time.Second, "ping", "-c", "3", "-W", "10", nodeName)
 	return err == nil
 }
 
