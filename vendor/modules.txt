@@ -322,8 +322,8 @@ github.com/test-network-function/l2discovery-exports
 github.com/test-network-function/l2discovery-lib
 github.com/test-network-function/l2discovery-lib/pkg/l2client
 github.com/test-network-function/l2discovery-lib/pkg/pods
-# github.com/test-network-function/privileged-daemonset v1.0.22
-## explicit; go 1.22.1
+# github.com/test-network-function/privileged-daemonset v1.0.2
+## explicit; go 1.20
 github.com/test-network-function/privileged-daemonset
 # github.com/yourbasic/graph v0.0.0-20210606180040-8ecfec1c2869
 ## explicit

@@ -2,18 +2,19 @@ package privilegeddaemonset
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	appsv1 "k8s.io/api/apps/v1"
 	v1core "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
-	pointer "k8s.io/utils/ptr"
+	pointer "k8s.io/utils/pointer"
 )
 
 const (
@@ -37,7 +38,7 @@ const (
 )
 
 //nolint:funlen
-func createDaemonSetsTemplate(dsName, namespace, containerName, imageWithVersion string, labelsMap map[string]string, cpuReq, cpuLim, memReq, memLim string) *appsv1.DaemonSet {
+func createDaemonSetsTemplate(dsName, namespace, containerName, imageWithVersion string, labelsMap map[string]string) *appsv1.DaemonSet {
 	dsAnnotations := make(map[string]string)
 	dsAnnotations["debug.openshift.io/source-container"] = containerName
 	dsAnnotations["openshift.io/scc"] = "node-exporter"
@@ -45,18 +46,20 @@ func createDaemonSetsTemplate(dsName, namespace, containerName, imageWithVersion
 	matchLabels := make(map[string]string)
 	matchLabels["name"] = dsName
 
-	for key, value := range labelsMap {
-		matchLabels[key] = value
+	if len(labelsMap) != 0 {
+		for key, value := range labelsMap {
+			matchLabels[key] = value
+		}
 	}
 
-	rootUser := pointer.To(int64(0))
+	rootUser := pointer.Int64(0)
 
 	container := v1core.Container{
 		Name:            containerName,
 		Image:           imageWithVersion,
 		ImagePullPolicy: "IfNotPresent",
 		SecurityContext: &v1core.SecurityContext{
-			Privileged: pointer.To(true),
+			Privileged: pointer.Bool(true),
 			RunAsUser:  rootUser,
 		},
 		Stdin:                  true,
@@ -70,16 +73,10 @@ func createDaemonSetsTemplate(dsName, namespace, containerName, imageWithVersion
 			},
 		},
 	}
-	// setting CPU and memory request/limits
-	container.Resources.Requests = v1core.ResourceList{}
-	container.Resources.Limits = v1core.ResourceList{}
-	container.Resources.Requests[v1core.ResourceCPU] = resource.MustParse(cpuReq)
-	container.Resources.Limits[v1core.ResourceCPU] = resource.MustParse(cpuLim)
-	container.Resources.Requests[v1core.ResourceMemory] = resource.MustParse(memReq)
-	container.Resources.Limits[v1core.ResourceMemory] = resource.MustParse(memLim)
+
 	preemptPolicyLowPrio := v1core.PreemptLowerPriority
 	hostPathTypeDir := v1core.HostPathDirectory
-	tolerationsSeconds := pointer.To(int64(tolerationsPeriodSecs))
+	tolerationsSeconds := pointer.Int64(tolerationsPeriodSecs)
 
 	return &appsv1.DaemonSet{
 
@@ -100,7 +97,7 @@ func createDaemonSetsTemplate(dsName, namespace, containerName, imageWithVersion
 					ServiceAccountName: roleSaName,
 					Containers:         []v1core.Container{container},
 					PreemptionPolicy:   &preemptPolicyLowPrio,
-					Priority:           pointer.To(int32(0)),
+					Priority:           pointer.Int32(0),
 					HostNetwork:        true,
 					HostIPC:            true,
 					HostPID:            true,
@@ -149,10 +146,13 @@ func DeleteDaemonSet(daemonSetName, namespace string) error {
 		Timeout = 5 * time.Minute
 	)
 
+	logrus.Infof("Deleting daemonset %s", daemonSetName)
 	deletePolicy := metav1.DeletePropagationForeground
-	err := daemonsetClient.K8sClient.AppsV1().DaemonSets(namespace).Delete(context.TODO(), daemonSetName, metav1.DeleteOptions{PropagationPolicy: &deletePolicy})
-	if err != nil {
-		return fmt.Errorf("daemonset %q deletion failed, err: %v", daemonSetName, err)
+
+	if err := daemonsetClient.K8sClient.AppsV1().DaemonSets(namespace).Delete(context.TODO(), daemonSetName, metav1.DeleteOptions{
+		PropagationPolicy: &deletePolicy,
+	}); err != nil {
+		logrus.Infof("The daemonset (%s) deletion is unsuccessful due to %+v", daemonSetName, err.Error())
 	}
 	dsDeleted := false
 	start := time.Now()
@@ -165,24 +165,31 @@ func DeleteDaemonSet(daemonSetName, namespace string) error {
 	}
 
 	if !dsDeleted {
-		return fmt.Errorf("timeout waiting for daemonset %q to be deleted", daemonSetName)
+		return fmt.Errorf("timeout waiting for daemonset's to be deleted")
 	}
 
+	logrus.Infof("Successfully cleaned up daemonset %s", daemonSetName)
 	return nil
 }
 
 // Check if the daemonset exists
 func doesDaemonSetExist(daemonSetName, namespace string) bool {
+	logrus.Infof("Checking if the daemonset exists")
 	_, err := daemonsetClient.K8sClient.AppsV1().DaemonSets(namespace).Get(context.TODO(), daemonSetName, metav1.GetOptions{})
+	if err != nil {
+		logrus.Infof("daemonset %s does not exist, err=%s", daemonSetName, err.Error())
+	}
+	// If the error is not found, that means the daemonset exists
 	return err == nil
 }
 
 func IsDaemonSetReady(daemonSetName, namespace, image string) bool {
 	const hoursPerWeek = 168 // 7 days
 
-	// The daemonset will be considered not ready if it does not exist
+	// The daemon set will be considered not ready if it does not exist
 	ds, err := daemonsetClient.K8sClient.AppsV1().DaemonSets(namespace).Get(context.TODO(), daemonSetName, metav1.GetOptions{})
 	if err != nil {
+		logrus.Infof("could not get daemon set %s, err=%s", daemonSetName, err.Error())
 		return false
 	}
 
@@ -202,22 +209,23 @@ func IsDaemonSetReady(daemonSetName, namespace, image string) bool {
 
 // This function is used to create a daemonset with the specified name, namespace, container name and image with the timeout to check
 // if the deployment is ready and all daemonset pods are running fine
-func CreateDaemonSet(daemonSetName, namespace, containerName, imageWithVersion string, labels map[string]string, timeout time.Duration, cpuReq, cpuLim, memReq, memLim string) (aPodList *v1core.PodList, err error) {
+func CreateDaemonSet(daemonSetName, namespace, containerName, imageWithVersion string, labels map[string]string, timeout time.Duration) (aPodList *v1core.PodList, err error) {
 	// first, initialize the namespace
 	err = initNamespace(namespace)
 	if err != nil {
-		return aPodList, fmt.Errorf("failed to initialize the privileged daemonset namespace, err: %v", err)
+		return aPodList, fmt.Errorf("failed to initialize the privileged daemonset namespace, err=%s", err)
 	}
 
-	daemonSet := createDaemonSetsTemplate(daemonSetName, namespace, containerName, imageWithVersion, labels, cpuReq, cpuLim, memReq, memLim)
+	daemonSet := createDaemonSetsTemplate(daemonSetName, namespace, containerName, imageWithVersion, labels)
 
 	if doesDaemonSetExist(daemonSetName, namespace) {
 		err = DeleteDaemonSet(daemonSetName, namespace)
 		if err != nil {
-			return aPodList, fmt.Errorf("failed to delete daemonset %q, err: %v", daemonSetName, err)
+			logrus.Errorf("Failed to delete %s daemonset because: %s", daemonSetName, err)
 		}
 	}
 
+	logrus.Infof("Creating daemonset %s", daemonSetName)
 	_, err = daemonsetClient.K8sClient.AppsV1().DaemonSets(namespace).Create(context.TODO(), daemonSet, metav1.CreateOptions{})
 	if err != nil {
 		return aPodList, err
@@ -228,11 +236,13 @@ func CreateDaemonSet(daemonSetName, namespace, containerName, imageWithVersion s
 		return aPodList, err
 	}
 
+	logrus.Infof("Daemonset is ready")
+
 	aPodList, err = daemonsetClient.K8sClient.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "name=" + daemonSetName})
 	if err != nil {
 		return aPodList, err
 	}
-
+	logrus.Infof("Successfully created daemonset %s", daemonSetName)
 	return aPodList, nil
 }
 
@@ -247,24 +257,30 @@ func WaitDaemonsetReady(namespace, name string, timeout time.Duration) error {
 	isReady := false
 	for start := time.Now(); !isReady && time.Since(start) < timeout; {
 		daemonSet, err := daemonsetClient.K8sClient.AppsV1().DaemonSets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+
 		if err != nil {
-			return fmt.Errorf("failed to get daemonset %q (ns %q), err: %v", name, namespace, err)
+			return fmt.Errorf("failed to get daemonset, err: %s", err)
 		}
 
 		if daemonSet.Status.DesiredNumberScheduled == nodesCount {
+			logrus.Infof("Waiting for (%d) daemonset pods to be ready: %+v", nodesCount, daemonSet.Status)
 			if isDaemonSetReady(&daemonSet.Status) {
 				isReady = true
 				break
 			}
+		} else {
+			logrus.Warnf("Daemonset %s (ns %s) could not be deployed: DesiredNumberScheduled=%d - NodesCount=%d",
+				name, namespace, daemonSet.Status.DesiredNumberScheduled, nodesCount)
 		}
 
 		time.Sleep(waitingTime)
 	}
 
 	if !isReady {
-		return fmt.Errorf("daemonset %q (ns %q) could not be deployed (timed out)", name, namespace)
+		return errors.New("daemonset debug pods not ready")
 	}
 
+	logrus.Infof("All the debug pods are ready.")
 	return nil
 }
 
@@ -371,13 +387,16 @@ func initNamespace(namespace string) (err error) {
 // WaitForCondition waits until the pod will have specified condition type with the expected status
 func namespaceIsPresent(namespace string) bool {
 	_, err := daemonsetClient.K8sClient.CoreV1().Namespaces().Get(context.Background(), namespace, metav1.GetOptions{})
-	return err == nil
+	if err != nil {
+		logrus.Debugf("Is Present err=%s", err)
+		return false
+	}
+	return true
 }
 
 // WaitForDeletion waits until the namespace will be removed from the cluster
 func namespaceWaitForDeletion(nsName string, timeout time.Duration) error {
-	//nolint:revive
-	return wait.PollUntilContextTimeout(context.TODO(), time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+	return wait.PollImmediate(time.Second, timeout, func() (bool, error) {
 		_, err := daemonsetClient.K8sClient.CoreV1().Namespaces().Get(context.Background(), nsName, metav1.GetOptions{})
 		if k8serrors.IsNotFound(err) {
 			return true, nil
@@ -409,13 +428,14 @@ func DeleteNamespaceIfPresent(namespace string) (err error) {
 	}
 	err = daemonsetClient.K8sClient.CoreV1().Namespaces().Delete(context.Background(), namespace, metav1.DeleteOptions{})
 	if err != nil {
-		return fmt.Errorf("could not delete namespace %q, err: %v", namespace, err)
+		logrus.Warnf("could not delete namespace=%s, err=%s", namespace, err)
 	}
 	// wait for the namespace to be deleted
 	err = namespaceWaitForDeletion(namespace, namespaceDeleteTimeout)
 	if err != nil {
-		return fmt.Errorf("failed waiting for namespace %q to be deleted, err: %v", namespace, err)
+		return fmt.Errorf("failed waiting for namespace to be deleted, err=%s", err)
 	}
+	logrus.Infof("namespace %s deleted", namespace)
 
 	return nil
 }
