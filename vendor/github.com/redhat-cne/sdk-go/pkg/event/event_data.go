@@ -47,19 +47,19 @@ const (
 //	{
 //		"version": "v1.0",
 //		"values": [{
-//			"resource": "/sync/sync-status/sync-state",
-//			"dataType": "notification",
-//			"valueType": "enumeration",
+//			"ResourceAddress": "/sync/sync-status/sync-state",
+//			"data_type": "notification",
+//			"value_type": "enumeration",
 //			"value": "ACQUIRING-SYNC"
 //			}, {
-//			"resource": "/sync/sync-status/sync-state",
-//			"dataType": "metric",
-//			"valueType": "decimal64.3",
+//			"ResourceAddress": "/sync/sync-status/sync-state",
+//			"data_type": "metric",
+//			"value_type": "decimal64.3",
 //			"value": 100.3
 //			}, {
-//			"resource": "/redfish/v1/Systems",
-//			"dataType": "notification",
-//			"valueType": "redfish-event",
+//			"ResourceAddress": "/redfish/v1/Systems",
+//			"data_type": "notification",
+//			"value_type": "redfish-event",
 //			"value": {
 //			    "@odata.context": "/redfish/v1/$metadata#Event.Event",
 //			    "@odata.type": "#Event.v1_3_0.Event",
@@ -79,15 +79,15 @@ type Data struct {
 // DataValue Json payload is as follows,
 //
 //	{
-//		"resource": "/cluster/node/ptp",
-//		"dataType": "notification",
-//		"valueType": "enumeration",
+//		"ResourceAddress": "/cluster/node/ptp",
+//		"data_type": "notification",
+//		"value_type": "enumeration",
 //		"value": "ACQUIRING-SYNC"
 //	}
 type DataValue struct {
-	Resource  string      `json:"resource" example:"/cluster/node/clock"`
-	DataType  DataType    `json:"dataType" example:"metric"`
-	ValueType ValueType   `json:"valueType" example:"decimal64.3"`
+	Resource  string      `json:"ResourceAddress" example:"/cluster/node/clock"`
+	DataType  DataType    `json:"data_type" example:"metric"`
+	ValueType ValueType   `json:"value_type" example:"decimal64.3"`
 	Value     interface{} `json:"value" example:"100.3"`
 }
 

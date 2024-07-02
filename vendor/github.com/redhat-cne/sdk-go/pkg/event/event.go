@@ -34,14 +34,14 @@ import (
 //		"data": {
 //			"version": "v1.0",
 //			"values": [{
-//				"resource": "/sync/sync-status/sync-state",
-//				"dataType": "notification",
-//				"valueType": "enumeration",
+//				"ResourceAddress": "/sync/sync-status/sync-state",
+//				"data_type": "notification",
+//				"value_type": "enumeration",
 //				"value": "ACQUIRING-SYNC"
 //				}, {
-//				"resource": "/sync/sync-status/sync-state",
-//				"dataType": "metric",
-//				"valueType": "decimal64.3",
+//				"ResourceAddress": "/sync/sync-status/sync-state",
+//				"data_type": "metric",
+//				"value_type": "decimal64.3",
 //				"value": 100.3
 //				}]
 //			}
@@ -84,10 +84,10 @@ func (e Event) String() string {
 	b.WriteString("  version: " + e.Data.Version + "\r\n")
 	b.WriteString("  values: \r\n")
 	for _, v := range e.Data.Values {
-		b.WriteString("  value type : " + string(v.ValueType) + "\r\n")
-		b.WriteString("  data type : " + string(v.DataType) + "\r\n")
-		b.WriteString("  value : " + fmt.Sprintf("%v", v.Value) + "\r\n")
-		b.WriteString("  resource: " + v.GetResource() + "\r\n")
+		b.WriteString("  value_type: " + string(v.ValueType) + "\r\n")
+		b.WriteString("  data_type: " + string(v.DataType) + "\r\n")
+		b.WriteString("  value:" + fmt.Sprintf("%v", v.Value) + "\r\n")
+		b.WriteString("  ResourceAddress: " + v.GetResource() + "\r\n")
 	}
 
 	return b.String()

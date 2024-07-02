@@ -16,6 +16,11 @@ package pubsub
 
 var _ Reader = (*PubSub)(nil)
 
+// GetResource implements EventReader.Version
+func (ps *PubSub) GetVersion() string {
+	return ps.Version
+}
+
 // GetResource implements EventReader.Resource
 func (ps *PubSub) GetResource() string {
 	return ps.Resource
