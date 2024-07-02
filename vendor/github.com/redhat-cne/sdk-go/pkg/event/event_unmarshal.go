@@ -156,14 +156,21 @@ func readDataValue(iter *jsoniter.Iterator) ([]DataValue, error) {
 		dv := DataValue{}
 		for dvField := iter.ReadObject(); dvField != ""; dvField = iter.ReadObject() {
 			switch dvField {
+			case "ResourceAddress":
+				dv.Resource = iter.ReadString()
+			case "data_type":
+				dv.DataType = DataType(iter.ReadString())
+			case "value_type":
+				dv.ValueType = ValueType(iter.ReadString())
+			case "value":
+				cacheValue = iter.Read()
+			// tolerant older releases
 			case "resource":
 				dv.Resource = iter.ReadString()
 			case "dataType":
 				dv.DataType = DataType(iter.ReadString())
 			case "valueType":
 				dv.ValueType = ValueType(iter.ReadString())
-			case "value":
-				cacheValue = iter.Read()
 			default:
 				iter.Skip()
 			}

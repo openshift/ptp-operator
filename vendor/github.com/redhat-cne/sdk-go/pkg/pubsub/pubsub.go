@@ -17,6 +17,7 @@ package pubsub
 import (
 	"strings"
 
+	"github.com/redhat-cne/sdk-go/pkg/common"
 	"github.com/redhat-cne/sdk-go/pkg/types"
 )
 
@@ -32,25 +33,54 @@ import (
 //
 // PubSub request model
 type PubSub struct {
+	Version string `json:"version" omit:"1.0"`
 	// ID of the pub/sub; is updated on successful creation of publisher/subscription.
-	ID string `json:"id" omit:"empty"`
+	ID string `json:"SubscriptionId" omit:"empty"`
 	// EndPointURI - A URI describing the event action link.
 	// +required
-	EndPointURI *types.URI `json:"endpointUri" example:"http://localhost:9090/ack/event" omit:"empty"`
+	EndPointURI *types.URI `json:"EndpointUri" example:"http://localhost:9090/ack/event" omit:"empty"`
 
 	// URILocation - A URI describing the producer/subscription get link.
-	URILocation *types.URI `json:"uriLocation" omit:"empty"`
+	URILocation *types.URI `json:"UriLocation" omit:"empty"`
 	// Resource - The type of the Resource.
 	// +required
-	Resource string `json:"resource" example:"/east-edge-10/vdu3/o-ran-sync/sync-group/sync-status/sync-state"`
+	Resource string `json:"ResourceAddress" example:"/east-edge-10/vdu3/o-ran-sync/sync-group/sync-status/sync-state"`
 }
 
 // String returns a pretty-printed representation of the Event.
 func (ps *PubSub) String() string {
 	b := strings.Builder{}
-	b.WriteString("  EndpointURI: " + ps.GetEndpointURI() + "\n")
-	b.WriteString("  URILocation: " + ps.GetURILocation() + "\n")
+	b.WriteString("  EndpointUri: " + ps.GetEndpointURI() + "\n")
+	b.WriteString("  UriLocation: " + ps.GetURILocation() + "\n")
 	b.WriteString("  ID: " + ps.GetID() + "\n")
 	b.WriteString("  Resource: " + ps.GetResource() + "\n")
 	return b.String()
+}
+
+func (ps *PubSub) GetIDName() string {
+	if common.IsV1Api(ps.Version) {
+		return "id"
+	}
+	return "SubscriptionId"
+}
+
+func (ps *PubSub) GetEndpointURIName() string {
+	if common.IsV1Api(ps.Version) {
+		return "endpointUri"
+	}
+	return "EndpointUri"
+}
+
+func (ps *PubSub) GetURILocationName() string {
+	if common.IsV1Api(ps.Version) {
+		return "uriLocation"
+	}
+	return "UriLocation"
+}
+
+func (ps *PubSub) GetResourceName() string {
+	if common.IsV1Api(ps.Version) {
+		return "resource"
+	}
+	return "ResourceAddress"
 }
