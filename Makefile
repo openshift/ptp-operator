@@ -152,7 +152,7 @@ ENVTEST ?= $(LOCALBIN)/setup-envtest
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v4.5.7
-CONTROLLER_TOOLS_VERSION ?= v0.9.2
+CONTROLLER_TOOLS_VERSION ?= v0.15.0
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
@@ -203,7 +203,7 @@ endif
 
 .PHONY: bundle-build ## Build the bundle image.
 bundle-build:
-	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+	$(CONTAINER_TOOL) build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 .PHONY: bundle-push
 bundle-push: ## Push the bundle image.
@@ -243,7 +243,7 @@ endif
 # https://github.com/operator-framework/community-operators/blob/7f1438c/docs/packaging-operator.md#updating-your-existing-operator
 .PHONY: catalog-build
 catalog-build: opm ## Build a catalog image.
-	$(OPM) index add --container-tool docker --mode semver --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
+	$(OPM) index add --container-tool $(CONTAINER_TOOL) --mode semver --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
 
 # Push the catalog image.
 .PHONY: catalog-push
@@ -260,7 +260,7 @@ bin:
 	hack/build.sh
 
 image:
-	docker build -t openshift.io/ptp-operator -f Dockerfile.rhel7 .
+	$(CONTAINER_TOOL) build -t openshift.io/ptp-operator -f Dockerfile.rhel7 .
 
 clean:
 	rm -rf build/_output/bin/ptp-operator
@@ -274,5 +274,6 @@ test-validation-only:
 buildtest:
 	PATH=${PATH}:${GOBIN} ginkgo build ./test/conformance
 	cp ./test/conformance/conformance.test ./bin/testptp
+
 buildimage: buildtest
 	./scripts/image.sh
