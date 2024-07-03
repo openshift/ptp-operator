@@ -16,6 +16,8 @@ package pubsub
 
 // Reader is the interface for reading through an event from attributes.
 type Reader interface {
+	// GetVersion returns event.GetVersion()
+	GetVersion() string
 	// GetResource returns event.GetResource()
 	GetResource() string
 	// GetEndpointUri returns event.GetEndpointUri()
@@ -31,6 +33,8 @@ type Reader interface {
 // If an error is thrown by a sub-component, Writer caches the error
 // internally and exposes errors with a call to Writer.Validate().
 type Writer interface {
+	// SetVersion performs event.SetVersion()
+	SetVersion(string)
 	// SetResource performs event.SetResource()
 	SetResource(string) error
 	// SetEndpointURI [erforms] event.SetEndpointURI()

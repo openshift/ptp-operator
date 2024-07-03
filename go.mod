@@ -17,7 +17,7 @@ require (
 	github.com/prometheus/common v0.44.0
 	github.com/redhat-cne/channel-pubsub v0.0.8
 	github.com/redhat-cne/ptp-listener-exports v0.0.7
-	github.com/redhat-cne/sdk-go v0.1.1-0.20240321130308-a635605654ab
+	github.com/redhat-cne/sdk-go v1.0.1-0.20240702163442-605f629084b9
 	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.8.2
 	github.com/test-network-function/graphsolver-lib v0.0.3
