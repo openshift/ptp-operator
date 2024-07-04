@@ -24,6 +24,7 @@ import (
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="Event Enabled",type="boolean",JSONPath=".spec.ptpEventConfig.enableEventPublisher",description="Event Enabled"
+// +kubebuilder:validation:XValidation:message="PtpOperatorConfig is a singleton, metadata.name must be 'default'", rule="self.metadata.name == 'default'"
 
 // PtpOperatorConfig is the Schema for the ptpoperatorconfigs API
 type PtpOperatorConfig struct {
