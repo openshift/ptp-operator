@@ -180,6 +180,7 @@ OPERATOR_SDK_VERSION_INSTALLED = $(shell $(OPERATOR_SDK) version 2>/dev/null | s
 operator-sdk: ## Download operator-sdk locally if necessary.
 ifneq ($(OPERATOR_SDK_VERSION),$(OPERATOR_SDK_VERSION_INSTALLED))
 ifeq ($(OS), Darwin)
+	mkdir -p $(LOCALBIN)/x86_64/
 	curl https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/operator-sdk/4.11.0/operator-sdk-darwin-x86_64.tar.gz? | tar -xz -C bin/x86_64/
 else
 	curl https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/operator-sdk/4.11.0/operator-sdk-linux-x86_64.tar.gz? | tar -xz -C bin/

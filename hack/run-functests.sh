@@ -1,14 +1,21 @@
 #!/bin/bash
 set -x
 # Set go version
+
+# T5CI_VERSION is used in CI pipeline. Do not set it when run locally
 pattern="4.[0-9]+"
-if [[ "$T5CI_VERSION" =~ $pattern ]]; then
-  #This is to differentiate CI jobs from local runs please do not set this T5CI_VERSION locally
-  source $HOME/golang-1.20
+if [[ "$T5CI_VERSION" == "4.12" ]] || [[ "$T5CI_VERSION" == "4.13" ]]; then
+    source $HOME/golang-1.19
+elif [[ "$T5CI_VERSION" == "4.14" ]] || [[ "$T5CI_VERSION" == "4.15" ]]; then
+    source $HOME/golang-1.20
+elif [[ "$T5CI_VERSION" == "4.16" ]]; then
+    source $HOME/golang-1.21.11
+elif [[ "$T5CI_VERSION" =~ $pattern ]]; then
+    source $HOME/golang-1.22.4
 else
   # make sure the test runs with specific go vervsion.
   # install go in <ptp-operator-repo>/bin if not already installed
-  GO_VERSION=1.20.4
+  GO_VERSION=1.22.4
   REPO_BIN_PATH=$(pwd)/bin
   echo "REPO_BIN_PATH is ${REPO_BIN_PATH}"
   export PATH="${REPO_BIN_PATH}/go/bin:$PATH"
