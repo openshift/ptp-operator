@@ -42,18 +42,29 @@ spec:
           metadata:
             type: object
           spec:
-            description: PtpOperatorConfigSpec defines the desired state of PtpOperatorConfig
+            description: PtpOperatorConfigSpec defines the desired state of PtpOperatorConfig.
             properties:
               daemonNodeSelector:
                 additionalProperties:
                   type: string
+                description: |-
+                  DaemonNodeSelector specifies the node selector for the linuxptp daemon.
+                  This is a map of key-value pairs used to select the nodes where the
+                  linuxptp daemon will run.
+                  If empty {}, the linuxptp daemon will be deployed on each node of the cluster.
                 type: object
               plugins:
                 additionalProperties:
                   x-kubernetes-preserve-unknown-fields: true
+                description: |-
+                  EnabledPlugins is a map of plugin names to their configuration settings.
+                  Each entry in the map specifies the configuration for a specific plugin.
+                  This field is optional and can be omitted if no plugins are enabled.
                 type: object
               ptpEventConfig:
-                description: EventConfig to configure event sidecar
+                description: |-
+                  EventConfig contains the configuration settings for the PTP event sidecar.
+                  This field is optional and can be omitted if event sidecar configuration is not required.
                 properties:
                   apiVersion:
                     description: |-
@@ -83,6 +94,9 @@ spec:
             description: PtpOperatorConfigStatus defines the observed state of PtpOperatorConfig
             type: object
         type: object
+        x-kubernetes-validations:
+        - message: PtpOperatorConfig is a singleton, metadata.name must be 'default'
+          rule: self.metadata.name == 'default'
     served: true
     storage: true
     subresources:
