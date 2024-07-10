@@ -92,12 +92,15 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
+.PHONY: fmt
 fmt: ## Go fmt your code
 	hack/gofmt.sh
 
+.PHONY: fmt-code
 fmt-code: ## Run go fmt against code.
 	go fmt ./...
 
+.PHONY: vet
 vet: ## Run go vet against code.
 	go vet ./...
 
@@ -210,6 +213,10 @@ bundle-build:
 bundle-push: ## Push the bundle image.
 	$(MAKE) docker-push IMG=$(BUNDLE_IMG)
 
+.PHONY: bundle-check
+bundle-check: common-deps-update generate manifests bundle
+	hack/check-git-tree.sh
+
 .PHONY: opm
 OPM = ./bin/opm
 opm: ## Download opm locally if necessary.
@@ -251,8 +258,8 @@ catalog-build: opm ## Build a catalog image.
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 
-# custom
-deps-update:
+.PHONY: common-deps-update
+common-deps-update:	controller-gen kustomize
 	go mod tidy && \
 	go mod vendor
 
