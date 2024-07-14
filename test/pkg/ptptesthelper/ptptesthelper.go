@@ -13,7 +13,6 @@ import (
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/metrics"
-	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/nodes"
 	nodeshelper "github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/nodes"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/pods"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/ptphelper"

@@ -3,7 +3,7 @@ set -x
 
 # make sure the test runs with specific go vervsion.
 # install go in <ptp-operator-repo>/bin if not already installed
-GO_VERSION=1.20.4
+GO_VERSION=1.22.4
 REPO_BIN_PATH=$(pwd)/bin
 echo "REPO_BIN_PATH is ${REPO_BIN_PATH}"
 export PATH="${REPO_BIN_PATH}/go/bin:$PATH"

@@ -210,7 +210,7 @@ metadata:
     operation: Update
     time: "2022-06-13T22:27:54Z"
   name: test-bc-master
-  namespace: openshift-ptp
+  namespace: ptp
 spec:
   profile:
   - name: test-bc-master
@@ -239,7 +239,7 @@ spec:
 ## PTP test modes
 The type of clock to test is indicated by selecting a PTP test mode. The mode selection also determines which test are executed.
 ### Discovery mode
-This mode assumes that one or more valid ptpconfig objects are configured in the openshift-ptp namespace. The test parses the ptpconfig objects and labels to automatically determines the type of clock to test. Currently able to detect OC, BC and Dual NIC BC configurations. GrandMasters or Boundary clock slaves are not detected.
+This mode assumes that one or more valid ptpconfig objects are configured in the ptp namespace. The test parses the ptpconfig objects and labels to automatically determines the type of clock to test. Currently able to detect OC, BC and Dual NIC BC configurations. GrandMasters or Boundary clock slaves are not detected.
 
 In Discovery mode, no auto-configuration is performed and no clocks are created. The existing clocks are just tested.
 ### Auto-Configured modes
@@ -312,8 +312,8 @@ The Test mode discovery workflow is as follows:
 
  ### States
  - **Desired config**: the desired mode is selected at this point. The choices are Discovery, OC and BC.
- - **PTP configuration**: if OC, BC modes are selected, a valid default configuration is configured automatically. The output of the configuration is 1 or 2 ptpconfig objects in the openshift-ptp. If Discovery mode is selected, this configuration step is skipped.
- - **Discovery**: the ptpconfig installed in the openshift-ptp namespace are analysed to determine which type of clocks they represent, either OC, BC. This step is the same whether the configuration was configured by the test suite (OC, BC) or by the user (Discovery). If the ptpconfigs are valid and a type of clock can be determined successfully, then discovery is successful and the corresponding test are executed.
+ - **PTP configuration**: if OC, BC modes are selected, a valid default configuration is configured automatically. The output of the configuration is 1 or 2 ptpconfig objects in the ptp. If Discovery mode is selected, this configuration step is skipped.
+ - **Discovery**: the ptpconfig installed in the ptp namespace are analysed to determine which type of clocks they represent, either OC, BC. This step is the same whether the configuration was configured by the test suite (OC, BC) or by the user (Discovery). If the ptpconfigs are valid and a type of clock can be determined successfully, then discovery is successful and the corresponding test are executed.
 # Host based L2 discovery 
 The rapid discovery of L2 hosts is realized by probing the network with test Ethernet frames. See https://github.com/test-network-function/l2discovery
 

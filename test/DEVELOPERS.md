@@ -98,7 +98,7 @@ A primary Boundary clock receives synchronization from a master clock and a seco
 ## Current test description
 ### Validation tests
 #### should have the ptp namespace
-Checks that the "openshift-ptp" namespace is created in the configured cluster. Fails if "openshift-ptp" is not found
+Checks that the "ptp" namespace is created in the configured cluster. Fails if "ptp" is not found
 #### should have the ptp operator deployment in running state
 Checks that the "ptp-operator" deployment is deployed and ready. Expected replica are matching available replicas. Fails if the deployment fails to be ready after a 10 minute timeout.
 #### should have the linuxptp daemonset in running state
@@ -114,7 +114,7 @@ Fails if one or more CRD is missing.
 Check whether ptp-events are enabled by checking the "default" ptpoperatorconfigs CR. If "EnableEventPublisher" ("ptpConfig.Spec.EventConfig.EnableEventPublisher") is set to false this test case fails. Example ptpoperatorconfigs below:
 
 ```
-$ oc edit ptpoperatorconfigs.ptp.openshift.io default -n openshift-ptp
+$ oc edit ptpoperatorconfigs.ptp.openshift.io default -n ptp
 
 apiVersion: v1
 items:
@@ -124,14 +124,14 @@ items:
     creationTimestamp: "2019-10-28T06:53:09Z"
     generation: 4
     name: default
-    namespace: openshift-ptp
+    namespace: ptp
     resourceVersion: "2364095"
-    selfLink: /apis/ptp.openshift.io/v1/namespaces/openshift-ptp/ptpoperatorconfigs/default
+    selfLink: /apis/ptp.openshift.io/v1/namespaces/ptp/ptpoperatorconfigs/default
     uid: d7286542-34bd-4c79-8533-d01e2b25953e
   spec:
     ptpEventConfig:
       enableEventPublisher: true
-      transportHost: "http://ptp-event-publisher-service.openshift-ptp.svc.cluster.local:9043"
+      transportHost: "http://ptp-event-publisher-service.ptp.svc.cluster.local:9043"
       # For AMQP transport, transportHost: "amqp://amq-router.amq-router.svc.cluster.local"
     daemonNodeSelector:
       node-role.kubernetes.io/worker: ""
@@ -159,7 +159,7 @@ Checks that the ptp interface discovered by the ptp API ( node ptp device ) for 
     - HwRawClock
 For each node compile a list of interfaces satisfying the above requirements and compare it to the list retrievd via the node ptp device API. Example API output:
 ```
-[deliedit@redhatwork test]$ oc get nodeptpdevices.ptp.openshift.io  -nopenshift-ptp master-2.clus0.t5g.lab.eng.rdu2.redhat.com -oyaml 
+[deliedit@redhatwork test]$ oc get nodeptpdevices.ptp.openshift.io  -nptp master-2.clus0.t5g.lab.eng.rdu2.redhat.com -oyaml 
 apiVersion: ptp.openshift.io/v1
 kind: NodePtpDevice
 metadata:
@@ -184,7 +184,7 @@ metadata:
     subresource: status
     time: "2023-02-10T16:53:38Z"
   name: master-2.clus0.t5g.lab.eng.rdu2.redhat.com
-  namespace: openshift-ptp
+  namespace: ptp
   resourceVersion: "127631272"
   uid: 3a46b612-7bb8-42ad-9f45-2c7d2c3b1e77
 spec: {}
@@ -261,7 +261,7 @@ Checks for the output of the chrt function configuring the realtime priority in 
 
 example ptpconfig showing a SCHED_OTHER scheduling policy:
 ```
-oc get ptpconfig -nopenshift-ptp test-slave1 -oyaml 
+oc get ptpconfig -nptp test-slave1 -oyaml 
 apiVersion: ptp.openshift.io/v1
 kind: PtpConfig
 metadata:
@@ -279,7 +279,7 @@ metadata:
     operation: Update
     time: "2023-03-03T16:19:37Z"
   name: test-slave1
-  namespace: openshift-ptp
+  namespace: ptp
   resourceVersion: "148997057"
   uid: 1cc39828-d2da-432a-94f3-7d57149971ca
 spec:
@@ -346,7 +346,7 @@ prometheus-k8s-1                               6/6     Running   21         106d
 ```
 Once the prometheus pod is found, the test cases uses it to run "curl" commands inside, similar to this one:
 ```
-oc exec -n openshift-monitoring prometheus-k8s-0 -- curl -s http://localhost:9090/api/v1/query --data-urlencode 'query=rate(container_cpu_usage_seconds_total{container="", pod="linuxptp-daemon-gdzhf", namespace="openshift-ptp"}[60s])'
+oc exec -n openshift-monitoring prometheus-k8s-0 -- curl -s http://localhost:9090/api/v1/query --data-urlencode 'query=rate(container_cpu_usage_seconds_total{container="", pod="linuxptp-daemon-gdzhf", namespace="ptp"}[60s])'
 ```
 The previous command would get the rate for the cpu usage secs for the pod "linuxptp-daemon-gdzhf" for the last 60 seconds.
 
@@ -362,8 +362,8 @@ This is the test case procedure:
 
 Some helper functions were created for this test case:
   - `RunPrometheusQueryWithRetries`: Runs a prometheus query and retries it in case the "curl" command fails or the result is not the expected. The function accepts a callback function that will be called with the response obtained. If the function is not nil and it returns false, there will be a new attempt. For this test case, the query has the template `rate(container_cpu_usage_seconds_total{namespace="%s", container="%s", pod="%s"}[%s])`
-  - `GetContainerCpuUsage`: Gets the cpu usage of a ptp container. Calls "RunPrometheusQueryWithRetries" with the corresponding pod and container names and the ptp namespace "openshift-ptp".
-  - `GetPodTotalCpuUsage`: Gets the total cpu usage of a ptp pod. Calls "RunPrometheusQueryWithRetries" with the corresponding pod name and the ptp namespace "openshift-ptp". The container name is set to empty string "".
+  - `GetContainerCpuUsage`: Gets the cpu usage of a ptp container. Calls "RunPrometheusQueryWithRetries" with the corresponding pod and container names and the ptp namespace "ptp".
+  - `GetPodTotalCpuUsage`: Gets the total cpu usage of a ptp pod. Calls "RunPrometheusQueryWithRetries" with the corresponding pod name and the ptp namespace "ptp". The container name is set to empty string "".
   - `GetCadvisorScrapeInterval`: As the `rate` function needs at least two samples to work, this function is used to get the current scrape interval that is used to scrape the kubelet's cadvisor, which is the module that exposes the cpu usage metric we're looking for. The test case won't run if the configured time-window is lower than twice the cadvisor scrape interval. The scrape interval is configured in the prometheus ServiceMonitor resource, so the prometheus go-client is used to get this value:
 	```
 	$ oc get servicemonitors.monitoring.coreos.com -n openshift-monitoring kubelet
@@ -384,7 +384,7 @@ Steps:
       maxOffsetThreshold: 100
       minOffsetThreshold: -100
 ```
-- instantiate a consumer sidecar and configure it to connect to the right ptp event service: `ptp-event-publisher-service-<nodename>.<publisher_namespace>.svc.cluster.local:9043`. where `<nodename>` is the nodename where the clock under test is configured and `<publisher_namespace>` is the openshift-ptp namespace
+- instantiate a consumer sidecar and configure it to connect to the right ptp event service: `ptp-event-publisher-service-<nodename>.<publisher_namespace>.svc.cluster.local:9043`. where `<nodename>` is the nodename where the clock under test is configured and `<publisher_namespace>` is the ptp namespace
 Example side car configuration:
 ```
 Args: []string{"--metrics-addr=127.0.0.1:9091",

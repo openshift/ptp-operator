@@ -71,7 +71,7 @@ output_file="${PTP_CPU_USAGE_OUTPUT_FILE:-ptp-cpu-usage.csv}"
 # Helper function to get the pod's containers names.
 function get_pod_containers() {
     local pod_name=$1
-    oc get pods -n openshift-ptp $pod -o jsonpath='{range .spec.containers[*]}{.name}{" "}{end}'
+    oc get pods -n ptp $pod -o jsonpath='{range .spec.containers[*]}{.name}{" "}{end}'
 }
 
 # Helper function to get the cpu usage from a pod's container.
@@ -111,13 +111,13 @@ sleep 2
 echo "> Getting the list of all PTP pods' containers"
 declare -A containers
 
-ptp_operator_pods=`oc get pods -n openshift-ptp -l name=ptp-operator -o jsonpath='{range .items[*]}{.metadata.name}{" "}{end}'`
+ptp_operator_pods=`oc get pods -n ptp -l name=ptp-operator -o jsonpath='{range .items[*]}{.metadata.name}{" "}{end}'`
 for pod in $ptp_operator_pods; do
     containers[${pod}]=$(get_pod_containers)
     echo "  - PTP operator pod $pod containers: ${containers[$pod]}"
 done
 
-ptp_daemonset_pods=`oc get pod -n openshift-ptp -l app=linuxptp-daemon -o jsonpath='{range .items[*]}{.metadata.name}{" "}{end}'`
+ptp_daemonset_pods=`oc get pod -n ptp -l app=linuxptp-daemon -o jsonpath='{range .items[*]}{.metadata.name}{" "}{end}'`
 for pod in $ptp_daemonset_pods; do
     containers[${pod}]=$(get_pod_containers)
     echo "  - PTP daemonset pod $pod containers: ${containers[$pod]}"

@@ -11,7 +11,7 @@ const (
 	ETHTOOL_RX_HARDWARE_FLAG       = "(SOF_TIMESTAMPING_RX_HARDWARE)"
 	ETHTOOL_TX_HARDWARE_FLAG       = "(SOF_TIMESTAMPING_TX_HARDWARE)"
 	ETHTOOL_RAW_HARDWARE_FLAG      = "(SOF_TIMESTAMPING_RAW_HARDWARE)"
-	PtpLinuxDaemonNamespace        = "openshift-ptp"
+	PtpLinuxDaemonNamespace        = "ptp"
 	PtpLinuxDaemonPodsLabel        = "app=linuxptp-daemon"
 	PtpOperatorDeploymentName      = "ptp-operator"
 	PtPOperatorPodsLabel           = "name=ptp-operator"
@@ -19,8 +19,8 @@ const (
 
 	PtpResourcesGroupVersionPrefix  = "ptp.openshift.io/v"
 	PtpResourcesNameOperatorConfigs = "ptpoperatorconfigs"
-	NodePtpDeviceAPIPath            = "/apis/ptp.openshift.io/v1/namespaces/openshift-ptp/nodeptpdevices/"
-	ConfigPtpAPIPath                = "/apis/ptp.openshift.io/v1/namespaces/openshift-ptp/ptpconfigs"
+	NodePtpDeviceAPIPath            = "/apis/ptp.openshift.io/v1/namespaces/ptp/nodeptpdevices/"
+	ConfigPtpAPIPath                = "/apis/ptp.openshift.io/v1/namespaces/ptp/ptpconfigs"
 	PtpContainerName                = "linuxptp-daemon-container"
 	EventProxyContainerName         = "cloud-event-proxy"
 
@@ -60,7 +60,7 @@ const (
 
 const (
 	// PtpNamespace contains the name of the ptp namespace
-	PtpNamespace = "openshift-ptp"
+	PtpNamespace = "ptp"
 	// NodePtpDevices contains the name of the node ptp devices CRD
 	NodePtpDevicesCRD = "nodeptpdevices.ptp.openshift.io"
 	// PtpConfigs contains the name of the ptp configs CRD
