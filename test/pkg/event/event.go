@@ -16,11 +16,9 @@ import (
 	testclient "github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/namespaces"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/pods"
-	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/testconfig"
-	//chanpubsub "github.com/redhat-cne/channel-pubsub"
-	//exports "github.com/redhat-cne/ptp-listener-exports"
-	//lib "github.com/redhat-cne/ptp-listener-lib"
-	//cneevent "github.com/redhat-cne/sdk-go/pkg/event"
+	chanpubsub "github.com/redhat-cne/channel-pubsub"
+	exports "github.com/redhat-cne/ptp-listener-exports"
+	cneevent "github.com/redhat-cne/sdk-go/pkg/event"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -43,12 +41,12 @@ const (
 	sidecarNamespaceDeleteTimeout = time.Minute * 2
 )
 
-// var (
-// 	PubSub *chanpubsub.Pubsub
-// )
+var (
+	PubSub *chanpubsub.Pubsub
+)
 
 func InitPubSub() {
-	//PubSub = chanpubsub.NewPubsub()
+	PubSub = chanpubsub.NewPubsub()
 }
 
 // enables event if ptp event is required
@@ -121,7 +119,9 @@ func CreateEventProxySidecar(nodeNameFull string) (err error) {
 
 					Args: []string{"--local-api-addr=127.0.0.1:9089",
 						"--api-path=/api/ocloudNotifications/v1/",
-						"--api-addr=127.0.0.1:8089"},
+						"--api-addr=127.0.0.1:8089",
+						"--http-event-publishers=ptp-event-publisher-service-NODE_NAME.openshift-ptp.svc.cluster.local:9043"},
+
 					Env: []corev1.EnvVar{{Name: "NODE_NAME", Value: nodeNameFull},
 						{Name: "CONSUMER_TYPE", Value: "PTP"},
 						{Name: "ENABLE_STATUS_CHECK", Value: "true"},
@@ -145,8 +145,15 @@ func CreateEventProxySidecar(nodeNameFull string) (err error) {
 		logrus.Infof("namespace %s deleted", ConsumerSidecarTestNamespace)
 	}
 
+	labels := map[string]string{
+		"security.openshift.io/scc.podSecurityLabelSync": "false",
+		"pod-security.kubernetes.io/audit":               "privileged",
+		"pod-security.kubernetes.io/enforce":             "privileged",
+		"pod-security.kubernetes.io/warn":                "privileged",
+		"openshift.io/cluster-monitoring":                "true",
+	}
 	// create sidecar namespace
-	err = namespaces.Create(ConsumerSidecarTestNamespace, client.Client)
+	err = namespaces.Create(ConsumerSidecarTestNamespace, client.Client, labels)
 	if err != nil {
 		return fmt.Errorf("could not create namespace=%s, err=%s", ConsumerSidecarTestNamespace, err)
 	}
@@ -397,14 +404,13 @@ func PushInitialEvent(eventType string, timeout time.Duration) (err error) {
 	defer stream.Close()
 	start := time.Now()
 	for {
-		t := time.Now()
-		elapsed := t.Sub(start)
-		if elapsed > timeout {
-			return fmt.Errorf("timedout PushInitialValue, waiting for log in ns=%s pod=%s, looking for = %s", namespace, podName, regex)
-		}
-
 		scanner := bufio.NewScanner(stream)
 		for scanner.Scan() {
+			t := time.Now()
+			elapsed := t.Sub(start)
+			if elapsed > timeout {
+				return fmt.Errorf("timedout PushInitialValue, waiting for log in ns=%s pod=%s, looking for = %s", namespace, podName, regex)
+			}
 			line := scanner.Text()
 			logrus.Trace(line)
 
@@ -412,7 +418,10 @@ func PushInitialEvent(eventType string, timeout time.Duration) (err error) {
 			matches := r.FindAllStringSubmatch(line, -1)
 			if len(matches) > 0 {
 				aStoredEvent, eType, err := createStoredEvent([]byte(matches[0][1]))
-				if err == nil && eType == eventType {
+				if err != nil {
+					return err
+				}
+				if eType == eventType {
 					PubSub.Publish(eType, aStoredEvent)
 					return nil
 				}
