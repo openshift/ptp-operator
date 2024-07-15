@@ -14,7 +14,11 @@ spec:
     singular: nodeptpdevice
   scope: Namespaced
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1
     schema:
       openAPIV3Schema:
         description: NodePtpDevice is the Schema for the nodeptpdevices API
@@ -44,28 +48,50 @@ spec:
             properties:
               devices:
                 description: |-
-                  INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-                  Important: Run "make" to regenerate code after modifying this file
+                  PtpDevice represents a PTP device available in the cluster node.
+                  This struct contains information about the device, including its name and profile.
                 items:
                   properties:
                     name:
+                      description: |-
+                        Name is the name of the PTP device.
+                        It is a unique identifier for the device.
                       type: string
                     profile:
+                      description: |-
+                        Profile is the PTP profile associated with the device.
+                        This profile defines the PTP configuration settings for the device.
                       type: string
                   type: object
                 type: array
               hwconfig:
+                description: |-
+                  HwConfig represents the hardware configuration for a device in the cluster.
+                  This struct contains information about the device's identification and status,
+                  as well as its specific configuration settings.
                 items:
                   properties:
                     config:
+                      description: |-
+                        Config contains the configuration settings for the hardware device.
+                        This is a JSON object that holds the device-specific configuration.
                       x-kubernetes-preserve-unknown-fields: true
                     deviceID:
+                      description: DeviceID is the unique identifier for the hardware
+                        device.
                       type: string
                     failed:
+                      description: |-
+                        Failed indicates whether the hardware configuration has failed.
+                        A value of true means the configuration has failed.
                       type: boolean
                     status:
+                      description: Status provides a descriptive status of the hardware
+                        device's configuration.
                       type: string
                     vendorID:
+                      description: VendorID is the identifier for the vendor of the
+                        hardware device.
                       type: string
                   type: object
                 type: array
