@@ -39,6 +39,20 @@ func (e *Event) NewCloudEvent(ps *pubsub.PubSub) (*cloudevent.Event, error) {
 	return &ce, nil
 }
 
+// NewCloudEvent create new cloud event from cloud native events and pubsub
+func (e *Event) NewCloudEventV2() (*cloudevent.Event, error) {
+	ce := cloudevent.NewEvent(cloudevent.VersionV1)
+	ce.SetTime(e.GetTime())
+	ce.SetType(e.Type)
+	ce.SetSource(e.Source)
+	ce.SetSpecVersion(cloudevent.VersionV1)
+	ce.SetID(uuid.New().String())
+	if err := ce.SetData("", e.GetData()); err != nil {
+		return nil, err
+	}
+	return &ce, nil
+}
+
 // GetCloudNativeEvents  get event data from cloud events object if its valid else return error
 func (e *Event) GetCloudNativeEvents(ce *cloudevent.Event) (err error) {
 	if ce.Data() == nil {

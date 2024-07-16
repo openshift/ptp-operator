@@ -21,10 +21,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// REST API versions
 const (
-	V1 = "1.0"
-	V2 = "2.0"
+	RestAPIV1 = "1.0"
+	RestAPIV2 = "2.0"
 )
 
 func getMajorVersion(version string) (int, error) {
