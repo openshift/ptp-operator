@@ -30,6 +30,18 @@ const (
 	// BOOTING ...
 	BOOTING SyncState = "BOOTING"
 
+	// FAILURE_MULTIPATH is GNSS Sync Failure - Multipath condition detected
+	FAILURE_MULTIPATH SyncState = "FAILURE-MULTIPATH"
+
+	// FAILURE_NOFIX is GNSS Sync Failure - Unknown
+	FAILURE_NOFIX SyncState = "FAILURE-NOFIX"
+
+	// FAILURE_LOW_SNR is GNSS Sync Failure - Low SNR condition detected
+	FAILURE_LOW_SNR SyncState = "FAILURE-LOW-SNR"
+
+	// FAILURE_PLL is GNSS Sync Failure - PLL is not functioning
+	FAILURE_PLL SyncState = "FAILURE-PLL"
+
 	// FREERUN ...
 	FREERUN SyncState = "FREERUN"
 
