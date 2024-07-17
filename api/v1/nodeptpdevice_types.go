@@ -21,39 +21,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
-// NodePtpDeviceSpec defines the desired state of NodePtpDevice
-type NodePtpDeviceSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-}
-
-type PtpDevice struct {
-	Name    string `json:"name,omitempty"`
-	Profile string `json:"profile,omitempty"`
-}
-
-// NodePtpDeviceStatus defines the observed state of NodePtpDevice
-type NodePtpDeviceStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-	Devices  []PtpDevice `json:"devices,omitempty"`
-	Hwconfig []HwConfig  `json:"hwconfig,omitempty"`
-}
-
-type HwConfig struct {
-	DeviceID string              `json:"deviceID,omitempty"`
-	VendorID string              `json:"vendorID,omitempty"`
-	Failed   bool                `json:"failed,omitempty"`
-	Status   string              `json:"status,omitempty"`
-	Config   *apiextensions.JSON `json:"config,omitempty"`
-}
-
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
 // NodePtpDevice is the Schema for the nodeptpdevices API
 type NodePtpDevice struct {
@@ -62,6 +32,61 @@ type NodePtpDevice struct {
 
 	Spec   NodePtpDeviceSpec   `json:"spec,omitempty"`
 	Status NodePtpDeviceStatus `json:"status,omitempty"`
+}
+
+// NodePtpDeviceSpec defines the desired state of NodePtpDevice
+type NodePtpDeviceSpec struct {
+}
+
+type PtpDevice struct {
+	// Name is the name of the PTP device.
+	// It is a unique identifier for the device.
+	// +optional
+	Name string `json:"name,omitempty"`
+
+	// Profile is the PTP profile associated with the device.
+	// This profile defines the PTP configuration settings for the device.
+	// +optional
+	Profile string `json:"profile,omitempty"`
+}
+
+type HwConfig struct {
+	// DeviceID is the unique identifier for the hardware device.
+	// +optional
+	DeviceID string `json:"deviceID,omitempty"`
+
+	// VendorID is the identifier for the vendor of the hardware device.
+	// +optional
+	VendorID string `json:"vendorID,omitempty"`
+
+	// Failed indicates whether the hardware configuration has failed.
+	// A value of true means the configuration has failed.
+	// +optional
+	Failed bool `json:"failed,omitempty"`
+
+	// Status provides a descriptive status of the hardware device's configuration.
+	// +optional
+	Status string `json:"status,omitempty"`
+
+	// Config contains the configuration settings for the hardware device.
+	// This is a JSON object that holds the device-specific configuration.
+	// +optional
+	Config *apiextensions.JSON `json:"config,omitempty"`
+}
+
+// NodePtpDeviceStatus defines the observed state of NodePtpDevice
+type NodePtpDeviceStatus struct {
+
+	// PtpDevice represents a PTP device available in the cluster node.
+	// This struct contains information about the device, including its name and profile.
+	// +optional
+	Devices []PtpDevice `json:"devices,omitempty"`
+
+	// HwConfig represents the hardware configuration for a device in the cluster.
+	// This struct contains information about the device's identification and status,
+	// as well as its specific configuration settings.
+	// +optional
+	Hwconfig []HwConfig `json:"hwconfig,omitempty"`
 }
 
 //+kubebuilder:object:root=true
