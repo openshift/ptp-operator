@@ -575,7 +575,6 @@ func CreatePtpConfigGrandMaster(nodeName, ifName string) error {
 		ptpSchedulingPolicy = SCHED_FIFO
 	}
 	// Labeling the grandmaster node
-	_, err = nodes.LabelNode(nodeName, pkg.PtpClockUnderTestNodeLabel, "")
 	_, err = nodes.LabelNode(nodeName, pkg.PtpGrandmasterNodeLabel, "")
 	if err != nil {
 		logrus.Errorf("Error setting Grandmaster node role label: %s", err)
