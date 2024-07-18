@@ -74,6 +74,9 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-parallel]", func() 
 		})
 
 		It("PTP Slave Clock Sync", func() {
+			if fullConfig.PtpModeDiscovered == testconfig.TelcoGrandMasterClock {
+				Skip("test not valid for WPC GM config")
+			}
 			testPtpSlaveClockSync(fullConfig, testParameters) // Implementation of the test case
 
 		})

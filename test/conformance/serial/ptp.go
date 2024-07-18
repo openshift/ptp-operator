@@ -329,9 +329,12 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 			// - verifies that the BCSlave foreign master has the expected boundary clock ID
 			// - use metrics to verify that the offset with boundary clock is below threshold
 			It("Downstream slave can sync to BC master", func() {
+				if fullConfig.PtpModeDesired == testconfig.TelcoGrandMasterClock {
+					Skip("test not valid for WPC GM testing only valid for BC config in multi-node cluster ")
+				}
+
 				if fullConfig.PtpModeDiscovered != testconfig.BoundaryClock &&
-					fullConfig.PtpModeDiscovered != testconfig.DualNICBoundaryClock &&
-					fullConfig.PtpModeDiscovered != testconfig.TelcoGrandMasterClock {
+					fullConfig.PtpModeDiscovered != testconfig.DualNICBoundaryClock {
 					Skip("test only valid for Boundary clock in multi-node clusters")
 				}
 				if !fullConfig.FoundSolutions[testconfig.AlgoBCWithSlavesString] &&
@@ -454,6 +457,9 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 			// 27324
 			It("on slave", func() {
+				if fullConfig.PtpModeDiscovered == testconfig.TelcoGrandMasterClock {
+					Skip("test not valid for WPC GM config")
+				}
 				Eventually(func() string {
 					buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
 					return buf.String()
@@ -812,8 +818,10 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 			})
 
 			It("The slave node network interface is taken down and up", func() {
+				if fullConfig.PtpModeDiscovered == testconfig.TelcoGrandMasterClock {
+					Skip("test not valid for WPC GM config")
+				}
 				By("toggling network interfaces and syncing", func() {
-
 					skippedInterfacesStr, isSet := os.LookupEnv("SKIP_INTERFACES")
 
 					if !isSet {
