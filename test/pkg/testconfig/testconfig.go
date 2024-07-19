@@ -604,6 +604,7 @@ func CreatePtpConfigWPCGrandMaster(policyName string, nodeName string, ifList []
 	// Sleep for a second to allow previous label on the same node to complete
 	time.Sleep(time.Second)
 	_, err = nodes.LabelNode(nodeName, pkg.PtpClockUnderTestNodeLabel, "")
+	_, err = nodes.LabelNode(nodeName, pkg.PtpGrandmasterNodeLabel, "")
 	if err != nil {
 		logrus.Errorf("Error setting BC node role label: %s", err)
 	}
