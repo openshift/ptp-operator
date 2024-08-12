@@ -1,10 +1,12 @@
 package test
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -838,6 +840,263 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				})
 			})
 		})
+
+		Context("WPC GM Verification Tests", func() {
+			BeforeEach(func() {
+				By("Refreshing configuration", func() {
+					ptphelper.WaitForPtpDaemonToBeReady()
+					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
+				})
+				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
+					Skip("Failed to find a valid ptp slave configuration")
+				}
+			})
+			//TODO: Use Focus Flag to separate GM tests from other tests
+			It("is verifying WPC GM state based on metrics", func() {
+				if fullConfig.PtpModeDiscovered != testconfig.TelcoGrandMasterClock {
+					Skip("test valid only for GM test config")
+				}
+				By("checking GM required processes status", func() {
+					/*
+						# TYPE openshift_ptp_process_status gauge
+						openshift_ptp_process_status{config="ptp4l.0.config",node="cnfde22.ptp.lab.eng.bos.redhat.com",process="phc2sys"} 1
+						openshift_ptp_process_status{config="ptp4l.0.config",node="cnfde22.ptp.lab.eng.bos.redhat.com",process="ptp4l"} 1
+						openshift_ptp_process_status{config="ts2phc.0.config",node="cnfde22.ptp.lab.eng.bos.redhat.com",process="gpsd"} 1
+						openshift_ptp_process_status{config="ts2phc.0.config",node="cnfde22.ptp.lab.eng.bos.redhat.com",process="gpspipe"}
+						openshift_ptp_process_status{config="ts2phc.0.config",node="cnfde22.ptp.lab.eng.bos.redhat.com",process="gpspipe"} 1
+						openshift_ptp_process_status{config="ts2phc.0.config",node="cnfde22.ptp.lab.eng.bos.redhat.com",process="ts2phc"} 1
+					*/
+					Eventually(func() string {
+						buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
+						return buf.String()
+					}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring(metrics.OpenshiftPtpProcessStatus),
+						"Process status metrics are not detected")
+
+					Eventually(func() string {
+						buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
+						return buf.String()
+					}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring("phc2sys"),
+						"phc2ys process status not detected")
+
+					time.Sleep(10 * time.Second)
+					buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
+					ret, err := processRunning(buf.String())
+					Expect(err).To(BeNil())
+					Expect(ret["phc2sys"]).To(BeTrue(), "Expected phc2sys to be running for GM")
+					Expect(ret["gpspipe"]).To(BeTrue(), "Expected gpspipe to be running for GM")
+					Expect(ret["ts2phc"]).To(BeTrue(), "Expected ts2phc to be running for GM")
+					Expect(ret["gpsd"]).To(BeTrue(), "Expected gpsd to be running for GM")
+					Expect(ret["ptp4l"]).To(BeTrue(), "Expected ptp4l to be running for GM")
+					time.Sleep(1 * time.Minute)
+				})
+
+				By("checking clock class state is locked", func() {
+					/*
+						# TYPE openshift_ptp_clock_class gauge
+						# openshift_ptp_clock_class{node="cnfdg32.ptp.eng.rdu2.dc.redhat.com",process="ptp4l"} 6
+					*/
+					Eventually(func() string {
+						buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
+						return buf.String()
+					}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring(metrics.OpenshiftPtpClockClass),
+						"NMEA status metrics are not detected")
+					buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
+					clockClassPattern := `openshift_ptp_clock_class\{node="([^"]+)",process="([^"]+)"\} (\d+)`
+
+					// Compile the regular expression
+					clockClassRe := regexp.MustCompile(clockClassPattern)
+
+					// Find matches
+					clockClassMap := map[string]bool{"ptp4l": false}
+
+					scanner := bufio.NewScanner(strings.NewReader(buf.String()))
+					timeout := 10 * time.Second
+					start := time.Now()
+					for scanner.Scan() {
+						t := time.Now()
+						elapsed := t.Sub(start)
+						if elapsed > timeout {
+							Fail("Timedout reading input from metrics")
+						}
+						line := scanner.Text()
+						if matches := clockClassRe.FindStringSubmatch(line); matches != nil {
+							if _, ok := clockClassMap[matches[2]]; ok && matches[3] == "6" {
+								clockClassMap[matches[2]] = true
+								break
+							}
+
+						}
+					}
+					if err := scanner.Err(); err != nil {
+						Fail(fmt.Sprintf("Error reading input: %s", err))
+					}
+					Expect(clockClassMap["ptp4l"]).To(BeTrue(), "Expected ptp4l clock class state to be Locked for GM")
+				})
+
+				By("checking DPLL frequency state locked", func() {
+					/*
+						# TODO: Revisit this for 2 card as each card will have its own dpll process
+						# TYPE openshift_ptp_frequency_status gauge
+						# openshift_ptp_frequency_status{from="dpll",iface="ens7fx",node="cnfdg32.ptp.eng.rdu2.dc.redhat.com",process="dpll"} 3
+					*/
+					Eventually(func() string {
+						buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
+						return buf.String()
+					}, pkg.TimeoutIn3Minutes, 5*time.Second).Should(ContainSubstring(metrics.OpenshiftPtpFrequencyStatus),
+						"frequency status metrics are not detected")
+
+					buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
+					freqStatusPattern := `openshift_ptp_frequency_status\{from="([^"]+)",iface="([^"]+)",node="([^"]+)",process="([^"]+)"\} (\d+)`
+
+					// Compile the regular expression
+					freqStatusRe := regexp.MustCompile(freqStatusPattern)
+
+					// Find matches
+					freqStatusMap := map[string]bool{"dpll": false}
+
+					scanner := bufio.NewScanner(strings.NewReader(buf.String()))
+					timeout := 10 * time.Second
+					start := time.Now()
+					for scanner.Scan() {
+						t := time.Now()
+						elapsed := t.Sub(start)
+						if elapsed > timeout {
+							Fail("Timedout reading input from metrics")
+						}
+						line := scanner.Text()
+						if matches := freqStatusRe.FindStringSubmatch(line); matches != nil {
+							if _, ok := freqStatusMap[matches[4]]; ok && matches[5] == "3" {
+								freqStatusMap[matches[4]] = true
+								break
+							}
+
+						}
+					}
+					if err := scanner.Err(); err != nil {
+						Fail(fmt.Sprintf("Error reading input from metrics: %s", err))
+					}
+					Expect(freqStatusMap["dpll"]).To(BeTrue(), "Expected dpll frequency status to be Locked for GM")
+
+				})
+
+				By("checking DPLL phase state locked", func() {
+					/*
+						# TODO: Revisit this for 2 card as each card will have its own dpll process
+						# TYPE openshift_ptp_phase_status gauge
+						# openshift_ptp_phase_status{from="dpll",iface="ens7fx",node="cnfdg32.ptp.eng.rdu2.dc.redhat.com",process="dpll"} 3
+					*/
+					Eventually(func() string {
+						buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
+						return buf.String()
+					}, pkg.TimeoutIn3Minutes, 5*time.Second).Should(ContainSubstring(metrics.OpenshiftPtpPhaseStatus),
+						"frequency status metrics are not detected")
+
+					buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
+					phaseStatusPattern := `openshift_ptp_phase_status\{from="([^"]+)",iface="([^"]+)",node="([^"]+)",process="([^"]+)"\} (\d+)`
+
+					// Compile the regular expression
+					phaseStatusRe := regexp.MustCompile(phaseStatusPattern)
+
+					// Find matches
+					phaseStatusMap := map[string]bool{"dpll": false}
+
+					scanner := bufio.NewScanner(strings.NewReader(buf.String()))
+					timeout := 10 * time.Second
+					start := time.Now()
+					for scanner.Scan() {
+						t := time.Now()
+						elapsed := t.Sub(start)
+						if elapsed > timeout {
+							Fail("Timedout reading input from metrics")
+						}
+						line := scanner.Text()
+						if matches := phaseStatusRe.FindStringSubmatch(line); matches != nil {
+							if _, ok := phaseStatusMap[matches[4]]; ok && matches[5] == "3" {
+								phaseStatusMap[matches[4]] = true
+								break
+							}
+
+						}
+					}
+					if err := scanner.Err(); err != nil {
+						Fail(fmt.Sprintf("Error reading input: %s", err))
+					}
+					Expect(phaseStatusMap["dpll"]).To(BeTrue(), "Expected dpll phase status to be Locked for GM")
+
+				})
+
+				By("checking GM clock state locked", func() {
+					/*
+						# TODO: Revisit this for 2 card as each card will have its own dpll and ts2phc processes
+						# TYPE openshift_ptp_clock_state gauge
+						openshift_ptp_clock_state{iface="CLOCK_REALTIME",node="cnfdg32.ptp.eng.rdu2.dc.redhat.com",process="phc2sys"} 1
+						openshift_ptp_clock_state{iface="ens7fx",node="cnfdg32.ptp.eng.rdu2.dc.redhat.com",process="GM"} 1
+						openshift_ptp_clock_state{iface="ens7fx",node="cnfdg32.ptp.eng.rdu2.dc.redhat.com",process="dpll"} 1
+						openshift_ptp_clock_state{iface="ens7fx",node="cnfdg32.ptp.eng.rdu2.dc.redhat.com",process="gnss"} 1
+						openshift_ptp_clock_state{iface="ens7fx",node="cnfdg32.ptp.eng.rdu2.dc.redhat.com",process="ts2phc"} 1
+					*/
+					Eventually(func() string {
+						buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
+						return buf.String()
+					}, pkg.TimeoutIn3Minutes, 5*time.Second).Should(ContainSubstring(metrics.OpenshiftPtpClockState),
+						"Clock state metrics are not detected")
+
+					buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
+					ret, err := clockStateByProcesses(buf.String())
+					Expect(err).To(BeNil())
+					Expect(ret["phc2sys"]).To(BeTrue(), "Expected phc2sys clock state to be locked for GM")
+					Expect(ret["GM"]).To(BeTrue(), "Expected GM clock state to be locked for GM")
+					Expect(ret["dpll"]).To(BeTrue(), "Expected dpll clock state to be locked for GM")
+					Expect(ret["ts2phc"]).To(BeTrue(), "Expected ts2phc clock state to be locked for GM")
+					Expect(ret["gnss"]).To(BeTrue(), "Expected gnss clock state to be locked for GM")
+
+				})
+
+				By("checking PTP NMEA status for ts2phc", func() {
+					/*
+						# TYPE openshift_ptp_nmea_status gauge
+						# openshift_ptp_nmea_status{from="ts2phc",iface="ens7fx",node="cnfdg32.ptp.eng.rdu2.dc.redhat.com",process="ts2phc"} 1
+					*/
+					Eventually(func() string {
+						buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
+						return buf.String()
+					}, pkg.TimeoutIn3Minutes, 5*time.Second).Should(ContainSubstring(metrics.OpenshiftPtpNMEAStatus),
+						"NMEA status metrics are not detected")
+					buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
+					nmeaStatusPattern := `openshift_ptp_nmea_status\{from="([^"]+)",iface="([^"]+)",node="([^"]+)",process="([^"]+)"\} (\d+)`
+
+					// Compile the regular expression
+					nmeaStatusRe := regexp.MustCompile(nmeaStatusPattern)
+
+					// Find matches
+					processNmeaState := map[string]bool{"ts2phc": false}
+
+					scanner := bufio.NewScanner(strings.NewReader(buf.String()))
+					timeout := 10 * time.Second
+					start := time.Now()
+					for scanner.Scan() {
+						t := time.Now()
+						elapsed := t.Sub(start)
+						if elapsed > timeout {
+							Fail("Timedout reading input from metrics")
+						}
+						line := scanner.Text()
+						if matches := nmeaStatusRe.FindStringSubmatch(line); matches != nil {
+							if _, ok := processNmeaState[matches[4]]; ok && matches[5] == "1" {
+								processNmeaState[matches[4]] = true
+								break
+							}
+
+						}
+					}
+					if err := scanner.Err(); err != nil {
+						Fail(fmt.Sprintf("Error reading input from metrics: %s", err))
+					}
+					Expect(processNmeaState["ts2phc"]).To(BeTrue(), "Expected ts2phc nmea state to be available for GM")
+				})
+			})
+
+		})
 	})
 })
 
@@ -883,4 +1142,74 @@ func testCaseEnabled(testCase TestCase) bool {
 		}
 	}
 	return false
+}
+
+func processRunning(input string) (map[string]bool, error) {
+	// Regular expression pattern
+	processStatusPattern := `openshift_ptp_process_status\{config="([^"]+)",node="([^"]+)",process="([^"]+)"\} (\d+)`
+
+	// Compile the regular expression
+	processStatusRe := regexp.MustCompile(processStatusPattern)
+
+	// Find matches
+	processRunning := map[string]bool{"phc2sys": false, "ptp4l": false, "ts2phc": false, "gpspipe": false, "gpsd": false}
+
+	scanner := bufio.NewScanner(strings.NewReader(input))
+	timeout := 10 * time.Second
+	start := time.Now()
+	for scanner.Scan() {
+		t := time.Now()
+		elapsed := t.Sub(start)
+		if elapsed > timeout {
+			fmt.Println("Timed out when reading metrics")
+			break
+		}
+		line := scanner.Text()
+		if matches := processStatusRe.FindStringSubmatch(line); matches != nil {
+			if _, ok := processRunning[matches[3]]; ok && matches[4] == "1" {
+				processRunning[matches[3]] = true
+			}
+
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Println("Error reading input:", err)
+		return nil, err
+	}
+	return processRunning, nil
+}
+
+func clockStateByProcesses(input string) (map[string]bool, error) {
+	// Regular expression pattern
+	clockStatePattern := `openshift_ptp_clock_state\{iface="([^"]+)",node="([^"]+)",process="([^"]+)"\} (\d+)`
+
+	// Compile the regular expression
+	processStatusRe := regexp.MustCompile(clockStatePattern)
+
+	// Find matches
+	processClockState := map[string]bool{"phc2sys": false, "GM": false, "dpll": false, "ts2phc": false, "gnss": false}
+
+	scanner := bufio.NewScanner(strings.NewReader(input))
+	timeout := 10 * time.Second
+	start := time.Now()
+	for scanner.Scan() {
+		t := time.Now()
+		elapsed := t.Sub(start)
+		if elapsed > timeout {
+			fmt.Println("Timed out when reading metrics")
+			break
+		}
+		line := scanner.Text()
+		if matches := processStatusRe.FindStringSubmatch(line); matches != nil {
+			if _, ok := processClockState[matches[3]]; ok && matches[4] == "1" {
+				processClockState[matches[3]] = true
+			}
+
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		fmt.Println("Error reading input:", err)
+		return nil, err
+	}
+	return processClockState, nil
 }

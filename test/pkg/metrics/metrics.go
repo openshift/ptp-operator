@@ -17,13 +17,18 @@ import (
 )
 
 const (
-	OpenshiftPtpInterfaceRole = "openshift_ptp_interface_role"
-	OpenshiftPtpClockState    = "openshift_ptp_clock_state"
-	OpenshiftPtpOffsetNs      = "openshift_ptp_offset_ns"
-	OpenshiftPtpThreshold     = "openshift_ptp_threshold"
-	metricsEndPoint           = "127.0.0.1:9091/metrics"
-	MaxOffsetDefaultNs        = 100
-	MinOffsetDefaultNs        = -100
+	OpenshiftPtpInterfaceRole   = "openshift_ptp_interface_role"
+	OpenshiftPtpClockState      = "openshift_ptp_clock_state"
+	OpenshiftPtpFrequencyStatus = "openshift_ptp_frequency_status"
+	OpenshiftPtpPhaseStatus     = "openshift_ptp_phase_status"
+	OpenshiftPtpOffsetNs        = "openshift_ptp_offset_ns"
+	OpenshiftPtpProcessStatus   = "openshift_ptp_process_status"
+	OpenshiftPtpClockClass      = "openshift_ptp_clock_class"
+	OpenshiftPtpNMEAStatus      = "openshift_ptp_nmea_status"
+	OpenshiftPtpThreshold       = "openshift_ptp_threshold"
+	metricsEndPoint             = "127.0.0.1:9091/metrics"
+	MaxOffsetDefaultNs          = 100
+	MinOffsetDefaultNs          = -100
 )
 
 var MaxOffsetNs int

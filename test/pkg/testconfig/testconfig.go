@@ -606,12 +606,12 @@ func CreatePtpConfigWPCGrandMaster(policyName string, nodeName string, ifList []
 	_, err = nodes.LabelNode(nodeName, pkg.PtpClockUnderTestNodeLabel, "")
 	_, err = nodes.LabelNode(nodeName, pkg.PtpGrandmasterNodeLabel, "")
 	if err != nil {
-		logrus.Errorf("Error setting BC node role label: %s", err)
+		logrus.Errorf("Error setting WPC GM node role label: %s", err)
 	}
 
 	ts2phcConfig := BaseTs2PhcConfig + fmt.Sprintf("\nts2phc.nmea_serialport  /dev/%s\n", deviceID)
 	ts2phcConfig = fmt.Sprintf("%s\n[%s]\nts2phc.extts_polarity rising\nts2phc.extts_correction 0\n", ts2phcConfig, ifList[0])
-	ptp4lConfig := BasePtp4lConfig + "\nboundary_clock_jbod 1\n"
+	ptp4lConfig := BasePtp4lConfig + "boundary_clock_jbod 1\n"
 	ptp4lConfig = AddInterface(ptp4lConfig, ifList[0], 1)
 	ptp4lConfig = AddInterface(ptp4lConfig, ifList[1], 1)
 	ptp4lsysOpts := ptp4lEthernet
@@ -619,7 +619,6 @@ func CreatePtpConfigWPCGrandMaster(policyName string, nodeName string, ifList []
 	ph2sysOpts := fmt.Sprintf("-r -u 0 -m -w -N 8 -R 16 -s %s -n 24", ifList[0])
 	plugins := make(map[string]*apiextensions.JSON)
 	const yamlData = `
-plugins:
   e810:
     enableDefaultConfig: false
     settings:
@@ -690,7 +689,7 @@ plugins:
           - "-P"
           - "29.20"
           - "-p"
-          - "CFG-MSG,1,38,300"
+          - "CFG-MSG,1,38,248"
         reportOutput: true
 `
 
