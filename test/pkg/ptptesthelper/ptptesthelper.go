@@ -20,8 +20,8 @@ import (
 	"github.com/openshift/ptp-operator/test/pkg/ptphelper"
 	"github.com/openshift/ptp-operator/test/pkg/testconfig"
 	"github.com/pkg/errors"
+	k8sPriviledgedDs "github.com/redhat-cne/privileged-daemonset"
 	"github.com/sirupsen/logrus"
-	k8sPriviledgedDs "github.com/test-network-function/privileged-daemonset"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -207,7 +207,11 @@ func CreatePtpTestPrivilegedDaemonSet(daemonsetName, daemonsetNamespace, daemons
 	k8sPriviledgedDs.SetDaemonSetClient(client.Client.Interface)
 	// 1. create a daemon set for the node reboot
 	dummyLabels := map[string]string{}
-	daemonSetRunningPods, err := k8sPriviledgedDs.CreateDaemonSet(daemonsetName, daemonsetNamespace, daemonsetContainerName, imageWithVersion, dummyLabels, pkg.TimeoutIn5Minutes)
+	cpuLim := "100m"
+	cpuReq := "100m"
+	memLim := "100M"
+	memReq := "100M"
+	daemonSetRunningPods, err := k8sPriviledgedDs.CreateDaemonSet(daemonsetName, daemonsetNamespace, daemonsetContainerName, imageWithVersion, dummyLabels, pkg.TimeoutIn5Minutes, cpuReq, cpuLim, memReq, memLim)
 
 	if err != nil {
 		logrus.Errorf("error : +%v\n", err.Error())
