@@ -453,7 +453,7 @@ The Test mode discovery workflow is as follows:
 
 ### Graph solver
 With the L2Config data configured in the global configuration, we can find possible ways how to configure ptp to satisfy the OC, BC or dual nic BC scenarios. 
-This is achieved with the `initAndSolveProblems` function and uses the https://github.com/test-network-function/graphsolver-lib project
+This is achieved with the `initAndSolveProblems` function and uses the https://github.com/redhat-cne/graphsolver-lib project
 This functions defines the problem as a set of constraints that need to be satisfied for the solution to be valid.
 Let's take the example of the OC problem as described in this picture:
 ![multi_oc](doc/multi_oc.svg)
