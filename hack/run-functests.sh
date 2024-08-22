@@ -38,7 +38,7 @@ else
     rm -rf "$temp_dir"
   fi
 fi
-
+gopls version
 which ginkgo
 if [ $? -ne 0 ]; then
   # we are moving to a temp folder as in go.mod we have a dependency that is not
