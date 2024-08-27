@@ -11,9 +11,9 @@ import (
 	"github.com/openshift/ptp-operator/test/pkg/client"
 	"github.com/openshift/ptp-operator/test/pkg/nodes"
 	"github.com/openshift/ptp-operator/test/pkg/ptphelper"
-	solver "github.com/redhat-cne/graphsolver-lib"
-	l2lib "github.com/redhat-cne/l2discovery-lib"
 	"github.com/sirupsen/logrus"
+	solver "github.com/test-network-function/graphsolver-lib"
+	l2lib "github.com/test-network-function/l2discovery-lib"
 	"gopkg.in/yaml.v3"
 	v1core "k8s.io/api/core/v1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -410,8 +410,7 @@ func initAndSolveProblems() {
 			{int(solver.StepDifferentNic), 2, 1, 3}}, // step5
 	}
 	data.problems[AlgoTelcoGMString] = &[][][]int{
-		{{int(solver.StepNil), 0, 0}},      // step1
-		{{int(solver.StepIsWPCNic), 1, 0}}, // step1
+		{{int(solver.StepIsPTP), 1, 0}}, // step1
 	}
 
 	data.problems[AlgoDualNicBCWithSlavesString] = &[][][]int{

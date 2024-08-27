@@ -315,7 +315,7 @@ The Test mode discovery workflow is as follows:
  - **PTP configuration**: if OC, BC modes are selected, a valid default configuration is configured automatically. The output of the configuration is 1 or 2 ptpconfig objects in the openshift-ptp. If Discovery mode is selected, this configuration step is skipped.
  - **Discovery**: the ptpconfig installed in the openshift-ptp namespace are analysed to determine which type of clocks they represent, either OC, BC. This step is the same whether the configuration was configured by the test suite (OC, BC) or by the user (Discovery). If the ptpconfigs are valid and a type of clock can be determined successfully, then discovery is successful and the corresponding test are executed.
 # Host based L2 discovery 
-The rapid discovery of L2 hosts is realized by probing the network with test Ethernet frames. See https://github.com/redhat-cne/l2discovery
+The rapid discovery of L2 hosts is realized by probing the network with test Ethernet frames. See https://github.com/test-network-function/l2discovery
 
 ![L2topology](doc/l2topology.svg)
 

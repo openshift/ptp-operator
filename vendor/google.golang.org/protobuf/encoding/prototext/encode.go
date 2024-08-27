@@ -27,17 +27,15 @@ const defaultIndent = "  "
 
 // Format formats the message as a multiline string.
 // This function is only intended for human consumption and ignores errors.
-// Do not depend on the output being stable. Its output will change across
-// different builds of your program, even when using the same version of the
-// protobuf module.
+// Do not depend on the output being stable. It may change over time across
+// different versions of the program.
 func Format(m proto.Message) string {
 	return MarshalOptions{Multiline: true}.Format(m)
 }
 
-// Marshal writes the given [proto.Message] in textproto format using default
-// options. Do not depend on the output being stable. Its output will change
-// across different builds of your program, even when using the same version of
-// the protobuf module.
+// Marshal writes the given proto.Message in textproto format using default
+// options. Do not depend on the output being stable. It may change over time
+// across different versions of the program.
 func Marshal(m proto.Message) ([]byte, error) {
 	return MarshalOptions{}.Marshal(m)
 }
@@ -86,9 +84,8 @@ type MarshalOptions struct {
 
 // Format formats the message as a string.
 // This method is only intended for human consumption and ignores errors.
-// Do not depend on the output being stable. Its output will change across
-// different builds of your program, even when using the same version of the
-// protobuf module.
+// Do not depend on the output being stable. It may change over time across
+// different versions of the program.
 func (o MarshalOptions) Format(m proto.Message) string {
 	if m == nil || !m.ProtoReflect().IsValid() {
 		return "<nil>" // invalid syntax, but okay since this is for debugging
@@ -100,24 +97,17 @@ func (o MarshalOptions) Format(m proto.Message) string {
 	return string(b)
 }
 
-// Marshal writes the given [proto.Message] in textproto format using options in
-// MarshalOptions object. Do not depend on the output being stable. Its output
-// will change across different builds of your program, even when using the
-// same version of the protobuf module.
+// Marshal writes the given proto.Message in textproto format using options in
+// MarshalOptions object. Do not depend on the output being stable. It may
+// change over time across different versions of the program.
 func (o MarshalOptions) Marshal(m proto.Message) ([]byte, error) {
-	return o.marshal(nil, m)
-}
-
-// MarshalAppend appends the textproto format encoding of m to b,
-// returning the result.
-func (o MarshalOptions) MarshalAppend(b []byte, m proto.Message) ([]byte, error) {
-	return o.marshal(b, m)
+	return o.marshal(m)
 }
 
 // marshal is a centralized function that all marshal operations go through.
 // For profiling purposes, avoid changing the name of this function or
 // introducing other code paths for marshal that do not go through this.
-func (o MarshalOptions) marshal(b []byte, m proto.Message) ([]byte, error) {
+func (o MarshalOptions) marshal(m proto.Message) ([]byte, error) {
 	var delims = [2]byte{'{', '}'}
 
 	if o.Multiline && o.Indent == "" {
@@ -127,7 +117,7 @@ func (o MarshalOptions) marshal(b []byte, m proto.Message) ([]byte, error) {
 		o.Resolver = protoregistry.GlobalTypes
 	}
 
-	internalEnc, err := text.NewEncoder(b, o.Indent, delims, o.EmitASCII)
+	internalEnc, err := text.NewEncoder(o.Indent, delims, o.EmitASCII)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +125,7 @@ func (o MarshalOptions) marshal(b []byte, m proto.Message) ([]byte, error) {
 	// Treat nil message interface as an empty message,
 	// in which case there is nothing to output.
 	if m == nil {
-		return b, nil
+		return []byte{}, nil
 	}
 
 	enc := encoder{internalEnc, o}

@@ -27,7 +27,7 @@ import (
 	"github.com/openshift/ptp-operator/test/pkg/client"
 	"github.com/openshift/ptp-operator/test/pkg/nodes"
 	"github.com/openshift/ptp-operator/test/pkg/pods"
-	l2exports "github.com/redhat-cne/l2discovery-exports"
+	l2exports "github.com/test-network-function/l2discovery-exports"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
