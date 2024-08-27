@@ -3,13 +3,7 @@ set -x
 # Set go version
 
 # T5CI_VERSION is used in CI pipeline. Do not set it when run locally
-if [[ "$T5CI_VERSION" =~ 4.1[2-5]+ ]]; then
-  source $HOME/golang-1.20
-elif [[ "$T5CI_VERSION" == "4.16" ]]; then
-  source $HOME/golang-1.21.11
-elif [[ "$T5CI_VERSION" =~ 4.1[7-9]+ ]]; then
-  source $HOME/golang-1.22.4
-elif [[ "$T5CI_VERSION" =~ 4.2[0-9]+ ]]; then
+if [[ "$T5CI_VERSION" =~ 4.[1-2][0-9]+ ]]; then
   source $HOME/golang-1.22.4
 else
   # make sure the test runs with specific go vervsion.
