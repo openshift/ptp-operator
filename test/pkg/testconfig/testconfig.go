@@ -59,7 +59,7 @@ const (
 	phc2sysSlave                = "-a -r -n 24 -m -N 8 -R 16"
 	SCHED_OTHER                 = "SCHED_OTHER"
 	SCHED_FIFO                  = "SCHED_FIFO"
-	L2_DISCOVERY_IMAGE          = "quay.io/deliedit/test:l2disc13" //TODO: update to official build
+	L2_DISCOVERY_IMAGE          = "quay.io/redhat-cne/l2discovery:v12"
 )
 
 type ConfigStatus int64
