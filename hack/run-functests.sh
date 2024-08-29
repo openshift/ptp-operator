@@ -48,11 +48,15 @@ if [ $? -ne 0 ]; then
 fi
 
 ginkgo version
-
-GOPATH="${GOPATH:-~/go}"
+if [[ "$T5CI_VERSION" =~ 4.[1-2][0-9]+ ]]; then
+  source $HOME/golang-1.22.4
+else
+  GOPATH="${GOPATH:-~/go}"
+  export PATH=$PATH:$GOPATH/bin
+fi
 JUNIT_OUTPUT_DIR="${JUNIT_OUTPUT_DIR:-/tmp/artifacts}"
 JUNIT_OUTPUT_FILE="${JUNIT_OUTPUT_FILE:-unit_report.xml}"
-export PATH=$PATH:$GOPATH/bin
+
 
 VALIDATION_SUIT_SUBSTR="validation"
 
