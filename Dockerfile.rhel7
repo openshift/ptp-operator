@@ -3,7 +3,7 @@ WORKDIR /go/src/github.com/openshift/ptp-operator
 COPY . .
 ENV GO111MODULE=off
 RUN make
-
+# dummy update for PR
 FROM registry.ci.openshift.org/ocp/4.16:base-rhel9
 COPY --from=builder /go/src/github.com/openshift/ptp-operator/build/_output/bin/ptp-operator /usr/local/bin/
 COPY --from=builder /go/src/github.com/openshift/ptp-operator/manifests /manifests
