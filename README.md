@@ -132,7 +132,7 @@ spec:
     match:
     - nodeLabel: "node-role.kubernetes.io/worker"
 ```
-#### ptpConfig to override offset threshold when events are enabled
+### ptpConfig to override offset threshold when events are enabled
 ```
 apiVersion: ptp.openshift.io/v1
 kind: PtpConfig
@@ -156,7 +156,7 @@ spec:
     - nodeLabel: "node-role.kubernetes.io/worker"
     
 ```
-#### ptpConfig to filter 'master offset' and 'delay   filtered' logs
+### ptpConfig to filter 'master offset' and 'delay   filtered' logs
 ```
 apiVersion: ptp.openshift.io/v1
 kind: PtpConfig
@@ -179,7 +179,7 @@ spec:
     - nodeLabel: "node-role.kubernetes.io/worker"
     
 ```
-#### ptpConfig to configure as WPC NIC as GM
+### ptpConfig to configure as WPC NIC as GM
 ```
 apiVersion: ptp.openshift.io/v1
 kind: PtpConfig
@@ -206,7 +206,8 @@ spec:
       ts2phc.pulsewidth 100000000
       #GNSS module s /dev/ttyGNSS* -al use _0
       ts2phc.nmea_serialport  /dev/ttyGNSS_1700_0
-      leapfile  /usr/share/zoneinfo/leap-seconds.list
+      # The `leapfile` directive below can be omitted.
+      # leapfile  /usr/share/zoneinfo/leap-seconds.list
       [ens2f0]
       ts2phc.extts_polarity rising
       ts2phc.extts_correction 0
@@ -222,7 +223,20 @@ In above examples, `profile1` will be applied by `linuxptp-daemon` to nodes labe
 
 `xxx-ptpconfig` CR is created with `PtpConfig` kind. `spec.profile` defines profile named `profile1` which contains `interface (enp134s0f0)` to run ptp4l process on, `ptp4lOpts (-s -2)` sysconfig options to run ptp4l process with and `phc2sysOpts (-a -r)` to run phc2sys process with. `spec.recommend` defines `priority` (lower numbers mean higher priority, 0 is the highest priority) and `match` rules of profile `profile1`. `priority` is useful when there are multiple `PtpConfig` CRs defined, linuxptp daemon applies `match` rules against node labels and names from high priority to low priority in order. If any of `nodeLabel` or `nodeName` on a specific node matches with the node label or name where daemon runs, it applies profile on that node.
 
-#### ptpConfig to enable High Availability for phc2sys by adding profiles of ptp4l enabled config's under `haProfiles`
+#### Automatic leap second file management
+The T-GM system depends on having the most recent leap second information. This data comes in a file that shows the difference in seconds between Coordinated Universal Time (UTC) and International Atomic Time (TAI). This file is regularly updated by the International Earth Rotation and Reference Systems Service (IERS). 
+The latest leap seconds file can be downloaded from https://hpiers.obspm.fr/iers/bul/bulc/ntp/leap-seconds.list.
+While the PTP operator container image includes the latest leap second information at build time, the system can automatically update the leap second file using announcements received through GPS to ensure it stays current.
+
+##### How it works
+The system initially uses leap second information included in the container during its creation. This information is stored in a resource called `leap-configmap` within the `openshift-ptp` namespace. This resource is mounted as a volume to the linuxptp-daemon pod. The file containing leap seconds is accessible by the `ts2phc` program.
+Additionally, GPS satellites broadcast leap second updates. If this information differs from what's stored, the leap-configmap is automatically updated with the newer GPS data. The `ts2phc` program picks the changes automatically.
+
+Automatic leapfile updates rely on WPC NIC NAV-TIMELS notifications. This notification can be enabled or disabled in the E810 plugin section.
+Manual updates of the `leap-configmap` resource are not recommended.
+
+
+### ptpConfig to enable High Availability for phc2sys by adding profiles of ptp4l enabled config's under `haProfiles`
 
 ```
 apiVersion: ptp.openshift.io/v1
