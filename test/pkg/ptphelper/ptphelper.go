@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -444,31 +445,61 @@ func DiscoveryPTPConfiguration(namespace string) (masters, slaves []*ptpv1.PtpCo
 	return masters, slaves
 }
 
-func EnablePTPEvent() error {
+// EnablePTPEvent: if configMapName is passed, clean up the configMap when version changed
+func EnablePTPEvent(apiVersion, configMapName string) error {
 	ptpConfig, err := client.Client.PtpV1Interface.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), pkg.PtpConfigOperatorName, metav1.GetOptions{})
 	Expect(err).NotTo(HaveOccurred())
+
+	var currentApiVersion string
 	if ptpConfig.Spec.EventConfig == nil {
 		ptpConfig.Spec.EventConfig = &ptpv1.PtpEventConfig{
 			EnableEventPublisher: true,
-			TransportHost:        "http://mock",
 		}
-	}
-	if ptpConfig.Spec.EventConfig.TransportHost == "" {
-		ptpConfig.Spec.EventConfig.TransportHost = "http://mock"
+	} else {
+		currentApiVersion = ptpConfig.Spec.EventConfig.ApiVersion
 	}
 
 	ptpConfig.Spec.EventConfig.EnableEventPublisher = true
+	ptpConfig.Spec.EventConfig.ApiVersion = apiVersion
+
+	// clean up configMap for subscription if update to a different version
+	if currentApiVersion != "" && currentApiVersion != apiVersion && configMapName != "" {
+		// Check if the ConfigMap exists
+		configMap, err := client.Client.CoreV1().ConfigMaps(pkg.PtpLinuxDaemonNamespace).Get(context.TODO(), configMapName, metav1.GetOptions{})
+		if err != nil {
+			logrus.Infof("ConfigMap %s does not exist: %v", configMapName, err)
+		} else {
+			// Empty the ConfigMap
+			configMap.Data = map[string]string{}
+			configMap.BinaryData = map[string][]byte{}
+
+			// Update the ConfigMap
+			_, err = client.Client.CoreV1().ConfigMaps(pkg.PtpLinuxDaemonNamespace).Update(context.TODO(), configMap, metav1.UpdateOptions{})
+			if err != nil {
+				logrus.Errorf("Error updating ConfigMap: %v", err)
+			}
+
+			logrus.Infof("ConfigMap %s emptied successfully\n", configMapName)
+		}
+	}
 	_, err = client.Client.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Update(context.Background(), ptpConfig, metav1.UpdateOptions{})
 	return err
 }
 
-func PtpEventEnabled() bool {
+// PtpEventEnabled returns 0 if event is not enabled, 1 for v1 API, 2 for v2 O-RAN Compliant API
+func PtpEventEnabled() int {
 	ptpConfig, err := client.Client.PtpV1Interface.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), pkg.PtpConfigOperatorName, metav1.GetOptions{})
 	Expect(err).NotTo(HaveOccurred())
 	if ptpConfig.Spec.EventConfig == nil {
-		return false
+		return 0
 	}
-	return ptpConfig.Spec.EventConfig.EnableEventPublisher
+	if !ptpConfig.Spec.EventConfig.EnableEventPublisher {
+		return 0
+	}
+	if IsV1Api(ptpConfig.Spec.EventConfig.ApiVersion) {
+		return 1
+	}
+	return 2
 }
 
 func EnablePTPReferencePlugin() error {
@@ -579,12 +610,12 @@ func GetPTPPodWithPTPConfig(ptpConfig *ptpv1.PtpConfig) (aPtpPod *v1core.Pod, er
 
 	label, err := GetLabel(ptpConfig)
 	if err != nil {
-		logrus.Debugf("GetLabel err=%s", err)
+		logrus.Debugf("GetLabel %s", err)
 	}
 
 	nodeName, err := GetFirstNode(ptpConfig)
 	if err != nil {
-		logrus.Debugf("GetFirstNode err=%s", err)
+		logrus.Debugf("GetFirstNode %s", err)
 	}
 
 	for _, pod := range ptpPods.Items {
@@ -774,4 +805,55 @@ func execPodCommand(nodeName string, cmd []string) (stdoutBuf, stderrBuf bytes.B
 		logrus.Errorf("Could not run command %s on pod because of err: %s \n stderr: %s", cmd, err, se.String())
 	}
 	return so, se, err
+}
+
+// GetMajorVersion returns major version
+func GetMajorVersion(version string) (int, error) {
+	if version == "" {
+		return 1, nil
+	}
+	version = strings.TrimPrefix(version, "v")
+	version = strings.TrimPrefix(version, "V")
+	v := strings.Split(version, ".")
+	majorVersion, err := strconv.Atoi(v[0])
+	if err != nil {
+		logrus.Errorf("Error parsing major version from %s, %v", version, err)
+		return 1, err
+	}
+	return majorVersion, nil
+}
+
+// IsV1Api ...
+func IsV1Api(version string) bool {
+	if majorVersion, err := GetMajorVersion(version); err == nil {
+		if majorVersion >= 2 {
+			return false
+		}
+	}
+	// by default use V1
+	return true
+}
+
+// IsV1RegressionNeeded returns true when testing 4.16 and 4.17 PUT.
+// for 4.16 and 4.17 we need to support both v1 and v2 event API
+func IsV1EventRegressionNeeded() bool {
+	value, isSet := os.LookupEnv("T5CI_VERSION")
+	//TODOv2 update after backport v2 to 4.16
+	//if isSet && (value == "4.16" || value == "4.17") {
+	if isSet && value == "4.17" {
+		return true
+	}
+	return false
+}
+
+// default version for 4.16+ is 2
+// default version for 4.15 and less is 1
+func GetDefaultApiVersion() string {
+	value, isSet := os.LookupEnv("T5CI_VERSION")
+	//TODOv2 update after backport v2 to 4.16
+	// if isSet && (strings.Compare(value, "4.16") < 0) {
+	if isSet && (strings.Compare(value, "4.17") < 0) {
+		return "1.0"
+	}
+	return "2.0"
 }

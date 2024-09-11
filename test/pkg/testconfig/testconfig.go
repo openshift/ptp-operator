@@ -4,6 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
 	ptpv1 "github.com/openshift/ptp-operator/api/v1"
 	ptptestconfig "github.com/openshift/ptp-operator/test/conformance/config"
 	"github.com/openshift/ptp-operator/test/pkg"
@@ -19,10 +24,6 @@ import (
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
-	"os"
-	"strconv"
-	"strings"
-	"time"
 )
 
 const (
@@ -106,7 +107,7 @@ type TestConfig struct {
 	DiscoveredClockUnderTestPod *v1core.Pod
 	L2Config                    l2lib.L2Info
 	FoundSolutions              map[string]bool
-	PtpEventsIsSidecarReady     bool
+	PtpEventsIsConsumerReady    bool
 }
 type solverData struct {
 	// Mapping between clock role and port depending on the algo
@@ -191,7 +192,7 @@ func (obj *TestConfig) String() (out string) {
 	if obj == nil {
 		return "nil"
 	}
-	out += fmt.Sprintf("PtpModeDesired= %s, PtpModeDiscovered= %s, Status= %s, DiscoveredClockUnderTestPtpConfig= %s, DiscoveredClockUnderTestSecondaryPtpConfig= %s, DiscoveredGrandMasterPtpConfig= %s, DiscoveredSlave1PtpConfig= %s, DiscoveredSlave2PtpConfig= %s, PtpEventsIsSidecarReady= %t, ",
+	out += fmt.Sprintf("PtpModeDesired= %s, PtpModeDiscovered= %s, Status= %s, DiscoveredClockUnderTestPtpConfig= %s, DiscoveredClockUnderTestSecondaryPtpConfig= %s, DiscoveredGrandMasterPtpConfig= %s, DiscoveredSlave1PtpConfig= %s, DiscoveredSlave2PtpConfig= %s, PtpEventsIsConsumerReady= %t, ",
 		obj.PtpModeDesired,
 		obj.PtpModeDiscovered,
 		obj.Status,
@@ -200,7 +201,7 @@ func (obj *TestConfig) String() (out string) {
 		obj.DiscoveredGrandMasterPtpConfig,
 		obj.DiscoveredSlave1PtpConfig,
 		obj.DiscoveredSlave2PtpConfig,
-		obj.PtpEventsIsSidecarReady)
+		obj.PtpEventsIsConsumerReady)
 	if obj.DiscoveredClockUnderTestPod != nil {
 		out += fmt.Sprintf("DiscoveredClockUnderTestPodName=%s, DiscoveredClockUnderTestNodeName=%s",
 			obj.DiscoveredClockUnderTestPod.Name,
@@ -625,50 +626,50 @@ func CreatePtpConfigWPCGrandMaster(policyName string, nodeName string, ifList []
       LocalMaxHoldoverOffSet: 1500
       LocalHoldoverTimeout: 14400
       MaxInSpecOffset: 100
-    pins: 
+    pins:
       "$iface_master":
          "U.FL2": "0 2"
          "U.FL1": "0 1"
          "SMA2": "0 2"
          "SMA1": "0 1"
     ublxCmds:
-      - args: 
+      - args:
           - "-P"
           - "29.20"
           - "-z"
           - "CFG-HW-ANT_CFG_VOLTCTRL,1"
         reportOutput: false
-      - args: 
+      - args:
           - "-P"
           - "29.20"
           - "-e"
           - "GPS"
         reportOutput: false
-      - args: 
+      - args:
           - "-P"
           - "29.20"
           - "-d"
           - "Galileo"
         reportOutput: false
-      - args: 
+      - args:
           - "-P"
           - "29.20"
           - "-d"
           - "GLONASS"
         reportOutput: false
-      - args: 
+      - args:
           - "-P"
           - "29.20"
           - "-d"
           - "BeiDou"
         reportOutput: false
-      - args: 
+      - args:
           - "-P"
           - "29.20"
           - "-d"
           - "SBAS"
         reportOutput: false
-      - args: 
+      - args:
           - "-P"
           - "29.20"
           - "-t"
@@ -678,14 +679,14 @@ func CreatePtpConfigWPCGrandMaster(policyName string, nodeName string, ifList []
           - "1"
           - "-e"
           - "SURVEYIN,600,50000"
-        reportOutput: true  
-      - args: 
+        reportOutput: true
+      - args:
           - "-P"
           - "29.20"
           - "-p"
           - "MON-HW"
         reportOutput: true
-      - args: 
+      - args:
           - "-P"
           - "29.20"
           - "-p"
