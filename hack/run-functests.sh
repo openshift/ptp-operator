@@ -3,13 +3,9 @@ set -x
 # Set go version
 
 # T5CI_VERSION is used in CI pipeline. Do not set it when run locally
-if [[ "$T5CI_VERSION" =~ 4.1[2-5]+ ]]; then
-  source $HOME/golang-1.20
-elif [[ "$T5CI_VERSION" == "4.16" ]]; then
-  source $HOME/golang-1.21.11
-elif [[ "$T5CI_VERSION" =~ 4.1[7-9]+ ]]; then
-  source $HOME/golang-1.22.4
-elif [[ "$T5CI_VERSION" =~ 4.2[0-9]+ ]]; then
+if [[ "$T5CI_VERSION" =~ 4.1[0-9]+ ]]; then
+  export PATH=$(echo $PATH | sed -e 's#:/usr/local/1.20/go/bin:/go/bin##g')
+  export PATH=$(echo $PATH | sed -e 's#:/usr/local/1.21.11/go/bin:/go/bin##g')
   source $HOME/golang-1.22.4
 else
   # make sure the test runs with specific go vervsion.
@@ -38,7 +34,8 @@ else
     rm -rf "$temp_dir"
   fi
 fi
-
+go version
+gopls version
 which ginkgo
 if [ $? -ne 0 ]; then
   # we are moving to a temp folder as in go.mod we have a dependency that is not
@@ -59,6 +56,7 @@ GOPATH="${GOPATH:-~/go}"
 JUNIT_OUTPUT_DIR="${JUNIT_OUTPUT_DIR:-/tmp/artifacts}"
 JUNIT_OUTPUT_FILE="${JUNIT_OUTPUT_FILE:-unit_report.xml}"
 export PATH=$PATH:$GOPATH/bin
+
 
 VALIDATION_SUIT_SUBSTR="validation"
 

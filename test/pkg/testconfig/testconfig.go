@@ -11,9 +11,9 @@ import (
 	"github.com/openshift/ptp-operator/test/pkg/client"
 	"github.com/openshift/ptp-operator/test/pkg/nodes"
 	"github.com/openshift/ptp-operator/test/pkg/ptphelper"
+	solver "github.com/redhat-cne/graphsolver-lib"
+	l2lib "github.com/redhat-cne/l2discovery-lib"
 	"github.com/sirupsen/logrus"
-	solver "github.com/test-network-function/graphsolver-lib"
-	l2lib "github.com/test-network-function/l2discovery-lib"
 	"gopkg.in/yaml.v3"
 	v1core "k8s.io/api/core/v1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -59,7 +59,7 @@ const (
 	phc2sysSlave                = "-a -r -n 24 -m -N 8 -R 16"
 	SCHED_OTHER                 = "SCHED_OTHER"
 	SCHED_FIFO                  = "SCHED_FIFO"
-	WPC_NIC_CODE                = "E810-XXV"
+	L2_DISCOVERY_IMAGE          = "quay.io/redhat-cne/l2discovery:v12"
 )
 
 type ConfigStatus int64
@@ -339,7 +339,7 @@ func CreatePtpConfigurations() error {
 	l2lib.GlobalL2DiscoveryConfig.SetL2Client(client.Client, client.Client.Config)
 
 	// Collect L2 info
-	config, err := l2lib.GlobalL2DiscoveryConfig.GetL2DiscoveryConfig(true)
+	config, err := l2lib.GlobalL2DiscoveryConfig.GetL2DiscoveryConfig(true, false, L2_DISCOVERY_IMAGE)
 	if err != nil {
 		return fmt.Errorf("Getting L2 discovery info failed with err=%s", err)
 	}
