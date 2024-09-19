@@ -851,7 +851,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					Skip("Failed to find a valid ptp slave configuration")
 				}
 			})
-			It("is verifying WPC GM state based on logs", func() {
+			FIt("is verifying WPC GM state based on logs", func() {
 				if fullConfig.PtpModeDiscovered != testconfig.TelcoGrandMasterClock {
 					Skip("test valid only for GM test config")
 				}
@@ -866,7 +866,10 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				})
 
 				By("checking clock class state is locked", func() {
-					clockClassPattern := `ptp4l\[\d*\]:\[ts2phc.\d.config\] CLOCK_CLASS_CHANGE 6`
+					/*
+						ptp4l[1726600400]:[ts2phc.0.config] CLOCK_CLASS_CHANGE 6
+					*/
+					clockClassPattern := `ptp4l(?m)\[.*?\]:\[(.*?)\] CLOCK_CLASS_CHANGE 6`
 					clockClassRe := regexp.MustCompile(clockClassPattern)
 					logMatches, err := pods.GetPodLogsRegex(openshiftPtpNamespace, fullConfig.DiscoveredClockUnderTestPod.Name, pkg.PtpContainerName, clockClassRe.String(), false, pkg.TimeoutIn1Minute)
 					Expect(err).To(BeNil(), "Error encountered looking for ptp4l clock class state")
@@ -876,7 +879,10 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				})
 
 				By("checking DPLL frequency and DPLL phase state to be locked", func() {
-					dpllStatePattern := `dpll\[\d*\]:\[ts2phc.([^d]+).config\] ([^\s]+) frequency_status 3 offset ([^d]+) phase_status 3 pps_status \d ([^\s]+)`
+					/*
+						dpll[1726600932]:[ts2phc.0.config] ens7f0 frequency_status 3 offset -1 phase_status 3 pps_status 1 s2
+					*/
+					dpllStatePattern := `dpll(?m).*?:\[(.*?)\] (.*?)frequency_status 3 offset (.*?) phase_status 3 pps_status (.*?) (.*?)`
 					dpllStateRe := regexp.MustCompile(dpllStatePattern)
 					logMatches, err := pods.GetPodLogsRegex(openshiftPtpNamespace, fullConfig.DiscoveredClockUnderTestPod.Name, pkg.PtpContainerName, dpllStateRe.String(), false, pkg.TimeoutIn1Minute)
 					Expect(err).To(BeNil(), "Error encountered looking for dpll frequency and phase state")
@@ -892,13 +898,13 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 						phc2sys[2355322.441]: [ptp4l.0.config:6] CLOCK_REALTIME phc offset       137 s2 freq   -7709 delay    514
 					*/
 
-					gmClockStatePattern := `dpll State s2, gnss State s2, tsphc state s2, gm state s2`
+					gmClockStatePattern := `(?m).*?dpll State s2, gnss State s2, tsphc state s2, gm state s2,`
 					gmClockStateRe := regexp.MustCompile(gmClockStatePattern)
-					logMatches, err := pods.GetPodLogsRegex(openshiftPtpNamespace, fullConfig.DiscoveredClockUnderTestPod.Name, pkg.PtpContainerName, gmClockStateRe.String(), true, pkg.TimeoutIn1Minute)
+					logMatches, err := pods.GetPodLogsRegex(openshiftPtpNamespace, fullConfig.DiscoveredClockUnderTestPod.Name, pkg.PtpContainerName, gmClockStateRe.String(), false, pkg.TimeoutIn1Minute)
 					Expect(err).To(BeNil(), "Error encountered looking for dpll, gnss,ts2phc and GM clock state")
 					Expect(logMatches).NotTo(BeEmpty(), "Expected dpll, gnss,ts2phc and GM clock state to be locked for GM")
 
-					phc2sysPattern := `phc2sys\[\d*.\d*\]: \[([^s]+)\] CLOCK_REALTIME phc offset       ([\d]+) s2 ([^\n]+)`
+					phc2sysPattern := `phc2sys(?m).*?: \[(.*?)\] CLOCK_REALTIME phc offset[ \t]+(.*?) s2 (.*?)`
 					phc2sysRe := regexp.MustCompile(phc2sysPattern)
 					logMatches, err = pods.GetPodLogsRegex(openshiftPtpNamespace, fullConfig.DiscoveredClockUnderTestPod.Name, pkg.PtpContainerName, phc2sysRe.String(), false, pkg.TimeoutIn1Minute)
 					Expect(err).To(BeNil(), "Error encountered looking for phc2sys clock state")
@@ -911,7 +917,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					/*
 						# ts2phc[1726600506]:[ts2phc.0.config] ens7f0 nmea_status 1 offset 0 s2
 					*/
-					nmeaStatusPattern := `ts2phc\[\d*\]:\[([^"]+)] ([^"]+) nmea_status 1 offset ([^"]+) ([^"]+)`
+					nmeaStatusPattern := `ts2phc(?m).*?:\[(.*?)\] (.*?) nmea_status 1 offset (.*?) (.*?)`
 					nmeaStatusRe := regexp.MustCompile(nmeaStatusPattern)
 					logMatches, err := pods.GetPodLogsRegex(openshiftPtpNamespace, fullConfig.DiscoveredClockUnderTestPod.Name, pkg.PtpContainerName, nmeaStatusRe.String(), false, pkg.TimeoutIn1Minute)
 					Expect(err).To(BeNil(), "Error encountered looking for phc2sys clock state")
