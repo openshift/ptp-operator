@@ -37,6 +37,7 @@ const (
 	PtpClockUnderTestNodeLabel = "ptp/clock-under-test"
 	PtpSlave1NodeLabel         = "ptp/test-slave1"
 	PtpSlave2NodeLabel         = "ptp/test-slave2"
+	TimeoutIn1Minute           = 1 * time.Minute
 	TimeoutIn3Minutes          = 3 * time.Minute
 	TimeoutIn5Minutes          = 5 * time.Minute
 	TimeoutIn10Minutes         = 10 * time.Minute
