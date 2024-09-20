@@ -851,7 +851,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					Skip("Failed to find a valid ptp slave configuration")
 				}
 			})
-			FIt("is verifying WPC GM state based on logs", func() {
+			It("is verifying WPC GM state based on logs", func() {
 				if fullConfig.PtpModeDiscovered != testconfig.TelcoGrandMasterClock {
 					Skip("test valid only for GM test config")
 				}
