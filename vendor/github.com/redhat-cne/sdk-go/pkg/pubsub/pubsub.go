@@ -52,7 +52,7 @@ func (ps *PubSub) String() string {
 	b := strings.Builder{}
 	b.WriteString("  EndpointUri: " + ps.GetEndpointURI() + "\n")
 	b.WriteString("  UriLocation: " + ps.GetURILocation() + "\n")
-	b.WriteString("  ID: " + ps.GetID() + "\n")
+	b.WriteString("  SubscriptionId: " + ps.GetID() + "\n")
 	b.WriteString("  Resource: " + ps.GetResource() + "\n")
 	return b.String()
 }

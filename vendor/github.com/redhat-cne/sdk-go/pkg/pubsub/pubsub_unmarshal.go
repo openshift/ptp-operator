@@ -73,7 +73,7 @@ func readJSONFromIterator(out *PubSub, iterator *jsoniter.Iterator) error {
 			uriLocation = iterator.ReadString()
 		case "ResourceAddress":
 			resource = iterator.ReadString()
-			version = common.V2
+			version = common.RestAPIV2
 		case "id":
 			id = iterator.ReadString()
 		case "endpointUri":
@@ -82,7 +82,7 @@ func readJSONFromIterator(out *PubSub, iterator *jsoniter.Iterator) error {
 			uriLocation = iterator.ReadString()
 		case "resource":
 			resource = iterator.ReadString()
-			version = common.V1
+			version = common.RestAPIV1
 		default:
 			iterator.Skip()
 		}
