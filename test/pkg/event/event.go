@@ -11,11 +11,13 @@ import (
 	"strings"
 	"time"
 
+	ce "github.com/cloudevents/sdk-go/v2/event"
 	"github.com/openshift/ptp-operator/test/pkg"
 	"github.com/openshift/ptp-operator/test/pkg/client"
 	testclient "github.com/openshift/ptp-operator/test/pkg/client"
 	"github.com/openshift/ptp-operator/test/pkg/namespaces"
 	"github.com/openshift/ptp-operator/test/pkg/pods"
+	"github.com/openshift/ptp-operator/test/pkg/ptphelper"
 	chanpubsub "github.com/redhat-cne/channel-pubsub"
 	exports "github.com/redhat-cne/ptp-listener-exports"
 	cneevent "github.com/redhat-cne/sdk-go/pkg/event"
@@ -28,17 +30,19 @@ import (
 )
 
 const (
-	ConsumerSidecarTestNamespace  = "ptp-event-framework-test"
-	ProviderSidecarTestNamespace  = "openshift-ptp"
-	TestSidecarName               = "cloud-proxy-sidecar"
-	TestSidecarContainerName      = "sidecar"
-	TestSidecarSaName             = "sidecar-sa"
-	TestServiceName               = "consumer-events-subscription-service"
+	ConsumerNamespace             = "ptp-event-framework-test"
+	ProducerNamespace             = "openshift-ptp"
+	ConsumerPodName               = "consumer"
+	ConsumerSidecarContainerName  = "sidecar"
+	ConsumerSaName                = "consumer-sa"
+	ConsumerServiceName           = "consumer-events-subscription-service"
 	TestSidecarSuccessLogString   = "rest service returned healthy status"
 	ConsumerContainerName         = "consumer"
 	CustomerCloudEventProxyPort   = 8089
 	ProviderCloudEventProxyPort   = 9085
 	sidecarNamespaceDeleteTimeout = time.Minute * 2
+	ApiBaseV1                     = "127.0.0.1:9085/api/ocloudNotifications/v1/"
+	ApiBaseV2                     = "127.0.0.1:9043/api/ocloudNotifications/v2"
 )
 
 var (
@@ -55,8 +59,7 @@ func Enable() bool {
 	return eventMode
 }
 
-// create ptp-events sidecar
-func CreateEventProxySidecar(nodeNameFull string) (err error) {
+func CreateConsumerAppWithSidecar(nodeNameFull string) (err error) {
 	nodeName := nodeNameFull
 	// using the first component of the node name before the first dot (master2.example.com -> master2)
 	if nodeNameFull != "" && strings.Contains(nodeNameFull, ".") {
@@ -73,10 +76,10 @@ func CreateEventProxySidecar(nodeNameFull string) (err error) {
 			APIVersion: "v1",
 		},
 		ObjectMeta: v1.ObjectMeta{
-			Name:      "cloud-proxy-sidecar",
-			Namespace: ConsumerSidecarTestNamespace,
+			Name:      ConsumerPodName,
+			Namespace: ConsumerNamespace,
 			Labels: map[string]string{
-				"app.kubernetes.io/name": "proxy",
+				"app.kubernetes.io/name": "consumer",
 			},
 		},
 		Spec: corev1.PodSpec{
@@ -88,10 +91,9 @@ func CreateEventProxySidecar(nodeNameFull string) (err error) {
 					},
 				},
 			},
-			ServiceAccountName: TestSidecarSaName,
+			ServiceAccountName: ConsumerSaName,
 			Containers: []corev1.Container{
-				{Name: TestSidecarContainerName,
-					//Image: "quay.io/deliedit/test:ep2",
+				{Name: ConsumerSidecarContainerName,
 					Image: testSidecarImageName,
 					SecurityContext: &corev1.SecurityContext{
 						Privileged: pointer.Bool(true),
@@ -100,17 +102,15 @@ func CreateEventProxySidecar(nodeNameFull string) (err error) {
 
 					Args: []string{"--metrics-addr=127.0.0.1:9091",
 						"--store-path=/store",
-						"--transport-host=consumer-events-subscription-service." + ConsumerSidecarTestNamespace + ".svc.cluster.local:9043",
-						"--http-event-publishers=ptp-event-publisher-service-" + nodeName + "." + ProviderSidecarTestNamespace + ".svc.cluster.local:9043",
+						"--transport-host=consumer-events-subscription-service." + ConsumerNamespace + ".svc.cluster.local:9043",
+						"--http-event-publishers=ptp-event-publisher-service-NODE_NAME." + ProducerNamespace + ".svc.cluster.local:9043",
 						"--api-port=8089"},
-					Env: []corev1.EnvVar{{Name: "NODE_NAME", Value: nodeNameFull},
-						{Name: "NODE_IP", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "status.hostIP"}}}},
+					Env: []corev1.EnvVar{{Name: "NODE_NAME", Value: nodeNameFull}},
 					Ports: []corev1.ContainerPort{{Name: "sub-port", ContainerPort: 9043},
 						{Name: "metrics-port", ContainerPort: 9091}},
 					VolumeMounts: []corev1.VolumeMount{{MountPath: "/store", Name: "pubsubstore"}},
 				},
 				{Name: ConsumerContainerName,
-					//Image: "quay.io/deliedit/test:cep5",
 					Image: "quay.io/redhat-cne/cloud-event-consumer:latest",
 					SecurityContext: &corev1.SecurityContext{
 						Privileged: pointer.Bool(true),
@@ -120,7 +120,7 @@ func CreateEventProxySidecar(nodeNameFull string) (err error) {
 					Args: []string{"--local-api-addr=127.0.0.1:9089",
 						"--api-path=/api/ocloudNotifications/v1/",
 						"--api-addr=127.0.0.1:8089",
-						"--http-event-publishers=ptp-event-publisher-service-NODE_NAME.openshift-ptp.svc.cluster.local:9043"},
+						"--http-event-publishers=ptp-event-publisher-service-NODE_NAME." + ProducerNamespace + ".svc.cluster.local:9043"},
 
 					Env: []corev1.EnvVar{{Name: "NODE_NAME", Value: nodeNameFull},
 						{Name: "CONSUMER_TYPE", Value: "PTP"},
@@ -132,17 +132,17 @@ func CreateEventProxySidecar(nodeNameFull string) (err error) {
 	}
 
 	// delete namespace if present
-	if namespaces.IsPresent(ConsumerSidecarTestNamespace, client.Client) {
-		err := namespaces.Delete(ConsumerSidecarTestNamespace, client.Client)
+	if namespaces.IsPresent(ConsumerNamespace, client.Client) {
+		err := namespaces.Delete(ConsumerNamespace, client.Client)
 		if err != nil {
-			logrus.Warnf("could not delete namespace=%s, err=%s", ConsumerSidecarTestNamespace, err)
+			logrus.Warnf("could not delete namespace=%s, err=%s", ConsumerNamespace, err)
 		}
 		// wait for the namespace to be deleted
-		err = namespaces.WaitForDeletion(client.Client, ConsumerSidecarTestNamespace, sidecarNamespaceDeleteTimeout)
+		err = namespaces.WaitForDeletion(client.Client, ConsumerNamespace, sidecarNamespaceDeleteTimeout)
 		if err != nil {
 			return err
 		}
-		logrus.Infof("namespace %s deleted", ConsumerSidecarTestNamespace)
+		logrus.Infof("namespace %s deleted", ConsumerNamespace)
 	}
 
 	labels := map[string]string{
@@ -153,19 +153,28 @@ func CreateEventProxySidecar(nodeNameFull string) (err error) {
 		"openshift.io/cluster-monitoring":                "true",
 	}
 	// create sidecar namespace
-	err = namespaces.Create(ConsumerSidecarTestNamespace, client.Client, labels)
+	err = namespaces.Create(ConsumerNamespace, client.Client, labels)
 	if err != nil {
-		return fmt.Errorf("could not create namespace=%s, err=%s", ConsumerSidecarTestNamespace, err)
+		return fmt.Errorf("could not create namespace=%s, err=%s", ConsumerNamespace, err)
 	}
 
-	// create service account
-	err = ConfigurePrivilegedServiceAccount()
+	err = CreateConsumerServiceAccount()
 	if err != nil {
-		return fmt.Errorf("could not configure privileged rights, err=%s", err)
+		return err
+	}
+
+	err = ConfigureRoles()
+	if err != nil {
+		return err
+	}
+
+	err = CreateConsumerService()
+	if err != nil {
+		return err
 	}
 
 	// create sidecar pod
-	podInstance, err := client.Client.Pods(ConsumerSidecarTestNamespace).Create(context.TODO(), &aPod, v1.CreateOptions{})
+	podInstance, err := client.Client.Pods(ConsumerNamespace).Create(context.TODO(), &aPod, v1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -176,24 +185,118 @@ func CreateEventProxySidecar(nodeNameFull string) (err error) {
 		return err
 	}
 
-	// create sidecar service
-	err = CreateServiceSidecar()
+	//wait for success logs to appear in sidecar pod
+	_, err = pods.GetPodLogsRegex(ConsumerNamespace, ConsumerPodName, ConsumerSidecarContainerName, TestSidecarSuccessLogString, true, time.Minute*3)
+	if err == nil {
+		logrus.Infof("PTP events test consumer pod is up and running")
+	}
+	return err
+}
+
+// create consumer app without sidecar
+func CreateConsumerApp(nodeNameFull string) (err error) {
+	rootUser := pointer.Int64(0)
+	aPod := corev1.Pod{
+		TypeMeta: v1.TypeMeta{
+			Kind:       "Pod",
+			APIVersion: "v1",
+		},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      ConsumerPodName,
+			Namespace: ConsumerNamespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/name": "consumer",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Volumes: []corev1.Volume{
+				{
+					Name: "pubsubstore",
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{},
+					},
+				},
+			},
+			ServiceAccountName: ConsumerSaName,
+			Containers: []corev1.Container{
+				{Name: ConsumerContainerName,
+					Image: "quay.io/redhat-cne/cloud-event-consumer:latest",
+					SecurityContext: &corev1.SecurityContext{
+						Privileged: pointer.Bool(true),
+						RunAsUser:  rootUser,
+					},
+
+					Args: []string{"--local-api-addr=consumer-events-subscription-service." + ConsumerNamespace + ".svc.cluster.local:9043",
+						"--api-path=/api/ocloudNotifications/v2/",
+						"--api-addr=127.0.0.1:8089",
+						"--api-version=2.0",
+						"--http-event-publishers=ptp-event-publisher-service-NODE_NAME." + ProducerNamespace + ".svc.cluster.local:9043"},
+
+					Env: []corev1.EnvVar{{Name: "NODE_NAME", Value: nodeNameFull},
+						{Name: "CONSUMER_TYPE", Value: "PTP"},
+						{Name: "ENABLE_STATUS_CHECK", Value: "true"},
+					},
+				},
+			},
+		},
+	}
+
+	// delete namespace if present
+	if namespaces.IsPresent(ConsumerNamespace, client.Client) {
+		err := namespaces.Delete(ConsumerNamespace, client.Client)
+		if err != nil {
+			logrus.Warnf("could not delete namespace=%s, err=%s", ConsumerNamespace, err)
+		}
+		// wait for the namespace to be deleted
+		err = namespaces.WaitForDeletion(client.Client, ConsumerNamespace, sidecarNamespaceDeleteTimeout)
+		if err != nil {
+			return err
+		}
+		logrus.Infof("namespace %s deleted", ConsumerNamespace)
+	}
+
+	labels := map[string]string{
+		"security.openshift.io/scc.podSecurityLabelSync": "false",
+		"pod-security.kubernetes.io/audit":               "privileged",
+		"pod-security.kubernetes.io/enforce":             "privileged",
+		"pod-security.kubernetes.io/warn":                "privileged",
+		"openshift.io/cluster-monitoring":                "true",
+	}
+
+	err = namespaces.Create(ConsumerNamespace, client.Client, labels)
+	if err != nil {
+		return fmt.Errorf("could not create namespace=%s, err=%s", ConsumerNamespace, err)
+	}
+
+	err = CreateConsumerServiceAccount()
 	if err != nil {
 		return err
 	}
 
-	//wait for success logs to appear in sidecar pod
-	_, err = pods.GetPodLogsRegex(ConsumerSidecarTestNamespace, TestSidecarName, TestSidecarContainerName, TestSidecarSuccessLogString, true, time.Minute*3)
+	err = CreateConsumerService()
 	if err != nil {
-		logrus.Infof("PTP events test sidecar pod is up and running")
+		return err
 	}
-	return err
+
+	podInstance, err := client.Client.Pods(ConsumerNamespace).Create(context.TODO(), &aPod, v1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+
+	//wait for pod to be ready
+	err = pods.WaitForCondition(client.Client, podInstance, corev1.ContainersReady, corev1.ConditionTrue, 5*time.Minute)
+	if err != nil {
+		return err
+	}
+
+	logrus.Infof("PTP events test consumer pod is up and running")
+	return nil
 }
 
 const roleName = "use-privileged"
 const roleBindingName = "sidecar-rolebinding"
 
-func ConfigurePrivilegedServiceAccount() error {
+func ConfigureRoles() error {
 	aRole := rbacv1.Role{
 		TypeMeta: v1.TypeMeta{
 			Kind:       "Role",
@@ -201,7 +304,7 @@ func ConfigurePrivilegedServiceAccount() error {
 		},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      roleName,
-			Namespace: ConsumerSidecarTestNamespace,
+			Namespace: ConsumerNamespace,
 		},
 		Rules: []rbacv1.PolicyRule{{
 			APIGroups:     []string{"security.openshift.io"},
@@ -219,12 +322,12 @@ func ConfigurePrivilegedServiceAccount() error {
 		},
 		ObjectMeta: v1.ObjectMeta{
 			Name:      roleBindingName,
-			Namespace: ConsumerSidecarTestNamespace,
+			Namespace: ConsumerNamespace,
 		},
 		Subjects: []rbacv1.Subject{{
 			Kind:      "ServiceAccount",
-			Name:      TestSidecarSaName,
-			Namespace: ConsumerSidecarTestNamespace,
+			Name:      ConsumerSaName,
+			Namespace: ConsumerNamespace,
 		}},
 		RoleRef: rbacv1.RoleRef{
 			Kind:     "Role",
@@ -233,69 +336,62 @@ func ConfigurePrivilegedServiceAccount() error {
 		},
 	}
 
+	_, err := client.Client.RbacV1().Roles(ConsumerNamespace).Create(context.TODO(), &aRole, v1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("error creating role, err=%s", err)
+	}
+
+	_, err = client.Client.RbacV1().RoleBindings(ConsumerNamespace).Create(context.TODO(), &aRoleBinding, v1.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("error creating role bindings, err=%s", err)
+	}
+	return nil
+}
+
+func CreateConsumerServiceAccount() error {
 	aServiceAccount := corev1.ServiceAccount{
 		TypeMeta: v1.TypeMeta{
 			Kind:       "ServiceAccount",
 			APIVersion: "v1",
 		},
 		ObjectMeta: v1.ObjectMeta{
-			Name:      TestSidecarSaName,
-			Namespace: ConsumerSidecarTestNamespace,
+			Name:      ConsumerSaName,
+			Namespace: ConsumerNamespace,
 		},
 	}
 
-	// created role
-	_, err := client.Client.RbacV1().Roles(ConsumerSidecarTestNamespace).Create(context.TODO(), &aRole, v1.CreateOptions{})
-	if err != nil {
-		return fmt.Errorf("error creating role, err=%s", err)
-	}
-	// delete any previous rolebindings
-	/*err = client.Client.RbacV1().RoleBindings(ConsumerSidecarTestNamespace).Delete(context.TODO(), roleBindingName, v1.DeleteOptions{})
-	if err != nil && !k8serrors.IsNotFound(err) {
-		return fmt.Errorf("error deleting previous rolebinding, err=%s", err)
-	}*/
-	// create rolebinding
-	_, err = client.Client.RbacV1().RoleBindings(ConsumerSidecarTestNamespace).Create(context.TODO(), &aRoleBinding, v1.CreateOptions{})
-	if err != nil {
-		return fmt.Errorf("error creating role bindings, err=%s", err)
-	}
-	// create service account
-	_, err = client.Client.ServiceAccounts(ConsumerSidecarTestNamespace).Create(context.TODO(), &aServiceAccount, v1.CreateOptions{})
-	if err != nil {
-		return fmt.Errorf("error creating service account, err=%s", err)
-	}
-	return nil
+	_, err := client.Client.ServiceAccounts(ConsumerNamespace).Create(context.TODO(), &aServiceAccount, v1.CreateOptions{})
+	return err
 }
 
-// create ptp events consumer service
-func CreateServiceSidecar() error {
+func CreateConsumerService() error {
 	aService := corev1.Service{
 		TypeMeta: v1.TypeMeta{
 			Kind:       "Service",
 			APIVersion: "v1",
 		},
 		ObjectMeta: v1.ObjectMeta{
-			Name:      TestServiceName,
-			Namespace: ConsumerSidecarTestNamespace,
+			Name:      ConsumerServiceName,
+			Namespace: ConsumerNamespace,
 		},
 		Spec: corev1.ServiceSpec{
 			Ports:    []corev1.ServicePort{{Name: "sub-port", Port: 9043}},
-			Selector: map[string]string{"app.kubernetes.io/name": "proxy"},
+			Selector: map[string]string{"app.kubernetes.io/name": "consumer"},
 			Type:     corev1.ServiceTypeClusterIP,
 		},
 	}
 	// Create the new service
-	_, err := client.Client.Services(ConsumerSidecarTestNamespace).Create(context.TODO(), &aService, v1.CreateOptions{})
+	_, err := client.Client.Services(ConsumerNamespace).Create(context.TODO(), &aService, v1.CreateOptions{})
 	return err
 }
 
 // delete consumer sidecar pod and associated service
-func DeleteTestSidecarNamespace() error {
+func DeleteConsumerNamespace() error {
 	// delete namespace if present
-	if namespaces.IsPresent(ConsumerSidecarTestNamespace, client.Client) {
-		err := namespaces.Delete(ConsumerSidecarTestNamespace, client.Client)
+	if namespaces.IsPresent(ConsumerNamespace, client.Client) {
+		err := namespaces.Delete(ConsumerNamespace, client.Client)
 		if err != nil {
-			return fmt.Errorf("could not delete namespace=%s, err=%s", ConsumerSidecarTestNamespace, err)
+			return fmt.Errorf("could not delete namespace=%s, err=%s", ConsumerNamespace, err)
 		}
 	}
 	return nil
@@ -328,13 +424,13 @@ func GetCloudEventProxyImageFromPod() (image string, err error) {
 
 		}
 	}
-	return image, fmt.Errorf("could find a cloud-event-proxy sidecar in ptp-daemon pods, cannot get cloud-events-proxy image")
+	return image, fmt.Errorf("could find a cloud-event-proxy sidecar in ptp-daemon pods, cannot get cloud-event-proxy image")
 }
 
 // returns last Regex match in the logs for a given pod
 func MonitorPodLogsRegex() (term chan bool, err error) {
-	namespace := ConsumerSidecarTestNamespace
-	podName := TestSidecarName
+	namespace := ConsumerNamespace
+	podName := ConsumerPodName
 	containerName := ConsumerContainerName
 	regex := `received event ({.*})`
 	count := int64(0)
@@ -384,8 +480,8 @@ func MonitorPodLogsRegex() (term chan bool, err error) {
 
 // returns last Regex match in the logs for a given pod
 func PushInitialEvent(eventType string, timeout time.Duration) (err error) {
-	namespace := ConsumerSidecarTestNamespace
-	podName := TestSidecarName
+	namespace := ConsumerNamespace
+	podName := ConsumerPodName
 	containerName := ConsumerContainerName
 	regex := `Got CurrentState: ({.*})`
 
@@ -431,35 +527,71 @@ func PushInitialEvent(eventType string, timeout time.Duration) (err error) {
 	}
 }
 func createStoredEvent(data []byte) (aStoredEvent exports.StoredEvent, aType string, err error) {
-	var e cneevent.Event
+	apiVersion := ptphelper.PtpEventEnabled()
+	if apiVersion == 1 {
+		var e cneevent.Event
+		tmpData := strings.ReplaceAll(string(data), `\`, ``)
+		err = json.Unmarshal([]byte(tmpData), &e)
+		if err != nil {
+			return aStoredEvent, aType, err
+		}
+
+		if !isEventValid(&e) {
+			return aStoredEvent, aType, fmt.Errorf("parsed invalid event event=%+v", e)
+		}
+		logrus.Debug(e)
+
+		latency := time.Now().UnixMilli() - e.GetTime().UnixMilli()
+		// set log to Info level for performance measurement
+		logrus.Debugf("Latency for the event: %d ms\n", latency)
+
+		values := exports.StoredEventValues{}
+		for _, v := range e.Data.Values {
+			dataType := string(v.DataType)
+			values[dataType] = v.Value
+		}
+		return exports.StoredEvent{exports.EventTimeStamp: e.Time, exports.EventType: e.Type, exports.EventSource: e.Source, exports.EventValues: values}, e.Type, nil
+	}
+	var e ce.Event
 	tmpData := strings.ReplaceAll(string(data), `\`, ``)
 	err = json.Unmarshal([]byte(tmpData), &e)
 	if err != nil {
 		return aStoredEvent, aType, err
 	}
 
-	if !isEventValid(&e) {
+	if !isEventValidV2(&e) {
 		return aStoredEvent, aType, fmt.Errorf("parsed invalid event event=%+v", e)
 	}
 	logrus.Debug(e)
 
-	// Note that there is no UnixMillis, so to get the
-	// milliseconds since epoch you'll need to manually
-	// divide from nanoseconds.
-	latency := (time.Now().UnixNano() - e.Time.UnixNano()) / 1000000
+	latency := time.Now().UnixMilli() - e.Context.GetTime().UnixMilli()
 	// set log to Info level for performance measurement
 	logrus.Debugf("Latency for the event: %d ms\n", latency)
 
+	var d cneevent.Data
+	err = json.Unmarshal(e.Data(), &d)
+	if err != nil {
+		logrus.Errorf("Failed to unmarshal data for v2 event: %s\n", string(e.Data()))
+		return aStoredEvent, aType, err
+	}
 	values := exports.StoredEventValues{}
-	for _, v := range e.Data.Values {
+	for _, v := range d.Values {
 		dataType := string(v.DataType)
 		values[dataType] = v.Value
 	}
-	return exports.StoredEvent{exports.EventTimeStamp: e.Time, exports.EventType: e.Type, exports.EventSource: e.Source, exports.EventValues: values}, e.Type, nil
+	aType = e.Context.GetType()
+	return exports.StoredEvent{exports.EventTimeStamp: e.Context.GetTime(), exports.EventType: aType, exports.EventSource: e.Context.GetSource(), exports.EventValues: values}, aType, nil
 }
 
 func isEventValid(aEvent *cneevent.Event) bool {
 	if aEvent.Time == nil || aEvent.Data == nil {
+		return false
+	}
+	return true
+}
+
+func isEventValidV2(aEvent *ce.Event) bool {
+	if aEvent.Context == nil || aEvent.Context.GetTime().IsZero() || aEvent.Data() == nil {
 		return false
 	}
 	return true

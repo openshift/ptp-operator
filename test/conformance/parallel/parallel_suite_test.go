@@ -62,37 +62,48 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	})
 	ptphelper.RestartPTPDaemon()
 
-	isSideCarReady := true
-	err = event.CreateEventProxySidecar(fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName)
-	if err != nil {
-		logrus.Errorf("PTP events are not available due to Sidecar creation error err=%s", err)
-		isSideCarReady = false
+	isConsumerReady := true
+	apiVersion := ptphelper.GetDefaultApiVersion()
+	err = ptphelper.EnablePTPEvent(apiVersion, fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName)
+	Expect(err).To(BeNil(), "Error when enable ptp event")
+	if apiVersion == "1.0" {
+		logrus.Info("Deploy consumer app with sidecar for testing event API v1")
+		err = event.CreateConsumerAppWithSidecar(fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName)
+		if err != nil {
+			logrus.Errorf("PTP events are not available due to consumer app/sidecar creation error err=%s", err)
+			isConsumerReady = false
+		}
+	} else {
+		logrus.Info("Deploy consumer app without sidecar for testing event API v2")
+		err = event.CreateConsumerApp(fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName)
+		if err != nil {
+			logrus.Errorf("PTP events are not available due to consumer app creation error err=%s", err)
+			isConsumerReady = false
+		}
 	}
 	// stops the event listening framework
 	DeferCleanup(func() {
-
-		//delete the sidecar
-		err = event.DeleteTestSidecarNamespace()
+		err = event.DeleteConsumerNamespace()
 		if err != nil {
-			logrus.Debugf("Deleting test sidecar failed because of err=%s", err)
+			logrus.Debugf("Deleting consumer namespace failed because of err=%s", err)
 		}
 	})
 
 	logrus.Debugf("lib.Ps=%v", event.PubSub)
-	return []byte(fmt.Sprintf("%t,%p", isSideCarReady, event.PubSub))
+	return []byte(fmt.Sprintf("%t,%p", isConsumerReady, event.PubSub))
 }, func(data []byte) {
 	values := strings.Split(string(data), ",")
 	testclient.Client = testclient.New("")
-	isSideCarReady := false
+	isConsumerReady := false
 	if string(values[0]) == "true" {
-		isSideCarReady = true
+		isConsumerReady = true
 	}
 
 	// this is executed once per thread/test
 	By("Refreshing configuration", func() {
 		ptphelper.WaitForPtpDaemonToBeReady()
 		fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
-		fullConfig.PtpEventsIsSidecarReady = isSideCarReady
+		fullConfig.PtpEventsIsConsumerReady = isConsumerReady
 	})
 })
 var _ = AfterSuite(func() {

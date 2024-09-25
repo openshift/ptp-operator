@@ -10,6 +10,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 
+	"github.com/openshift/ptp-operator/test/pkg"
 	testclient "github.com/openshift/ptp-operator/test/pkg/client"
 	"github.com/openshift/ptp-operator/test/pkg/event"
 	"github.com/openshift/ptp-operator/test/pkg/execute"
@@ -64,7 +65,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-parallel]", func() 
 
 	Context("Event based tests", func() {
 		BeforeEach(func() {
-			if !ptphelper.PtpEventEnabled() {
+			if ptphelper.PtpEventEnabled() == 0 {
 				Skip("Skipping, PTP events not enabled")
 			}
 			logrus.Debugf("fullConfig=%s", fullConfig.String())
@@ -82,10 +83,62 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-parallel]", func() 
 		})
 		AfterEach(func() {
 			// closing internal pubsub
-			if ptphelper.PtpEventEnabled() {
+			if ptphelper.PtpEventEnabled() != 0 {
 				event.PubSub.Close()
 			}
+		})
+	})
 
+	// run this with Serial decorator so it won't interrupt with v2 tests.
+	// serial tests always run after all parallel tests.
+	Context("Event based tests, v1 regression", Serial, func() {
+		BeforeEach(func() {
+			if !ptphelper.IsV1EventRegressionNeeded() {
+				Skip("Skipping, test PTP events v1 regression is for 4.16 and 4.17 only")
+			}
+
+			ptphelper.EnablePTPEvent("1.0", fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName)
+			isConsumerReady := true
+			logrus.Info("Deploy consumer app with sidecar for testing event API v1")
+			err := event.CreateConsumerAppWithSidecar(fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName)
+			if err != nil {
+				logrus.Errorf("PTP events are not available due to consumer app/sidecar creation error err=%s", err)
+				isConsumerReady = false
+			}
+			// this is executed once per thread/test
+			By("Refreshing configuration", func() {
+				ptphelper.WaitForPtpDaemonToBeReady()
+				fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
+				fullConfig.PtpEventsIsConsumerReady = isConsumerReady
+			})
+
+			logrus.Debugf("fullConfig=%s", fullConfig.String())
+			if fullConfig.Status == testconfig.DiscoveryFailureStatus {
+				Skip("Failed to find a valid ptp slave configuration")
+			}
+		})
+
+		It("PTP Slave Clock Sync", func() {
+			if fullConfig.PtpModeDiscovered == testconfig.TelcoGrandMasterClock {
+				Skip("test not valid for WPC GM config")
+			}
+			testPtpSlaveClockSync(fullConfig, testParameters) // Implementation of the test case
+
+		})
+		AfterEach(func() {
+			// stops the event listening framework
+			DeferCleanup(func() {
+				err := event.DeleteConsumerNamespace()
+				if err != nil {
+					logrus.Debugf("Deleting consumer namespace failed because of err=%s", err)
+				}
+			})
+			// closing internal pubsub
+			if ptphelper.PtpEventEnabled() != 0 {
+				event.PubSub.Close()
+			}
+			// reset to v2
+			ptphelper.EnablePTPEvent("2.0", fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName)
 		})
 	})
 })

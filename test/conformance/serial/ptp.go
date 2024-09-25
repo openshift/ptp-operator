@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"regexp"
 	"sort"
 	"strings"
@@ -55,7 +56,9 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 		It("Should check whether PTP operator needs to enable PTP events", func() {
 			By("Find if variable set to enable ptp events")
 			if event.Enable() {
-				Expect(ptphelper.EnablePTPEvent()).NotTo(HaveOccurred())
+				apiVersion := ptphelper.GetDefaultApiVersion()
+				err := ptphelper.EnablePTPEvent(apiVersion, "")
+				Expect(err).To(BeNil(), "error when enable ptp event")
 				ptpConfig, err := client.Client.PtpV1Interface.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), pkg.PtpConfigOperatorName, metav1.GetOptions{})
 				Expect(err).NotTo(HaveOccurred())
 				Expect(ptpConfig.Spec.EventConfig.EnableEventPublisher).Should(BeTrue(), "failed to enable ptp event")
@@ -472,17 +475,109 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 		Context("Running with event enabled", func() {
 			BeforeEach(func() {
+				if ptphelper.PtpEventEnabled() == 0 {
+					Skip("Skipping, PTP events not enabled")
+				}
+
 				By("Refreshing configuration", func() {
 					ptphelper.WaitForPtpDaemonToBeReady()
 					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
 				})
 
-				if !ptphelper.PtpEventEnabled() {
-					Skip("Skipping, PTP events not enabled")
-				}
 				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 					Skip("Failed to find a valid ptp slave configuration")
 				}
+				var err error
+				ptpPods, err = client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
+				Expect(err).NotTo(HaveOccurred())
+				Expect(len(ptpPods.Items)).To(BeNumerically(">", 0), "linuxptp-daemon is not deployed on cluster")
+			})
+
+			It("Should check for ptp events ", func() {
+				By("Checking event side car is present")
+				apiVersion := ptphelper.PtpEventEnabled()
+				var apiBase, endpointUri string
+				if apiVersion == 1 {
+					apiBase = event.ApiBaseV1
+					endpointUri = "endpointUri"
+				} else {
+					apiBase = event.ApiBaseV2
+					endpointUri = "EndpointUri"
+				}
+				cloudProxyFound := false
+				Expect(len(fullConfig.DiscoveredClockUnderTestPod.Spec.Containers)).To(BeNumerically("==", 3), "linuxptp-daemon is not deployed on cluster with cloud event proxy")
+				for _, c := range fullConfig.DiscoveredClockUnderTestPod.Spec.Containers {
+					if c.Name == pkg.EventProxyContainerName {
+						cloudProxyFound = true
+					}
+				}
+				Expect(cloudProxyFound).ToNot(BeFalse(), "No event pods detected")
+
+				By("Checking event api is healthy")
+
+				Eventually(func() string {
+					buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", path.Join(apiBase, "health")})
+					return buf.String()
+				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring("OK"),
+					"Event API is not in healthy state")
+
+				By("Checking ptp publisher is created")
+
+				Eventually(func() string {
+					buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", path.Join(apiBase, "publishers")})
+					return buf.String()
+				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring(endpointUri),
+					"Event API  did not return publishers")
+
+				By("Checking events are generated")
+
+				_, err := pods.GetPodLogsRegex(fullConfig.DiscoveredClockUnderTestPod.Namespace,
+					fullConfig.DiscoveredClockUnderTestPod.Name, pkg.EventProxyContainerName,
+					"Created publisher", true, pkg.TimeoutIn3Minutes)
+				if err != nil {
+					Fail(fmt.Sprintf("PTP event publisher was not created in pod %s, err=%s", fullConfig.DiscoveredClockUnderTestPod.Name, err))
+				}
+				_, err = pods.GetPodLogsRegex(fullConfig.DiscoveredClockUnderTestPod.Namespace,
+					fullConfig.DiscoveredClockUnderTestPod.Name, pkg.EventProxyContainerName,
+					"event sent", true, pkg.TimeoutIn3Minutes)
+				if err != nil {
+					Fail(fmt.Sprintf("PTP event was not generated in the pod %s, err=%s", fullConfig.DiscoveredClockUnderTestPod.Name, err))
+				}
+
+				By("Checking event metrics are present")
+
+				Eventually(func() string {
+					buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", pkg.MetricsEndPoint})
+					return buf.String()
+				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring(metrics.OpenshiftPtpInterfaceRole),
+					"Interface role metrics are not detected")
+
+				Eventually(func() string {
+					buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", pkg.MetricsEndPoint})
+					return buf.String()
+				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring(metrics.OpenshiftPtpThreshold),
+					"Threshold metrics are not detected")
+			})
+		})
+
+		Context("Running with event enabled, v1 regression", func() {
+			BeforeEach(func() {
+				if !ptphelper.IsV1EventRegressionNeeded() {
+					Skip("Skipping, test PTP events v1 regression is for 4.16 and 4.17 only")
+				}
+
+				ptphelper.EnablePTPEvent("1.0", fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName)
+				// wait for pod info updated
+				time.Sleep(5 * time.Second)
+
+				By("Refreshing configuration", func() {
+					ptphelper.WaitForPtpDaemonToBeReady()
+					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
+				})
+				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
+					Skip("Failed to find a valid ptp slave configuration")
+				}
+
 				var err error
 				ptpPods, err = client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
 				Expect(err).NotTo(HaveOccurred())
@@ -501,24 +596,10 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				}
 				Expect(cloudProxyFound).ToNot(BeFalse(), "No event pods detected")
 
-				By("Checking event metrics are present")
-
-				Eventually(func() string {
-					buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", pkg.MetricsEndPoint})
-					return buf.String()
-				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring(metrics.OpenshiftPtpInterfaceRole),
-					"Interface role metrics are not detected")
-
-				Eventually(func() string {
-					buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", pkg.MetricsEndPoint})
-					return buf.String()
-				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring(metrics.OpenshiftPtpThreshold),
-					"Threshold metrics are not detected")
-
 				By("Checking event api is healthy")
 
 				Eventually(func() string {
-					buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", "127.0.0.1:9085/api/ocloudNotifications/v1/health"})
+					buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", path.Join(event.ApiBaseV1, "health")})
 					return buf.String()
 				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring("OK"),
 					"Event API is not in healthy state")
@@ -526,7 +607,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				By("Checking ptp publisher is created")
 
 				Eventually(func() string {
-					buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", "127.0.0.1:9085/api/ocloudNotifications/v1/publishers"})
+					buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", path.Join(event.ApiBaseV1, "publishers")})
 					return buf.String()
 				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring("endpointUri"),
 					"Event API  did not return publishers")
@@ -546,8 +627,24 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					Fail(fmt.Sprintf("PTP event was not generated in the pod %s, err=%s", fullConfig.DiscoveredClockUnderTestPod.Name, err))
 				}
 
+				By("Checking event metrics are present")
+
+				Eventually(func() string {
+					buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", pkg.MetricsEndPoint})
+					return buf.String()
+				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring(metrics.OpenshiftPtpInterfaceRole),
+					"Interface role metrics are not detected")
+
+				Eventually(func() string {
+					buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", pkg.MetricsEndPoint})
+					return buf.String()
+				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring(metrics.OpenshiftPtpThreshold),
+					"Threshold metrics are not detected")
+				// reset to v2
+				ptphelper.EnablePTPEvent("2.0", fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName)
 			})
 		})
+
 		Context("Running with reference plugin", func() {
 			BeforeEach(func() {
 				By("Enabling reference plugin", func() {

@@ -480,8 +480,8 @@ github.com/redhat-cne/privileged-daemonset v1.0.34 h1:wcffXvaz5PwvAZfq62WiMXi0N+
 github.com/redhat-cne/privileged-daemonset v1.0.34/go.mod h1:poRO1Giq9rH4JD8/KLxRJobOARGxmPr8xAIwhSrZGRQ=
 github.com/redhat-cne/ptp-listener-exports v0.0.7 h1:OndW4kSKym5LK9bbEqJPE/LW/LGMDPw5IzXdmrGMRhI=
 github.com/redhat-cne/ptp-listener-exports v0.0.7/go.mod h1:oDdWZOsl2wP1WUECbyLvva0ld/JOvWzNWLJOSCOlOAI=
-github.com/redhat-cne/sdk-go v1.0.1-0.20240716153735-19a18fd38ee6 h1:TYW1M1qUC51tN5nIy3cRwNFDn/M7E81jbtIthzyTwQ8=
-github.com/redhat-cne/sdk-go v1.0.1-0.20240716153735-19a18fd38ee6/go.mod h1:q9LxxPbK1tGpDbQm/KIPujqdP0bK1hhuHrIXV3vuUrM=
+github.com/redhat-cne/sdk-go v1.22.0 h1:oAfCu9jjXLn3/aXASuccZCX1Vlz9iIV9pmuO4vy4dSk=
+github.com/redhat-cne/sdk-go v1.22.0/go.mod h1:qeir05dwTscLvqGCIoQPCUM6HUoVmhR7521nXn28utA=
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=
 github.com/rogpeppe/fastuuid v1.2.0/go.mod h1:jVj6XXZzXRy/MSR5jhDC/2q6DgLz+nrA6LYCDYWNEvQ=
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
