@@ -52,7 +52,8 @@ const (
 	// BoundaryClockString matches the BC clock mode in Environement
 	BoundaryClockString = "BC"
 	// DualNICBoundaryClockString matches the DualNICBC clock mode in Environement
-	DualNICBoundaryClockString  = "DualNICBC"
+	DualNICBoundaryClockString = "DualNICBC"
+	// TelcoGrandMasterClockString matches the T-GM clock mode in Environement
 	TelcoGrandMasterClockString = "T-GM"
 	ptp4lEthernet               = "-2 --summary_interval -4"
 	ptp4lEthernetSlave          = "-2 -s --summary_interval -4"
@@ -309,7 +310,7 @@ func GetDesiredConfig(forceUpdate bool) TestConfig {
 		GlobalConfig.Status = InitStatus
 		return GlobalConfig
 	case None:
-		logrus.Infof("No test mode specified using, %s mode. Specify the env variable PTP_TEST_MODE with one of %s, %s, %s, %s", OrdinaryClock, Discovery, OrdinaryClock, BoundaryClock, DualNICBoundaryClockString)
+		logrus.Infof("No test mode specified using, %s mode. Specify the env variable PTP_TEST_MODE with one of %s, %s, %s, %s, %s", OrdinaryClock, Discovery, OrdinaryClock, BoundaryClock, TelcoGrandMasterClock, DualNICBoundaryClockString)
 		GlobalConfig.PtpModeDesired = OrdinaryClock
 		GlobalConfig.Status = InitStatus
 		return GlobalConfig
@@ -411,7 +412,7 @@ func initAndSolveProblems() {
 			{int(solver.StepDifferentNic), 2, 1, 3}}, // step5
 	}
 	data.problems[AlgoTelcoGMString] = &[][][]int{
-		{{int(solver.StepIsPTP), 1, 0}}, // step1
+		{{int(solver.StepIsWPCNic), 1, 0}}, // step1
 	}
 
 	data.problems[AlgoDualNicBCWithSlavesString] = &[][][]int{
@@ -1158,7 +1159,7 @@ func PtpConfigTelcoGM(isExtGM bool) error {
 			logrus.Error("WPC NIC not found in list of interfaces on the cluster")
 			return fmt.Errorf("WPC NIC not found in list of interfaces on the cluster %d", len(IfList))
 		}
-		err := CreatePtpConfigWPCGrandMaster(pkg.PtpGrandMasterPolicyName, gmIf.NodeName, IfList, deviceID)
+		err := CreatePtpConfigWPCGrandMaster(pkg.PtpWPCGrandMasterPolicyName, gmIf.NodeName, IfList, deviceID)
 		if err != nil {
 			logrus.Errorf("Error creating Grandmaster ptpconfig: %s", err)
 		}
