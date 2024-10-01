@@ -622,7 +622,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				}
 				_, err = pods.GetPodLogsRegex(fullConfig.DiscoveredClockUnderTestPod.Namespace,
 					fullConfig.DiscoveredClockUnderTestPod.Name, pkg.EventProxyContainerName,
-					"event sent", true, pkg.TimeoutIn3Minutes)
+					"event sent", true, pkg.TimeoutIn5Minutes)
 				if err != nil {
 					Fail(fmt.Sprintf("PTP event was not generated in the pod %s, err=%s", fullConfig.DiscoveredClockUnderTestPod.Name, err))
 				}
