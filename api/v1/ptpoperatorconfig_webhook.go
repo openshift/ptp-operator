@@ -19,6 +19,7 @@ package v1
 import (
 	"errors"
 
+	semver "github.com/Masterminds/semver/v3"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -45,6 +46,13 @@ func (r *PtpOperatorConfig) validate() error {
 	if r.GetName() != "default" {
 		return errors.New("PtpOperatorConfig name must be 'default'. Only one 'default' PtpOperatorConfig configuration is allowed")
 	}
+
+	if r.Spec.EventConfig != nil && r.Spec.EventConfig.EnableEventPublisher {
+		if r.Spec.EventConfig.ApiVersion != "" && !isValidVersion(r.Spec.EventConfig.ApiVersion) {
+			return errors.New("ptpEventConfig.apiVersion=" + r.Spec.EventConfig.ApiVersion + " is not a valid version. Example of valid versions: \"1.0\", \"2.0\"")
+		}
+	}
+
 	return nil
 }
 
@@ -72,4 +80,10 @@ func (r *PtpOperatorConfig) ValidateUpdate(old runtime.Object) (admission.Warnin
 func (r *PtpOperatorConfig) ValidateDelete() (admission.Warnings, error) {
 	ptpoperatorconfiglog.Info("validate delete", "name", r.Name)
 	return admission.Warnings{}, nil
+}
+
+// check if the version is valid based semanic versioning (semver.org)
+func isValidVersion(version string) bool {
+	_, err := semver.NewVersion(version)
+	return err == nil
 }

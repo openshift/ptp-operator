@@ -3,6 +3,7 @@ module github.com/openshift/ptp-operator
 go 1.22
 
 require (
+	github.com/Masterminds/semver/v3 v3.3.0
 	github.com/Masterminds/sprig v2.22.0+incompatible
 	github.com/cloudevents/sdk-go/v2 v2.15.2
 	github.com/creasty/defaults v1.6.0
