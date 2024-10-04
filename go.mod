@@ -3,6 +3,7 @@ module github.com/openshift/ptp-operator
 go 1.21
 
 require (
+	github.com/Masterminds/semver/v3 v3.3.0
 	github.com/Masterminds/sprig v2.22.0+incompatible
 	github.com/creasty/defaults v1.6.0
 	github.com/go-logr/logr v1.2.4
