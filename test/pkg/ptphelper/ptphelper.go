@@ -833,27 +833,3 @@ func IsV1Api(version string) bool {
 	// by default use V1
 	return true
 }
-
-// IsV1RegressionNeeded returns true when testing 4.16 and 4.17 PUT.
-// for 4.16 and 4.17 we need to support both v1 and v2 event API
-func IsV1EventRegressionNeeded() bool {
-	value, isSet := os.LookupEnv("T5CI_VERSION")
-	//TODOv2 update after backport v2 to 4.16
-	//if isSet && (value == "4.16" || value == "4.17") {
-	if isSet && value == "4.17" {
-		return true
-	}
-	return false
-}
-
-// default version for 4.16+ is 2
-// default version for 4.15 and less is 1
-func GetDefaultApiVersion() string {
-	value, isSet := os.LookupEnv("T5CI_VERSION")
-	//TODOv2 update after backport v2 to 4.16
-	// if isSet && (strings.Compare(value, "4.16") < 0) {
-	if isSet && (strings.Compare(value, "4.17") < 0) {
-		return "1.0"
-	}
-	return "2.0"
-}

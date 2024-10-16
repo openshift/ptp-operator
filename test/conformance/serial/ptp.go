@@ -56,7 +56,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 		It("Should check whether PTP operator needs to enable PTP events", func() {
 			By("Find if variable set to enable ptp events")
 			if event.Enable() {
-				apiVersion := ptphelper.GetDefaultApiVersion()
+				apiVersion := event.GetDefaultApiVersion()
 				err := ptphelper.EnablePTPEvent(apiVersion, "")
 				Expect(err).To(BeNil(), "error when enable ptp event")
 				ptpConfig, err := client.Client.PtpV1Interface.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), pkg.PtpConfigOperatorName, metav1.GetOptions{})
@@ -562,7 +562,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 		Context("Running with event enabled, v1 regression", func() {
 			BeforeEach(func() {
-				if !ptphelper.IsV1EventRegressionNeeded() {
+				if !event.IsV1EventRegressionNeeded() {
 					Skip("Skipping, test PTP events v1 regression is for 4.16 and 4.17 only")
 				}
 

@@ -93,7 +93,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-parallel]", func() 
 	// serial tests always run after all parallel tests.
 	Context("Event based tests, v1 regression", Serial, func() {
 		BeforeEach(func() {
-			if !ptphelper.IsV1EventRegressionNeeded() {
+			if !event.IsV1EventRegressionNeeded() {
 				Skip("Skipping, test PTP events v1 regression is for 4.16 and 4.17 only")
 			}
 

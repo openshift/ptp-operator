@@ -8,7 +8,7 @@ Install Ginkgo v2 CLI following the [Migration Guide](https://onsi.github.io/gin
 ## Running the tests
 To run the conformance tests, first set the following environment variables:
 - **PTP_LOG_LEVEL**: sets the log level (defaults to info), valid values are:  trace, debug, info, warn, error, fatal, panic
-- **KUBECONFIG**: this is the path to the openshift kubeconfig 
+- **KUBECONFIG**: this is the path to the openshift kubeconfig
 - **PTP_TEST_MODE**: this is the desired mode to run the tests. Choose between: Discovery, OC and BC. See below for an explanation for each mode.
 - **DISCOVERY_MODE**: This is a legacy option and is equivalent to setting "Discovery" option in the PTP_TEST_MODE environment variable
 - **ENABLE_TEST_CASE**: This is an option to run the long running tests separated by comma. For example, to run reboot test, `ENABLE_TEST_CASE=reboot` shall be used.
@@ -16,6 +16,9 @@ To run the conformance tests, first set the following environment variables:
 - **KEEP_PTPCONFIG**: if set to true, the test script will not delete the ptpconfig it automatically created. If set to false, it will delete them. The ptpconfigs are deleted by default. For instance `KEEP_PTPCONFIG=true`
 - **MAX_OFFSET_IN_NS**: maximum offset in nanoseconds between a master and a slave clock when testing clock accuracy. Default is 100
 - **MIN_OFFSET_IN_NS**: minimum offset in nanoseconds between a master and a slave clock when testing clock accuracy. Default is -100
+- **ENABLE_PTP_EVENT**: enable event based tests.
+- **EVENT_API_VERSION**: passes the default REST-API version for the event based tests. Set this to "2.0" for 4.16+ PUT, "1.0" for 4.15 and earlier. If this is not set, default value "2.0" is used.
+- **ENABLE_V1_REGRESSION**: enable V1 regression for event based tests. For 4.16 and 4.17, event based tests will be repeated the second time with v1 REST-API. These tests are marked with "v1 regression".
 
 Then run the following command:
 ```
@@ -35,7 +38,7 @@ To run all the tests with a container:
 ```
 docker run -e PTP_TEST_MODE=<TEST MODE> -e ENABLE_TEST_CASE=<EXTRA TEST CASES> -v <KUBECONFIG PATH>:/tmp/config:Z -v <OUTPUT DIRECTORY PATH>:/output:Z <IMAGE>
 ```
-for example: 
+for example:
 ```
 docker run -e PTP_TEST_MODE=OC -e ENABLE_TEST_CASE=reboot -v /home/usr/.kube/config.3nodes:/tmp/config:Z -v .:/output:Z quay.io/redhat-cne/ptp-operator-test:latest
 ```
@@ -55,7 +58,7 @@ Each test can be configured separately and can be enabled or disabled, however `
 ### Event monitoring: OS Clock state monitoring
 This test monitors the state of the os clock synchronized by the clock under test using the PTP fast event framework.
 The following parameters in the PTP test config file (PTP_TEST_CONFIG_FILE=ptptestconfig.yaml) customize this test:
-- setting the min and max os clock offsets. Dipping below the min offset or juimping above the max offset should trigger a FREERUN event. Staying between min and max offset should trigger a LOCKED event to be sent: 
+- setting the min and max os clock offsets. Dipping below the min offset or juimping above the max offset should trigger a FREERUN event. Staying between min and max offset should trigger a LOCKED event to be sent:
 ```
 global:
  maxoffset: 500
@@ -187,7 +190,7 @@ Max cpu usage for the linuxptp-daemon-container on each linuxptp-daemon pod: 40m
 ```
 ## Labelling test nodes manually in discovery mode
 In Discovery mode, the node holding the clock under test is indicated via a label
-To indicate a node with a BC configuration, label it with 
+To indicate a node with a BC configuration, label it with
 ```
  oc label  node <nodename>    ptp/clock-under-test=""
 ```
@@ -244,8 +247,8 @@ This mode assumes that one or more valid ptpconfig objects are configured in the
 In Discovery mode, no auto-configuration is performed and no clocks are created. The existing clocks are just tested.
 ### Auto-Configured modes
 The following modes need a multinode or single node cluster to run:
-- with a multi-node cluster, One node is selected to act as a Master. Another node is selected to act as a slave Ordinary clock. The test suite uses the L2 discovery mechanism to discover the cluster connectivity and create a graph of the network. The graph is resolved to find the best OC, or BC configuration. 
-- with a single node cluster, the L2 mechanism instead reports interfaces on which PTP ethernet frames are received. The PTP frames received are assumed to be from ax external Grand master. The test suite uses one of the interfaces identified as receiving ptp GM frames and create the ordinary or boundary clock with it. 
+- with a multi-node cluster, One node is selected to act as a Master. Another node is selected to act as a slave Ordinary clock. The test suite uses the L2 discovery mechanism to discover the cluster connectivity and create a graph of the network. The graph is resolved to find the best OC, or BC configuration.
+- with a single node cluster, the L2 mechanism instead reports interfaces on which PTP ethernet frames are received. The PTP frames received are assumed to be from ax external Grand master. The test suite uses one of the interfaces identified as receiving ptp GM frames and create the ordinary or boundary clock with it.
 
 #### OC
 The OC configurations includes a grandmaster providing a clock signal to a slave ordinary clock. See diagram below:
@@ -278,7 +281,7 @@ If only one LAN is available, the following configuration is tested. In this cas
 It is also possible to use an existing Grandmaster to synchronize clock to. This is specified by setting the EXTERNAL_GM environement variable. The PTP test mode is configured according to the following table:
 
 | PTP_TEST_MODE      | EXTERNAL_GM | MODE |
-| ----------- | ----------- |---------| 
+| ----------- | ----------- |---------|
 | OC      | false/not set       | OC + self configured GM |
 | BC      | false/not set       | BC + self configured GM |
 | Dual NIC BC      | false/not set       |  Dual NIC BC + self configured GM |
@@ -304,7 +307,7 @@ if not enough resources for slaves:
 ![extgm_dnbc](doc/extgm_dnbc.svg)
 
 
-## Test mode discovery workflow 
+## Test mode discovery workflow
 The Test mode discovery workflow is as follows:
 
 
@@ -314,7 +317,7 @@ The Test mode discovery workflow is as follows:
  - **Desired config**: the desired mode is selected at this point. The choices are Discovery, OC and BC.
  - **PTP configuration**: if OC, BC modes are selected, a valid default configuration is configured automatically. The output of the configuration is 1 or 2 ptpconfig objects in the openshift-ptp. If Discovery mode is selected, this configuration step is skipped.
  - **Discovery**: the ptpconfig installed in the openshift-ptp namespace are analysed to determine which type of clocks they represent, either OC, BC. This step is the same whether the configuration was configured by the test suite (OC, BC) or by the user (Discovery). If the ptpconfigs are valid and a type of clock can be determined successfully, then discovery is successful and the corresponding test are executed.
-# Host based L2 discovery 
+# Host based L2 discovery
 The rapid discovery of L2 hosts is realized by probing the network with test Ethernet frames. See https://github.com/test-network-function/l2discovery
 
 ![L2topology](doc/l2topology.svg)
@@ -409,4 +412,3 @@ each step in the algorithm means:
 {<constraint to check>, <number of parameters to the function>, <interface0>, ..., interfaceN}}
 ```
 note: parameter0 ... parameterN are integers representing an interface. 0 means p0, 1 means p1, etc...
-

@@ -59,6 +59,25 @@ func Enable() bool {
 	return eventMode
 }
 
+// IsV1RegressionNeeded returns true when we need to test both v1 and v2 event API
+func IsV1EventRegressionNeeded() bool {
+	value, _ := strconv.ParseBool(os.Getenv("ENABLE_V1_REGRESSION"))
+	return value
+}
+
+// returns 2.0 if EVENT_API_VERSION is invalid or not set
+func GetDefaultApiVersion() string {
+	value, isSet := os.LookupEnv("EVENT_API_VERSION")
+	if isSet {
+		if _, err := strconv.ParseFloat(value, 64); err == nil {
+			return value
+		} else {
+			logrus.Warnf("EVENT_API_VERSION %s is not valid", value)
+		}
+	}
+	return "2.0"
+}
+
 func CreateConsumerAppWithSidecar(nodeNameFull string) (err error) {
 	nodeName := nodeNameFull
 	// using the first component of the node name before the first dot (master2.example.com -> master2)

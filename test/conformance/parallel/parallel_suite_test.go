@@ -63,7 +63,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	ptphelper.RestartPTPDaemon()
 
 	isConsumerReady := true
-	apiVersion := ptphelper.GetDefaultApiVersion()
+	apiVersion := event.GetDefaultApiVersion()
 	err = ptphelper.EnablePTPEvent(apiVersion, fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName)
 	Expect(err).To(BeNil(), "Error when enable ptp event")
 	if apiVersion == "1.0" {
