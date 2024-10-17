@@ -418,7 +418,10 @@ func PushInitialEvent(eventType string, timeout time.Duration) (err error) {
 			matches := r.FindAllStringSubmatch(line, -1)
 			if len(matches) > 0 {
 				aStoredEvent, eType, err := createStoredEvent([]byte(matches[0][1]))
-				if err == nil && eType == eventType {
+				if err != nil {
+					return err
+				}
+				if eType == eventType {
 					PubSub.Publish(eType, aStoredEvent)
 					return nil
 				}

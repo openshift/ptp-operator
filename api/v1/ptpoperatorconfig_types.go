@@ -70,12 +70,16 @@ type PtpEventConfig struct {
 	EnableEventPublisher bool `json:"enableEventPublisher,omitempty"`
 	// TransportHost format is <protocol>://<transport-service>.<namespace>.svc.cluster.local:<transport-port>
 	// Example HTTP transport: "http://ptp-event-publisher-service-NODE_NAME.openshift-ptp.svc.cluster.local:9043"
-	// Example AMQP transport: "amqp://amq-router-service-name.amq-namespace.svc.cluster.local"
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Transport Host",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	TransportHost string `json:"transportHost,omitempty"`
-	// StorageType is the name of StorageClass providing persist storage used by HTTP transport to store subscription data
+	// StorageType is the type of storage to store subscription data
 	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Storage Type",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
 	StorageType string `json:"storageType,omitempty"`
+	// ApiVersion is used to determine which API is used for the event service
+	// 1.0: default version. event service is mapped to internal REST-API.
+	// 2.x: event service is mapped to O-RAN v3.0 Compliant O-Cloud Notification REST-API.
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="ApiVersion",xDescriptors={"urn:alm:descriptor:com.tectonic.ui:text"}
+	ApiVersion string `json:"apiVersion,omitempty"`
 }
 
 func init() {

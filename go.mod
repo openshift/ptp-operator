@@ -3,6 +3,7 @@ module github.com/openshift/ptp-operator
 go 1.21
 
 require (
+	github.com/Masterminds/semver/v3 v3.3.0
 	github.com/Masterminds/sprig v2.22.0+incompatible
 	github.com/creasty/defaults v1.6.0
 	github.com/go-logr/logr v1.2.4
@@ -17,7 +18,7 @@ require (
 	github.com/prometheus/common v0.44.0
 	github.com/redhat-cne/channel-pubsub v0.0.8
 	github.com/redhat-cne/ptp-listener-exports v0.0.7
-	github.com/redhat-cne/sdk-go v0.1.1-0.20240321130308-a635605654ab
+	github.com/redhat-cne/sdk-go v1.21.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.8.2
 	github.com/test-network-function/graphsolver-lib v0.0.3
@@ -91,7 +92,7 @@ require (
 	golang.org/x/tools v0.9.3 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/protobuf v1.30.0 // indirect
+	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/component-base v0.28.3 // indirect

@@ -25,6 +25,11 @@ import (
 
 var _ Writer = (*PubSub)(nil)
 
+// SetVersion implements EventWriter.SetVersion
+func (ps *PubSub) SetVersion(version string) {
+	ps.Version = version
+}
+
 // SetResource implements EventWriter.SetResource
 func (ps *PubSub) SetResource(s string) error {
 	matched, err := regexp.MatchString(`([^/]+(/{2,}[^/]+)?)`, s)

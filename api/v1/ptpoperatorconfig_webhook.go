@@ -17,9 +17,9 @@ limitations under the License.
 package v1
 
 import (
-	"context"
 	"errors"
-	storagev1 "k8s.io/api/storage/v1"
+
+	semver "github.com/Masterminds/semver/v3"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -46,6 +46,13 @@ func (r *PtpOperatorConfig) validate() error {
 	if r.GetName() != "default" {
 		return errors.New("PtpOperatorConfig name must be 'default'. Only one 'default' PtpOperatorConfig configuration is allowed")
 	}
+
+	if r.Spec.EventConfig != nil && r.Spec.EventConfig.EnableEventPublisher {
+		if r.Spec.EventConfig.ApiVersion != "" && !isValidVersion(r.Spec.EventConfig.ApiVersion) {
+			return errors.New("ptpEventConfig.apiVersion=" + r.Spec.EventConfig.ApiVersion + " is not a valid version. Example of valid versions: \"1.0\", \"2.0\"")
+		}
+	}
+
 	return nil
 }
 
@@ -75,19 +82,8 @@ func (r *PtpOperatorConfig) ValidateDelete() (admission.Warnings, error) {
 	return admission.Warnings{}, nil
 }
 
-func (r *PtpOperatorConfig) checkStorageClass(scName string) bool {
-
-	scList := &storagev1.StorageClassList{}
-	opts := []client.ListOption{}
-	err := k8sclient.List(context.TODO(), scList, opts...)
-	if err != nil {
-		return false
-	}
-
-	for _, sc := range scList.Items {
-		if sc.Name == scName {
-			return true
-		}
-	}
-	return false
+// check if the version is valid based semanic versioning (semver.org)
+func isValidVersion(version string) bool {
+	_, err := semver.NewVersion(version)
+	return err == nil
 }

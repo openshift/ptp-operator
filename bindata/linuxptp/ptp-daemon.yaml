@@ -39,6 +39,7 @@ spec:
             - "--metrics-addr=127.0.0.1:9091"
             - "--store-path=/store"
             - "--transport-host={{ .EventTransportHost }}"
+            - "--api-version={{ .EventApiVersion }}"
             - "--api-port=9085"
           volumeMounts:
             - name: config-volume
@@ -134,12 +135,7 @@ spec:
             secretName: linuxptp-daemon-secret
         {{ if (eq .EnableEventPublisher true) }}
         - name: pubsubstore
-          {{ if or (eq .StorageType "emptyDir") (hasPrefix "amqp" .EventTransportHost) }}
           emptyDir: {}
-          {{ else }}
-          persistentVolumeClaim:
-            claimName: cloud-event-proxy-store-{{ .StorageType }}
-          {{ end }}
         - name: event-bus-socket
           emptyDir: {}
         {{ end }}
@@ -258,22 +254,3 @@ spec:
           labels:
             severity: warning
         {{ end }}
-
-# special storageType "emptyDir" is used for developer tests to map pubsubstore volume to emptyDir
-{{ if and (eq .EnableEventPublisher true) (ne .StorageType "emptyDir") }}
-{{ if not (hasPrefix "amqp" .EventTransportHost) }}
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: cloud-event-proxy-store-{{ .StorageType }}
-  namespace: openshift-ptp
-spec:
-  storageClassName: {{ .StorageType }}
-  resources:
-    requests:
-      storage: 10Mi
-  accessModes:
-  - ReadWriteOnce
-{{ end }}
-{{ end }}

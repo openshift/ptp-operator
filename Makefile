@@ -1,11 +1,11 @@
-# VERSION defines the project version for the bundle. 
+# VERSION defines the project version for the bundle.
 # Update this value when you upgrade the version of your project.
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
 VERSION ?= 4.16
 
-# CHANNELS define the bundle channels used in the bundle. 
+# CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "preview,fast,stable")
 # To re-generate a bundle for other specific channels without changing the standard setup, you can:
 # - use the CHANNELS as arg of the bundle target (e.g make bundle CHANNELS=preview,fast,stable)
@@ -14,7 +14,7 @@ ifneq ($(origin CHANNELS), undefined)
 BUNDLE_CHANNELS := --channels=$(CHANNELS)
 endif
 
-# DEFAULT_CHANNEL defines the default channel used in the bundle. 
+# DEFAULT_CHANNEL defines the default channel used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g DEFAULT_CHANNEL = "stable")
 # To re-generate a bundle for any other default channel without changing the default setup, you can:
 # - use the DEFAULT_CHANNEL as arg of the bundle target (e.g make bundle DEFAULT_CHANNEL=stable)
@@ -92,12 +92,15 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
+.PHONY: fmt
 fmt: ## Go fmt your code
 	hack/gofmt.sh
 
+.PHONY: fmt-code
 fmt-code: ## Run go fmt against code.
 	go fmt ./...
 
+.PHONY: vet
 vet: ## Run go vet against code.
 	go vet ./...
 
@@ -152,7 +155,7 @@ ENVTEST ?= $(LOCALBIN)/setup-envtest
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v4.5.7
-CONTROLLER_TOOLS_VERSION ?= v0.9.2
+CONTROLLER_TOOLS_VERSION ?= v0.15.0
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
@@ -171,14 +174,19 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 	GOFLAGS=-mod=mod GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
 
 .PHONY: operator-sdk
+ifeq ($(OS), Darwin)
 OPERATOR_SDK ?= $(LOCALBIN)/x86_64/operator-sdk
+else
+OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk
+endif
 OPERATOR_SDK_VERSION_INSTALLED = $(shell $(OPERATOR_SDK) version 2>/dev/null | sed 's/^operator-sdk version: "\([^"]*\).*/\1/')
 operator-sdk: ## Download operator-sdk locally if necessary.
 ifneq ($(OPERATOR_SDK_VERSION),$(OPERATOR_SDK_VERSION_INSTALLED))
 ifeq ($(OS), Darwin)
-	curl https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/operator-sdk/4.11.0/operator-sdk-darwin-x86_64.tar.gz? | tar -xz -C bin/x86_64/
+	mkdir -p $(LOCALBIN)/x86_64/
+	curl -L https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/operator-sdk/4.11.0/operator-sdk-darwin-x86_64.tar.gz? | tar -xz -C bin/x86_64/
 else
-	curl https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/operator-sdk/4.11.0/operator-sdk-linux-x86_64.tar.gz? | tar -xz -C bin/
+	curl -L https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/operator-sdk/4.11.0/operator-sdk-linux-x86_64.tar.gz? | tar -xz -C bin/
 endif
 endif
 
@@ -199,11 +207,15 @@ endif
 
 .PHONY: bundle-build ## Build the bundle image.
 bundle-build:
-	docker build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
+	$(CONTAINER_TOOL) build -f bundle.Dockerfile -t $(BUNDLE_IMG) .
 
 .PHONY: bundle-push
 bundle-push: ## Push the bundle image.
 	$(MAKE) docker-push IMG=$(BUNDLE_IMG)
+
+.PHONY: bundle-check
+bundle-check: common-deps-update generate manifests bundle
+	hack/check-git-tree.sh
 
 .PHONY: opm
 OPM = ./bin/opm
@@ -239,15 +251,15 @@ endif
 # https://github.com/operator-framework/community-operators/blob/7f1438c/docs/packaging-operator.md#updating-your-existing-operator
 .PHONY: catalog-build
 catalog-build: opm ## Build a catalog image.
-	$(OPM) index add --container-tool docker --mode semver --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
+	$(OPM) index add --container-tool $(CONTAINER_TOOL) --mode semver --tag $(CATALOG_IMG) --bundles $(BUNDLE_IMGS) $(FROM_INDEX_OPT)
 
 # Push the catalog image.
 .PHONY: catalog-push
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 
-# custom
-deps-update:
+.PHONY: common-deps-update
+common-deps-update:	controller-gen kustomize
 	go mod tidy && \
 	go mod vendor
 
@@ -256,7 +268,7 @@ bin:
 	hack/build.sh
 
 image:
-	docker build -t openshift.io/ptp-operator -f Dockerfile.rhel7 .
+	$(CONTAINER_TOOL) build -t openshift.io/ptp-operator -f Dockerfile.rhel7 .
 
 clean:
 	rm -rf build/_output/bin/ptp-operator
@@ -270,5 +282,6 @@ test-validation-only:
 buildtest:
 	PATH=${PATH}:${GOBIN} ginkgo build ./test/conformance
 	cp ./test/conformance/conformance.test ./bin/testptp
+
 buildimage: buildtest
 	./scripts/image.sh

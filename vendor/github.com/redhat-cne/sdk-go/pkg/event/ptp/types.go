@@ -18,27 +18,34 @@ package ptp
 type EventType string
 
 const (
+	// O-RAN 7.2.3.6
 	// GnssStateChange is Notification used to inform about gnss synchronization state change
 	GnssStateChange EventType = "event.sync.gnss-status.gnss-state-change"
 
+	// O-RAN 7.2.3.8
 	// OsClockSyncStateChange is the object contains information related to a notification
 	OsClockSyncStateChange EventType = "event.sync.sync-status.os-clock-sync-state-change"
 
+	// O-RAN 7.2.3.10
 	// PtpClockClassChange is Notification used to inform about ptp clock class changes.
 	PtpClockClassChange EventType = "event.sync.ptp-status.ptp-clock-class-change"
 
+	// O-RAN 7.2.3.3
 	// PtpStateChange is Notification used to inform about ptp synchronization state change
 	PtpStateChange EventType = "event.sync.ptp-status.ptp-state-change"
 
+	// O-RAN 7.2.3.11
 	// SynceClockQualityChange is Notification used to inform about changes in the clock quality of the primary SyncE signal advertised in ESMC packets
-	SynceClockQualityChange EventType = "event.sync.synce-status.sync-clock-quality-change"
+	SynceClockQualityChange EventType = "event.sync.synce-status.synce-clock-quality-change"
 
+	// O-RAN 7.2.3.9
 	// SynceStateChange is Notification used to inform about synce synchronization state change
-	SynceStateChange EventType = "event.sync.sync-status.synce-state-change"
+	SynceStateChange EventType = "event.sync.synce-status.synce-state-change"
 
 	// SynceStateChangeExtended is Notification used to inform about synce synchronization state change, enhanced state information
 	SynceStateChangeExtended EventType = "event.sync.synce-status.synce-state-change-extended"
 
-	// SyncStateChange is Notification used to inform about synchronization state change
+	// O-RAN 7.2.3.1
+	// SyncStateChange is Notification used to inform about the overall synchronization state change
 	SyncStateChange EventType = "event.sync.sync-status.synchronization-state-change"
 )
