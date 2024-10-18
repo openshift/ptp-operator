@@ -246,7 +246,7 @@ github.com/redhat-cne/graphsolver-lib
 # github.com/redhat-cne/l2discovery-exports v0.0.4
 ## explicit; go 1.22
 github.com/redhat-cne/l2discovery-exports
-# github.com/redhat-cne/l2discovery-lib v0.0.13
+# github.com/redhat-cne/l2discovery-lib v0.0.14
 ## explicit; go 1.22
 github.com/redhat-cne/l2discovery-lib
 github.com/redhat-cne/l2discovery-lib/pkg/l2client

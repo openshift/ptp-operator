@@ -476,8 +476,8 @@ github.com/redhat-cne/graphsolver-lib v0.0.5 h1:M/C07yZQFQCA9AStdwvlNrjWYcQuObVG
 github.com/redhat-cne/graphsolver-lib v0.0.5/go.mod h1:hOlp1RlLrwb9ZqmX4lcknGobuKFQxIByx+ugTtAwfj4=
 github.com/redhat-cne/l2discovery-exports v0.0.4 h1:oYZlk0lXEnLTO8nxnL1G54L+KdQ1WyA5zZFJln9/8uA=
 github.com/redhat-cne/l2discovery-exports v0.0.4/go.mod h1:hYvCYXSfngU/j+auFobgvKcwiu5DurO2BnUBoSmg/NA=
-github.com/redhat-cne/l2discovery-lib v0.0.13 h1:n/y2kXyEddvC4ptYb7eyz0KvN54aHumKvIOCLiZPPJs=
-github.com/redhat-cne/l2discovery-lib v0.0.13/go.mod h1:P1QnQ8F/e9p7injHbWPbPikOCmGpcRksSxXiS1YQUpE=
+github.com/redhat-cne/l2discovery-lib v0.0.14 h1:qiOWV25h+Ym/7XtutpoGw8Gmi3oAsyMpumvbnMloV0s=
+github.com/redhat-cne/l2discovery-lib v0.0.14/go.mod h1:P1QnQ8F/e9p7injHbWPbPikOCmGpcRksSxXiS1YQUpE=
 github.com/redhat-cne/privileged-daemonset v1.0.34 h1:wcffXvaz5PwvAZfq62WiMXi0N+gXFlEFXkK4CcdjshU=
 github.com/redhat-cne/privileged-daemonset v1.0.34/go.mod h1:poRO1Giq9rH4JD8/KLxRJobOARGxmPr8xAIwhSrZGRQ=
 github.com/redhat-cne/ptp-listener-exports v0.0.7 h1:OndW4kSKym5LK9bbEqJPE/LW/LGMDPw5IzXdmrGMRhI=
