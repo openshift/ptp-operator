@@ -13,6 +13,6 @@ LABEL io.k8s.display-name="OpenShift ptp-operator" \
       io.k8s.description="This is a component that manages cluster PTP configuration." \
       io.openshift.tags="openshift,ptp" \
       com.redhat.delivery.appregistry=true \
-      maintainer="Multus Team <multus-dev@redhat.com>"
+      maintainer="PTP Dev Team <ptp-dev@redhat.com>"
 
 ENTRYPOINT ["/usr/local/bin/ptp-operator"]
