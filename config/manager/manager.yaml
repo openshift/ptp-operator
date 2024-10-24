@@ -48,7 +48,7 @@ spec:
           - --enable-leader-election
           - --logtostderr
           - --stderrthreshold=INFO
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           resources:
             requests:
               cpu: 50m
