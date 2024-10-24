@@ -34,7 +34,7 @@ spec:
        {{ if (eq .EnableEventPublisher true) }}
         - name: cloud-event-proxy
           image: {{ .SideCar }}
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           args:
             - "--metrics-addr=127.0.0.1:9091"
             - "--store-path=/store"
@@ -92,7 +92,7 @@ spec:
           securityContext:
             privileged: true
           image: {{.Image}}
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           command: [ "/bin/bash", "-c", "--" ]
           args: [ "/usr/local/bin/ptp --alsologtostderr -v 10" ]
           resources:
@@ -129,7 +129,7 @@ spec:
             name: ptp-configmap
         - name: leap-volume
           configMap:
-            name: leap-configmap            
+            name: leap-configmap
         - name: linuxptp-certs
           secret:
             secretName: linuxptp-daemon-secret
