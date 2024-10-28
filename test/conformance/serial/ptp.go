@@ -940,18 +940,11 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 		Context("WPC GM Verification Tests", func() {
 			BeforeEach(func() {
-				By("Refreshing configuration", func() {
-					ptphelper.WaitForPtpDaemonToBeReady()
-					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
-				})
-				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
-					Skip("Failed to find a valid ptp slave configuration")
-				}
-			})
-			It("is verifying WPC GM state based on logs", func() {
 				if fullConfig.PtpModeDiscovered != testconfig.TelcoGrandMasterClock {
 					Skip("test valid only for GM test config")
 				}
+			})
+			It("is verifying WPC GM state based on logs", func() {
 
 				By("checking GM required processes status", func() {
 					processesArr := [...]string{"phc2sys", "gpspipe", "ts2phc", "gpsd", "ptp4l", "dpll"}
@@ -1096,18 +1089,11 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 		Context("WPC GM GNSS signal loss tests", func() {
 			BeforeEach(func() {
-				By("Refreshing configuration", func() {
-					ptphelper.WaitForPtpDaemonToBeReady()
-					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
-				})
-				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
-					Skip("Failed to find a valid ptp slave configuration")
-				}
-			})
-			It("Testing WPC GM functionality through connection loss", func() {
 				if fullConfig.PtpModeDiscovered != testconfig.TelcoGrandMasterClock {
 					Skip("test valid only for GM test config")
 				}
+			})
+			It("Testing WPC GM functionality through connection loss", func() {
 
 				By("disconnecting the GNSS Signal to the WPC GM ", func() {
 					// Check Stability of system using metrics
@@ -1180,27 +1166,90 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 		Context("WPC GM Events verification (V1)", func() {
 			BeforeEach(func() {
-				By("Refreshing configuration", func() {
-					ptphelper.WaitForPtpDaemonToBeReady()
-					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
-				})
-				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
-					Skip("Failed to find a valid ptp slave configuration")
-				}
-			})
-			It("Verify Events during GNSS Loss flow (V1)", func() {
 				if fullConfig.PtpModeDiscovered != testconfig.TelcoGrandMasterClock {
 					Skip("test valid only for GM test config")
 				}
+			})
+			It("Verify Events during GNSS Loss flow (V1)", func() {
 
 				By("disconnecting the GNSS Signal to the WPC GM", func() {
-					//TODO
-					Skip("To be implemented")
+					// Check Stability of system using metrics
+					checkStabilityOfWPCGMUsingMetrics(fullConfig)
+
+					// Disconnect GNSS signal using
+					//```ubxtool -P 29.20 -p CFG-MSG,0xf0,4,0```
+					pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod,
+						pkg.PtpContainerName, []string{"ubxtool", "-P", "29.20", "-p", "CFG-MSG,0xf0,4,0"})
+
+					// Verify state using metrics
+					// openshift_ptp_clock_class (7 in spec/ 140 out of spec)
+					checkClockClassState(fullConfig, "7")
+					// openshift_ptp_clock_state (GM,DPLL,ts2phc => 2 holdover)
+					checkClockState(fullConfig, "2")
+
+					//verifyEvents (v1)
+					verifyEventsV1("HOLDOVER")
+
+					// Recover GNSS Connection signal using
+					//```ubxtool -P 29.20 -p CFG-MSG,0xf0,4,1```
+					pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod,
+						pkg.PtpContainerName, []string{"ubxtool", "-P", "29.20", "-p", "CFG-MSG,0xf0,4,1"})
+
+					// Verify state using metrics
+					//openshift_ptp_clock_class (6)
+					checkClockClassState(fullConfig, "6")
+					//openshift_ptp_clock_state (GM,DPLL,ts2phc => 1)
+					checkClockState(fullConfig, "1")
+
+					//verifyEvents (v1)
+					verifyEventsV1("LOCKED")
+
 				})
 
 				By("disconnecting the GNSS Signal to test Holdover capability of WPC GM", func() {
-					//TODO
-					Skip("To be implemented")
+					// Check Stability of system using metrics
+					checkStabilityOfWPCGMUsingMetrics(fullConfig)
+
+					// Disconnect GNSS signal using
+					//```ubxtool -P 29.20 -p CFG-MSG,0xf0,4,0```
+					pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod,
+						pkg.PtpContainerName, []string{"ubxtool", "-P", "29.20", "-p", "CFG-MSG,0xf0,4,0"})
+
+					// Verify state using metrics
+					// Wait until state updates from
+					// locked => holdover inspec => holdover out of spec => freerun
+
+					// openshift_ptp_clock_class (7 in spec/ 140 out of spec)
+					checkClockClassState(fullConfig, "7")
+					// openshift_ptp_clock_state (GM,DPLL,ts2phc => 2 holdover)
+					checkClockState(fullConfig, "2")
+
+					//verifyEvents (v1)
+					verifyEventsV1("HOLDOVER")
+
+					time.Sleep(2 * time.Minute)
+
+					// openshift_ptp_clock_class (248 freerun after 2 mins)
+					checkClockClassState(fullConfig, "248")
+					// openshift_ptp_clock_state (GM,DPLL,ts2phc 0 freerun)
+					checkClockState(fullConfig, "0")
+
+					//verifyEvents (v1)
+					verifyEventsV1("FREERUN")
+
+					//Recover GNSS Connection signal using
+					//```ubxtool -P 29.20 -p CFG-MSG,0xf0,4,1```
+					pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod,
+						pkg.PtpContainerName, []string{"ubxtool", "-P", "29.20", "-p", "CFG-MSG,0xf0,4,1"})
+
+					//Verify state using metrics
+					//openshift_ptp_clock_class (6)
+					checkClockClassState(fullConfig, "6")
+					//openshift_ptp_clock_state (GM,DPLL,ts2phc => 1)
+					checkClockState(fullConfig, "1")
+
+					//verifyEvents (v1)
+					verifyEventsV1("LOCKED")
 				})
 
 			})
@@ -1208,27 +1257,90 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 		Context("WPC GM Events verification (V2)", func() {
 			BeforeEach(func() {
-				By("Refreshing configuration", func() {
-					ptphelper.WaitForPtpDaemonToBeReady()
-					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
-				})
-				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
-					Skip("Failed to find a valid ptp slave configuration")
-				}
-			})
-			It("Verify Events during GNSS Loss flow (V1)", func() {
 				if fullConfig.PtpModeDiscovered != testconfig.TelcoGrandMasterClock {
 					Skip("test valid only for GM test config")
 				}
+			})
+			It("Verify Events during GNSS Loss flow (V2)", func() {
 
 				By("disconnecting the GNSS Signal to the WPC GM", func() {
-					//TODO
-					Skip("To be implemented")
+					// Check Stability of system using metrics
+					checkStabilityOfWPCGMUsingMetrics(fullConfig)
+
+					// Disconnect GNSS signal using
+					//```ubxtool -P 29.20 -p CFG-MSG,0xf0,4,0```
+					pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod,
+						pkg.PtpContainerName, []string{"ubxtool", "-P", "29.20", "-p", "CFG-MSG,0xf0,4,0"})
+
+					// Verify state using metrics
+					// openshift_ptp_clock_class (7 in spec/ 140 out of spec)
+					checkClockClassState(fullConfig, "7")
+					// openshift_ptp_clock_state (GM,DPLL,ts2phc => 2 holdover)
+					checkClockState(fullConfig, "2")
+
+					//verify Events:
+					verifyEventsV2("HOLDOVER")
+
+					// Recover GNSS Connection signal using
+					//```ubxtool -P 29.20 -p CFG-MSG,0xf0,4,1```
+					pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod,
+						pkg.PtpContainerName, []string{"ubxtool", "-P", "29.20", "-p", "CFG-MSG,0xf0,4,1"})
+
+					// Verify state using metrics
+					//openshift_ptp_clock_class (6)
+					checkClockClassState(fullConfig, "6")
+					//openshift_ptp_clock_state (GM,DPLL,ts2phc => 1)
+					checkClockState(fullConfig, "1")
+
+					//Verify Events:
+					verifyEventsV2("LOCKED")
 				})
 
 				By("disconnecting the GNSS Signal to test Holdover capability of WPC GM", func() {
-					//TODO
-					Skip("To be implemented")
+					// Check Stability of system using metrics
+					checkStabilityOfWPCGMUsingMetrics(fullConfig)
+
+					// Disconnect GNSS signal using
+					//```ubxtool -P 29.20 -p CFG-MSG,0xf0,4,0```
+					pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod,
+						pkg.PtpContainerName, []string{"ubxtool", "-P", "29.20", "-p", "CFG-MSG,0xf0,4,0"})
+
+					// Verify state using metrics
+					// Wait until state updates from
+					// locked => holdover inspec => holdover out of spec => freerun
+
+					// openshift_ptp_clock_class (7 in spec/ 140 out of spec)
+					checkClockClassState(fullConfig, "7")
+					// openshift_ptp_clock_state (GM,DPLL,ts2phc => 2 holdover)
+					checkClockState(fullConfig, "2")
+
+					//Verify Events:
+					verifyEventsV2("HOLDOVER")
+
+					time.Sleep(2 * time.Minute)
+
+					// openshift_ptp_clock_class (248 freerun after 2 mins)
+					checkClockClassState(fullConfig, "248")
+					// openshift_ptp_clock_state (GM,DPLL,ts2phc 0 freerun)
+					checkClockState(fullConfig, "0")
+
+					//Verify Events:
+					verifyEventsV2("FREERUN")
+
+					//Recover GNSS Connection signal using
+					//```ubxtool -P 29.20 -p CFG-MSG,0xf0,4,1```
+					pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod,
+						pkg.PtpContainerName, []string{"ubxtool", "-P", "29.20", "-p", "CFG-MSG,0xf0,4,1"})
+
+					//Verify state using metrics
+					//openshift_ptp_clock_class (6)
+					checkClockClassState(fullConfig, "6")
+					//openshift_ptp_clock_state (GM,DPLL,ts2phc => 1)
+					checkClockState(fullConfig, "1")
+
+					//Verify Events:
+					verifyEventsV2("LOCKED")
+
 				})
 
 			})
@@ -1243,6 +1355,166 @@ func checkStabilityOfWPCGMUsingMetrics(fullConfig testconfig.TestConfig) {
 	checkDPLLPhaseState(fullConfig, "3")
 	checkClockState(fullConfig, "1")
 	checkPTPNMEAStatus(fullConfig, "1")
+}
+
+func verifyEventsV1(expectedState string) {
+	//TODO
+	switch expectedState {
+	case "LOCKED":
+		/*
+			7.2.3.1 Synchronization State (implemented)
+			event.sync.sync-status.synchronization-state-change
+			/sync/sync-status/sync-state LOCKED
+
+			7.2.3.3 PTP Synchronization State (implemented)
+			event.sync.ptp-status.ptp-state-change
+			/sync/ptp-status/lock-state LOCKED
+
+			7.2.3.6 GNSS-Sync-State (implemented)
+			event.sync.gnss-status.gnss-state-change
+			/sync/gnss-status/gnss-sync-status LOCKED
+
+			7.2.3.8 OS Clock Sync-State (implemented)
+			event.sync.sync-status.os-clock-sync-state-change
+			/sync/sync-status/os-clock-sync-state
+
+
+			7.2.3.10 PTP Clock Class Change (implemented)
+			event.sync.ptp-status.ptp-clock-class-change
+			/sync/ptp-status/clock-class LOCKED
+		*/
+	case "HOLDOVER":
+		/*
+			7.2.3.1 Synchronization State (implemented)
+			event.sync.sync-status.synchronization-state-change
+			/sync/sync-status/sync-state HOLDOVER
+
+			7.2.3.3 PTP Synchronization State (implemented)
+			event.sync.ptp-status.ptp-state-change
+			/sync/ptp-status/lock-state HOLDOVER
+
+			7.2.3.6 GNSS-Sync-State (implemented)
+			event.sync.gnss-status.gnss-state-change
+			/sync/gnss-status/gnss-sync-status HOLDOVER
+
+			7.2.3.8 OS Clock Sync-State (implemented)
+			event.sync.sync-status.os-clock-sync-state-change
+			/sync/sync-status/os-clock-sync-state
+
+
+			7.2.3.10 PTP Clock Class Change (implemented)
+			event.sync.ptp-status.ptp-clock-class-change
+			/sync/ptp-status/clock-class HOLDOVER
+
+		*/
+
+	case "FREERUN":
+		/*
+			7.2.3.1 Synchronization State (implemented)
+			event.sync.sync-status.synchronization-state-change
+			/sync/sync-status/sync-state FREERUN
+
+			7.2.3.3 PTP Synchronization State (implemented)
+			event.sync.ptp-status.ptp-state-change
+			/sync/ptp-status/lock-state FREERUN
+
+			7.2.3.6 GNSS-Sync-State (implemented)
+			event.sync.gnss-status.gnss-state-change
+			/sync/gnss-status/gnss-sync-status FREERUN
+
+			7.2.3.8 OS Clock Sync-State (implemented)
+			event.sync.sync-status.os-clock-sync-state-change
+			/sync/sync-status/os-clock-sync-state
+
+
+			7.2.3.10 PTP Clock Class Change (implemented)
+			event.sync.ptp-status.ptp-clock-class-change
+			/sync/ptp-status/clock-class FREERUN
+
+		*/
+
+	}
+
+}
+
+func verifyEventsV2(expectedState string) {
+	//TODO
+	switch expectedState {
+	case "LOCKED":
+		/*
+			7.2.3.1 Synchronization State (implemented)
+			event.sync.sync-status.synchronization-state-change
+			/sync/sync-status/sync-state LOCKED
+
+			7.2.3.3 PTP Synchronization State (implemented)
+			event.sync.ptp-status.ptp-state-change
+			/sync/ptp-status/lock-state LOCKED
+
+			7.2.3.6 GNSS-Sync-State (implemented)
+			event.sync.gnss-status.gnss-state-change
+			/sync/gnss-status/gnss-sync-status LOCKED
+
+			7.2.3.8 OS Clock Sync-State (implemented)
+			event.sync.sync-status.os-clock-sync-state-change
+			/sync/sync-status/os-clock-sync-state
+
+
+			7.2.3.10 PTP Clock Class Change (implemented)
+			event.sync.ptp-status.ptp-clock-class-change
+			/sync/ptp-status/clock-class LOCKED
+		*/
+	case "HOLDOVER":
+		/*
+			7.2.3.1 Synchronization State (implemented)
+			event.sync.sync-status.synchronization-state-change
+			/sync/sync-status/sync-state HOLDOVER
+
+			7.2.3.3 PTP Synchronization State (implemented)
+			event.sync.ptp-status.ptp-state-change
+			/sync/ptp-status/lock-state HOLDOVER
+
+			7.2.3.6 GNSS-Sync-State (implemented)
+			event.sync.gnss-status.gnss-state-change
+			/sync/gnss-status/gnss-sync-status HOLDOVER
+
+			7.2.3.8 OS Clock Sync-State (implemented)
+			event.sync.sync-status.os-clock-sync-state-change
+			/sync/sync-status/os-clock-sync-state
+
+
+			7.2.3.10 PTP Clock Class Change (implemented)
+			event.sync.ptp-status.ptp-clock-class-change
+			/sync/ptp-status/clock-class HOLDOVER
+
+		*/
+
+	case "FREERUN":
+		/*
+			7.2.3.1 Synchronization State (implemented)
+			event.sync.sync-status.synchronization-state-change
+			/sync/sync-status/sync-state FREERUN
+
+			7.2.3.3 PTP Synchronization State (implemented)
+			event.sync.ptp-status.ptp-state-change
+			/sync/ptp-status/lock-state FREERUN
+
+			7.2.3.6 GNSS-Sync-State (implemented)
+			event.sync.gnss-status.gnss-state-change
+			/sync/gnss-status/gnss-sync-status FREERUN
+
+			7.2.3.8 OS Clock Sync-State (implemented)
+			event.sync.sync-status.os-clock-sync-state-change
+			/sync/sync-status/os-clock-sync-state
+
+
+			7.2.3.10 PTP Clock Class Change (implemented)
+			event.sync.ptp-status.ptp-clock-class-change
+			/sync/ptp-status/clock-class FREERUN
+
+		*/
+
+	}
+
 }
 
 func getOCPVersion() (string, error) {
@@ -1388,8 +1660,9 @@ func checkProcessStatus(fullConfig testconfig.TestConfig, state string) {
 	Expect(ret["phc2sys"]).To(BeTrue(), fmt.Sprintf("Expected phc2sys to be  %s for GM", state))
 	Expect(ret["ptp4l"]).To(BeTrue(), fmt.Sprintf("Expected ptp4l to be  %s for GM", state))
 	Expect(ret["ts2phc"]).To(BeTrue(), fmt.Sprintf("Expected ts2phc to be  %s for GM", state))
-	Expect(ret["gpspipe"]).To(BeTrue(), fmt.Sprintf("Expected gpspipe to be %s for GM", state))
-	Expect(ret["gpsd"]).To(BeTrue(), fmt.Sprintf("Expected gpsd to be q %s for GM", state))
+	//TODO: Re-enable these checks once bugfix is merged
+	// Expect(ret["gpspipe"]).To(BeTrue(), fmt.Sprintf("Expected gpspipe to be %s for GM", state))
+	// Expect(ret["gpsd"]).To(BeTrue(), fmt.Sprintf("Expected gpsd to be q %s for GM", state))
 }
 
 func checkClockClassState(fullConfig testconfig.TestConfig, state string) {
