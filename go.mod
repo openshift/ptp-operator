@@ -7,8 +7,9 @@ require (
 	github.com/Masterminds/sprig v2.22.0+incompatible
 	github.com/cloudevents/sdk-go/v2 v2.15.2
 	github.com/creasty/defaults v1.6.0
+	github.com/facebook/time v0.0.0-20241030181404-3e1b98825c29
 	github.com/go-logr/logr v1.4.2
-	github.com/golang/glog v1.0.0
+	github.com/golang/glog v1.1.0
 	github.com/onsi/ginkgo/v2 v2.11.0
 	github.com/onsi/gomega v1.27.10
 	github.com/openshift/api v0.0.1
@@ -25,7 +26,7 @@ require (
 	github.com/redhat-cne/ptp-listener-exports v0.0.7
 	github.com/redhat-cne/sdk-go v1.22.0
 	github.com/sirupsen/logrus v1.9.3
-	github.com/stretchr/testify v1.8.2
+	github.com/stretchr/testify v1.8.4
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.28.3
 	k8s.io/apiextensions-apiserver v0.28.3
