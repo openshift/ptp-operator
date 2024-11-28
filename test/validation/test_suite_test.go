@@ -7,8 +7,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	testclient "github.com/openshift/ptp-operator/test/pkg/client"
-	_ "github.com/openshift/ptp-operator/test/validation/tests"
+	testclient "github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
+	_ "github.com/k8snetworkplumbingwg/ptp-operator/test/validation/tests"
 )
 
 var junitPath *string

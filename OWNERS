@@ -9,7 +9,7 @@ reviewers:
   - SchSeba
   - fedepaol
   - oribon
-  - josephdrichard
+  - k8snetworkplumbingwg
   - aneeshkp
   - nishant-parekh
   - jzding
@@ -24,7 +24,7 @@ approvers:
   - SchSeba
   - fedepaol
   - oribon
-  - josephdrichard
+  - k8snetworkplumbingwg
   - aneeshkp
   - nishant-parekh
   - jzding

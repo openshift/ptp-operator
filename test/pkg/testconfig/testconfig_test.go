@@ -5,9 +5,9 @@ import (
 	"reflect"
 	"testing"
 
-	ptpv1 "github.com/openshift/ptp-operator/api/v1"
-	"github.com/openshift/ptp-operator/test/pkg"
-	testclient "github.com/openshift/ptp-operator/test/pkg/client"
+	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg"
+	testclient "github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )

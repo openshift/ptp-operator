@@ -1,4 +1,4 @@
-module github.com/openshift/ptp-operator
+module github.com/k8snetworkplumbingwg/ptp-operator
 
 go 1.22
 
