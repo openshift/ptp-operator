@@ -37,7 +37,7 @@ type L2Info interface {
 	GetPortsGettingPTP() []*l2.PtpIf
 
 	SetL2Client(kubernetes.Interface, *rest.Config)
-	GetL2DiscoveryConfig(ptpInterfacesOnly, allIFs bool, l2DiscoveryImage string) (config L2Info, err error)
+	GetL2DiscoveryConfig(ptpInterfacesOnly, allIFs, useContainerCmds bool, l2DiscoveryImage string) (config L2Info, err error)
 }
 
 const (
@@ -140,9 +140,9 @@ func (config *L2DiscoveryConfig) SetL2Client(k8sClient kubernetes.Interface, res
 }
 
 // Gets existing L2 configuration or creates a new one  (if refresh is set to true)
-func (config *L2DiscoveryConfig) GetL2DiscoveryConfig(ptpInterfacesOnly, allIFs bool, l2DiscoveryImage string) (L2Info, error) {
+func (config *L2DiscoveryConfig) GetL2DiscoveryConfig(ptpInterfacesOnly, allIFs, useContainerCmds bool, l2DiscoveryImage string) (L2Info, error) {
 	if GlobalL2DiscoveryConfig.refresh {
-		err := GlobalL2DiscoveryConfig.DiscoverL2Connectivity(ptpInterfacesOnly, allIFs, l2DiscoveryImage)
+		err := GlobalL2DiscoveryConfig.DiscoverL2Connectivity(ptpInterfacesOnly, allIFs, useContainerCmds, l2DiscoveryImage)
 		if err != nil {
 			GlobalL2DiscoveryConfig.refresh = false
 			return nil, fmt.Errorf("failed to discover L2 connectivity: %w", err)
@@ -165,7 +165,7 @@ func (config *L2DiscoveryConfig) reset() {
 }
 
 // Discovers the L2 connectivity using l2discovery daemonset
-func (config *L2DiscoveryConfig) DiscoverL2Connectivity(ptpInterfacesOnly, allIFs bool, l2DiscoveryImage string) error {
+func (config *L2DiscoveryConfig) DiscoverL2Connectivity(ptpInterfacesOnly, allIFs, useContainerCmds bool, l2DiscoveryImage string) error {
 	GlobalL2DiscoveryConfig.reset()
 	GlobalL2DiscoveryConfig.InitSkippedInterfaces()
 	// initializes clusterwide ptp interfaces
@@ -177,6 +177,9 @@ func (config *L2DiscoveryConfig) DiscoverL2Connectivity(ptpInterfacesOnly, allIF
 		env := []v1core.EnvVar{}
 		if allIFs {
 			env = append(env, v1core.EnvVar{Name: "L2DISCOVERY_ALLIFS", Value: "true"})
+		}
+		if useContainerCmds {
+			env = append(env, v1core.EnvVar{Name: "L2DISCOVERY_USECONTAINERCMDS", Value: "true"})
 		}
 		_, err = daemonsets.CreateDaemonSet(L2DiscoveryDsName, L2DiscoveryNsName, L2DiscoveryContainerName, l2DiscoveryImage, dummyMap, env, timeoutDaemon,
 			L2ContainerCPUReq, L2ContainerCPULim, L2ContainerMemReq, L2ContainerMemLim)
