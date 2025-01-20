@@ -3,6 +3,7 @@ package test
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -45,21 +46,40 @@ func collectPrometheusMetrics(uniqueMetricKeys []string) map[string][]string {
 	prometheusPod, err := metrics.GetPrometheusPod()
 	Expect(err).ToNot(HaveOccurred(), "failed to get prometheus pod")
 
-	podsPerPrometheusMetricKey := map[string][]string{}
+	podsPerPrometheusMetricKey := make(map[string][]string)
+	var failedQueries []string // Collect failed queries for debugging
+
 	for _, metricsKey := range uniqueMetricKeys {
-		promResult := []result{}
+		var promResult []result
 		promResponse := metrics.PrometheusQueryResponse{}
 		promResponse.Data.Result = &promResult
 
-		err := metrics.RunPrometheusQuery(prometheusPod, metricsKey, &promResponse)
-		Expect(err).ToNot(HaveOccurred(), "failed to run prometheus query")
+		errs := metrics.RunPrometheusQuery(prometheusPod, metricsKey, &promResponse)
+		if errs != nil {
+			failedQueries = append(failedQueries, fmt.Sprintf("Query failed for metric: %s", metricsKey))
+			continue // Skip this metric and collect others
+		}
+		// Handle potential marshaling errors
+		if promResponse.Data.Result == nil {
+			failedQueries = append(failedQueries, fmt.Sprintf("Empty or nil result for metric: %s", metricsKey))
+			continue
+		}
 
-		podsPerKey := []string{}
-		for _, result := range promResult {
-			podsPerKey = append(podsPerKey, result.Metric.Pod)
+		var podsPerKey []string
+		for _, results := range promResult {
+			podsPerKey = append(podsPerKey, results.Metric.Pod)
 		}
 		podsPerPrometheusMetricKey[metricsKey] = podsPerKey
 	}
+
+	// Debugging Output
+	if len(failedQueries) > 0 {
+		log.Printf("Some Prometheus queries failed (%d total):\n%s\n", len(failedQueries), strings.Join(failedQueries, "\n"))
+		Expect(len(failedQueries)).To(Equal(0), "Some Prometheus queries failed")
+	}
+
+	// Debug Map Size
+	log.Printf("Collected %d unique Prometheus metrics\n", len(podsPerPrometheusMetricKey))
 
 	return podsPerPrometheusMetricKey
 }
@@ -93,19 +113,30 @@ func collectPtpMetrics(ptpPods []k8sv1.Pod) (map[string][]string, []string) {
 }
 
 func containSameMetrics(ptpMetricsByPod map[string][]string, prometheusMetrics map[string][]string) error {
+	var missingMetrics []string
+	maxErrors := 5 // Limit the number of reported missing metrics
+
 	for podName, monitoringKeys := range ptpMetricsByPod {
 		for _, key := range monitoringKeys {
 			if podsWithMetric, ok := prometheusMetrics[key]; ok {
-				// We only check if the element is present, but do not compare the values
-				// New values are reported periodically, and there is a risk of discrepancies
-				// in the values read from ptp pods and the ones read from prometheus
 				if hasElement(podsWithMetric, podName) {
 					continue
 				}
 			}
-			return fmt.Errorf("metric %s on pod %s was not reported", key, podName)
+			// Collect missing metric details
+			missingMetrics = append(missingMetrics, fmt.Sprintf("metric %s on pod %s", key, podName))
+			// Stop collecting after maxErrors to prevent excessive output
+			if len(missingMetrics) >= maxErrors {
+				missingMetrics = append(missingMetrics, "...")
+				return fmt.Errorf("some metrics were not reported:\n%s", strings.Join(missingMetrics, "\n"))
+			}
 		}
 	}
+
+	if len(missingMetrics) > 0 {
+		return fmt.Errorf("some metrics were not reported:\n%s", strings.Join(missingMetrics, "\n"))
+	}
+
 	return nil
 }
 
