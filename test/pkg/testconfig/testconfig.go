@@ -49,6 +49,8 @@ const (
 	int5                         = 5
 	// OrdinaryClockString matches the OC clock mode in Environement
 	OrdinaryClockString = "OC"
+	// DualFollowerClocktring matches the DualFollower clock mode in Environement
+	DualFollowerClockString = "DualFollower"
 	// BoundaryClockString matches the BC clock mode in Environement
 	BoundaryClockString = "BC"
 	// DualNICBoundaryClockString matches the DualNICBC clock mode in Environement
@@ -94,6 +96,8 @@ const (
 	Discovery
 	// None initial empty mode
 	None
+	//Dual Follower mode
+	DualFollowerClock
 )
 
 type TestConfig struct {
@@ -130,6 +134,8 @@ var enabledProblems = []string{AlgoOCString,
 	AlgoBCWithSlavesExtGMString,
 	AlgoDualNicBCExtGMString,
 	AlgoDualNicBCWithSlavesExtGMString,
+	AlgoDualFollowerString,
+	AlgoDualFollowerExtGMString,
 }
 
 const FirstSolution = 0
@@ -152,12 +158,14 @@ const (
 
 const (
 	AlgoOCString                       = "OC"
+	AlgoDualFollowerString             = "DualFollower"
 	AlgoBCString                       = "BC"
 	AlgoBCWithSlavesString             = "BCWithSlaves"
 	AlgoDualNicBCString                = "DualNicBC"
 	AlgoTelcoGMString                  = "T-GM"
 	AlgoDualNicBCWithSlavesString      = "DualNicBCWithSlaves"
 	AlgoOCExtGMString                  = "OCExtGM"
+	AlgoDualFollowerExtGMString        = "DualFollowerExtGM"
 	AlgoBCExtGMString                  = "BCExtGM"
 	AlgoDualNicBCExtGMString           = "DualNicBCExtGM"
 	AlgoBCWithSlavesExtGMString        = "BCWithSlavesExtGM"
@@ -233,6 +241,8 @@ func (mode PTPMode) String() string {
 	switch mode {
 	case OrdinaryClock:
 		return OrdinaryClockString
+	case DualFollowerClock:
+		return DualFollowerClockString
 	case BoundaryClock:
 		return BoundaryClockString
 	case DualNICBoundaryClock:
@@ -252,6 +262,8 @@ func StringToMode(aString string) PTPMode {
 	switch strings.ToLower(aString) {
 	case strings.ToLower(OrdinaryClockString):
 		return OrdinaryClock
+	case strings.ToLower(DualFollowerClockString):
+		return DualFollowerClock
 	case strings.ToLower(BoundaryClockString):
 		return BoundaryClock
 	case strings.ToLower(DualNICBoundaryClockString):
@@ -304,7 +316,7 @@ func GetDesiredConfig(forceUpdate bool) TestConfig {
 	}
 
 	switch mode {
-	case OrdinaryClock, BoundaryClock, DualNICBoundaryClock, TelcoGrandMasterClock, Discovery:
+	case OrdinaryClock, BoundaryClock, DualNICBoundaryClock, TelcoGrandMasterClock, DualFollowerClock, Discovery:
 		logrus.Infof("%s mode detected", mode)
 		GlobalConfig.PtpModeDesired = mode
 		GlobalConfig.Status = InitStatus
@@ -365,6 +377,8 @@ func CreatePtpConfigurations() error {
 			logrus.Errorf("error creating ptpconfig Discovery, None not supported")
 		case OrdinaryClock:
 			return PtpConfigOC(isExternalMaster)
+		case DualFollowerClock:
+			return PtpConfigDualFollower(isExternalMaster)
 		case BoundaryClock:
 			return PtpConfigBC(isExternalMaster)
 		case DualNICBoundaryClock:
@@ -389,6 +403,15 @@ func initAndSolveProblems() {
 		{{int(solver.StepNil), 0, 0}},         // step1
 		{{int(solver.StepSameLan2), 2, 0, 1}}, // step2
 	}
+
+	data.problems[AlgoDualFollowerString] = &[][][]int{
+		{{int(solver.StepNil), 0, 0}},         // step1
+		{{int(solver.StepSameLan2), 2, 0, 1}}, // step2
+		{{int(solver.StepSameLan2), 2, 1, 2}}, // step3
+		{{int(solver.StepSameNic), 2, 0, 2}},  // step4
+
+	}
+
 	data.problems[AlgoBCString] = &[][][]int{
 		{{int(solver.StepNil), 0, 0}},         // step1
 		{{int(solver.StepSameNic), 2, 0, 1}},  // step2
@@ -430,6 +453,11 @@ func initAndSolveProblems() {
 	}
 	data.problems[AlgoOCExtGMString] = &[][][]int{
 		{{int(solver.StepIsPTP), 1, 0}}, // step1
+	}
+	data.problems[AlgoDualFollowerExtGMString] = &[][][]int{
+		{{int(solver.StepIsPTP), 1, 0}}, // step1
+		{{int(solver.StepSameNic), 2, 0, 1}, // step1
+			{int(solver.StepIsPTP), 1, 1}},
 	}
 	data.problems[AlgoBCExtGMString] = &[][][]int{
 		{{int(solver.StepIsPTP), 1, 0}},      // step1
@@ -473,6 +501,11 @@ func initAndSolveProblems() {
 	(*data.testClockRolesAlgoMapping[AlgoOCString])[Slave1] = 0
 	(*data.testClockRolesAlgoMapping[AlgoOCString])[Grandmaster] = 1
 
+	// Dual Follower
+	(*data.testClockRolesAlgoMapping[AlgoDualFollowerString])[Slave1] = 0
+	(*data.testClockRolesAlgoMapping[AlgoDualFollowerString])[Grandmaster] = 1
+	(*data.testClockRolesAlgoMapping[AlgoDualFollowerString])[Slave2] = 2
+
 	// BC
 
 	(*data.testClockRolesAlgoMapping[AlgoBCString])[BC1Slave] = 0
@@ -508,6 +541,10 @@ func initAndSolveProblems() {
 
 	// OC, External GM
 	(*data.testClockRolesAlgoMapping[AlgoOCExtGMString])[Slave1] = 0
+
+	// Dual Follower, External GM
+	(*data.testClockRolesAlgoMapping[AlgoDualFollowerExtGMString])[Slave1] = 0
+	(*data.testClockRolesAlgoMapping[AlgoDualFollowerExtGMString])[Slave2] = 1
 
 	// BC, External GM
 	(*data.testClockRolesAlgoMapping[AlgoBCExtGMString])[BC1Slave] = 0
@@ -797,6 +834,40 @@ func CreatePtpConfigOC(profileName, nodeName, ifSlaveName string, phc2sys bool, 
 		pointer.Int64Ptr(int65))
 }
 
+func CreatePtpConfigDualFollower(profileName, nodeName, ifSlave1Name, ifSlave2Name string, phc2sys bool, label string) (err error) {
+	ptpSchedulingPolicy := SCHED_OTHER
+	configureFifo, err := strconv.ParseBool(os.Getenv("CONFIGURE_FIFO"))
+	if err == nil && configureFifo {
+		ptpSchedulingPolicy = SCHED_FIFO
+	}
+	// Sleep for a second to allow previous label on the same node to complete
+	time.Sleep(time.Second)
+	_, err = nodes.LabelNode(nodeName, label, "")
+	if err != nil {
+		logrus.Errorf("Error setting Slave node role label: %s", err)
+	}
+	ptp4lsysOpts := ptp4lEthernetSlave
+	var phc2sysOpts *string
+	temp := phc2sysSlave
+	if phc2sys {
+		phc2sysOpts = &temp
+	} else {
+		phc2sysOpts = nil
+	}
+
+	ptp4lDualFollowerConfig := BasePtp4lConfig + "\n[" + ifSlave1Name + "]\nmasterOnly 0\n" + "\n[" + ifSlave2Name + "]\nmasterOnly 0\n"
+
+	return createConfig(profileName,
+		nil,
+		&ptp4lsysOpts,
+		ptp4lDualFollowerConfig,
+		phc2sysOpts,
+		label,
+		pointer.Int64Ptr(int5),
+		ptpSchedulingPolicy,
+		pointer.Int64Ptr(int65))
+}
+
 func PtpConfigOC(isExtGM bool) error {
 	var grandmaster, slave1 int
 
@@ -851,6 +922,64 @@ func PtpConfigOC(isExtGM bool) error {
 	}
 	return nil
 }
+func PtpConfigDualFollower(isExtGM bool) error {
+	var grandmaster, slave1, slave2 int
+
+	BestSolution := ""
+
+	if isExtGM {
+		if len(*data.solutions[AlgoDualFollowerExtGMString]) != 0 {
+			BestSolution = AlgoDualFollowerExtGMString
+		} else {
+			return fmt.Errorf("no solution found for Dual Follower configuration in External GM mode")
+		}
+	} else {
+		if len(*data.solutions[AlgoOCString]) != 0 {
+			BestSolution = AlgoOCString
+		}
+		if BestSolution == "" {
+			return fmt.Errorf("no solution found for Dual Follower configuration in Local GM mode")
+		}
+	}
+	logrus.Infof("Configuring best solution= %s", BestSolution)
+	switch BestSolution {
+	case AlgoDualFollowerString:
+		grandmaster = (*data.testClockRolesAlgoMapping[BestSolution])[Grandmaster]
+		slave1 = (*data.testClockRolesAlgoMapping[BestSolution])[Slave1]
+		slave2 = (*data.testClockRolesAlgoMapping[BestSolution])[Slave2]
+		gmIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][grandmaster]]
+		slave1If := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][slave1]]
+		slave2If := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][slave2]]
+
+		err := CreatePtpConfigGrandMaster(gmIf.NodeName,
+			gmIf.IfName)
+		if err != nil {
+			logrus.Errorf("Error creating Grandmaster ptpconfig: %s", err)
+		}
+
+		err = CreatePtpConfigDualFollower(pkg.PtpSlave1PolicyName, slave1If.NodeName,
+			slave1If.IfName, slave2If.IfName, true, pkg.PtpClockUnderTestNodeLabel)
+		if err != nil {
+			logrus.Errorf("Error creating Slave1 ptpconfig: %s", err)
+		}
+
+	case AlgoDualFollowerExtGMString:
+
+		slave1 = (*data.testClockRolesAlgoMapping[BestSolution])[Slave1]
+		slave2 = (*data.testClockRolesAlgoMapping[BestSolution])[Slave2]
+
+		slave1If := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][slave1]]
+		slave2If := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][slave2]]
+
+		err := CreatePtpConfigDualFollower(pkg.PtpSlave1PolicyName, slave1If.NodeName,
+			slave1If.IfName, slave2If.IfName, true, pkg.PtpClockUnderTestNodeLabel)
+		if err != nil {
+			logrus.Errorf("Error creating Slave1 ptpconfig: %s", err)
+		}
+	}
+	return nil
+}
+
 func PtpConfigBC(isExtGM bool) error {
 	var grandmaster, bc1Master, bc1Slave, slave1 int
 
@@ -1280,6 +1409,13 @@ func discoverMode(ptpConfigClockUnderTest []*ptpv1.PtpConfig) {
 		// OC
 		if masterIf == 0 && slaveIf == 1 && len(ptpConfigClockUnderTest) == 1 {
 			GlobalConfig.PtpModeDiscovered = OrdinaryClock
+			GlobalConfig.Status = DiscoverySuccessStatus
+			GlobalConfig.DiscoveredClockUnderTestPtpConfig = (*ptpDiscoveryRes)(ptpConfig)
+			break
+		}
+		// Dual Follower
+		if masterIf == 0 && slaveIf == 2 && len(ptpConfigClockUnderTest) == 1 {
+			GlobalConfig.PtpModeDiscovered = DualFollowerClock
 			GlobalConfig.Status = DiscoverySuccessStatus
 			GlobalConfig.DiscoveredClockUnderTestPtpConfig = (*ptpDiscoveryRes)(ptpConfig)
 			break
