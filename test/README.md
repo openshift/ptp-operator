@@ -19,6 +19,7 @@ To run the conformance tests, first set the following environment variables:
 - **ENABLE_PTP_EVENT**: enable event based tests.
 - **EVENT_API_VERSION**: passes the default REST-API version for the event based tests. Set this to "2.0" for 4.16+ PUT, "1.0" for 4.15 and earlier. If this is not set, default value "2.0" is used.
 - **ENABLE_V1_REGRESSION**: enable V1 regression for event based tests. For 4.16 and 4.17, event based tests will be repeated the second time with v1 REST-API. These tests are marked with "v1 regression".
+- **EXTERNAL_GM**: enables external grandmaster scenarios 
 
 Then run the following command:
 ```
@@ -254,6 +255,16 @@ The following modes need a multinode or single node cluster to run:
 The OC configurations includes a grandmaster providing a clock signal to a slave ordinary clock. See diagram below:
 
 ![multi_oc](doc/multi_oc.svg)
+
+#### Dual Follower 
+The Dual Follower configuration includes a grand master providing a clock signal to 2 port belonging to the same NIC. One port is in LISTENING state while the other is in SLAVE state. If the SLAVE port looses the grandmaster signal, the LISTENING port transitions to SLAVE.
+When running the test in a cluster with a least 2 nodes and one lan connecting a port to 2 remote ports on the same NIC, the following local GM configuration could be resolved for testing:
+
+![dual-follower-local-gm](doc/dual-follower-local-gm.svg)
+
+If there is a NIC with 2 port available and receiving ptp frames the following external GM configuration could be resolved for testing:
+
+![dual-follower-ext-gm](doc/dual-follower-ext-gm.svg)
 
 #### BC
 Several boundary clock scenarios are possible, dependent on minimum hardware configuration.
