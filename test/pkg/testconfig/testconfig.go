@@ -61,7 +61,7 @@ const (
 	phc2sysSlave                = "-a -r -n 24 -m -N 8 -R 16"
 	SCHED_OTHER                 = "SCHED_OTHER"
 	SCHED_FIFO                  = "SCHED_FIFO"
-	L2_DISCOVERY_IMAGE          = "quay.io/redhat-cne/l2discovery:v12"
+	L2_DISCOVERY_IMAGE          = "quay.io/redhat-cne/l2discovery:multi"
 )
 
 type ConfigStatus int64
@@ -341,7 +341,7 @@ func CreatePtpConfigurations() error {
 	l2lib.GlobalL2DiscoveryConfig.SetL2Client(client.Client, client.Client.Config)
 
 	// Collect L2 info
-	config, err := l2lib.GlobalL2DiscoveryConfig.GetL2DiscoveryConfig(true, false, L2_DISCOVERY_IMAGE)
+	config, err := l2lib.GlobalL2DiscoveryConfig.GetL2DiscoveryConfig(true, false, true, L2_DISCOVERY_IMAGE)
 	if err != nil {
 		return fmt.Errorf("Getting L2 discovery info failed with err=%s", err)
 	}
