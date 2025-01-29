@@ -1,33 +1,13 @@
 reviewers:
-  - zshi-redhat
-  - pliurh
-  - dougbtv
-  - dcbw
-  - squeed
-  - fepan
-  - s1061123
-  - SchSeba
-  - fedepaol
-  - oribon
-  - k8snetworkplumbingwg
   - aneeshkp
-  - nishant-parekh
+  - josephdrichard
   - jzding
+  - vitus133
 approvers:
-  - zshi-redhat
-  - pliurh
-  - dougbtv
-  - dcbw
-  - squeed
-  - fepan
-  - s1061123
-  - SchSeba
-  - fedepaol
-  - oribon
-  - k8snetworkplumbingwg
   - aneeshkp
-  - nishant-parekh
+  - josephdrichard
   - jzding
+  - vitus133
 
 component: "Networking"
 subcomponent: "ptp"
