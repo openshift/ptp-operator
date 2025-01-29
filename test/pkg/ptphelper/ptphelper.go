@@ -13,9 +13,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg"
 	. "github.com/onsi/gomega"
 	"github.com/openshift/library-go/pkg/config/clusterstatus"
-	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg"
 	"github.com/sirupsen/logrus"
 	v1core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,10 +24,10 @@ import (
 	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
-	configv1 "github.com/openshift/api/config/v1"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/nodes"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/pods"
+	configv1 "github.com/openshift/api/config/v1"
 	l2exports "github.com/redhat-cne/l2discovery-exports"
 	ctrl "sigs.k8s.io/controller-runtime"
 )

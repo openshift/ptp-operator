@@ -9,10 +9,10 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/onsi/gomega"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
 	testclient "github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
+	"github.com/onsi/gomega"
 
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/images"
 
