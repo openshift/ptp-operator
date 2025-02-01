@@ -30,6 +30,10 @@ const (
 	// PtpClockClass notification is generated when the clock-class changes.
 	PtpClockClass EventResource = "/sync/ptp-status/clock-class"
 
+	// Support V1
+	// PtpClockClassV1 notification is generated when the clock-class changes for v1.
+	PtpClockClassV1 EventResource = "/sync/ptp-status/ptp-clock-class-change"
+
 	// O-RAN 7.2.3.3
 	// PtpLockState notification is signalled from equipment at state change
 	PtpLockState EventResource = "/sync/ptp-status/lock-state"

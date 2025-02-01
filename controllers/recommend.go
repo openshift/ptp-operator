@@ -7,7 +7,7 @@ import (
 	"github.com/golang/glog"
 	corev1 "k8s.io/api/core/v1"
 
-	ptpv1 "github.com/openshift/ptp-operator/api/v1"
+	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
 )
 
 func printWhenNotNil(p interface{}, description string) {

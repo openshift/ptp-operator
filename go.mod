@@ -1,6 +1,6 @@
-module github.com/openshift/ptp-operator
+module github.com/k8snetworkplumbingwg/ptp-operator
 
-go 1.22
+go 1.23
 
 require (
 	github.com/Masterminds/semver/v3 v3.3.0
@@ -24,7 +24,7 @@ require (
 	github.com/redhat-cne/l2discovery-lib v0.0.13
 	github.com/redhat-cne/privileged-daemonset v1.0.34
 	github.com/redhat-cne/ptp-listener-exports v0.0.7
-	github.com/redhat-cne/sdk-go v1.22.0
+	github.com/redhat-cne/sdk-go v1.22.4
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.4
 	gopkg.in/yaml.v3 v3.0.1

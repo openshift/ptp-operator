@@ -3,7 +3,7 @@
 package fake
 
 import (
-	v1 "github.com/openshift/ptp-operator/pkg/client/clientset/versioned/typed/ptp/v1"
+	v1 "github.com/k8snetworkplumbingwg/ptp-operator/pkg/client/clientset/versioned/typed/ptp/v1"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )

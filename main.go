@@ -26,7 +26,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/openshift/ptp-operator/pkg/names"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/names"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -46,9 +46,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	ptpv1 "github.com/openshift/ptp-operator/api/v1"
-	"github.com/openshift/ptp-operator/controllers"
-	"github.com/openshift/ptp-operator/pkg/leaderelection"
+	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
+	"github.com/k8snetworkplumbingwg/ptp-operator/controllers"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/leaderelection"
 	//+kubebuilder:scaffold:imports
 )
 

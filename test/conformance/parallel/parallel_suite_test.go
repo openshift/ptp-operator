@@ -14,15 +14,15 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/sirupsen/logrus"
 
-	ptptestconfig "github.com/openshift/ptp-operator/test/conformance/config"
-	"github.com/openshift/ptp-operator/test/pkg"
-	"github.com/openshift/ptp-operator/test/pkg/clean"
-	testclient "github.com/openshift/ptp-operator/test/pkg/client"
-	"github.com/openshift/ptp-operator/test/pkg/event"
-	"github.com/openshift/ptp-operator/test/pkg/logging"
+	ptptestconfig "github.com/k8snetworkplumbingwg/ptp-operator/test/conformance/config"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/clean"
+	testclient "github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/event"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/logging"
 
-	ptphelper "github.com/openshift/ptp-operator/test/pkg/ptphelper"
-	"github.com/openshift/ptp-operator/test/pkg/testconfig"
+	ptphelper "github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/ptphelper"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/testconfig"
 )
 
 var junitPath *string

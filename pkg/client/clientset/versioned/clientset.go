@@ -5,7 +5,7 @@ package versioned
 import (
 	"fmt"
 
-	ptpv1 "github.com/openshift/ptp-operator/pkg/client/clientset/versioned/typed/ptp/v1"
+	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/pkg/client/clientset/versioned/typed/ptp/v1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"

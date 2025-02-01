@@ -18,9 +18,9 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	ptpv1api "github.com/openshift/ptp-operator/api/v1"
-	ptpv1fake "github.com/openshift/ptp-operator/pkg/client/clientset/versioned/fake"
-	ptpv1 "github.com/openshift/ptp-operator/pkg/client/clientset/versioned/typed/ptp/v1"
+	ptpv1api "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
+	ptpv1fake "github.com/k8snetworkplumbingwg/ptp-operator/pkg/client/clientset/versioned/fake"
+	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/pkg/client/clientset/versioned/typed/ptp/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	k8sFakeClient "k8s.io/client-go/kubernetes/fake"

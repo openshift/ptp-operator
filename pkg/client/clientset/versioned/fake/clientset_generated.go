@@ -3,9 +3,9 @@
 package fake
 
 import (
-	clientset "github.com/openshift/ptp-operator/pkg/client/clientset/versioned"
-	ptpv1 "github.com/openshift/ptp-operator/pkg/client/clientset/versioned/typed/ptp/v1"
-	fakeptpv1 "github.com/openshift/ptp-operator/pkg/client/clientset/versioned/typed/ptp/v1/fake"
+	clientset "github.com/k8snetworkplumbingwg/ptp-operator/pkg/client/clientset/versioned"
+	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/pkg/client/clientset/versioned/typed/ptp/v1"
+	fakeptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/pkg/client/clientset/versioned/typed/ptp/v1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

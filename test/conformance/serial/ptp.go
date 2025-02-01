@@ -15,27 +15,27 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/openshift/ptp-operator/test/pkg"
-	"github.com/openshift/ptp-operator/test/pkg/event"
-	"github.com/openshift/ptp-operator/test/pkg/metrics"
-	"github.com/openshift/ptp-operator/test/pkg/namespaces"
-	"github.com/openshift/ptp-operator/test/pkg/ptphelper"
-	"github.com/openshift/ptp-operator/test/pkg/ptptesthelper"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/event"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/metrics"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/namespaces"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/ptphelper"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/ptptesthelper"
 	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/apps/v1"
 	v1core "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	ptpv1 "github.com/openshift/ptp-operator/api/v1"
+	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
 
-	"github.com/openshift/ptp-operator/test/pkg/pods"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/pods"
 
-	"github.com/openshift/ptp-operator/test/pkg/client"
-	"github.com/openshift/ptp-operator/test/pkg/execute"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/execute"
 
 	fbprotocol "github.com/facebook/time/ptp/protocol"
-	"github.com/openshift/ptp-operator/test/pkg/testconfig"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/testconfig"
 )
 
 type TestCase string

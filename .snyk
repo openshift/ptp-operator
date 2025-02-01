@@ -8,6 +8,7 @@ exclude:
     - hack
     - scripts
     - bin
+    - vendor
 # ignores vulnerabilities until expiry date; change duration by modifying expiry date
 ignore:
   f0fd13c9-82e6-4cd6-bf2e-2cec2ec48a44:
