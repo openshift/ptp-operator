@@ -181,7 +181,7 @@ func getMetric(nodeName, aIf, metricName string) (metric string, err error) {
 		}
 		break
 	}
-	return metric, fmt.Errorf("metric: %s not found", metricName)
+	return metric, fmt.Errorf("metric: %s, nodeName: %s, aIf: %s not found", metricName, nodeName, aIf)
 }
 
 // gets a node name based on a label
@@ -242,10 +242,12 @@ Only this label should be used to identify the clock under test. err:%s`, *label
 			return fmt.Errorf("incorrect role")
 		}
 	}
+	// Find the port in SLAVE state and verify metrics
 	for _, aIf := range slaveIfs {
 		roleString, err := getMetric(*nodeName, aIf, OpenshiftPtpInterfaceRole)
 		if err != nil {
-			return fmt.Errorf("error getting role err:%s", err)
+			logrus.Errorf("error getting role err:%s", err)
+			continue
 		}
 		offsetString, err := getMetric(*nodeName, aIf, OpenshiftPtpOffsetNs)
 		if err != nil {
@@ -266,8 +268,9 @@ Only this label should be used to identify the clock under test. err:%s`, *label
 		if offsetInt > MaxOffsetNs || offsetInt < MinOffsetNs {
 			return fmt.Errorf("incorrect offset %d > %d", offsetInt, MaxOffsetNs)
 		}
+		return nil
 	}
-	return nil
+	return fmt.Errorf("error finding a Follower port in the SLAVE state")
 }
 
 // gets the user configured maximum offset in nanoseconds

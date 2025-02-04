@@ -391,6 +391,8 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 						Skip("Skipping because Discovery or None is not supported yet for this test")
 					case testconfig.OrdinaryClock:
 						policyName = pkg.PtpSlave1PolicyName
+					case testconfig.DualFollowerClock:
+						policyName = pkg.PtpSlave1PolicyName
 					case testconfig.BoundaryClock:
 						policyName = pkg.PtpBcMaster1PolicyName
 					case testconfig.DualNICBoundaryClock:
