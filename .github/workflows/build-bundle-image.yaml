@@ -13,7 +13,8 @@ jobs:
           run:
             working-directory: '.'
         env:
-          IMAGE_TAG_BASE : ghcr.io/${{ github.repository }}  
+          IMAGE_TAG_BASE : ghcr.io/${{ github.repository }}
+          BUNDLE_IMG:  ${{IMAGE_TAG_BASE}}-bundle:latest
           VERSION: latest
         steps:
           - name: 'Checkout GitHub Action'
