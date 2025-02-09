@@ -24,12 +24,12 @@ jobs:
               password: ${{secrets.GITHUB_TOKEN}}
 
           - name: 'Build Bundle Image'
-            env:
-             VERSION: $(git describe --tags --abbrev=0 || echo "0.1.0")
-             IMAGE_TAG_BASE: ghcr.io/${{ github.repository }}:$VERSION
-             BUNDLE_IMG: ghcr.io/${{ github.repository }}:$VERSION-bundle:v$VERSION
-             BUNDLE_GEN_FLAGS: -q --overwrite --version $VERSION --extra-service-accounts "linuxptp-daemon"
             run: |
+              VERSION=$(git describe --tags --abbrev=0 || echo "0.1.0")
+              echo "Version is: $VERSION" # Debugging: Print the version
+              export IMAGE_TAG_BASE="ghcr.io/${{ github.repository }}:$VERSION"
+              export BUNDLE_IMG="ghcr.io/${{ github.repository }}:$VERSION-bundle:v$VERSION"
+              export BUNDLE_GEN_FLAGS="-q --overwrite --version $VERSION --extra-service-accounts \"linuxptp-daemon\""
               make bundle
               make bundle-build
               make bundle-push
