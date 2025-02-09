@@ -12,6 +12,9 @@ jobs:
         defaults:
           run:
             working-directory: '.'
+        env:
+          IMAGE_TAG_BASE : ghcr.io/${{ github.repository }}  
+          VERSION: latest
         steps:
           - name: 'Checkout GitHub Action'
             uses: actions/checkout@main
