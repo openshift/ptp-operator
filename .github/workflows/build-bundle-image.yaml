@@ -12,10 +12,6 @@ jobs:
         defaults:
           run:
             working-directory: '.'
-        env:
-          IMAGE_TAG_BASE : ghcr.io/${{ github.repository }}
-          BUNDLE_IMG: ghcr.io/${{ github.repository }}:latest-bundle:v1.0.0
-          VERSION: latest
         steps:
           - name: 'Checkout GitHub Action'
             uses: actions/checkout@main
@@ -28,6 +24,11 @@ jobs:
               password: ${{secrets.GITHUB_TOKEN}}
 
           - name: 'Build Bundle Image'
+            env:
+             VERSION: $(git describe --tags --abbrev=0 || echo "0.1.0")
+             IMAGE_TAG_BASE: ghcr.io/${{ github.repository }}:$VERSION
+             BUNDLE_IMG: ghcr.io/${{ github.repository }}:$VERSION-bundle:v$VERSION
+             BUNDLE_GEN_FLAGS: -q --overwrite --version $VERSION --extra-service-accounts "linuxptp-daemon"
             run: |
               make bundle
               make bundle-build
