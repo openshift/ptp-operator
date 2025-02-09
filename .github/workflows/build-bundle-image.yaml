@@ -29,7 +29,6 @@ jobs:
               echo "Version is: $VERSION" # Debugging: Print the version
               export IMG=ghcr.io/${{ github.repository }}:latest
               export IMAGE_TAG_BASE="ghcr.io/${{ github.repository }}:$VERSION"
-              export BUNDLE_IMG="ghcr.io/${{ github.repository }}:latest-bundle:v$VERSION"
               make bundle
               make bundle-build
               make bundle-push
