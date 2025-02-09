@@ -12,6 +12,10 @@ jobs:
         defaults:
           run:
             working-directory: '.'
+        env:
+          CONTAINER_TOOL: docker
+          IMG : ghcr.io/${{ github.repository }}  
+          VERSION: latest
         steps:
           - name: 'Checkout GitHub Action'
             uses: actions/checkout@main
