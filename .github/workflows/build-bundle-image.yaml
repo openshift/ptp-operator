@@ -25,10 +25,11 @@ jobs:
 
           - name: 'Build Bundle Image'
             run: |
-              VERSION=$(git describe --tags --abbrev=0 || echo "0.1.0")
+              VERSION=$(git describe --tags --abbrev=0 || echo "1.0.0")
               echo "Version is: $VERSION" # Debugging: Print the version
-              export IMAGE_TAG_BASE="ghcr.io/${{ github.repository }}:$VERSION"
-              export BUNDLE_IMG="ghcr.io/${{ github.repository }}:$VERSION-bundle:v$VERSION"
+              export IMG=ghcr.io/${{ github.repository }}:latest
+              export IMAGE_TAG_BASE="ghcr.io/${{ github.repository }}:latest"
+              export BUNDLE_IMG="ghcr.io/${{ github.repository }}:latest-bundle:v$VERSION"
               export BUNDLE_GEN_FLAGS="-q --overwrite --version $VERSION --extra-service-accounts \"linuxptp-daemon\""
               make bundle
               make bundle-build
