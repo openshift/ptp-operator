@@ -81,7 +81,7 @@ metadata:
     operators.operatorframework.io/builder: operator-sdk-v1.22.0-ocp
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     provider: Red Hat
-    repository: https://github.com/openshift/ptp-operator
+    repository: https://github.com/k8snetworkplumbingwg/ptp-operator
     support: Red Hat
   name: ptp-operator.v4.19.0
   namespace: openshift-ptp
@@ -465,9 +465,9 @@ spec:
   - ptp
   links:
   - name: Documentation operator
-    url: https://github.com/openshift/ptp-operator
+    url: https://github.com/k8snetworkplumbingwg/ptp-operator
   - name: Documentation operand
-    url: https://github.com/openshift/linuxptp-daemon
+    url: https://github.com/k8snetworkplumbingwg/linuxptp-daemon
   maintainers:
   - email: support@redhat.com
     name: Red Hat

@@ -23,8 +23,8 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/golang/glog"
-	ptpv1 "github.com/openshift/ptp-operator/api/v1"
-	"github.com/openshift/ptp-operator/pkg/names"
+	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/names"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"

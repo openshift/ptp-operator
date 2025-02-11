@@ -19,7 +19,9 @@ import (
 	"regexp"
 )
 
-// DataType ...
+// DataType
+//
+// swagger:type string
 type DataType string
 
 const (
@@ -29,7 +31,9 @@ const (
 	METRIC DataType = "metric"
 )
 
-// ValueType ...
+// ValueType
+//
+// swagger:type string
 type ValueType string
 
 const (
@@ -41,54 +45,64 @@ const (
 	REDFISH_EVENT ValueType = "redfish-event" //nolint:all
 )
 
-// Data ... cloud native events data
-// Data Json payload is as follows,
+// Data
+//
+// Array of JSON objects defining the information for the event.
+//
+// Example:
+// ```go
 //
 //	{
-//		"version": "v1.0",
-//		"values": [{
-//			"ResourceAddress": "/sync/sync-status/sync-state",
-//			"data_type": "notification",
-//			"value_type": "enumeration",
-//			"value": "ACQUIRING-SYNC"
-//			}, {
-//			"ResourceAddress": "/sync/sync-status/sync-state",
-//			"data_type": "metric",
-//			"value_type": "decimal64.3",
-//			"value": 100.3
-//			}, {
-//			"ResourceAddress": "/redfish/v1/Systems",
-//			"data_type": "notification",
-//			"value_type": "redfish-event",
-//			"value": {
-//			    "@odata.context": "/redfish/v1/$metadata#Event.Event",
-//			    "@odata.type": "#Event.v1_3_0.Event",
-//			    "Context": "any string is valid",
-//			    "Events": [{"EventId": "2162", "MemberId": "615703", "MessageId": "TMP0100"}],
-//			    "Id": "5e004f5a-e3d1-11eb-ae9c-3448edf18a38",
-//			    "Name": "Event Array"
-//			}
-//		}]
+//	  "version": "v1.0",
+//	  "values": [{
+//	    "ResourceAddress": "/sync/sync-status/sync-state",
+//	    "data_type": "notification",
+//	    "value_type": "enumeration",
+//	    "value": "ACQUIRING-SYNC"
+//	    }, {
+//	    "ResourceAddress": "/sync/sync-status/sync-state",
+//	    "data_type": "metric",
+//	    "value_type": "decimal64.3",
+//	    "value": 100.3
+//	    }
+//	  }]
 //	}
+//
+// ```
 type Data struct {
-	Version string      `json:"version" example:"v1"`
+	// example: 1.0
+	Version string      `json:"version" example:"1.0"`
 	Values  []DataValue `json:"values"`
 }
 
-// DataValue ...
-// DataValue Json payload is as follows,
+// DataValue
+//
+// A json array of values defining the event.
+//
+// Example:
+// ```go
 //
 //	{
-//		"ResourceAddress": "/cluster/node/ptp",
-//		"data_type": "notification",
-//		"value_type": "enumeration",
-//		"value": "ACQUIRING-SYNC"
+//	  "ResourceAddress": "/cluster/node/ptp",
+//	  "data_type": "notification",
+//	  "value_type": "enumeration",
+//	  "value": "ACQUIRING-SYNC"
 //	}
+//
+// ```
 type DataValue struct {
-	Resource  string      `json:"ResourceAddress" example:"/cluster/node/clock"`
-	DataType  DataType    `json:"data_type" example:"metric"`
-	ValueType ValueType   `json:"value_type" example:"decimal64.3"`
-	Value     interface{} `json:"value" example:"100.3"`
+	// The resource address specifies the Event Producer with a hierarchical path. Currently hierarchical paths with wild cards are not supported.
+	// example: /east-edge-10/Node3/sync/sync-status/sync-state
+	Resource string `json:"ResourceAddress" example:"/east-edge-10/Node3/sync/sync-status/sync-state"`
+	// Type of value object. ( notification | metric)
+	// example: notification
+	DataType DataType `json:"data_type" example:"notification"`
+	// The type format of the value property.
+	// example: enumeration
+	ValueType ValueType `json:"value_type" example:"enumeration"`
+	// value in value_type format.
+	// example: HOLDOVER
+	Value interface{} `json:"value" example:"HOLDOVER"`
 }
 
 // SetVersion  ...

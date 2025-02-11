@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/openshift/ptp-operator/test/pkg/client"
-	"github.com/openshift/ptp-operator/test/pkg/pods"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/pods"
 	prometheusModel "github.com/prometheus/common/model"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"

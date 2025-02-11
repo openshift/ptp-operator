@@ -9,12 +9,12 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
+	testclient "github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
 	"github.com/onsi/gomega"
-	"github.com/openshift/ptp-operator/test/pkg"
-	"github.com/openshift/ptp-operator/test/pkg/client"
-	testclient "github.com/openshift/ptp-operator/test/pkg/client"
 
-	"github.com/openshift/ptp-operator/test/pkg/images"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/images"
 
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"

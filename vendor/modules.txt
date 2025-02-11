@@ -263,7 +263,7 @@ github.com/redhat-cne/privileged-daemonset
 # github.com/redhat-cne/ptp-listener-exports v0.0.7
 ## explicit; go 1.19
 github.com/redhat-cne/ptp-listener-exports
-# github.com/redhat-cne/sdk-go v1.22.0
+# github.com/redhat-cne/sdk-go v1.22.4
 ## explicit; go 1.22
 github.com/redhat-cne/sdk-go/pkg/common
 github.com/redhat-cne/sdk-go/pkg/event
