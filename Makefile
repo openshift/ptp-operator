@@ -43,7 +43,7 @@ BUNDLE_GEN_FLAGS ?= -q --overwrite --version $(VERSION).0 $(BUNDLE_METADATA_OPTS
 OPERATOR_SDK_VERSION ?= v1.22.0-ocp
 
 # Image URL to use all building/pushing image targets
-IMG ?= ghcr.io/k8snetworkplumbingwg/ptp-operator:latest
+IMG ?= ghcr.io/k8snetworkplumbingwg/ptp-operator:$(VERSION)
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
