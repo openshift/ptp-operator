@@ -168,7 +168,7 @@ spec:
   - name: Documentation operator
     url: https://github.com/k8snetworkplumbingwg/ptp-operator
   - name: Documentation operand
-    url: https://github.com/openshift/linuxptp-daemon
+    url: https://github.com/k8snetworkplumbingwg/linuxptp-daemon
   maintainers:
   - email: support@redhat.com
     name: Red Hat
