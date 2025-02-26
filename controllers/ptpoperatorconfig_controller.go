@@ -55,7 +55,7 @@ const (
 	ResyncPeriod         = 2 * time.Minute
 	DefaultTransportHost = "http://ptp-event-publisher-service-NODE_NAME.openshift-ptp.svc.cluster.local:9043"
 	DefaultStorageType   = "emptyDir"
-	DefaultApiVersion    = "1.0"
+	DefaultApiVersion    = "2.0"
 )
 
 //+kubebuilder:rbac:groups=ptp.openshift.io,resources=ptpoperatorconfigs,verbs=get;list;watch;create;update;patch;delete
