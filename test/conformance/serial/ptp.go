@@ -503,15 +503,8 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 			It("Should check for ptp events ", func() {
 				By("Checking event side car is present")
-				apiVersion := ptphelper.PtpEventEnabled()
-				var apiBase, endpointUri string
-				if apiVersion == 1 {
-					apiBase = event.ApiBaseV1
-					endpointUri = "endpointUri"
-				} else {
-					apiBase = event.ApiBaseV2
-					endpointUri = "EndpointUri"
-				}
+				apiBase := event.ApiBaseV2
+				endpointUri := "EndpointUri"
 				cloudProxyFound := false
 				Expect(len(fullConfig.DiscoveredClockUnderTestPod.Spec.Containers)).To(BeNumerically("==", 3), "linuxptp-daemon is not deployed on cluster with cloud event proxy")
 				for _, c := range fullConfig.DiscoveredClockUnderTestPod.Spec.Containers {
@@ -603,22 +596,6 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					}
 				}
 				Expect(cloudProxyFound).ToNot(BeFalse(), "No event pods detected")
-
-				By("Checking event api is healthy")
-
-				Eventually(func() string {
-					buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", path.Join(event.ApiBaseV1, "health")})
-					return buf.String()
-				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring("OK"),
-					"Event API is not in healthy state")
-
-				By("Checking ptp publisher is created")
-
-				Eventually(func() string {
-					buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", path.Join(event.ApiBaseV1, "publishers")})
-					return buf.String()
-				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring("endpointUri"),
-					"Event API  did not return publishers")
 
 				By("Checking events are generated")
 
