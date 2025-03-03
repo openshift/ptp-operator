@@ -39,6 +39,7 @@ const (
 	TestSidecarSuccessLogString   = "rest service returned healthy status"
 	ConsumerContainerName         = "consumer"
 	sidecarNamespaceDeleteTimeout = time.Minute * 2
+	ApiBaseV1                     = "127.0.0.1:9085/api/ocloudNotifications/v1/"
 	ApiBaseV2                     = "127.0.0.1:9043/api/ocloudNotifications/v2"
 )
 
