@@ -503,8 +503,15 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 			It("Should check for ptp events ", func() {
 				By("Checking event side car is present")
-				apiBase := event.ApiBaseV2
-				endpointUri := "EndpointUri"
+				apiVersion := ptphelper.PtpEventEnabled()
+				var apiBase, endpointUri string
+				if apiVersion == 1 {
+					apiBase = event.ApiBaseV1
+					endpointUri = "endpointUri"
+				} else {
+					apiBase = event.ApiBaseV2
+					endpointUri = "EndpointUri"
+				}
 				cloudProxyFound := false
 				Expect(len(fullConfig.DiscoveredClockUnderTestPod.Spec.Containers)).To(BeNumerically("==", 3), "linuxptp-daemon is not deployed on cluster with cloud event proxy")
 				for _, c := range fullConfig.DiscoveredClockUnderTestPod.Spec.Containers {
