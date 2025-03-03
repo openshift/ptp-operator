@@ -109,10 +109,12 @@ type TestConfig struct {
 	DiscoveredSlave2PtpConfig,
 	DiscoveredClockUnderTestPtpConfig,
 	DiscoveredClockUnderTestSecondaryPtpConfig *ptpDiscoveryRes
-	DiscoveredClockUnderTestPod *v1core.Pod
-	L2Config                    l2lib.L2Info
-	FoundSolutions              map[string]bool
-	PtpEventsIsConsumerReady    bool
+	DiscoveredClockUnderTestPod  *v1core.Pod
+	DiscoveredMasterInterfaces   []string
+	DiscoveredFollowerInterfaces []string
+	L2Config                     l2lib.L2Info
+	FoundSolutions               map[string]bool
+	PtpEventsIsConsumerReady     bool
 }
 type solverData struct {
 	// Mapping between clock role and port depending on the algo
@@ -175,18 +177,107 @@ const (
 type ptpDiscoveryRes ptpv1.PtpConfig
 
 const BasePtp4lConfig = `[global]
+#
+# Default Data Set
+#
+twoStepFlag 1
+domainNumber 24
+#utc_offset 37
+clockClass 6
+clockAccuracy 0xFE
+offsetScaledLogVariance 0xFFFF
+free_running 0
+freq_est_interval 1
+dscp_event 0
+dscp_general 0
+dataset_comparison G.8275.x
+G.8275.defaultDS.localPriority 128
+#
+# Port Data Set
+#
+logAnnounceInterval -3
+logSyncInterval -4
+logMinDelayReqInterval -4
+logMinPdelayReqInterval -4
+announceReceiptTimeout 6
+syncReceiptTimeout 0
+delayAsymmetry 0
+fault_reset_interval -4
+neighborPropDelayThresh 20000000
+G.8275.portDS.localPriority 128
+#
+# Run time options
+#
+assume_two_step 0
+logging_level 6
+path_trace_enabled 0
+follow_up_info 0
+hybrid_e2e 0
+inhibit_multicast_service 0
+net_sync_monitor 0
+tc_spanning_tree 0
 tx_timestamp_timeout 50
+unicast_listen 0
+unicast_master_table 0
+unicast_req_duration 3600
+use_syslog 1
+verbose 1
+summary_interval -4
+kernel_leap 1
+check_fup_sync 0
+clock_class_threshold 7
+#
+# Servo Options
+#
+pi_proportional_const 0.0
+pi_integral_const 0.0
+pi_proportional_scale 0.0
+pi_proportional_exponent -0.3
+pi_proportional_norm_max 0.7
+pi_integral_scale 0.0
+pi_integral_exponent 0.4
+pi_integral_norm_max 0.3
+step_threshold 2.0
+first_step_threshold 0.00002
+max_frequency 900000000
+clock_servo pi
+sanity_freq_limit 200000000
+ntpshm_segment 0
+#
+# Transport options
+#
+transportSpecific 0x0
 ptp_dst_mac 01:1B:19:00:00:00
 p2p_dst_mac 01:80:C2:00:00:0E
-domainNumber 24
-logging_level 7
+udp_ttl 1
+udp6_scope 0x0E
+uds_address /var/run/ptp4l
+#
+# Default interface options
+#
+network_transport L2
+delay_mechanism E2E
+time_stamping hardware
+tsproc_mode filter
+delay_filter moving_median
+delay_filter_length 10
+egressLatency 0
+ingressLatency 0
+#
+# Clock description
+#
+productDescription ;;
+revisionData ;;
+manufacturerIdentity 00:00:00
+userDescription ;
+timeSource 0xA0
 `
 const BaseTs2PhcConfig = `[nmea]
 ts2phc.master 1
 [global]
 use_syslog  0
 verbose 1
-logging_level 7
+logging_level 6
 ts2phc.pulsewidth 100000000
 leapfile  /usr/share/zoneinfo/leap-seconds.list
 `
@@ -201,7 +292,7 @@ func (obj *TestConfig) String() (out string) {
 	if obj == nil {
 		return "nil"
 	}
-	out += fmt.Sprintf("PtpModeDesired= %s, PtpModeDiscovered= %s, Status= %s, DiscoveredClockUnderTestPtpConfig= %s, DiscoveredClockUnderTestSecondaryPtpConfig= %s, DiscoveredGrandMasterPtpConfig= %s, DiscoveredSlave1PtpConfig= %s, DiscoveredSlave2PtpConfig= %s, PtpEventsIsConsumerReady= %t, ",
+	out += fmt.Sprintf("PtpModeDesired= %s, PtpModeDiscovered= %s, Status= %s, DiscoveredClockUnderTestPtpConfig= %s, DiscoveredClockUnderTestSecondaryPtpConfig= %s, DiscoveredGrandMasterPtpConfig= %s, DiscoveredSlave1PtpConfig= %s, DiscoveredSlave2PtpConfig= %s, PtpEventsIsConsumerReady= %t, DiscoveredFollowerInterfaces=%v, DiscoveredMasterInterfaces=%v",
 		obj.PtpModeDesired,
 		obj.PtpModeDiscovered,
 		obj.Status,
@@ -210,7 +301,9 @@ func (obj *TestConfig) String() (out string) {
 		obj.DiscoveredGrandMasterPtpConfig,
 		obj.DiscoveredSlave1PtpConfig,
 		obj.DiscoveredSlave2PtpConfig,
-		obj.PtpEventsIsConsumerReady)
+		obj.PtpEventsIsConsumerReady,
+		obj.DiscoveredFollowerInterfaces,
+		obj.DiscoveredMasterInterfaces)
 	if obj.DiscoveredClockUnderTestPod != nil {
 		out += fmt.Sprintf("DiscoveredClockUnderTestPodName=%s, DiscoveredClockUnderTestNodeName=%s",
 			obj.DiscoveredClockUnderTestPod.Name,
@@ -621,7 +714,7 @@ func CreatePtpConfigGrandMaster(nodeName, ifName string) error {
 	}
 
 	// Grandmaster
-	gmConfig := BasePtp4lConfig + "\nmasterOnly 1"
+	gmConfig := BasePtp4lConfig + "\nmasterOnly 1\npriority1 0\npriority2 0\nclockClass 6\n"
 	ptp4lsysOpts := ptp4lEthernet
 	phc2sysOpts := phc2sysGM
 	return createConfig(pkg.PtpGrandMasterPolicyName,
@@ -856,7 +949,7 @@ func CreatePtpConfigDualFollower(profileName, nodeName, ifSlave1Name, ifSlave2Na
 		phc2sysOpts = nil
 	}
 
-	ptp4lDualFollowerConfig := BasePtp4lConfig + "\n[" + ifSlave1Name + "]\nmasterOnly 0\n" + "\n[" + ifSlave2Name + "]\nmasterOnly 0\n"
+	ptp4lDualFollowerConfig := BasePtp4lConfig + "\nslaveOnly 1\n[" + ifSlave1Name + "]\nmasterOnly 0\n" + "\n[" + ifSlave2Name + "]\nmasterOnly 0\n"
 
 	return createConfig(profileName,
 		nil,
@@ -1403,26 +1496,31 @@ func discoverMode(ptpConfigClockUnderTest []*ptpv1.PtpConfig) {
 	numSecondaryBC := 0
 
 	GlobalConfig.Status = DiscoveryFailureStatus
-
+	var allMasterIfs []string
+	var allFollowerIfs []string
 	for _, ptpConfig := range ptpConfigClockUnderTest {
-		masterIf := len(ptpv1.GetInterfaces(*ptpConfig, ptpv1.Master))
-		slaveIf := len(ptpv1.GetInterfaces(*ptpConfig, ptpv1.Slave))
+		masterIfStrings := ptpv1.GetInterfaces(*ptpConfig, ptpv1.Master)
+		masterIfCount := len(masterIfStrings)
+		followerIfStrings := ptpv1.GetInterfaces(*ptpConfig, ptpv1.Slave)
+		slaveIfCount := len(followerIfStrings)
+		allMasterIfs = append(allMasterIfs, masterIfStrings...)
+		allFollowerIfs = append(allFollowerIfs, followerIfStrings...)
 		// OC
-		if masterIf == 0 && slaveIf == 1 && len(ptpConfigClockUnderTest) == 1 {
+		if masterIfCount == 0 && slaveIfCount == 1 && len(ptpConfigClockUnderTest) == 1 {
 			GlobalConfig.PtpModeDiscovered = OrdinaryClock
 			GlobalConfig.Status = DiscoverySuccessStatus
 			GlobalConfig.DiscoveredClockUnderTestPtpConfig = (*ptpDiscoveryRes)(ptpConfig)
 			break
 		}
 		// Dual Follower
-		if masterIf == 0 && slaveIf == 2 && len(ptpConfigClockUnderTest) == 1 {
+		if masterIfCount == 0 && slaveIfCount == 2 && len(ptpConfigClockUnderTest) == 1 {
 			GlobalConfig.PtpModeDiscovered = DualFollowerClock
 			GlobalConfig.Status = DiscoverySuccessStatus
 			GlobalConfig.DiscoveredClockUnderTestPtpConfig = (*ptpDiscoveryRes)(ptpConfig)
 			break
 		}
 		// BC and Dual NIC BC
-		if masterIf >= 1 && slaveIf >= 1 {
+		if masterIfCount >= 1 && slaveIfCount >= 1 {
 			if numBc == 0 {
 				GlobalConfig.DiscoveredClockUnderTestPtpConfig = (*ptpDiscoveryRes)(ptpConfig)
 			}
@@ -1435,7 +1533,7 @@ func discoverMode(ptpConfigClockUnderTest []*ptpv1.PtpConfig) {
 			}
 		}
 		//WPC GM state
-		if masterIf >= 2 && slaveIf == 0 && !strings.EqualFold(*ptpConfig.Spec.Profile[0].Ts2PhcConf, "") {
+		if masterIfCount >= 2 && slaveIfCount == 0 && !strings.EqualFold(*ptpConfig.Spec.Profile[0].Ts2PhcConf, "") {
 
 			GlobalConfig.DiscoveredClockUnderTestPtpConfig = (*ptpDiscoveryRes)(ptpConfig)
 			GlobalConfig.PtpModeDiscovered = TelcoGrandMasterClock
@@ -1456,4 +1554,6 @@ func discoverMode(ptpConfigClockUnderTest []*ptpv1.PtpConfig) {
 		logrus.Error("Could not determine ptp daemon pod selected by ptpconfig")
 	}
 	GlobalConfig.DiscoveredClockUnderTestPod = pod
+	GlobalConfig.DiscoveredFollowerInterfaces = allFollowerIfs
+	GlobalConfig.DiscoveredMasterInterfaces = allMasterIfs
 }

@@ -135,6 +135,8 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 		var ptpPods *v1core.PodList
 		var fifoPriorities map[string]int64
 		var fullConfig testconfig.TestConfig
+		portEngine := ptptesthelper.PortEngine{}
+
 		execute.BeforeAll(func() {
 			err := testconfig.CreatePtpConfigurations()
 			if err != nil {
@@ -153,6 +155,9 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 			if fullConfig.PtpModeDesired != testconfig.Discovery {
 				ptphelper.RestartPTPDaemon()
 			}
+
+			err = portEngine.Initialize(fullConfig.DiscoveredClockUnderTestPod, fullConfig.DiscoveredFollowerInterfaces)
+			Expect(err).To(BeNil())
 
 		})
 
@@ -270,6 +275,9 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					Skip("Failed to find a valid ptp slave configuration")
 				}
 			})
+			AfterEach(func() {
+				portEngine.TurnAllPortsUp()
+			})
 			// 25733
 			It("PTP daemon apply match rule based on nodeLabel", func() {
 
@@ -329,12 +337,75 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					grandmasterID = &aString
 					Expect(err).To(BeNil())
 				}
-				err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), grandmasterID)
+				err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), grandmasterID, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
 				Expect(err).To(BeNil())
 				if fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock {
-					err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestSecondaryPtpConfig), grandmasterID)
+					err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestSecondaryPtpConfig), grandmasterID, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
 					Expect(err).To(BeNil())
 				}
+			})
+
+			// Test That clock can sync in dual follower scenario when one port is down
+			It("Dual follower can sync when one follower port goes down", func() {
+				if fullConfig.PtpModeDesired != testconfig.DualFollowerClock {
+					Skip("Test reserved for dual follower scenario")
+				}
+				Expect(len(fullConfig.DiscoveredFollowerInterfaces) == 2)
+				isExternalMaster := ptphelper.IsExternalGM()
+				var grandmasterID *string
+				if fullConfig.L2Config != nil && !isExternalMaster {
+					aLabel := pkg.PtpGrandmasterNodeLabel
+					aString, err := ptphelper.GetClockIDMaster(pkg.PtpGrandMasterPolicyName, &aLabel, nil, true)
+					grandmasterID = &aString
+					Expect(err).To(BeNil())
+				}
+
+				err = portEngine.RolesInOnly([]metrics.MetricRole{metrics.MetricRoleSlave, metrics.MetricRoleListening})
+				Expect(err).To(BeNil())
+
+				By("Port0: down")
+				err = portEngine.TurnPortDown(portEngine.Ports[0])
+				Expect(err).To(BeNil())
+				By("Check sync")
+				err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), grandmasterID, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
+				Expect(err).To(BeNil())
+				By("Check clock role")
+				err = portEngine.CheckClockRole(portEngine.Ports[0], portEngine.Ports[1], metrics.MetricRoleFaulty, metrics.MetricRoleSlave)
+				Expect(err).To(BeNil())
+
+				By("Port1: down")
+				err = portEngine.TurnPortDown(portEngine.Ports[1])
+				Expect(err).To(BeNil())
+				By("Check holdover")
+				err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), grandmasterID, metrics.MetricClockStateHoldOver, metrics.MetricRoleFaulty, false)
+				Expect(err).To(BeNil())
+				By("Check freerun")
+				err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), grandmasterID, metrics.MetricClockStateFreeRun, metrics.MetricRoleFaulty, false)
+				Expect(err).To(BeNil())
+				By("Check clock role")
+				err = portEngine.CheckClockRole(portEngine.Ports[0], portEngine.Ports[1], metrics.MetricRoleFaulty, metrics.MetricRoleFaulty)
+				Expect(err).To(BeNil())
+
+				By("Port1: up")
+				err = portEngine.TurnPortUp(portEngine.Ports[1])
+				Expect(err).To(BeNil())
+				By("Check sync")
+				err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), grandmasterID, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
+				Expect(err).To(BeNil())
+				By("Check clock role")
+				err = portEngine.CheckClockRole(portEngine.Ports[0], portEngine.Ports[1], metrics.MetricRoleFaulty, metrics.MetricRoleSlave)
+				Expect(err).To(BeNil())
+
+				By("Port0: up")
+				err = portEngine.TurnPortUp(portEngine.Ports[0])
+				Expect(err).To(BeNil())
+				By("Check sync")
+				err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), grandmasterID, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
+				Expect(err).To(BeNil())
+				By("Check clock role")
+				err = portEngine.CheckClockRole(portEngine.Ports[0], portEngine.Ports[1], portEngine.InitialRoles[0], portEngine.InitialRoles[1])
+				Expect(err).To(BeNil())
+
 			})
 
 			// Multinode BCSlave clock sync
@@ -359,7 +430,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				aLabel := pkg.PtpClockUnderTestNodeLabel
 				masterIDBc1, err := ptphelper.GetClockIDMaster(pkg.PtpBcMaster1PolicyName, &aLabel, nil, false)
 				Expect(err).To(BeNil())
-				err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredSlave1PtpConfig), &masterIDBc1)
+				err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredSlave1PtpConfig), &masterIDBc1, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
 				Expect(err).To(BeNil())
 
 				if (fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock) && (fullConfig.FoundSolutions[testconfig.AlgoDualNicBCWithSlavesExtGMString] ||
@@ -367,7 +438,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					aLabel := pkg.PtpClockUnderTestNodeLabel
 					masterIDBc2, err := ptphelper.GetClockIDMaster(pkg.PtpBcMaster2PolicyName, &aLabel, nil, false)
 					Expect(err).To(BeNil())
-					err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredSlave2PtpConfig), &masterIDBc2)
+					err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredSlave2PtpConfig), &masterIDBc2, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
 					Expect(err).To(BeNil())
 				}
 
@@ -426,7 +497,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 						grandmasterID = &aString
 						Expect(err).To(BeNil())
 					}
-					err = ptptesthelper.BasicClockSyncCheck(fullConfig, modifiedPtpConfig, grandmasterID)
+					err = ptptesthelper.BasicClockSyncCheck(fullConfig, modifiedPtpConfig, grandmasterID, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
 					Expect(err).To(BeNil())
 				})
 
@@ -929,6 +1000,9 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 			It("The slave node network interface is taken down and up", func() {
 				if fullConfig.PtpModeDiscovered == testconfig.TelcoGrandMasterClock {
 					Skip("test not valid for WPC GM config")
+				}
+				if fullConfig.PtpModeDesired == testconfig.DualFollowerClock {
+					Skip("Test not valid for dual follower scenario")
 				}
 				By("toggling network interfaces and syncing", func() {
 					skippedInterfacesStr, isSet := os.LookupEnv("SKIP_INTERFACES")

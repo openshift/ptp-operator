@@ -3,6 +3,7 @@ package ptptesthelper
 import (
 	"bufio"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -27,7 +28,8 @@ import (
 )
 
 // waits for the foreign master to appear in the logs and checks the clock accuracy
-func BasicClockSyncCheck(fullConfig testconfig.TestConfig, ptpConfig *ptpv1.PtpConfig, gmID *string) error {
+func BasicClockSyncCheck(fullConfig testconfig.TestConfig, ptpConfig *ptpv1.PtpConfig, gmID *string,
+	expectedClockState metrics.MetricClockState, expectedClockRole metrics.MetricRole, isCheckOffset bool) error {
 	if gmID != nil {
 		logrus.Infof("expected master=%s", *gmID)
 	}
@@ -76,12 +78,13 @@ func BasicClockSyncCheck(fullConfig testconfig.TestConfig, ptpConfig *ptpv1.PtpC
 	}
 
 	Eventually(func() error {
-		err = metrics.CheckClockRoleAndOffset(ptpConfig, label, nodeName)
+		err = metrics.CheckClockRoleAndOffset(ptpConfig, label, nodeName, expectedClockState, expectedClockRole, isCheckOffset)
 		if err != nil {
 			logrus.Infof(fmt.Sprintf("CheckClockRoleAndOffset Failed because of err: %s", err))
 		}
 		return err
 	}, pkg.TimeoutIn10Minutes, pkg.Timeout10Seconds).Should(BeNil(), fmt.Sprintf("Timeout to detect metrics for ptpconfig %s", ptpConfig.Name))
+	logrus.Info("Clock In Sync")
 	return nil
 }
 
@@ -181,10 +184,10 @@ func CheckSlaveSyncWithMaster(fullConfig testconfig.TestConfig) {
 			logrus.Warnf("could not determine the Grandmaster ID (probably because the log no longer exists), err=%s", err)
 		}
 	}
-	err := BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), grandmasterID)
+	err := BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), grandmasterID, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
 	Expect(err).NotTo(HaveOccurred())
 	if fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock {
-		err = BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestSecondaryPtpConfig), grandmasterID)
+		err = BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestSecondaryPtpConfig), grandmasterID, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
 		Expect(err).NotTo(HaveOccurred())
 	}
 }
@@ -282,7 +285,7 @@ func toggleNetworkInterface(pod corev1.Pod, interfaceName string, slavePodNodeNa
 	By("Checking that the port role is FAULTY after wait. Set the interface UP again and wait")
 
 	// Check if the port state has changed to faulty
-	err := metrics.CheckClockRole(metrics.MetricRoleFaulty, interfaceName, &slavePodNodeName)
+	err := metrics.CheckClockRole([]metrics.MetricRole{metrics.MetricRoleFaulty}, []string{interfaceName}, &slavePodNodeName)
 	Expect(err).NotTo(HaveOccurred())
 
 	upInterfaceCommand := fmt.Sprintf("ip link set dev %s up", interfaceName)
@@ -292,7 +295,7 @@ func toggleNetworkInterface(pod corev1.Pod, interfaceName string, slavePodNodeNa
 
 	By("Checking that the port role is SLAVE after wait and clock is in sync")
 	// Check if the port has the role of the slave
-	err = metrics.CheckClockRole(metrics.MetricRoleSlave, interfaceName, &slavePodNodeName)
+	err = metrics.CheckClockRole([]metrics.MetricRole{metrics.MetricRoleSlave}, []string{interfaceName}, &slavePodNodeName)
 	Expect(err).NotTo(HaveOccurred())
 
 	var offsetWithinBound bool
@@ -434,4 +437,86 @@ func GetContainerCpuUsage(podName, containerName, podNamespace string, rateTimeW
 		podName, containerName, podNamespace, cpuUsage, time.UnixMilli(tsMillis).String())
 
 	return cpuUsage, nil
+}
+
+type PortEngine struct {
+	ClockPod     *corev1.Pod
+	InitialRoles []metrics.MetricRole
+	Ports        []string
+}
+
+func (p *PortEngine) TurnPortDown(port string) error {
+	stdout, stderr, err := pods.ExecCommand(client.Client, p.ClockPod, pkg.RecoveryNetworkOutageDaemonSetContainerName,
+		[]string{"ip", "link", "set", port, "down"})
+
+	logrus.Infof("Turning interface: %s in pod %s down, stdout: %s, stderr: %s", port, p.ClockPod.Name, stdout.String(), stderr.String())
+	return err
+}
+
+func (p *PortEngine) TurnPortUp(port string) error {
+	stdout, stderr, err := pods.ExecCommand(client.Client, p.ClockPod, pkg.RecoveryNetworkOutageDaemonSetContainerName,
+		[]string{"ip", "link", "set", port, "up"})
+
+	logrus.Infof("Turning interface: %s in pod %s down, stdout: %s, stderr: %s", port, p.ClockPod.Name, stdout.String(), stderr.String())
+	return err
+}
+
+func (p *PortEngine) TurnAllPortsUp() error {
+	for _, port := range p.Ports {
+		stdout, stderr, err := pods.ExecCommand(client.Client, p.ClockPod, pkg.RecoveryNetworkOutageDaemonSetContainerName,
+			[]string{"ip", "link", "set", port, "up"})
+		if err != nil {
+			return err
+		}
+
+		logrus.Infof("Turning interface: %s in pod %s up, stdout: %s, stderr: %s", port, p.ClockPod.Name, stdout.String(), stderr.String())
+	}
+	return nil
+}
+
+func (p *PortEngine) SetInitialRoles() (err error) {
+	p.InitialRoles, err = metrics.GetClockIfRoles(p.Ports, &p.ClockPod.Spec.NodeName)
+	return err
+}
+
+func (p *PortEngine) CheckClockRole(port0, port1 string, role0, role1 metrics.MetricRole) (err error) {
+	err = metrics.CheckClockRole([]metrics.MetricRole{role0, role1}, []string{port0, port1}, &p.ClockPod.Spec.NodeName)
+	return err
+}
+
+func (p *PortEngine) Initialize(aClockPod *corev1.Pod, aPorts []string) (err error) {
+	p.Ports = aPorts
+
+	// Get the pod from ptp test daemonset set on the slave node
+	outageRecoveryDaemonSetRunningPods := CreatePtpTestPrivilegedDaemonSet(pkg.RecoveryNetworkOutageDaemonSetName, pkg.RecoveryNetworkOutageDaemonSetNamespace, pkg.RecoveryNetworkOutageDaemonSetContainerName)
+	Expect(len(outageRecoveryDaemonSetRunningPods.Items)).To(BeNumerically(">", 0), "no damonset pods found in the namespace "+pkg.RecoveryNetworkOutageDaemonSetNamespace)
+
+	var isOutageRecoveryPodFound bool
+	for _, dsPod := range outageRecoveryDaemonSetRunningPods.Items {
+		if dsPod.Spec.NodeName == aClockPod.Spec.NodeName {
+			p.ClockPod = &dsPod
+			isOutageRecoveryPodFound = true
+			break
+		}
+	}
+	Expect(isOutageRecoveryPodFound).To(BeTrue())
+	logrus.Infof("Test pod name is %s", p.ClockPod.Name)
+
+	err = p.SetInitialRoles()
+	return err
+}
+
+func (p *PortEngine) RolesInOnly(roles []metrics.MetricRole) (err error) {
+
+	if len(roles) != len(p.InitialRoles) {
+		return fmt.Errorf("len(InitialRoles) != len(roles)")
+	}
+	sortedInitialRoles := p.InitialRoles
+	slices.Sort(sortedInitialRoles)
+	slices.Sort(roles)
+
+	if !slices.Equal(sortedInitialRoles, roles) {
+		return fmt.Errorf("sortedInitialRoles != sortedRoles")
+	}
+	return nil
 }
