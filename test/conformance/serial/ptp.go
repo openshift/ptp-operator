@@ -604,6 +604,22 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				}
 				Expect(cloudProxyFound).ToNot(BeFalse(), "No event pods detected")
 
+				By("Checking event api is healthy")
+
+				Eventually(func() string {
+					buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", path.Join(event.ApiBaseV1, "health")})
+					return buf.String()
+				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring("OK"),
+					"Event API is not in healthy state")
+
+				By("Checking ptp publisher is created")
+
+				Eventually(func() string {
+					buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", path.Join(event.ApiBaseV1, "publishers")})
+					return buf.String()
+				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring("endpointUri"),
+					"Event API  did not return publishers")
+
 				By("Checking events are generated")
 
 				_, err := pods.GetPodLogsRegex(fullConfig.DiscoveredClockUnderTestPod.Namespace,
