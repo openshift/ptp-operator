@@ -249,8 +249,8 @@ spec:
 checks that ptp events are operating properly by testing the following:
 - the "cloud-event-proxy" container sidecar is present
 - the metrics url (`127.0.0.1:9091/metrics`) inside the linuxptp-daemon is present and responding to queries. check for the presence of the following metrics: openshift_ptp_interface_role and openshift_ptp_threshold
-- the events api is responding to a health query with "OK" in cloud-events-proxy container at the following url: `127.0.0.1:9085/api/ocloudNotifications/v1/health`.
-- the events api is responding to a publisher query with a non empty result containing "endpointUri" in the cloud-event-proxy container at the following url: `127.0.0.1:9085/api/ocloudNotifications/v1/publishers`
+- the events api is responding to a health query with "OK" in cloud-events-proxy container at the following url: `127.0.0.1:9043/api/ocloudNotifications/v2/health`.
+- the events api is responding to a publisher query with a non empty result containing "endpointUri" in the cloud-event-proxy container at the following url: `127.0.0.1:9043/api/ocloudNotifications/v2/publishers`
 - checks for the following strings in the cloud-events-proxy container to verify that events are sent by the publisher: "Created publisher" and "event sent"
 The test fails if any of these steps fail
 #### Should check whether using fifo scheduling
