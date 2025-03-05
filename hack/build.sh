@@ -26,4 +26,4 @@ export BIN_NAME=ptp-operator
 mkdir -p ${BIN_PATH}
 
 echo "Building ${REPO}/cmd/${WHAT} (${VERSION_OVERRIDE})"
-CGO_ENABLED=${CGO_ENABLED} GOOS=${GOOS} GOARCH=${GOARCH} go build ${GOFLAGS} -ldflags "${GLDFLAGS} -s -w" -o ${BIN_PATH}/${BIN_NAME} ${REPO}
+CGO_ENABLED=${CGO_ENABLED} CC="gcc -fuse-ld=gold" GOOS=${GOOS} GOARCH=${GOARCH} go build ${GOFLAGS} -ldflags "${GLDFLAGS} -s -w" -o ${BIN_PATH}/${BIN_NAME} ${REPO}
