@@ -40,7 +40,7 @@ spec:
             - "--store-path=/store"
             - "--transport-host={{ .EventTransportHost }}"
             - "--api-version={{ .EventApiVersion }}"
-            - "--api-port=9085"
+            - "--api-port=9043"
           volumeMounts:
             - name: config-volume
               mountPath: /etc/linuxptp
@@ -54,7 +54,7 @@ spec:
             - name: metrics-port
               containerPort: 9091
             - name: api-port
-              containerPort: 9085
+              containerPort: 9043
           env:
             - name: PTP_PLUGIN
               value: "true"
