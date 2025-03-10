@@ -399,6 +399,7 @@ func initAndSolveProblems() {
 	data.testClockRolesAlgoMapping = make(map[string]*[]int)
 
 	// initialize problems
+	// each step should add 1 new port
 	data.problems[AlgoOCString] = &[][][]int{
 		{{int(solver.StepNil), 0, 0}},         // step1
 		{{int(solver.StepSameLan2), 2, 0, 1}}, // step2
@@ -407,8 +408,8 @@ func initAndSolveProblems() {
 	data.problems[AlgoDualFollowerString] = &[][][]int{
 		{{int(solver.StepNil), 0, 0}},         // step1
 		{{int(solver.StepSameLan2), 2, 0, 1}}, // step2
-		{{int(solver.StepSameLan2), 2, 1, 2}}, // step3
-		{{int(solver.StepSameNic), 2, 0, 2}},  // step4
+		{{int(solver.StepSameLan2), 2, 1, 2}, // step3
+			{int(solver.StepSameNic), 2, 0, 2}}, // step3
 
 	}
 
@@ -934,8 +935,8 @@ func PtpConfigDualFollower(isExtGM bool) error {
 			return fmt.Errorf("no solution found for Dual Follower configuration in External GM mode")
 		}
 	} else {
-		if len(*data.solutions[AlgoOCString]) != 0 {
-			BestSolution = AlgoOCString
+		if len(*data.solutions[AlgoDualFollowerString]) != 0 {
+			BestSolution = AlgoDualFollowerString
 		}
 		if BestSolution == "" {
 			return fmt.Errorf("no solution found for Dual Follower configuration in Local GM mode")
