@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -41,6 +42,7 @@ const (
 // log is for logging in this package.
 var ptpconfiglog = logf.Log.WithName("ptpconfig-resource")
 var profileRegEx = regexp.MustCompile(`^([\w\-_]+)(,\s*([\w\-_]+))*$`)
+var clockTypes = []string{"T-GM", "T-BC"}
 
 func (r *PtpConfig) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
@@ -137,6 +139,10 @@ func (r *PtpConfig) validate() error {
 				case k == "haProfiles":
 					if !profileRegEx.MatchString(v) {
 						return errors.New("haProfiles='" + v + "' is invalid; must be comma seperated profile names")
+					}
+				case k == "clockType":
+					if !slices.Contains(clockTypes, v) {
+						return errors.New("clockType='" + v + "' is invalid; must be one of ['" + strings.Join(clockTypes, "', '") + "']")
 					}
 				default:
 					return errors.New("profile.PtpSettings '" + k + "' is not a configurable setting")
