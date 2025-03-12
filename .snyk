@@ -3,7 +3,6 @@
 # https://docs.snyk.io/snyk-cli/commands/ignore
 exclude:
   global:
-    # - "vendor/**" # ProdSec encourages not to ignore the entire vendor/* directories
     # - "unpacked_remote_sources/cachito-gomod-with-deps/app/vendor/**"
     - "**/*_test.go"
     - "test/**" # test code only
@@ -12,3 +11,4 @@ exclude:
     - hack # scripts only
     - scripts # scripts only
     - bin # this binary folder is not in git repo. Exclude this when run snyk locally.
+    - vendor
