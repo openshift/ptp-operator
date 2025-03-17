@@ -48,8 +48,19 @@ func (r *PtpOperatorConfig) validate() error {
 	}
 
 	if r.Spec.EventConfig != nil && r.Spec.EventConfig.EnableEventPublisher {
-		if r.Spec.EventConfig.ApiVersion != "" && !isValidVersion(r.Spec.EventConfig.ApiVersion) {
-			return errors.New("ptpEventConfig.apiVersion=" + r.Spec.EventConfig.ApiVersion + " is not a valid version. Example of valid versions: \"1.0\", \"2.0\"")
+		if r.Spec.EventConfig.ApiVersion != "" {
+			if !isValidVersion(r.Spec.EventConfig.ApiVersion) {
+				return errors.New("ptpEventConfig.apiVersion=" +
+					r.Spec.EventConfig.ApiVersion +
+					" is not a valid version. Valid version is \"2.0\".")
+			}
+			if r.Spec.EventConfig.ApiVersion == "1.0" {
+				return errors.New("v1 is no longer supported and has reached End " +
+					"of Life (EOL). PTP event functionality is now available only in " +
+					"v2. Consumers using v1 will no longer be able to communicate " +
+					"with the PTP event system. Please upgrade to v2 and follow " +
+					"the documentation to make the necessary changes.")
+			}
 		}
 	}
 
