@@ -231,8 +231,10 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 			if defaultCfg.Spec.EventConfig.StorageType != "" {
 				data.Data["StorageType"] = defaultCfg.Spec.EventConfig.StorageType
 			}
-			if defaultCfg.Spec.EventConfig.ApiVersion != "" {
-				data.Data["EventApiVersion"] = defaultCfg.Spec.EventConfig.ApiVersion
+			if defaultCfg.Spec.EventConfig.ApiVersion != data.Data["EventApiVersion"] {
+				glog.Infof("Event API version is '%s', using version %s.",
+					defaultCfg.Spec.EventConfig.ApiVersion,
+					data.Data["EventApiVersion"])
 			}
 		}
 	}
