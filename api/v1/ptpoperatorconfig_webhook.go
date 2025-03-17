@@ -57,10 +57,9 @@ func (r *PtpOperatorConfig) validate() error {
 			if r.Spec.EventConfig.ApiVersion == "1.0" {
 				return errors.New("v1 is no longer supported and has reached End " +
 					"of Life (EOL). PTP event functionality is now available only in " +
-					"v2, and the operator is running with the v2 API for events. " +
-					"Consumers using v1 will no longer be able to communicate with " +
-					"the PTP event system. Please upgrade to v2 and follow the " +
-					"documentation to make the necessary changes.")
+					"v2. Consumers using v1 will no longer be able to communicate " +
+					"with the PTP event system. Please upgrade to v2 and follow " +
+					"the documentation to make the necessary changes.")
 			}
 		}
 	}
