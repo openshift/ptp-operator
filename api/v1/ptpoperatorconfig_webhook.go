@@ -19,6 +19,7 @@ package v1
 import (
 	"errors"
 
+	semver "github.com/Masterminds/semver/v3"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -47,8 +48,20 @@ func (r *PtpOperatorConfig) validate() error {
 	}
 
 	if r.Spec.EventConfig != nil && r.Spec.EventConfig.EnableEventPublisher {
-		if r.Spec.EventConfig.ApiVersion != "" && !isValidVersion(r.Spec.EventConfig.ApiVersion) {
-			return errors.New("ptpEventConfig.apiVersion=" + r.Spec.EventConfig.ApiVersion + " is not a valid version. Valid version is \"2.0\"")
+		if r.Spec.EventConfig.ApiVersion != "" {
+			if !isValidVersion(r.Spec.EventConfig.ApiVersion) {
+				return errors.New("ptpEventConfig.apiVersion=" +
+					r.Spec.EventConfig.ApiVersion +
+					" is not a valid version. Valid version is \"2.0\".")
+			}
+			if r.Spec.EventConfig.ApiVersion == "1.0" {
+				return errors.New("v1 is no longer supported and has reached End " +
+					"of Life (EOL). PTP event functionality is now available only in " +
+					"v2, and the operator is running with the v2 API for events. " +
+					"Consumers using v1 will no longer be able to communicate with " +
+					"the PTP event system. Please upgrade to v2 and follow the " +
+					"documentation to make the necessary changes.")
+			}
 		}
 	}
 
@@ -81,6 +94,8 @@ func (r *PtpOperatorConfig) ValidateDelete() (admission.Warnings, error) {
 	return admission.Warnings{}, nil
 }
 
+// check if the version is valid based semanic versioning (semver.org)
 func isValidVersion(version string) bool {
-	return version == "2.0"
+	_, err := semver.NewVersion(version)
+	return err == nil
 }
