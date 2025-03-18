@@ -76,6 +76,17 @@ func GetDefaultApiVersion() string {
 	return "2.0"
 }
 
+// GetConsumerImage ...
+func GetConsumerImage() string {
+	consumerImage, _ := os.LookupEnv("CONSUMER_IMG")
+	if consumerImage == "" {
+		consumerImage = "quay.io/redhat-cne/cloud-event-consumer:latest"
+		logrus.Warnf("CONSUMER_IMG is not set, use default value")
+	}
+	logrus.Infof("Use CONSUMER_IMG %s", consumerImage)
+	return consumerImage
+}
+
 func CreateConsumerAppWithSidecar(nodeNameFull string) (err error) {
 	nodeName := nodeNameFull
 	// using the first component of the node name before the first dot (master2.example.com -> master2)
@@ -128,7 +139,7 @@ func CreateConsumerAppWithSidecar(nodeNameFull string) (err error) {
 					VolumeMounts: []corev1.VolumeMount{{MountPath: "/store", Name: "pubsubstore"}},
 				},
 				{Name: ConsumerContainerName,
-					Image: "quay.io/redhat-cne/cloud-event-consumer:latest",
+					Image: GetConsumerImage(),
 					SecurityContext: &corev1.SecurityContext{
 						Privileged: pointer.Bool(true),
 						RunAsUser:  rootUser,
@@ -237,7 +248,7 @@ func CreateConsumerApp(nodeNameFull string) (err error) {
 			ServiceAccountName: ConsumerSaName,
 			Containers: []corev1.Container{
 				{Name: ConsumerContainerName,
-					Image: "quay.io/redhat-cne/cloud-event-consumer:latest",
+					Image: GetConsumerImage(),
 					SecurityContext: &corev1.SecurityContext{
 						Privileged: pointer.Bool(true),
 						RunAsUser:  rootUser,
