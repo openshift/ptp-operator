@@ -239,7 +239,7 @@ Only this label should be used to identify the clock under test. err:%s`, *label
 		logrus.Infof("nodeName=%s, aIf=%s, roleInt=%s", *nodeName, aIf, MetricRole(roleInt))
 
 		if MetricRole(roleInt) != MetricRoleMaster {
-			return fmt.Errorf("incorrect role")
+			return fmt.Errorf("incorrect metric role: expecting %s found %s", MetricRoleMaster.String(), MetricRole(roleInt).String())
 		}
 	}
 	// Find the port in SLAVE state and verify metrics
@@ -263,7 +263,7 @@ Only this label should be used to identify the clock under test. err:%s`, *label
 		}
 		logrus.Infof("nodeName=%s, aIf=%s, offsetInt=%d ns, roleInt=%s", *nodeName, aIf, offsetInt, MetricRole(roleInt))
 		if MetricRole(roleInt) != MetricRoleSlave {
-			return fmt.Errorf("incorrect role")
+			return fmt.Errorf("incorrect metric role: expecting %s found %s", MetricRoleSlave.String(), MetricRole(roleInt).String())
 		}
 		if offsetInt > MaxOffsetNs || offsetInt < MinOffsetNs {
 			return fmt.Errorf("incorrect offset %d > %d", offsetInt, MaxOffsetNs)
