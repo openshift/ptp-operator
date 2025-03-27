@@ -543,7 +543,8 @@ func initAndSolveProblems() {
 		{{int(solver.StepSameLan2), 2, 5, 6}, // step7
 			{int(solver.StepDifferentNic), 2, 0, 3},  // downstream slaves and grandmaster must be on different nics
 			{int(solver.StepDifferentNic), 2, 6, 3},  // downstream slaves and grandmaster must be on different nics
-			{int(solver.StepDifferentNic), 2, 2, 4}}, // dual nic BC uses 2 different NICs
+			{int(solver.StepDifferentNic), 2, 2, 4},  // dual nic BC uses 2 different NICs
+			{int(solver.StepDifferentNic), 2, 0, 6}}, // Downstream slaves use different nics to not share same clock
 	}
 	data.problems[AlgoOCExtGMString] = &[][][]int{
 		{{int(solver.StepIsPTP), 1, 0}}, // step1
