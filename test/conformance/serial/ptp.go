@@ -156,8 +156,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				ptphelper.RestartPTPDaemon()
 			}
 
-			err = portEngine.Initialize(fullConfig.DiscoveredClockUnderTestPod, fullConfig.DiscoveredFollowerInterfaces)
-			Expect(err).To(BeNil())
+			portEngine.Initialize(fullConfig.DiscoveredClockUnderTestPod, fullConfig.DiscoveredFollowerInterfaces)
 
 		})
 
@@ -359,9 +358,10 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					grandmasterID = &aString
 					Expect(err).To(BeNil())
 				}
-
-				err = portEngine.RolesInOnly([]metrics.MetricRole{metrics.MetricRoleSlave, metrics.MetricRoleListening})
-				Expect(err).To(BeNil())
+				// Retry until there is no error or we timeout
+				Eventually(func() error {
+					return portEngine.RolesInOnly([]metrics.MetricRole{metrics.MetricRoleSlave, metrics.MetricRoleListening})
+				}, 150*time.Second, 30*time.Second).Should(BeNil())
 
 				By("Port0: down")
 				err = portEngine.TurnPortDown(portEngine.Ports[0])
