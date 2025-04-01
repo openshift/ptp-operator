@@ -43,14 +43,16 @@ const (
 	MetricRoleMaster
 	MetricRoleFaulty
 	MetricRoleUnknown
+	MetricRoleListening
 )
 
 const (
-	MetricRolePassiveString = "PASSIVE"
-	MetricRoleSlaveString   = "SLAVE"
-	MetricRoleMasterString  = "MASTER"
-	MetricRoleFaultyString  = "FAULTY"
-	MetricRoleUnknownString = "UNKNOWN"
+	MetricRolePassiveString   = "PASSIVE"
+	MetricRoleSlaveString     = "SLAVE"
+	MetricRoleMasterString    = "MASTER"
+	MetricRoleFaultyString    = "FAULTY"
+	MetricRoleUnknownString   = "UNKNOWN"
+	MetricRoleListeningString = "LISTENING"
 )
 
 // Stringer for MetricRole
@@ -66,6 +68,8 @@ func (role MetricRole) String() string {
 		return MetricRoleFaultyString
 	case MetricRoleUnknown:
 		return MetricRoleUnknownString
+	case MetricRoleListening:
+		return MetricRoleListeningString
 	default:
 		return ""
 	}
@@ -129,20 +133,44 @@ func CheckClockState(state MetricClockState, aIf string, nodeName *string) (err 
 }
 
 // This method checks the state of the clock with specified interface
-func CheckClockRole(role MetricRole, aIf string, nodeName *string) (err error) {
+func CheckClockRole(roles []MetricRole, Ifs []string, nodeName *string) (err error) {
+	if len(roles) != len(Ifs) {
+		return fmt.Errorf("len(roles) != len(Ifs)")
+	}
+	for index := range Ifs {
 
-	roleString, err := getMetric(*nodeName, aIf, OpenshiftPtpInterfaceRole)
-	if err != nil {
-		return fmt.Errorf("error getting role err:%s", err)
-	}
-	roleInt, err := strconv.Atoi(roleString)
-	if err != nil {
-		return fmt.Errorf("error strconv for roleString=%s, err:%s", roleString, err)
-	}
-	if MetricRole(roleInt) != role {
-		return fmt.Errorf(fmt.Sprintf("incorrect role, role expected=%d, role observed=%d(%s)", role, roleInt, roleString))
+		roleString, err := getMetric(*nodeName, Ifs[index], OpenshiftPtpInterfaceRole)
+		if err != nil {
+			return fmt.Errorf("error getting role err:%s", err)
+		}
+		roleInt, err := strconv.Atoi(roleString)
+		if err != nil {
+			return fmt.Errorf("error strconv for roleString=%s, err:%s", roleString, err)
+		}
+		if MetricRole(roleInt) != roles[index] {
+			return fmt.Errorf(fmt.Sprintf("incorrect role, role expected=%d, role observed=%d(%s)", roles[index], roleInt, roleString))
+		}
 	}
 	return nil
+}
+
+// This method checks the state of the clock with specified interface
+func GetClockIfRoles(Ifs []string, nodeName *string) (roleInt []MetricRole, err error) {
+
+	for index := range Ifs {
+
+		roleString, err := getMetric(*nodeName, Ifs[index], OpenshiftPtpInterfaceRole)
+		if err != nil {
+			return roleInt, fmt.Errorf("error getting role err:%s", err)
+		}
+		var tempInt int
+		tempInt, err = strconv.Atoi(roleString)
+		if err != nil {
+			return roleInt, fmt.Errorf("error strconv for roleString=%s, err:%s", roleString, err)
+		}
+		roleInt = append(roleInt, MetricRole(tempInt))
+	}
+	return roleInt, nil
 }
 
 // gets a metric value string for a given node and interface
@@ -171,6 +199,9 @@ func getMetric(nodeName, aIf, metricName string) (metric string, err error) {
 		if metricName == OpenshiftPtpOffsetNs {
 			aIf = aIf[:len(aIf)-1] + "x"
 			regex = metricName + `{` + fromMaster + `iface="` + aIf + `",node="` + ptpPods.Items[index].Spec.NodeName + `",process="ptp4l"} (-*[0-9]*)`
+		} else if metricName == OpenshiftPtpClockState {
+			aIf = aIf[:len(aIf)-1] + "x"
+			regex = metricName + `{iface="` + aIf + `",node="` + ptpPods.Items[index].Spec.NodeName + `",process="ptp4l"} (-*[0-9]*)`
 		} else {
 			regex = metricName + `{iface="` + aIf + `",node="` + ptpPods.Items[index].Spec.NodeName + `",process="ptp4l"} (-*[0-9]*)`
 		}
@@ -207,7 +238,7 @@ func getNode(label string) (nodeName string, err error) {
 // Checks the accuracy of the clock defined by the ptpconfig passsed as a parameter:
 // - checks the ptp offset to be less than MaxOffsetDefaultNs or any value passed by the user
 // - check that the role of each interfaces in the ptpconfig matches the metric
-func CheckClockRoleAndOffset(ptpConfig *ptpv1.PtpConfig, label, nodeName *string) (err error) {
+func CheckClockRoleAndOffset(ptpConfig *ptpv1.PtpConfig, label, nodeName *string, expectedClockState MetricClockState, expectedClockRole MetricRole, isCheckOffset bool) (err error) {
 	if nodeName == nil {
 		var name string
 		name, err = getNode(*label)
@@ -244,33 +275,57 @@ Only this label should be used to identify the clock under test. err:%s`, *label
 	}
 	// Find the port in SLAVE state and verify metrics
 	for _, aIf := range slaveIfs {
+
+		// Check role
 		roleString, err := getMetric(*nodeName, aIf, OpenshiftPtpInterfaceRole)
 		if err != nil {
 			logrus.Errorf("error getting role err:%s", err)
 			continue
 		}
-		offsetString, err := getMetric(*nodeName, aIf, OpenshiftPtpOffsetNs)
-		if err != nil {
-			return fmt.Errorf("error getting offset err:%s", err)
-		}
 		roleInt, err := strconv.Atoi(roleString)
 		if err != nil {
 			return fmt.Errorf("error strconv for roleString=%s, err:%s", roleString, err)
+		}
+		logrus.Infof("nodeName=%s, aIf=%s, roleInt=%s", *nodeName, aIf, MetricRole(roleInt))
+		if MetricRole(roleInt) != expectedClockRole {
+			logrus.Errorf("incorrect role, continue looking for other interfaces")
+			continue
+		}
+
+		// Check ptp clock state
+		clockStateString, err := getMetric(*nodeName, aIf, OpenshiftPtpClockState)
+		if err != nil {
+			logrus.Errorf("error getting role err:%s", err)
+			continue
+		}
+		clockStateInt, err := strconv.Atoi(clockStateString)
+		if err != nil {
+			return fmt.Errorf("error strconv for roleString=%s, err:%s", roleString, err)
+		}
+		logrus.Infof("nodeName=%s, aIf=%s, clockStateInt=%s expectedClockstate=%s", *nodeName, aIf, MetricClockState(clockStateInt), expectedClockState)
+		if MetricClockState(clockStateInt) != expectedClockState {
+			return fmt.Errorf("incorrect clock state")
+		}
+
+		// Check offset
+		if !isCheckOffset {
+			return nil
+		}
+		offsetString, err := getMetric(*nodeName, aIf, OpenshiftPtpOffsetNs)
+		if err != nil {
+			return fmt.Errorf("error getting offset err:%s", err)
 		}
 		offsetInt, err := strconv.Atoi(offsetString)
 		if err != nil {
 			return fmt.Errorf("error strconv for offsetString=%s, err:%s", offsetString, err)
 		}
-		logrus.Infof("nodeName=%s, aIf=%s, offsetInt=%d ns, roleInt=%s", *nodeName, aIf, offsetInt, MetricRole(roleInt))
-		if MetricRole(roleInt) != MetricRoleSlave {
-			return fmt.Errorf("incorrect metric role: expecting %s found %s", MetricRoleSlave.String(), MetricRole(roleInt).String())
-		}
 		if offsetInt > MaxOffsetNs || offsetInt < MinOffsetNs {
-			return fmt.Errorf("incorrect offset %d > %d", offsetInt, MaxOffsetNs)
+			return fmt.Errorf("incorrect offset %d ns > %d ns", offsetInt, MaxOffsetNs)
 		}
+		logrus.Infof("Clock sync offset withing expected range min=%d ns < %d ns < max=%d ns", MinOffsetNs, offsetInt, MaxOffsetNs)
 		return nil
 	}
-	return fmt.Errorf("error finding a Follower port in the SLAVE state")
+	return fmt.Errorf("error finding a Follower port in the expected %s state", expectedClockState)
 }
 
 // gets the user configured maximum offset in nanoseconds
