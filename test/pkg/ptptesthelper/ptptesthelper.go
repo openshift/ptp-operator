@@ -484,7 +484,7 @@ func (p *PortEngine) CheckClockRole(port0, port1 string, role0, role1 metrics.Me
 	return err
 }
 
-func (p *PortEngine) Initialize(aClockPod *corev1.Pod, aPorts []string) (err error) {
+func (p *PortEngine) Initialize(aClockPod *corev1.Pod, aPorts []string) {
 	p.Ports = aPorts
 
 	// Get the pod from ptp test daemonset set on the slave node
@@ -502,8 +502,10 @@ func (p *PortEngine) Initialize(aClockPod *corev1.Pod, aPorts []string) (err err
 	Expect(isOutageRecoveryPodFound).To(BeTrue())
 	logrus.Infof("Test pod name is %s", p.ClockPod.Name)
 
-	err = p.SetInitialRoles()
-	return err
+	// Retry until there is no error or we timeout
+	Eventually(func() error {
+		return p.SetInitialRoles()
+	}, 150*time.Second, 30*time.Second).Should(BeNil())
 }
 
 func (p *PortEngine) RolesInOnly(roles []metrics.MetricRole) (err error) {
