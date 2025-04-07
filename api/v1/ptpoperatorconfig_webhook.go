@@ -48,8 +48,19 @@ func (r *PtpOperatorConfig) validate() error {
 	}
 
 	if r.Spec.EventConfig != nil && r.Spec.EventConfig.EnableEventPublisher {
-		if r.Spec.EventConfig.ApiVersion != "" && !isValidVersion(r.Spec.EventConfig.ApiVersion) {
-			return errors.New("ptpEventConfig.apiVersion=" + r.Spec.EventConfig.ApiVersion + " is not a valid version. Example of valid versions: \"1.0\", \"2.0\"")
+		if r.Spec.EventConfig.ApiVersion != "" {
+			if !isValidVersion(r.Spec.EventConfig.ApiVersion) {
+				return errors.New("ptpEventConfig.apiVersion=" +
+					r.Spec.EventConfig.ApiVersion +
+					" is not a valid version. Valid versions are \"1.0\" and " +
+					"\"2.0\". \"2.0\" is highly recommended since v1 will be " +
+					"deprecated in version 4.19 (EOL).")
+			}
+			if r.Spec.EventConfig.ApiVersion == "1.0" {
+				ptpoperatorconfiglog.Info("v1 will be deprecated in version 4.19 " +
+					"(EOL). Please ensure you upgrade your consumer to v2 and set the " +
+					"API version accordingly before 4.19.")
+			}
 		}
 	}
 
