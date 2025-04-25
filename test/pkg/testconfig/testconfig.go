@@ -183,7 +183,6 @@ const BasePtp4lConfig = `[global]
 twoStepFlag 1
 domainNumber 24
 #utc_offset 37
-clockClass 6
 clockAccuracy 0xFE
 offsetScaledLogVariance 0xFFFF
 free_running 0
@@ -445,8 +444,11 @@ func CreatePtpConfigurations() error {
 	// Initialize l2 library
 	l2lib.GlobalL2DiscoveryConfig.SetL2Client(client.Client, client.Client.Config)
 
+	// if USE_CONTAINER_CMDS environment variable is present, use container commands (lspci, ethtool, ...)
+	_, useContainerCmds := os.LookupEnv("USE_CONTAINER_CMDS")
+
 	// Collect L2 info
-	config, err := l2lib.GlobalL2DiscoveryConfig.GetL2DiscoveryConfig(true, false, L2_DISCOVERY_IMAGE)
+	config, err := l2lib.GlobalL2DiscoveryConfig.GetL2DiscoveryConfig(true, false, useContainerCmds, L2_DISCOVERY_IMAGE)
 	if err != nil {
 		return fmt.Errorf("Getting L2 discovery info failed with err=%s", err)
 	}
@@ -492,7 +494,9 @@ func initAndSolveProblems() {
 	data.testClockRolesAlgoMapping = make(map[string]*[]int)
 
 	// initialize problems
-	// each step should add 1 new port
+	// The number of step must be equal to the number of interfaces (e.g. p0, p1, ...)
+	// TODO: add the number of interface separately in the solver to dimension the results slice independently from
+	// the number of constraints.
 	data.problems[AlgoOCString] = &[][][]int{
 		{{int(solver.StepNil), 0, 0}},         // step1
 		{{int(solver.StepSameLan2), 2, 0, 1}}, // step2
@@ -582,8 +586,8 @@ func initAndSolveProblems() {
 		{{int(solver.StepSameNic), 2, 4, 5}}, // step5
 		{{int(solver.StepSameLan2), 2, 5, 6}, // step6
 			{int(solver.StepDifferentNic), 2, 0, 3},  // downstream slaves and grandmaster must be on different nics
-			{int(solver.StepDifferentNic), 2, 6, 3},  // downstream slaves and grandmaster must be on different nics
-			{int(solver.StepDifferentNic), 2, 2, 4}}, // dual nic BC uses 2 different NICs
+			{int(solver.StepDifferentNic), 2, 6, 3}}, // downstream slaves and grandmaster must be on different nics
+		{{int(solver.StepDifferentNic), 2, 2, 4}}, // step 7 dual nic BC uses 2 different NICs
 	}
 	// Initializing Solution decoding and mapping
 	// allocating all slices
@@ -1433,6 +1437,13 @@ func createConfig(profileName string, ifaceName, ptp4lOpts *string, ptp4lConfig 
 	}
 	thresholds.MaxOffsetThreshold = int64(testParameters.GlobalConfig.MaxOffset)
 	thresholds.MinOffsetThreshold = int64(testParameters.GlobalConfig.MinOffset)
+	thresholds.HoldOverTimeout = int64(testParameters.GlobalConfig.HoldOverTimeout)
+
+	if testParameters.GlobalConfig.DisableAllSlaveRTUpdate && nodeLabel != pkg.PtpGrandmasterNodeLabel && phc2sysOpts != nil {
+		temp := "-v"
+		phc2sysOpts = &temp
+	}
+
 	ptpProfile := ptpv1.PtpProfile{Name: &profileName, Interface: ifaceName, Phc2sysOpts: phc2sysOpts, Ptp4lOpts: ptp4lOpts, PtpSchedulingPolicy: &ptpSchedulingPolicy, PtpSchedulingPriority: ptpSchedulingPriority,
 		PtpClockThreshold: &thresholds}
 	if ptp4lConfig != "" {

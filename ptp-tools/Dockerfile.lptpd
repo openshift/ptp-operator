@@ -1,0 +1,14 @@
+FROM docker.io/golang:1.23.5 AS builder
+WORKDIR /go/src/github.com/k8snetworkplumbingwg/linuxptp-daemon
+ENV GOMAXPROCS=16
+
+RUN git clone -b main https://github.com/k8snetworkplumbingwg/linuxptp-daemon.git  /go/src/github.com/k8snetworkplumbingwg/linuxptp-daemon
+
+RUN make clean && make -j 16
+
+FROM quay.io/deliedit/test:lptpd-base
+
+
+COPY --from=builder /go/src/github.com/k8snetworkplumbingwg/linuxptp-daemon/bin/ptp /usr/local/bin/
+
+CMD ["/usr/local/bin/ptp"]
