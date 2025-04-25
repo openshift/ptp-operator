@@ -28,5 +28,6 @@ jobs:
         
       - name: Run fmt
         run: make fmt 
-      
-      
+
+      - name: Bundle check
+        run: make bundle-check

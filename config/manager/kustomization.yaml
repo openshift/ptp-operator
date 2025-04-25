@@ -13,6 +13,6 @@ kind: Kustomization
 images:
 - name: controller
   newName: ghcr.io/k8snetworkplumbingwg/ptp-operator
-  newTag: latest
+  newTag: "4.19"
 patchesStrategicMerge:
 - env.yaml

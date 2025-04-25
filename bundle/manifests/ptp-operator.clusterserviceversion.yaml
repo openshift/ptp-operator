@@ -379,7 +379,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.name
-                image: quay.io/openshift/origin-ptp-operator:4.19
+                image: ghcr.io/k8snetworkplumbingwg/ptp-operator:4.19
                 imagePullPolicy: IfNotPresent
                 name: ptp-operator
                 ports:
