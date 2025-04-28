@@ -84,7 +84,9 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-parallel]", func() 
 		AfterEach(func() {
 			// closing internal pubsub
 			if ptphelper.PtpEventEnabled() != 0 {
-				event.PubSub.Close()
+				if event.PubSub != nil {
+					event.PubSub.Close()
+				}
 			}
 		})
 	})
@@ -135,7 +137,9 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-parallel]", func() 
 			})
 			// closing internal pubsub
 			if ptphelper.PtpEventEnabled() != 0 {
-				event.PubSub.Close()
+				if event.PubSub != nil {
+					event.PubSub.Close()
+				}
 			}
 			// reset to v2
 			ptphelper.EnablePTPEvent("2.0", fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName)
@@ -186,7 +190,8 @@ func testPtpSlaveClockSync(fullConfig testconfig.TestConfig, testParameters *ptp
 func testPtpCpuUtilization(fullConfig testconfig.TestConfig, testParameters *ptptestconfig.PtpTestConfig) {
 	const (
 		minimumFailureThreshold  = 1
-		cpuUsageCheckingInterval = 1 * time.Minute
+		cpuUsageCheckingInterval = pkg.TimeoutIn1Minute
+		prometheusQueryRetries   = 3
 	)
 
 	logrus.Infof("CPU Utilization TC Config: %+v", testParameters.SoakTestConfig.CpuUtilization)
@@ -201,7 +206,6 @@ func testPtpCpuUtilization(fullConfig testconfig.TestConfig, testParameters *ptp
 		return
 	}
 
-	// Set failureThresold limit number.
 	failureThreshold := minimumFailureThreshold
 	if params.CpuTestSpec.FailureThreshold > minimumFailureThreshold {
 		failureThreshold = params.CpuTestSpec.FailureThreshold
@@ -214,32 +218,27 @@ func testPtpCpuUtilization(fullConfig testconfig.TestConfig, testParameters *ptp
 	Expect(err).To(BeNil(), "failed to get ptp pods per node")
 
 	prometheusRateTimeWindow, err := params.PromRateTimeWindow()
-	Expect(err).To(BeNil(), "Invalid prometheus time window for prometheus' rate function.")
+	Expect(err).To(BeNil(), "Invalid prometheus time window.")
 
 	cadvisorScrapeInterval, err := metrics.GetCadvisorScrapeInterval()
-	Expect(err).To(BeNil(), "failed to get cadvisor's prometheus scrape interval")
+	Expect(err).To(BeNil(), "failed to get cadvisor's scrape interval")
 
 	logrus.Infof("Configured rate timeWindow: %s, cadvisor scrape interval: %d secs.", prometheusRateTimeWindow, cadvisorScrapeInterval)
-	// Make sure the configured time interval for prometheus's rate() func is at least twice
-	// the current scrape interval for the kubelet's cadvisor endpoint. Otherwise, rate() will
-	// never get the minimum samples number (2) to work.
+
 	if int(prometheusRateTimeWindow.Seconds()) < 2*cadvisorScrapeInterval {
-		// add extra 10 seconds as a safeguard
 		timeAdjusted := fmt.Sprintf("%ds", 2*cadvisorScrapeInterval+10)
-		logrus.Infof("configured time window (%s) is lower than twice the cadvisor scraping interval (%d secs). Adjusted to (%s).",
-			prometheusRateTimeWindow, cadvisorScrapeInterval, timeAdjusted)
+		logrus.Infof("Configured window too small, adjusted to %s.", timeAdjusted)
 		prometheusRateTimeWindow, _ = time.ParseDuration(timeAdjusted)
 	}
 
-	// Warmup: waiting until prometheus can scrape a couple of cpu samples from ptp pods.
+	// Warmup: wait for Prometheus to have enough samples
+	logrus.Infof("Warming up for %s", prometheusRateTimeWindow)
 	time.Sleep(prometheusRateTimeWindow)
 
-	// Create timer channel for test case timeout.
 	testCaseDuration := time.Duration(params.CpuTestSpec.Duration) * time.Minute
 	tcEndChan := time.After(testCaseDuration)
-
-	// Create ticker for cpu usage checker function.
 	cpuUsageCheckTicker := time.NewTicker(cpuUsageCheckingInterval)
+	defer cpuUsageCheckTicker.Stop()
 
 	logrus.Infof("Running test for %s (failure threshold: %d)", testCaseDuration.String(), failureThreshold)
 
@@ -247,22 +246,30 @@ func testPtpCpuUtilization(fullConfig testconfig.TestConfig, testParameters *ptp
 	for {
 		select {
 		case <-tcEndChan:
-			// TC ended: report & return.
-			logrus.Infof("CPU utilization threshold reached %d times.", failureCounter)
+			logrus.Infof("Test completed: CPU utilization threshold was reached %d times.", failureCounter)
 			return
 		case <-cpuUsageCheckTicker.C:
-			logrus.Infof("Retrieving cpu usage of the ptp pods.")
+			logrus.Infof("Checking CPU usage of ptp pods...")
+			thresholdReached, queryErr := RetryCpuUsageCheck(
+				prometheusPod,
+				ptpPodsPerNode,
+				&params,
+				prometheusRateTimeWindow,
+				prometheusQueryRetries,
+				pkg.Timeout10Seconds,
+			)
+			Expect(queryErr).To(BeNil(), "Failed to get a valid response from prometheus after retries")
 
-			thresholdReached, err := isCpuUsageThresholdReachedInPtpPods(prometheusPod, ptpPodsPerNode, &params, prometheusRateTimeWindow)
 			logrus.Infof("Cpu usage threshold reached: %v", thresholdReached)
-			if err != nil {
-				logrus.Warnf("failed to get cpu usage, %v", err)
-				Skip("failed to get a valid response from prometheus")
-			}
 			if thresholdReached {
 				failureCounter++
-				Expect(failureCounter).To(BeNumerically("<", failureThreshold),
-					fmt.Sprintf("Failure threshold (%d) reached", failureThreshold))
+				if failureCounter >= failureThreshold {
+					logrus.Errorf("CPU usage failure threshold reached (%d failures)", failureCounter)
+					Fail(fmt.Sprintf("CPU usage failure threshold exceeded: %d failures", failureCounter))
+				} else {
+					logrus.Infof("Test completed successfully: CPU usage threshold was within limit (%d failures)", failureCounter)
+				}
+				return
 			}
 		}
 	}
@@ -417,4 +424,22 @@ func testSyncState(soakTestConfig ptptestconfig.SoakTestConfig, fullConfig testc
 			}
 		}
 	}
+}
+
+func RetryCpuUsageCheck(prometheusPod *v1core.Pod, ptpPodsPerNode map[string][]*v1core.Pod, params *ptptestconfig.CpuUtilization, rateTimeWindow time.Duration, retries int, retryInterval time.Duration) (bool, error) {
+	var (
+		thresholdReached bool
+		queryErr         error
+	)
+
+	for attempt := 1; attempt <= retries; attempt++ {
+		thresholdReached, queryErr = isCpuUsageThresholdReachedInPtpPods(prometheusPod, ptpPodsPerNode, params, rateTimeWindow)
+		if queryErr == nil {
+			return thresholdReached, nil
+		}
+		logrus.Warnf("Attempt %d: failed to get CPU usage: %v", attempt, queryErr)
+		time.Sleep(retryInterval)
+	}
+
+	return thresholdReached, fmt.Errorf("CPU usage query failed after %d attempts: %w", retries, queryErr)
 }
