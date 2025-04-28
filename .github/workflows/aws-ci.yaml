@@ -1,0 +1,68 @@
+name: CI tests AWS
+
+on:
+    workflow_dispatch:
+
+jobs:
+  deploy-ec2:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+            aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            aws-region: us-east-1
+
+      - name: Launch EC2 instance
+        id: launch
+        run: |
+          INSTANCE_ID=$(aws ec2 run-instances \
+            --image-id ${{ secrets.IMAGE_ID }} \
+            --instance-type m6a.xlarge \
+            --key-name ${{ secrets.KEY_NAME }} \
+            --security-group-ids ${{ secrets.SECURITY_GROUP }} \
+            --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=ptp-operator PR-${{ github.event.number }}}]' \
+            --query 'Instances[0].InstanceId' \
+            --output text)
+
+          echo "instance_id=$INSTANCE_ID" >> $GITHUB_ENV
+
+      - name: Wait for instance and get public IP
+        id: wait
+        run: |
+          aws ec2 wait instance-running --instance-ids $instance_id
+          PUBLIC_IP=$(aws ec2 describe-instances \
+            --instance-ids $instance_id \
+            --query 'Reservations[0].Instances[0].PublicIpAddress' \
+            --output text)
+          echo "public_ip=$PUBLIC_IP" >> $GITHUB_ENV
+          PRIVATE_IP=$(aws ec2 describe-instances \
+            --instance-ids $instance_id \
+            --query 'Reservations[0].Instances[0].PrivateIpAddress' \
+            --output text)
+          echo "private_ip=$PRIVATE_IP" >> $GITHUB_ENV
+
+
+      - name: Run test script
+        run: |
+            echo "VM IP is $public_ip"
+            eval "$(ssh-agent -s)"
+            echo "${{ secrets.SSH_KEY }}"| ssh-add -
+            ./scripts/retry.sh 60 5 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null fedora@"$public_ip" uptime
+            rsync -r -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" ../private-ptp-operator fedora@"$public_ip":~/.
+            ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null fedora@"$public_ip" sudo ./private-ptp-operator/scripts/run-on-vm.sh "$private_ip"
+
+      - name: Cleanup - Delete EC2 instance
+        if: always()  # Ensure cleanup runs even if previous steps fail
+        run: |
+            echo "Cleaning up EC2 INSTANCE_ID=$instance_id"
+            aws ec2 terminate-instances --instance-ids $instance_id
+
+      - name: Notify cleanup complete
+        run: echo "Cleanup task completed."
