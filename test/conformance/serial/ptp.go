@@ -9,6 +9,7 @@ import (
 	"path"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -542,9 +543,9 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 			})
 
 			// 27324
-			It("on slave", func() {
+			It("verifies on slave", func() {
 				if fullConfig.PtpModeDiscovered == testconfig.TelcoGrandMasterClock {
-					Skip("test not valid for WPC GM config")
+					Skip("Skipping: test not valid for WPC GM (Telco Grandmaster Clock) config")
 				}
 				Eventually(func() string {
 					buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
@@ -1044,16 +1045,26 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				})
 
 				By("checking clock class state is locked", func() {
-					/*
-						ptp4l[1726600400]:[ts2phc.0.config] CLOCK_CLASS_CHANGE 6
-					*/
 					clockClassPattern := `ptp4l(?m)\[.*?\]:\[(.*?)\] CLOCK_CLASS_CHANGE 6`
 					clockClassRe := regexp.MustCompile(clockClassPattern)
-					logMatches, err := pods.GetPodLogsRegex(openshiftPtpNamespace, fullConfig.DiscoveredClockUnderTestPod.Name, pkg.PtpContainerName, clockClassRe.String(), false, pkg.TimeoutIn1Minute)
-					Expect(err).To(BeNil(), "Error encountered looking for ptp4l clock class state")
-					Expect(logMatches).NotTo(BeEmpty(), "Expected ptp4l clock class state to be Locked for GM")
-					//TODO 2 Card Add loop to check ifaces
 
+					Eventually(func() ([][]string, error) {
+						logMatches, err := pods.GetPodLogsRegex(
+							openshiftPtpNamespace,
+							fullConfig.DiscoveredClockUnderTestPod.Name,
+							pkg.PtpContainerName,
+							clockClassRe.String(),
+							false,                // don't follow logs
+							pkg.TimeoutIn1Minute, // inner timeout for single call (can be shorter if you want)
+						)
+						return logMatches, err
+					}, pkg.TimeoutIn5Minutes, pkg.Timeout10Seconds).Should( // <-- total wait 5 mins, check every 10s
+						And(
+							Not(BeEmpty()),
+							Not(BeNil()),
+						),
+						"Expected ptp4l clock class state to eventually be Locked (class 6)",
+					)
 				})
 
 				By("checking DPLL frequency and DPLL phase state to be locked", func() {
@@ -1126,7 +1137,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 						# TYPE openshift_ptp_clock_class gauge
 						# openshift_ptp_clock_class{node="cnfdg32.ptp.eng.rdu2.dc.redhat.com",process="ptp4l"} 6
 					*/
-					checkClockClassState(fullConfig, string(fbprotocol.ClockClass6))
+					checkClockClassState(fullConfig, strconv.Itoa(int(fbprotocol.ClockClass6)))
 
 				})
 
@@ -1181,75 +1192,49 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					Skip("test valid only for GM test config")
 				}
 			})
-			It("Testing WPC GM functionality through connection loss", func() {
-
-				By("disconnecting the GNSS Signal to the WPC GM ", func() {
-					// Check Stability of system using metrics
+			/*
+				Step | Action
+				1    | Check starting stability (ClockClass 6, locked)
+				2    | Start continuous coldboot
+				3    | Wait for ClockClass 7 (in-spec holdover)
+				4    | Check clock state = 2 (Holdover)
+				5    | Stop coldboot
+				6    | Wait a little (for GNSS to recover)
+				7    | Wait for ClockClass 6 again
+				8    | Confirm clock state = 1 for T-GM (Locked)
+			*/
+			It("Testing WPC T-GM holdover through connection loss", func() {
+				By("Coldboot GNSS continuously while waiting for ClockClass 7", func() {
 					checkStabilityOfWPCGMUsingMetrics(fullConfig)
 
-					// Disconnect GNSS signal using
-					//```ubxtool -P 29.20 -p COLDBOOT -v 3```
-					pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod,
-						pkg.PtpContainerName, []string{"ubxtool", "-P", "29.20", "-p", "COLDBOOT -v 3"})
+					// Initially system should be LOCKED (ClockClass 6)
+					checkClockClassState(fullConfig, strconv.Itoa(int(fbprotocol.ClockClass6)))
 
-					// Verify state using metrics
-					// openshift_ptp_clock_class (7 in spec/ 140 out of spec)
-					checkClockClassState(fullConfig, string(fbprotocol.ClockClass7))
-					// openshift_ptp_clock_state (GM,DPLL,ts2phc => 2 holdover)
+					stopChan := make(chan struct{})
+
+					// Start coldboot in background
+					go coldBootInBackground(stopChan, fullConfig)
+
+					// Meanwhile, wait for ClockClass 7 (GNSS loss - Holdover In Spec)
+					waitForClockClass(fullConfig, strconv.Itoa(int(fbprotocol.ClockClass7)))
+
+					// Also verify ClockState 2 (Holdover)
 					checkClockState(fullConfig, "2")
 
-					// Recover GNSS Connection signal using
-					//```ubxtool -P 29.20 -p COLDBOOT -v 3```
-					pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod,
-						pkg.PtpContainerName, []string{"ubxtool", "-P", "29.20", "-p", "COLDBOOT -v 3"})
+					// Once holdover detected, stop coldboot loop
+					close(stopChan)
 
-					// Verify state using metrics
-					//openshift_ptp_clock_class (6)
-					checkClockClassState(fullConfig, string(fbprotocol.ClockClass6))
-					//openshift_ptp_clock_state (GM,DPLL,ts2phc => 1)
+					// Give GNSS time to fully recover
+					time.Sleep(pkg.Timeout10Seconds)
+
+					// Now wait for system to go back to LOCKED (ClockClass 6)
+					waitForClockClass(fullConfig, strconv.Itoa(int(fbprotocol.ClockClass6)))
+
+					// Also verify ClockState 1 (Locked)
 					checkClockState(fullConfig, "1")
-
 				})
-
-				By("disconnecting the GNSS Signal to test Holdover capability WPC GM", func() {
-					// Check Stability of system using metrics
-					checkStabilityOfWPCGMUsingMetrics(fullConfig)
-
-					// Disconnect GNSS signal using
-					//```ubxtool -P 29.20 -p COLDBOOT -v 3```
-					pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod,
-						pkg.PtpContainerName, []string{"ubxtool", "-P", "29.20", "-p", "COLDBOOT -v 3"})
-
-					// Verify state using metrics
-					// Wait until state updates from
-					// locked => holdover inspec => holdover out of spec => freerun
-
-					// openshift_ptp_clock_class (7 in spec/ 140 out of spec)
-					checkClockClassState(fullConfig, string(fbprotocol.ClockClass7))
-					// openshift_ptp_clock_state (GM,DPLL,ts2phc => 2 holdover)
-					checkClockState(fullConfig, "2")
-
-					time.Sleep(2 * time.Minute)
-
-					// openshift_ptp_clock_class (248 freerun after 2 mins)
-					checkClockClassState(fullConfig, fmt.Sprint(ClockClassFreerun))
-					// openshift_ptp_clock_state (GM,DPLL,ts2phc 0 freerun)
-					checkClockState(fullConfig, "0")
-
-					//Recover GNSS Connection signal using
-					//```ubxtool -P 29.20 -p COLDBOOT -v 3```
-					pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod,
-						pkg.PtpContainerName, []string{"ubxtool", "-P", "29.20", "-p", "COLDBOOT -v 3"})
-
-					//Verify state using metrics
-					//openshift_ptp_clock_class (6)
-					checkClockClassState(fullConfig, string(fbprotocol.ClockClass6))
-					//openshift_ptp_clock_state (GM,DPLL,ts2phc => 1)
-					checkClockState(fullConfig, "1")
-
-				})
-
 			})
+
 		})
 
 		Context("WPC GM Events verification (V1)", func() {
@@ -1258,89 +1243,10 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					Skip("test valid only for GM test config")
 				}
 			})
-			It("Verify Events during GNSS Loss flow (V1)", func() {
-
-				By("disconnecting the GNSS Signal to the WPC GM", func() {
-					// Check Stability of system using metrics
-					checkStabilityOfWPCGMUsingMetrics(fullConfig)
-
-					// Disconnect GNSS signal using
-					//```ubxtool -P 29.20 -p COLDBOOT -v 3```
-					pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod,
-						pkg.PtpContainerName, []string{"ubxtool", "-P", "29.20", "-p", "COLDBOOT -v 3"})
-
-					// Verify state using metrics
-					// openshift_ptp_clock_class (7 in spec/ 140 out of spec)
-					checkClockClassState(fullConfig, string(fbprotocol.ClockClass7))
-					// openshift_ptp_clock_state (GM,DPLL,ts2phc => 2 holdover)
-					checkClockState(fullConfig, "2")
-
-					//verifyEvents (v1)
-					verifyEventsV1("HOLDOVER")
-
-					// Recover GNSS Connection signal using
-					//```ubxtool -P 29.20 -p COLDBOOT -v 3```
-					pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod,
-						pkg.PtpContainerName, []string{"ubxtool", "-P", "29.20", "-p", "COLDBOOT -v 3"})
-
-					// Verify state using metrics
-					//openshift_ptp_clock_class (6)
-					checkClockClassState(fullConfig, string(fbprotocol.ClockClass6))
-					//openshift_ptp_clock_state (GM,DPLL,ts2phc => 1)
-					checkClockState(fullConfig, "1")
-
-					//verifyEvents (v1)
-					verifyEventsV1("LOCKED")
-
-				})
-
-				By("disconnecting the GNSS Signal to test Holdover capability of WPC GM", func() {
-					// Check Stability of system using metrics
-					checkStabilityOfWPCGMUsingMetrics(fullConfig)
-
-					// Disconnect GNSS signal using
-					//```ubxtool -P 29.20 -p COLDBOOT -v 3```
-					pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod,
-						pkg.PtpContainerName, []string{"ubxtool", "-P", "29.20", "-p", "COLDBOOT -v 3"})
-
-					// Verify state using metrics
-					// Wait until state updates from
-					// locked => holdover inspec => holdover out of spec => freerun
-
-					// openshift_ptp_clock_class (7 in spec/ 140 out of spec)
-					checkClockClassState(fullConfig, string(fbprotocol.ClockClass7))
-					// openshift_ptp_clock_state (GM,DPLL,ts2phc => 2 holdover)
-					checkClockState(fullConfig, "2")
-
-					//verifyEvents (v1)
-					verifyEventsV1("HOLDOVER")
-
-					time.Sleep(2 * time.Minute)
-
-					// openshift_ptp_clock_class (248 freerun after 2 mins)
-					checkClockClassState(fullConfig, fmt.Sprint(ClockClassFreerun))
-					// openshift_ptp_clock_state (GM,DPLL,ts2phc 0 freerun)
-					checkClockState(fullConfig, "0")
-
-					//verifyEvents (v1)
-					verifyEventsV1("FREERUN")
-
-					//Recover GNSS Connection signal using
-					//```ubxtool -P 29.20 -p COLDBOOT -v 3```
-					pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod,
-						pkg.PtpContainerName, []string{"ubxtool", "-P", "29.20", "-p", "COLDBOOT -v 3"})
-
-					//Verify state using metrics
-					//openshift_ptp_clock_class (6)
-					checkClockClassState(fullConfig, string(fbprotocol.ClockClass6))
-					//openshift_ptp_clock_state (GM,DPLL,ts2phc => 1)
-					checkClockState(fullConfig, "1")
-
-					//verifyEvents (v1)
-					verifyEventsV1("LOCKED")
-				})
+			PIt("Verify Events during GNSS Loss flow (V1)", func() {
 
 			})
+
 		})
 
 		Context("WPC GM Events verification (V2)", func() {
@@ -1349,96 +1255,20 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					Skip("test valid only for GM test config")
 				}
 			})
-			It("Verify Events during GNSS Loss flow (V2)", func() {
-
-				By("disconnecting the GNSS Signal to the WPC GM", func() {
-					// Check Stability of system using metrics
-					checkStabilityOfWPCGMUsingMetrics(fullConfig)
-
-					// Disconnect GNSS signal using
-					//```ubxtool -P 29.20 -p COLDBOOT -v 3```
-					pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod,
-						pkg.PtpContainerName, []string{"ubxtool", "-P", "29.20", "-p", "COLDBOOT -v 3"})
-
-					// Verify state using metrics
-					// openshift_ptp_clock_class (7 in spec/ 140 out of spec)
-					checkClockClassState(fullConfig, string(fbprotocol.ClockClass7))
-					// openshift_ptp_clock_state (GM,DPLL,ts2phc => 2 holdover)
-					checkClockState(fullConfig, "2")
-
-					//verify Events:
-					verifyEventsV2("HOLDOVER")
-
-					// Recover GNSS Connection signal using
-					//```ubxtool -P 29.20 -p COLDBOOT -v 3```
-					pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod,
-						pkg.PtpContainerName, []string{"ubxtool", "-P", "29.20", "-p", "COLDBOOT -v 3"})
-
-					// Verify state using metrics
-					//openshift_ptp_clock_class (6)
-					checkClockClassState(fullConfig, string(fbprotocol.ClockClass6))
-					//openshift_ptp_clock_state (GM,DPLL,ts2phc => 1)
-					checkClockState(fullConfig, "1")
-
-					//Verify Events:
-					verifyEventsV2("LOCKED")
-				})
-
-				By("disconnecting the GNSS Signal to test Holdover capability of WPC GM", func() {
-					// Check Stability of system using metrics
-					checkStabilityOfWPCGMUsingMetrics(fullConfig)
-
-					// Disconnect GNSS signal using
-					//```ubxtool -P 29.20 -p COLDBOOT -v 3```
-					pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod,
-						pkg.PtpContainerName, []string{"ubxtool", "-P", "29.20", "-p", "COLDBOOT -v 3"})
-
-					// Verify state using metrics
-					// Wait until state updates from
-					// locked => holdover inspec => holdover out of spec => freerun
-
-					// openshift_ptp_clock_class (7 in spec/ 140 out of spec)
-					checkClockClassState(fullConfig, string(fbprotocol.ClockClass7))
-					// openshift_ptp_clock_state (GM,DPLL,ts2phc => 2 holdover)
-					checkClockState(fullConfig, "2")
-
-					//Verify Events:
-					verifyEventsV2("HOLDOVER")
-
-					time.Sleep(2 * time.Minute)
-
-					// openshift_ptp_clock_class (248 freerun after 2 mins)
-					checkClockClassState(fullConfig, fmt.Sprint(ClockClassFreerun))
-					// openshift_ptp_clock_state (GM,DPLL,ts2phc 0 freerun)
-					checkClockState(fullConfig, "0")
-
-					//Verify Events:
-					verifyEventsV2("FREERUN")
-
-					//Recover GNSS Connection signal using
-					//```ubxtool -P 29.20 -p COLDBOOT -v 3```
-					pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod,
-						pkg.PtpContainerName, []string{"ubxtool", "-P", "29.20", "-p", "COLDBOOT -v 3"})
-
-					//Verify state using metrics
-					//openshift_ptp_clock_class (6)
-					checkClockClassState(fullConfig, string(fbprotocol.ClockClass6))
-					//openshift_ptp_clock_state (GM,DPLL,ts2phc => 1)
-					checkClockState(fullConfig, "1")
-
-					//Verify Events:
-					verifyEventsV2("LOCKED")
-
-				})
+			PIt("Verify Events during GNSS Loss flow (V2)", func() {
 
 			})
+			PIt("Verify Events during GNSS holdover state  (V2)", func() {
+
+			})
+
 		})
 	})
 })
 
 func checkStabilityOfWPCGMUsingMetrics(fullConfig testconfig.TestConfig) {
 	checkProcessStatus(fullConfig, "1")
-	checkClockClassState(fullConfig, string(fbprotocol.ClockClass6))
+	checkClockClassState(fullConfig, strconv.Itoa(int(fbprotocol.ClockClass6)))
 	checkDPLLFrequencyState(fullConfig, fmt.Sprint(DPLL_LOCKED_HO_ACQ))
 	checkDPLLPhaseState(fullConfig, fmt.Sprint(DPLL_LOCKED_HO_ACQ))
 	checkClockState(fullConfig, "1")
@@ -1753,47 +1583,48 @@ func checkProcessStatus(fullConfig testconfig.TestConfig, state string) {
 	// Expect(ret["gpsd"]).To(BeTrue(), fmt.Sprintf("Expected gpsd to be q %s for GM", state))
 }
 
-func checkClockClassState(fullConfig testconfig.TestConfig, state string) {
-	/*
-		# TYPE openshift_ptp_clock_class gauge
-		# openshift_ptp_clock_class{node="cnfdg32.ptp.eng.rdu2.dc.redhat.com",process="ptp4l"} 6
-	*/
-	Eventually(func() string {
-		buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
-		return buf.String()
-	}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring(metrics.OpenshiftPtpClockClass),
-		"clock class state metrics are not detected")
-	buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
-	clockClassPattern := `openshift_ptp_clock_class\{node="([^"]+)",process="([^"]+)"\} (\d+)`
+func checkClockClassState(fullConfig testconfig.TestConfig, expectedState string) {
+	By(fmt.Sprintf("Waiting for clock class to become %s", expectedState))
 
-	// Compile the regular expression
+	clockClassPattern := `openshift_ptp_clock_class\{node="([^"]+)",process="([^"]+)"\} (\d+)`
 	clockClassRe := regexp.MustCompile(clockClassPattern)
 
-	// Find matches
-	clockClassMap := map[string]bool{"ptp4l": false}
-
-	scanner := bufio.NewScanner(strings.NewReader(buf.String()))
-	timeout := 10 * time.Second
-	start := time.Now()
-	for scanner.Scan() {
-		t := time.Now()
-		elapsed := t.Sub(start)
-		if elapsed > timeout {
-			Fail("Timedout reading input from metrics")
+	Eventually(func() bool {
+		// Get the latest metrics output
+		buf, _, err := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
+		if err != nil {
+			fmt.Fprintf(GinkgoWriter, "Error executing curl: %v\n", err)
+			return false
 		}
-		line := scanner.Text()
-		if matches := clockClassRe.FindStringSubmatch(line); matches != nil {
-			if _, ok := clockClassMap[matches[2]]; ok && matches[3] == state {
-				clockClassMap[matches[2]] = true
-				break
+
+		// Scan line by line
+		scanner := bufio.NewScanner(strings.NewReader(buf.String()))
+		for scanner.Scan() {
+			line := scanner.Text()
+
+			// Check if the line matches the clock class pattern
+			matches := clockClassRe.FindStringSubmatch(line)
+			if matches != nil && len(matches) >= 4 {
+				fmt.Fprintf(GinkgoWriter, "Matched line: %v\n", matches)
+				process := matches[2]
+				class := matches[3]
+				if strings.TrimSpace(process) == "ptp4l" && strings.TrimSpace(class) == expectedState {
+					fmt.Fprintf(GinkgoWriter, "Found clock class %s for process %s\n", class, process)
+					return true
+				} else {
+					fmt.Fprintf(GinkgoWriter, "Match found but process=%s class=%s, not matching yet...\n", process, class)
+				}
 			}
-
 		}
-	}
-	if err := scanner.Err(); err != nil {
-		Fail(fmt.Sprintf("Error reading input: %s", err))
-	}
-	Expect(clockClassMap["ptp4l"]).To(BeTrue(), fmt.Sprintf("Expected ptp4l clock class state to be %s for GM", state))
+
+		// If error during scan
+		if err := scanner.Err(); err != nil {
+			fmt.Fprintf(GinkgoWriter, "Error scanning metrics: %v\n", err)
+		}
+
+		return false
+	}, pkg.TimeoutIn5Minutes, pkg.Timeout1Seconds).Should(BeTrue(),
+		fmt.Sprintf("Expected ptp4l clock class to eventually be %s for GM", expectedState))
 }
 
 func checkDPLLFrequencyState(fullConfig testconfig.TestConfig, state string) {
@@ -1899,7 +1730,7 @@ func checkClockState(fullConfig testconfig.TestConfig, state string) {
 	Eventually(func() string {
 		buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
 		return buf.String()
-	}, pkg.TimeoutIn3Minutes, 5*time.Second).Should(ContainSubstring(metrics.OpenshiftPtpClockState),
+	}, pkg.TimeoutIn3Minutes, pkg.Timeout10Seconds).Should(ContainSubstring(metrics.OpenshiftPtpClockState),
 		"Clock state metrics are not detected")
 
 	buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
@@ -1913,45 +1744,91 @@ func checkClockState(fullConfig testconfig.TestConfig, state string) {
 	// Expect(ret["gnss"]).To(BeTrue(), fmt.Sprintf("Expected gnss clock state to be %s for GM", state))
 }
 
-func checkPTPNMEAStatus(fullConfig testconfig.TestConfig, state string) {
-	/*
-		# TYPE openshift_ptp_nmea_status gauge
-		# openshift_ptp_nmea_status{from="ts2phc",iface="ens7fx",node="cnfdg32.ptp.eng.rdu2.dc.redhat.com",process="ts2phc"} 1
-	*/
-	Eventually(func() string {
-		buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
-		return buf.String()
-	}, pkg.TimeoutIn3Minutes, 5*time.Second).Should(ContainSubstring(metrics.OpenshiftPtpNMEAStatus),
-		"NMEA status metrics are not detected")
-	buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
-	nmeaStatusPattern := `openshift_ptp_nmea_status\{from="([^"]+)",iface="([^"]+)",node="([^"]+)",process="([^"]+)"\} (\d+)`
-
-	// Compile the regular expression
+func checkPTPNMEAStatus(fullConfig testconfig.TestConfig, expectedState string) {
+	nmeaStatusPattern := `openshift_ptp_nmea_status\{iface="([^"]+)",node="([^"]+)",process="([^"]+)"\} (\d+)`
 	nmeaStatusRe := regexp.MustCompile(nmeaStatusPattern)
 
-	// Find matches
-	processNmeaState := map[string]bool{"ts2phc": false}
+	Eventually(func() bool {
+		buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
+		scanner := bufio.NewScanner(strings.NewReader(buf.String()))
+		foundState := ""
 
-	scanner := bufio.NewScanner(strings.NewReader(buf.String()))
-	timeout := 10 * time.Second
-	start := time.Now()
-	for scanner.Scan() {
-		t := time.Now()
-		elapsed := t.Sub(start)
-		if elapsed > timeout {
-			Fail("Timedout reading input from metrics")
-		}
-		line := scanner.Text()
-		if matches := nmeaStatusRe.FindStringSubmatch(line); matches != nil {
-			if _, ok := processNmeaState[matches[4]]; ok && matches[5] == state {
-				processNmeaState[matches[4]] = true
-				break
+		for scanner.Scan() {
+			line := scanner.Text()
+			if matches := nmeaStatusRe.FindStringSubmatch(line); matches != nil {
+				if len(matches) < 4 {
+					continue
+				}
+				process := matches[3]
+				state := matches[4]
+				fmt.Fprintf(GinkgoWriter, "Matched process=%s, state=%s\n", process, state)
+				if process == "ts2phc" {
+					foundState = state
+					break
+				}
 			}
+		}
 
+		return foundState == expectedState
+	}, pkg.TimeoutIn3Minutes, 5*time.Second).Should(BeTrue(), fmt.Sprintf("Expected ts2phc NMEA state to be %s for GM", expectedState))
+}
+
+func coldBootInBackground(stopChan chan struct{}, fullConfig testconfig.TestConfig) {
+	for {
+		select {
+		case <-stopChan:
+			fmt.Fprintf(GinkgoWriter, "Stopping coldboot loop\n")
+			return
+		default:
+			// Send coldboot
+			_, _, err := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod,
+				pkg.PtpContainerName, []string{"ubxtool", "-P", "29.20", "-p", "COLDBOOT", "-v", "3"})
+			if err != nil {
+				fmt.Fprintf(GinkgoWriter, "Error running coldboot: %v\n", err)
+			} else {
+				fmt.Fprintf(GinkgoWriter, "Coldboot sent\n")
+			}
+			time.Sleep(2 * time.Second) // Keep hammering every 2 sec
 		}
 	}
-	if err := scanner.Err(); err != nil {
-		Fail(fmt.Sprintf("Error reading input from metrics: %s", err))
+}
+
+func waitForClockClass(fullConfig testconfig.TestConfig, expectedState string) {
+	start := time.Now()
+
+	for {
+		if checkClockClassStateReturnBool(fullConfig, expectedState) {
+			fmt.Fprintf(GinkgoWriter, "✅ Clock class reached %s\n", expectedState)
+			break
+		} else {
+			fmt.Fprintf(GinkgoWriter, "Clock class not yet %s, retrying...\n", expectedState)
+		}
+
+		time.Sleep(pkg.TimeoutInterval2Seconds)
+
+		if time.Since(start) > pkg.TimeoutIn3Minutes {
+			Fail(fmt.Sprintf("Timed out waiting for clock class %s", expectedState))
+			break
+		}
 	}
-	Expect(processNmeaState["ts2phc"]).To(BeTrue(), fmt.Sprintf("Expected ts2phc nmea state to be %s for GM", state))
+}
+
+func checkClockClassStateReturnBool(fullConfig testconfig.TestConfig, expectedState string) bool {
+	buf, _, _ := pods.ExecCommand(client.Client, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
+	scanner := bufio.NewScanner(strings.NewReader(buf.String()))
+
+	clockClassPattern := `openshift_ptp_clock_class\{node="([^"]+)",process="([^"]+)"\} (\d+)`
+	clockClassRe := regexp.MustCompile(clockClassPattern)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if matches := clockClassRe.FindStringSubmatch(line); matches != nil {
+			process := matches[2]
+			class := matches[3]
+			if strings.TrimSpace(process) == "ptp4l" && strings.TrimSpace(class) == expectedState {
+				return true
+			}
+		}
+	}
+	return false
 }

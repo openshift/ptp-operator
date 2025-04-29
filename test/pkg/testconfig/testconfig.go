@@ -56,7 +56,7 @@ const (
 	// DualNICBoundaryClockString matches the DualNICBC clock mode in Environement
 	DualNICBoundaryClockString = "DualNICBC"
 	// TelcoGrandMasterClockString matches the T-GM clock mode in Environement
-	TelcoGrandMasterClockString = "T-GM"
+	TelcoGrandMasterClockString = "TGM"
 	ptp4lEthernet               = "-2 --summary_interval -4"
 	ptp4lEthernetSlave          = "-2 -s --summary_interval -4"
 	phc2sysGM                   = "-a -r -r -n 24" // use phc2sys to sync phc to system clock
@@ -164,7 +164,7 @@ const (
 	AlgoBCString                       = "BC"
 	AlgoBCWithSlavesString             = "BCWithSlaves"
 	AlgoDualNicBCString                = "DualNicBC"
-	AlgoTelcoGMString                  = "T-GM"
+	AlgoTelcoGMString                  = "TGM"
 	AlgoDualNicBCWithSlavesString      = "DualNicBCWithSlaves"
 	AlgoOCExtGMString                  = "OCExtGM"
 	AlgoDualFollowerExtGMString        = "DualFollowerExtGM"
@@ -545,6 +545,7 @@ func initAndSolveProblems() {
 			{int(solver.StepDifferentNic), 2, 6, 3},  // downstream slaves and grandmaster must be on different nics
 			{int(solver.StepDifferentNic), 2, 2, 4},  // dual nic BC uses 2 different NICs
 			{int(solver.StepDifferentNic), 2, 0, 6}}, // Downstream slaves use different nics to not share same clock
+
 	}
 	data.problems[AlgoOCExtGMString] = &[][][]int{
 		{{int(solver.StepIsPTP), 1, 0}}, // step1
@@ -750,7 +751,7 @@ func CreatePtpConfigWPCGrandMaster(policyName string, nodeName string, ifList []
 	ptp4lConfig = AddInterface(ptp4lConfig, ifList[1], 1)
 	ptp4lsysOpts := ptp4lEthernet
 	ts2phcOpts := " "
-	ph2sysOpts := fmt.Sprintf("-r -u 0 -m -w -N 8 -R 16 -s %s -n 24", ifList[0])
+	ph2sysOpts := fmt.Sprintf("-r -u 0 -m -N 8 -R 16 -s %s -n 24", ifList[0])
 	plugins := make(map[string]*apiextensions.JSON)
 	const yamlData = `
   e810:
@@ -1406,7 +1407,7 @@ func createConfigWithTs2PhcAndPlugins(profileName string, ifaceName, ptp4lOpts *
 	thresholds.MaxOffsetThreshold = int64(testParameters.GlobalConfig.MaxOffset)
 	thresholds.MinOffsetThreshold = int64(testParameters.GlobalConfig.MinOffset)
 	ptpProfile := ptpv1.PtpProfile{Name: &profileName, Interface: ifaceName, Phc2sysOpts: phc2sysOpts, Ptp4lOpts: ptp4lOpts, PtpSchedulingPolicy: &ptpSchedulingPolicy, PtpSchedulingPriority: ptpSchedulingPriority,
-		PtpClockThreshold: &thresholds, Ts2PhcOpts: ts2phcOpts, Plugins: plugins}
+		PtpClockThreshold: &thresholds, Ts2PhcOpts: ts2phcOpts, Plugins: plugins, PtpSettings: map[string]string{"logReduce": "false"}}
 	if ptp4lConfig != "" {
 		ptpProfile.Ptp4lConf = &ptp4lConfig
 	}

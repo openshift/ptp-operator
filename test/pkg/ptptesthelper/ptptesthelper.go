@@ -415,10 +415,15 @@ func GetContainerCpuUsage(podName, containerName, podNamespace string, rateTimeW
 	promResponse.Data.Result = &resultVector
 
 	query := fmt.Sprintf(`container_cpu_usage_seconds_total{namespace="%s", pod="%s", container="%s"}`, podNamespace, podName, containerName)
+	if containerName == "" {
+		query = fmt.Sprintf(`container_cpu_usage_seconds_total{namespace="%s", pod="%s"}`, podNamespace, podName)
+	}
+
 	err := metrics.RunPrometheusQueryWithRetries(prometheusPod, query, rateTimeWindow, metrics.PrometheusQueryRetries, metrics.PrometheusQueryRetryInterval, &promResponse, func(response *metrics.PrometheusQueryResponse) bool {
-		if len(resultVector) != 1 {
-			logrus.Warnf("Invalid result vector length in prometheus response: %+v", promResponse)
-			return false
+		// Accept if we have at least one result
+		if len(resultVector) == 0 {
+			logrus.Warnf("No results found in Prometheus response: %+v", promResponse)
+			return false // Retry again
 		}
 		return true
 	})
@@ -428,9 +433,21 @@ func GetContainerCpuUsage(podName, containerName, podNamespace string, rateTimeW
 	}
 
 	// The rate query should return only one metric, so it's safe to access the first result.
-	cpuUsage, tsMillis, err := metrics.GetPrometheusResultFloatValue(resultVector[0].Value)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get value from prometheus response from pod %s, container %q (ns %s): %w", podName, containerName, podNamespace, err)
+	var cpuUsage float64
+	var tsMillis int64
+	for _, sample := range resultVector {
+		val, ts, errs := metrics.GetPrometheusResultFloatValue(sample.Value)
+		if errs != nil {
+			logrus.Warnf("Failed to parse sample value: %v", err)
+			continue
+		}
+		cpuUsage += val
+		if ts > tsMillis {
+			tsMillis = ts
+		}
+		if len(resultVector) == 0 {
+			return 0, fmt.Errorf("failed to get value from prometheus response from pod %s, container %q (ns %s): %w", podName, containerName, podNamespace, err)
+		}
 	}
 
 	logrus.Debugf("Pod: %s, container: %s (ns %s) cpu usage: %v (ts: %s)",
