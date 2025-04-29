@@ -37,6 +37,7 @@ import (
 
 	fbprotocol "github.com/facebook/time/ptp/protocol"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/testconfig"
+	k8sv1 "k8s.io/api/core/v1"
 )
 
 type TestCase string
@@ -995,7 +996,8 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 						LabelSelector: "app=linuxptp-daemon",
 					})
 					Expect(err).ToNot(HaveOccurred())
-					ptpMonitoredEntriesByPod, uniqueMetricKeys := collectPtpMetrics(ptpPods.Items)
+					Expect(fullConfig.DiscoveredClockUnderTestPod).ToNot(BeNil())
+					ptpMonitoredEntriesByPod, uniqueMetricKeys := collectPtpMetrics([]k8sv1.Pod{*fullConfig.DiscoveredClockUnderTestPod})
 					Eventually(func() error {
 						podsPerPrometheusMetricKey := collectPrometheusMetrics(uniqueMetricKeys)
 						return containSameMetrics(ptpMonitoredEntriesByPod, podsPerPrometheusMetricKey)
