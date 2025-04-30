@@ -1,0 +1,42 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+containerdConfigPatches:
+- |-
+    [plugins."io.containerd.grpc.v1.cri".registry]
+      config_path = "/etc/containerd/certs.d"
+nodes:
+  - role: control-plane
+    extraMounts:
+      - hostPath: /sys/bus/netdevsim
+        containerPath: /sys/bus/netdevsim
+      - hostPath: /dev
+        containerPath: /dev
+      - hostPath: /root/registry
+        containerPath: /etc/containerd/certs.d/IP
+  
+  - role: worker
+    extraMounts:
+      - hostPath: /sys/bus/netdevsim
+        containerPath: /sys/bus/netdevsim
+      - hostPath: /dev
+        containerPath: /dev
+      - hostPath: /root/registry
+        containerPath: /etc/containerd/certs.d/IP
+
+  - role: worker
+    extraMounts:
+      - hostPath: /sys/bus/netdevsim
+        containerPath: /sys/bus/netdevsim
+      - hostPath: /dev
+        containerPath: /dev
+      - hostPath: /root/registry
+        containerPath: /etc/containerd/certs.d/IP
+
+  - role: worker
+    extraMounts:
+      - hostPath: /sys/bus/netdevsim
+        containerPath: /sys/bus/netdevsim
+      - hostPath: /dev
+        containerPath: /dev
+      - hostPath: /root/registry
+        containerPath: /etc/containerd/certs.d/IP

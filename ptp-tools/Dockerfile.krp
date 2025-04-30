@@ -1,0 +1,24 @@
+FROM docker.io/golang:1.23.5 AS builder
+WORKDIR /go/src/github.com/brancz/kube-rbac-proxy
+RUN git clone https://github.com/openshift/kube-rbac-proxy.git /go/src/github.com/brancz/kube-rbac-proxy
+ENV GO111MODULE=on
+ENV GOMAXPROCS=16
+
+# GOFLAGS is needed to build image without accessing external sources, mostly to comply with ART policies
+ENV GOFLAGS="-mod=vendor"
+RUN GITHUB_URL=github.com/openshift/kube-rbac-proxy VERSION=$(cat VERSION) make -j 16 build && \
+    cp _output/kube-rbac-proxy-$(go env GOOS)-$(go env GOARCH) _output/kube-rbac-proxy
+
+FROM quay.io/centos/centos:stream9
+LABEL io.k8s.display-name="kube-rbac-proxy" \
+      io.k8s.description="This is a proxy, that can perform Kubernetes RBAC authorization." \
+      io.openshift.tags="openshift,kubernetes" \
+      summary="" \
+      maintainer="OpenShift Monitoring Team <team-monitoring@redhat.com>"
+
+ARG FROM_DIRECTORY=/go/src/github.com/brancz/kube-rbac-proxy
+COPY --from=builder ${FROM_DIRECTORY}/_output/kube-rbac-proxy  /usr/bin/kube-rbac-proxy
+
+USER 65534
+EXPOSE 8080
+ENTRYPOINT ["/usr/bin/kube-rbac-proxy"]

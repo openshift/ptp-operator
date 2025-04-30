@@ -2,6 +2,8 @@
 global:
  maxoffset: 100
  minoffset: -100
+ holdover_timeout: 5
+ DisableAllSlaveRTUpdate: false
 soaktest:
   disable_all: false
   event_output_file: "./event-output.csv"

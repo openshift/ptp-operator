@@ -40,7 +40,7 @@ func ExecCommand(cs *testclient.ClientSet, pod *corev1.Pod, containerName string
 			Stdin:     true,
 			Stdout:    true,
 			Stderr:    true,
-			TTY:       true,
+			TTY:       false,
 		}, scheme.ParameterCodec)
 
 	exec, err := remotecommand.NewSPDYExecutor(cs.Config, "POST", req.URL())
@@ -53,7 +53,7 @@ func ExecCommand(cs *testclient.ClientSet, pod *corev1.Pod, containerName string
 		Stdin:  os.Stdin,
 		Stdout: &stdoutBuf,
 		Stderr: &stderrBuf,
-		Tty:    true,
+		Tty:    false,
 	})
 
 	logrus.Tracef("ExecCommand stdout=%s stderr=%s err/status=%s", stdoutBuf.String(), stderrBuf.String(), err)

@@ -5,7 +5,7 @@ apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
   name: selfsigned-issuer
-  namespace: system
+  namespace: openshift-ptp
 spec:
   selfSigned: {}
 ---
@@ -13,13 +13,30 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: serving-cert  # this name should match the one appeared in kustomizeconfig.yaml
-  namespace: system
+  namespace: openshift-ptp
 spec:
   # $(SERVICE_NAME) and $(SERVICE_NAMESPACE) will be substituted by kustomize
   dnsNames:
-  - $(SERVICE_NAME).$(SERVICE_NAMESPACE).svc
-  - $(SERVICE_NAME).$(SERVICE_NAMESPACE).svc.cluster.local
+  - webhook-service.openshift-ptp.svc
+  - webhook-service.openshift-ptp.svc.cluster.local
+  commonName: webhook-service.openshift-ptp.svc
   issuerRef:
     kind: Issuer
     name: selfsigned-issuer
   secretName: webhook-server-cert # this secret will not be prefixed, since it's not managed by kustomize
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: serving-cert-daemon  # this name should match the one appeared in kustomizeconfig.yaml
+  namespace: openshift-ptp
+spec:
+  # $(SERVICE_NAME) and $(SERVICE_NAMESPACE) will be substituted by kustomize
+  dnsNames:
+  - linuxptp-daemon.default.svc
+  - linuxptp-daemon.default.svc.cluster.local
+  commonName: linuxptp-daemon.default.svc
+  issuerRef:
+    kind: Issuer
+    name: selfsigned-issuer
+  secretName: linuxptp-daemon-secret # this secret will not be prefixed, since it's not managed by kustomize
