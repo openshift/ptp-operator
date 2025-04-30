@@ -70,8 +70,8 @@ jobs:
             ssh-add temp_key
             
             ./scripts/retry.sh 60 5 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null fedora@"$public_ip" uptime
-            rsync -r -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" ../private-ptp-operator fedora@"$public_ip":~/.
-            ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null fedora@"$public_ip" sudo ./private-ptp-operator/scripts/run-on-vm.sh "$private_ip"
+            rsync -r -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" ../ptp-operator fedora@"$public_ip":~/.
+            ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null fedora@"$public_ip" sudo ./ptp-operator/scripts/run-on-vm.sh "$private_ip"
 
       - name: Cleanup - Delete EC2 instance
         if: always()  # Ensure cleanup runs even if previous steps fail
