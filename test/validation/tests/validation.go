@@ -56,6 +56,7 @@ var _ = Describe("validation", func() {
 		})
 
 		It("should have the linuxptp daemonset in running state", func() {
+			ptphelper.WaitForPtpDaemonToExist()
 			ptphelper.WaitForPtpDaemonToBeReady()
 		})
 
