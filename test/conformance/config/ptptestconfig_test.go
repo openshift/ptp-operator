@@ -55,7 +55,9 @@ soaktest:
         pod:
           - pod_type: "ptp-operator"
             cpu_threshold_mcores: 4
-
+          - pod_type: "linuxptp-daemon"
+            container: "linuxptp-daemon-container"
+            cpu_threshold_mcores: 6
           - pod_type: "linuxptp-daemon"
             container: "cloud-event-proxy"
             cpu_threshold_mcores: 6
