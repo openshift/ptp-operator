@@ -163,6 +163,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 		Context("PTP Reboot discovery", func() {
 			BeforeEach(func() {
+				Skip("This is covered by QE")
 				By("Refreshing configuration", func() {
 					ptphelper.WaitForPtpDaemonToBeReady()
 					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
@@ -173,7 +174,6 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 			})
 
 			It("The slave node is rebooted and discovered and in sync", func() {
-				Skip("This is covered by QE")
 				if testCaseEnabled(Reboot) {
 					By("Slave node is rebooted", func() {
 						ptptesthelper.RebootSlaveNode(fullConfig)
