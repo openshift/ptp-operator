@@ -20,7 +20,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-            role-to-assume: arn:aws:iam::939345161466:role/github-oidc-setup-david-Role-8DcbDlLGfv4O
+            role-to-assume: arn:aws:iam::058264082309:role/github-oidc-setup-david-Role-Kk44xkca6vIm
             role-session-name: ${{ github.run_id }}
             aws-region: us-east-1
 
@@ -28,10 +28,10 @@ jobs:
         id: launch
         run: |
           INSTANCE_ID=$(aws ec2 run-instances \
-            --image-id ami-0163d4a3a5e79c10a \
-            --subnet-id subnet-03e8151444372854e \
+            --image-id ami-0f7270e9a0e492eac \
+            --subnet-id subnet-04ee218fe8f32cad5 \
             --instance-type m6a.xlarge \
-            --security-group-ids sg-0f20fd004e72616d3 \
+            --security-group-ids sg-05e700edc2ed0a2d5 \
             --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=ptp-operator PR-${{ github.event.number }}}]' \
             --query 'Instances[0].InstanceId' \
             --key-name ptp-sshkey-1 \
