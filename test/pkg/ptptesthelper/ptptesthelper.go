@@ -280,23 +280,23 @@ func toggleNetworkInterface(pod corev1.Pod, interfaceName string, slavePodNodeNa
 	pods.ExecutePtpInterfaceCommand(pod, interfaceName, downInterfaceCommand)
 	logrus.Infof("Interface %s is set down", interfaceName)
 
-	time.Sleep(waitingPeriod)
-
-	By("Checking that the port role is FAULTY after wait. Set the interface UP again and wait")
+	By("Checking that the port role is FAULTY after wait")
 
 	// Check if the port state has changed to faulty
-	err := metrics.CheckClockRole([]metrics.MetricRole{metrics.MetricRoleFaulty}, []string{interfaceName}, &slavePodNodeName)
-	Expect(err).NotTo(HaveOccurred())
+	Eventually(func() error {
+		return metrics.CheckClockRole([]metrics.MetricRole{metrics.MetricRoleFaulty}, []string{interfaceName}, &slavePodNodeName)
+	}, waitingPeriod, 10*time.Second).Should(BeNil())
 
+	By("Set the interface UP again and wait")
 	upInterfaceCommand := fmt.Sprintf("ip link set dev %s up", interfaceName)
 	pods.ExecutePtpInterfaceCommand(pod, interfaceName, upInterfaceCommand)
 	logrus.Infof("Interface %s is up", interfaceName)
-	time.Sleep(waitingPeriod)
 
 	By("Checking that the port role is SLAVE after wait and clock is in sync")
-	// Check if the port has the role of the slave
-	err = metrics.CheckClockRole([]metrics.MetricRole{metrics.MetricRoleSlave}, []string{interfaceName}, &slavePodNodeName)
-	Expect(err).NotTo(HaveOccurred())
+	// Check if the port has changed back to slave
+	Eventually(func() error {
+		return metrics.CheckClockRole([]metrics.MetricRole{metrics.MetricRoleSlave}, []string{interfaceName}, &slavePodNodeName)
+	}, waitingPeriod, 10*time.Second).Should(BeNil())
 
 	var offsetWithinBound bool
 	for i := 0; i < offsetRetryCounter && !offsetWithinBound; i++ {
