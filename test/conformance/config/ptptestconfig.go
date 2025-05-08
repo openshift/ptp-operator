@@ -15,8 +15,10 @@ const (
 )
 
 type GlobalConfig struct {
-	MinOffset int `yaml:"minoffset"`
-	MaxOffset int `yaml:"maxoffset"`
+	MinOffset               int  `yaml:"minoffset"`
+	MaxOffset               int  `yaml:"maxoffset"`
+	HoldOverTimeout         int  `yaml:"holdover_timeout"`
+	DisableAllSlaveRTUpdate bool `yaml:"DisableAllSlaveRTUpdate"`
 }
 
 type TestSpec struct {

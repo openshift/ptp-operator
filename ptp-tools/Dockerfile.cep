@@ -1,0 +1,23 @@
+FROM docker.io/golang:1.23.5 AS builder
+ENV GO111MODULE=off
+ENV CGO_ENABLED=1
+ENV COMMON_GO_ARGS=-race
+ENV GOOS=linux
+ENV GOPATH=/go
+ENV GOMAXPROCS=16
+
+WORKDIR /go/src/github.com/redhat-cne/cloud-event-proxy
+RUN git clone -b main https://github.com/redhat-cne/cloud-event-proxy.git /go/src/github.com/redhat-cne/cloud-event-proxy
+
+RUN hack/build-go.sh
+
+FROM quay.io/centos/centos:stream9
+COPY --from=builder /go/src/github.com/redhat-cne/cloud-event-proxy/build/cloud-event-proxy /
+COPY --from=builder /go/src/github.com/redhat-cne/cloud-event-proxy/plugins/*.so /plugins/
+
+LABEL io.k8s.display-name="Cloud Event Proxy" \
+      io.k8s.description="This is a component of OpenShift Container Platform and provides a side car to handle cloud events." \
+      io.openshift.tags="openshift" \
+      maintainer="Aneesh Puttur <aputtur@redhat.com>"
+
+ENTRYPOINT ["./cloud-event-proxy"]

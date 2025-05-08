@@ -20,6 +20,7 @@ To run the conformance tests, first set the following environment variables:
 - **EVENT_API_VERSION**: passes the default REST-API version for the event based tests. Set this to "2.0" for 4.16+ PUT, "1.0" for 4.15 and earlier. If this is not set, default value "2.0" is used.
 - **ENABLE_V1_REGRESSION**: enable V1 regression for event based tests. For 4.16 and 4.17, event based tests will be repeated the second time with v1 REST-API. These tests are marked with "v1 regression".
 - **EXTERNAL_GM**: enables external grandmaster scenarios 
+- **PTP_TEST_CONFIG_FILE**: configuration file to set for instance min/max offsets in ptpconfig. Example is at[link](test/conformance/config/ptptestconfig.yaml)
 
 Then run the following command:
 ```
@@ -423,3 +424,86 @@ each step in the algorithm means:
 {<constraint to check>, <number of parameters to the function>, <interface0>, ..., interfaceN}}
 ```
 note: parameter0 ... parameterN are integers representing an interface. 0 means p0, 1 means p1, etc...
+
+
+# Running PTP tests on amazon EC2
+## Using netdevsim framework to simulate PHC
+Existing netdevsim framework defines simulated clocks (not truly functional), supports virtual interfaces capable of transmitting frames. See: [link](https://developers.redhat.com/blog/2018/10/22/introduction-to-linux-interfaces-for-virtual-networking?source=sso#netdevsim)
+Maciek Machnikowski(Nvidia)/Milena Olech (intel) video describes a simple netdevsim kernel patch to add real simulated clocks (phc_mock) to simulate ptp: [link]( https://www.youtube.com/watch?v=txgekOBen6c) 
+We are extending the initial idea to be able to test ptp-operator scenarios which would otherwise require real hardware:
+- added support for pci ID reporting: enable defining NICs with multiple ports 
+- added support for one PHC per NIC instead of 1 PHC per port
+- integration into test network
+Future work for netdevsim:
+- make netdevsim interfaces appear in lspci
+- handle better clock reset
+
+We created a VM with the modifications specified above and optimized to run in AWS.
+
+## Integrating netdevsim into a simulated network
+![switch](doc/ptp-ci-aws-switch.svg)
+Netdevsim defines interface pairs connected by a virtual link
+openvswitch used to simulate a real switch
+- ptp4l is configured as a boundary clock 
+- ptp packets are dropped by the switch
+ptp4l boundary clock used to bridge ptp information:
+- note: in this implementation ptp packets cannot be switched since they do not have timestamps (ptp packets should not be switched anyways). Timestamps are passed directly from the local port’s phc to the remote port.
+
+## Using a Kind cluster and netdevsim to created ptp-operator configurations
+The overall configuration for of the ptp CI test cluster is below:
+![overview](doc/ptp-ci-aws.svg)
+The following diagram shows an example of configuration that can be created in the simulated environment. The switch connections are not shown in this diagram:
+![example](doc/ptp-ci-aws-dnbc-example.svg)
+
+## Scripts documentation
+- `configpair.sh`: creates a 2 netdevsim interfaces and connected via a virtual link
+```
+  ./configpair.sh < port1 netdevsim ID (unique)> <port 2 netdevsim ID (unique)> <name of the interface on both side of the link (ptp1)> 
+# <port1 ptp clock ID A (/dev/ptpA)> < port2 ptp clock ID B (/dev/ptpB)> <port1 container name > <port2 container name> <port1 pci ID> <port2 pci ID>
+```
+- `deploy-prometheus.sh`: Deploys prometheus
+- `kind-config.yaml`: reference kind cluster configuration
+- `reset-devices.sh`: loads netdevsim and openvswitch kernel drivers
+- `run-on-vm.sh`: top level script called by the github action to run CI tests
+```
+run-ci-github.sh <EC2 private VM IP >
+```
+- `configSwitch2.sh`: configures virtual Ethernet switch (openvswitch) container
+- `fix-certs.sh`: Fix certificates for the linuxptp-daemon in Kind
+- `install-tools.sh`: install tools such as ginkgo, go, ...
+- `prepare-kind.sh`: basic configuration to make the kind clusted look like a openshift cluster
+- `retry.sh`: retry command
+```
+./retry.sh <timeout> <interval> <command>
+```
+- `create-local-registry.sh`: creare local docker registry
+- `k8s-start.sh`: starts the kind cluster            
+- `ptpswitchconfig.cfg`: ptp4l configuration for the Openvswitch switch1
+- `run-ci-github.sh`: Runs all PTP tests (sync tests only for now)
+
+## ptp-tools 
+The ptp-tools list a set set a make targets to build all images required to run the ptp-operator
+
+To build all images (ptp-operator, linuxptp-daemon, kube-rbac-proxy, cloud-event-proxy) in a single personal repository. First create a repository in quay.io or another registry the same repository will be used to store all various debug images. The tag part of the image url indicates the image type.
+
+
+The command uses a single quay.io repository ans stores the different images as tags:
+- `cep` tag: cloud-event-proxy
+- `ptpop` tag: ptp-operator
+- `lptpd` tag: linuxptp-daemon
+- `krp` tag: kube-rbac-proxy  
+
+
+```
+IMG_PREFIX=quay.io/<user>/<repo> make podman-buildall
+```
+
+To push all images:
+```
+IMG_PREFIX=quay.io/<user>/<repo> make podman-pushall
+```
+
+To deploy all containers including cloud-event-proxy sidecar:
+```
+IMG_PREFIX=quay.io/<user>/<repo> make deployall
+```

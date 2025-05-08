@@ -163,6 +163,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 		Context("PTP Reboot discovery", func() {
 			BeforeEach(func() {
+				Skip("This is covered by QE")
 				By("Refreshing configuration", func() {
 					ptphelper.WaitForPtpDaemonToBeReady()
 					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
@@ -173,7 +174,6 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 			})
 
 			It("The slave node is rebooted and discovered and in sync", func() {
-				Skip("This is covered by QE")
 				if testCaseEnabled(Reboot) {
 					By("Slave node is rebooted", func() {
 						ptptesthelper.RebootSlaveNode(fullConfig)
@@ -407,6 +407,24 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				err = portEngine.CheckClockRole(portEngine.Ports[0], portEngine.Ports[1], portEngine.InitialRoles[0], portEngine.InitialRoles[1])
 				Expect(err).To(BeNil())
 
+				By("Remove Grandmaster")
+				err := client.Client.PtpV1Interface.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Delete(context.Background(), testconfig.GlobalConfig.DiscoveredGrandMasterPtpConfig.Name, metav1.DeleteOptions{})
+				Expect(err).To(BeNil())
+				By("Check clock role")
+				Eventually(func() error {
+					return portEngine.CheckClockRole(portEngine.Ports[0], portEngine.Ports[1], metrics.MetricRoleListening, metrics.MetricRoleListening)
+				}, 120*time.Second, 1*time.Second).Should(BeNil())
+				By("Check holdover")
+				err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), grandmasterID, metrics.MetricClockStateHoldOver, metrics.MetricRoleListening, false)
+				Expect(err).To(BeNil())
+				By("Check freerun")
+				err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), grandmasterID, metrics.MetricClockStateFreeRun, metrics.MetricRoleListening, false)
+				Expect(err).To(BeNil())
+				By("Recreate Grandmaster")
+				tempPtpConfig := (*ptpv1.PtpConfig)(testconfig.GlobalConfig.DiscoveredGrandMasterPtpConfig)
+				tempPtpConfig.SetResourceVersion("")
+				_, err = client.Client.PtpV1Interface.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Create(context.Background(), tempPtpConfig, metav1.CreateOptions{})
+				Expect(err).To(BeNil())
 			})
 
 			// Multinode BCSlave clock sync
