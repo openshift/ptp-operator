@@ -47,12 +47,12 @@ make deploy-all
 sleep 5
 cd -
 # build certificates
-cd ..
-rm -rf bin/go
+kubectl apply -f certs.yaml
+
+# cleaning go deps
 go mod tidy
 go mod vendor
-make certs
-cd -
+
 # fix certificates
 ./retry.sh 60 5 ./fix-certs.sh
 
