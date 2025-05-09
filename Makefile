@@ -285,6 +285,3 @@ buildtest:
 
 buildimage: buildtest
 	./scripts/image.sh
-
-certs: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/certmanager | kubectl apply -f -
