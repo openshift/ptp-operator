@@ -128,7 +128,7 @@ func VerifyAfterRebootState(rebootedNodes []string, fullConfig testconfig.TestCo
 				commands := []string{
 					"curl", "-s", pkg.MetricsEndPoint,
 				}
-				buf, _, err := pods.ExecCommand(client.Client, &pod, pkg.RebootDaemonSetContainerName, commands)
+				buf, _, err := pods.ExecCommand(client.Client, true, &pod, pkg.RebootDaemonSetContainerName, commands)
 				Expect(err).NotTo(HaveOccurred())
 
 				scanner := bufio.NewScanner(strings.NewReader(buf.String()))
@@ -463,7 +463,7 @@ type PortEngine struct {
 }
 
 func (p *PortEngine) TurnPortDown(port string) error {
-	stdout, stderr, err := pods.ExecCommand(client.Client, p.ClockPod, pkg.RecoveryNetworkOutageDaemonSetContainerName,
+	stdout, stderr, err := pods.ExecCommand(client.Client, true, p.ClockPod, pkg.RecoveryNetworkOutageDaemonSetContainerName,
 		[]string{"ip", "link", "set", port, "down"})
 
 	logrus.Infof("Turning interface: %s in pod %s down, stdout: %s, stderr: %s", port, p.ClockPod.Name, stdout.String(), stderr.String())
@@ -471,7 +471,7 @@ func (p *PortEngine) TurnPortDown(port string) error {
 }
 
 func (p *PortEngine) TurnPortUp(port string) error {
-	stdout, stderr, err := pods.ExecCommand(client.Client, p.ClockPod, pkg.RecoveryNetworkOutageDaemonSetContainerName,
+	stdout, stderr, err := pods.ExecCommand(client.Client, true, p.ClockPod, pkg.RecoveryNetworkOutageDaemonSetContainerName,
 		[]string{"ip", "link", "set", port, "up"})
 
 	logrus.Infof("Turning interface: %s in pod %s down, stdout: %s, stderr: %s", port, p.ClockPod.Name, stdout.String(), stderr.String())
@@ -480,7 +480,7 @@ func (p *PortEngine) TurnPortUp(port string) error {
 
 func (p *PortEngine) TurnAllPortsUp() error {
 	for _, port := range p.Ports {
-		stdout, stderr, err := pods.ExecCommand(client.Client, p.ClockPod, pkg.RecoveryNetworkOutageDaemonSetContainerName,
+		stdout, stderr, err := pods.ExecCommand(client.Client, true, p.ClockPod, pkg.RecoveryNetworkOutageDaemonSetContainerName,
 			[]string{"ip", "link", "set", port, "up"})
 		if err != nil {
 			return err
