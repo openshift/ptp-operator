@@ -193,7 +193,7 @@ func GetPtpPodOnNode(nodeName string) (v1core.Pod, error) {
 func GetMasterSlaveAttachedInterfaces(pod *v1core.Pod) []string {
 	var IntList []string
 	Eventually(func() error {
-		stdout, _, err := pods.ExecCommand(client.Client, pod, pkg.PtpContainerName, []string{"ls", "/sys/class/net/"})
+		stdout, _, err := pods.ExecCommand(client.Client, true, pod, pkg.PtpContainerName, []string{"ls", "/sys/class/net/"})
 		if err != nil {
 			return err
 		}
@@ -225,7 +225,7 @@ func GetPtpMasterSlaveAttachedInterfaces(pod *v1core.Pod) []string {
 
 		// Get readlink status
 		Eventually(func() error {
-			stdout, _, err = pods.ExecCommand(client.Client, pod, pkg.PtpContainerName, []string{"readlink", "-f", fmt.Sprintf("/sys/class/net/%s", interf)})
+			stdout, _, err = pods.ExecCommand(client.Client, true, pod, pkg.PtpContainerName, []string{"readlink", "-f", fmt.Sprintf("/sys/class/net/%s", interf)})
 			if err != nil {
 				return err
 			}
@@ -258,7 +258,7 @@ func GetPtpMasterSlaveAttachedInterfaces(pod *v1core.Pod) []string {
 		// Check if this is a virtual function
 		Eventually(func() error {
 			// If the physfn doesn't exist this means the interface is not a virtual function so we ca add it to the list
-			stdout, _, err = pods.ExecCommand(client.Client, pod, pkg.PtpContainerName, []string{"ls", fmt.Sprintf("/sys/bus/pci/devices/%s/physfn", PCIAddr)})
+			stdout, _, err = pods.ExecCommand(client.Client, true, pod, pkg.PtpContainerName, []string{"ls", fmt.Sprintf("/sys/bus/pci/devices/%s/physfn", PCIAddr)})
 			if err != nil {
 				if strings.Contains(stdout.String(), "No such file or directory") {
 					return nil
@@ -280,7 +280,7 @@ func GetPtpMasterSlaveAttachedInterfaces(pod *v1core.Pod) []string {
 		}
 
 		Eventually(func() error {
-			stdout, _, err = pods.ExecCommand(client.Client, pod, pkg.PtpContainerName, []string{"ethtool", "-T", interf})
+			stdout, _, err = pods.ExecCommand(client.Client, true, pod, pkg.PtpContainerName, []string{"ethtool", "-T", interf})
 			if stdout.String() == "" {
 				return errors.New("empty response from pod retrying")
 			}
@@ -800,7 +800,7 @@ func execPodCommand(nodeName string, cmd []string) (stdoutBuf, stderrBuf bytes.B
 		logrus.Errorf("Could not get ptp pod from node due to err: %s, nodeName: %s", err, nodeName)
 		return so, se, err
 	}
-	so, se, err = pods.ExecCommand(client.Client, &pod, pkg.PtpContainerName, cmd)
+	so, se, err = pods.ExecCommand(client.Client, true, &pod, pkg.PtpContainerName, cmd)
 	if err != nil {
 		logrus.Errorf("Could not run command %s on pod because of err: %s \n stderr: %s", cmd, err, se.String())
 	}

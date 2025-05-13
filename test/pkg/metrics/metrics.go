@@ -189,7 +189,7 @@ func getMetric(nodeName, aIf, metricName string) (metric string, err error) {
 		commands := []string{
 			"curl", "-s", metricsEndPoint,
 		}
-		buf, _, err := pods.ExecCommand(client.Client, &ptpPods.Items[index], ptpPods.Items[index].Spec.Containers[0].Name, commands)
+		buf, _, err := pods.ExecCommand(client.Client, false, &ptpPods.Items[index], ptpPods.Items[index].Spec.Containers[0].Name, commands)
 		if err != nil {
 			return metric, fmt.Errorf("error getting ptp pods for metric: %s not found, err: %s", metricName, err)
 		}
