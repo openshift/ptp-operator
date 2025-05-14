@@ -26,7 +26,7 @@ import (
 )
 
 // ExecCommand runs command in the pod and returns buffer output
-func ExecCommand(cs *testclient.ClientSet, pod *corev1.Pod, containerName string, command []string) (stdoutBuf, stderrBuf bytes.Buffer, err error) {
+func ExecCommand(cs *testclient.ClientSet, useTTY bool, pod *corev1.Pod, containerName string, command []string) (stdoutBuf, stderrBuf bytes.Buffer, err error) {
 	var buf bytes.Buffer
 	req := testclient.Client.CoreV1().RESTClient().
 		Post().
@@ -40,7 +40,7 @@ func ExecCommand(cs *testclient.ClientSet, pod *corev1.Pod, containerName string
 			Stdin:     true,
 			Stdout:    true,
 			Stderr:    true,
-			TTY:       false,
+			TTY:       useTTY,
 		}, scheme.ParameterCodec)
 
 	exec, err := remotecommand.NewSPDYExecutor(cs.Config, "POST", req.URL())
@@ -53,7 +53,7 @@ func ExecCommand(cs *testclient.ClientSet, pod *corev1.Pod, containerName string
 		Stdin:  os.Stdin,
 		Stdout: &stdoutBuf,
 		Stderr: &stderrBuf,
-		Tty:    false,
+		Tty:    useTTY,
 	})
 
 	logrus.Tracef("ExecCommand stdout=%s stderr=%s err/status=%s", stdoutBuf.String(), stderrBuf.String(), err)
@@ -187,7 +187,7 @@ func ExecutePtpInterfaceCommand(pod corev1.Pod, interfaceName string, command st
 		pollingInterval = 3 * time.Second
 	)
 	gomega.Eventually(func() error {
-		_, _, err := ExecCommand(client.Client, &pod, "container-00", []string{"sh", "-c", command})
+		_, _, err := ExecCommand(client.Client, true, &pod, "container-00", []string{"sh", "-c", command})
 		return err
 	}, pkg.TimeoutIn10Minutes, pollingInterval).Should(gomega.BeNil())
 }
@@ -200,7 +200,7 @@ func CheckRestart(pod corev1.Pod) {
 	)
 
 	gomega.Eventually(func() error {
-		_, _, err := ExecCommand(client.Client, &pod, "container-00", []string{"chroot", "/host", "shutdown", "-r"})
+		_, _, err := ExecCommand(client.Client, true, &pod, "container-00", []string{"chroot", "/host", "shutdown", "-r"})
 		return err
 	}, pkg.TimeoutIn10Minutes, pollingInterval).Should(gomega.BeNil())
 }
