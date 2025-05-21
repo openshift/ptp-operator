@@ -57,7 +57,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	Expect(err).To(BeNil(), "Could not create a ptp config")
 
 	By("Refreshing configuration", func() {
-		ptphelper.WaitForPtpDaemonToBeReady()
+		ptphelper.WaitForPtpDaemonToExist()
 		fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
 	})
 	ptphelper.RestartPTPDaemon()
@@ -101,7 +101,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	// this is executed once per thread/test
 	By("Refreshing configuration", func() {
-		ptphelper.WaitForPtpDaemonToBeReady()
+		ptphelper.WaitForPtpDaemonToExist()
 		fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
 		fullConfig.PtpEventsIsConsumerReady = isConsumerReady
 	})

@@ -303,6 +303,9 @@ golang.org/x/crypto/scrypt
 # golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e
 ## explicit; go 1.18
 golang.org/x/exp/maps
+# golang.org/x/mod v0.17.0
+## explicit; go 1.18
+golang.org/x/mod/semver
 # golang.org/x/net v0.38.0
 ## explicit; go 1.23.0
 golang.org/x/net/context

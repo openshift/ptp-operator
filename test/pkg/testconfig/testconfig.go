@@ -435,7 +435,7 @@ func CreatePtpConfigurations() error {
 			logrus.Errorf("Error deleting labels and configuration, err=%s", err)
 		}
 		ptphelper.RestartPTPDaemon()
-		ptphelper.WaitForPtpDaemonToBeReady()
+		ptphelper.WaitForPtpDaemonToExist()
 	}
 	// Initialize desired ptp config for all configs
 	GetDesiredConfig(true)
