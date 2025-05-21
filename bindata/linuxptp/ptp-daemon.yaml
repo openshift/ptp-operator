@@ -20,6 +20,7 @@ spec:
         target.workload.openshift.io/management: '{"effect": "PreferredDuringScheduling"}'
       labels:
         app: linuxptp-daemon
+        role: ptp
     spec:
       hostNetwork: true
       hostPID: true
