@@ -37,6 +37,7 @@ import (
 
 	fbprotocol "github.com/facebook/time/ptp/protocol"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/testconfig"
+	k8sv1 "k8s.io/api/core/v1"
 )
 
 type TestCase string
@@ -165,8 +166,9 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 			BeforeEach(func() {
 				Skip("This is covered by QE")
 				By("Refreshing configuration", func() {
-					ptphelper.WaitForPtpDaemonToBeReady()
+					ptphelper.WaitForPtpDaemonToExist()
 					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
+					ptphelper.WaitForPtpDaemonToBeReady()
 				})
 				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 					Skip("Failed to find a valid ptp slave configuration")
@@ -188,8 +190,9 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 			BeforeEach(func() {
 				By("Refreshing configuration", func() {
-					ptphelper.WaitForPtpDaemonToBeReady()
+					ptphelper.WaitForPtpDaemonToExist()
 					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
+					ptphelper.WaitForPtpDaemonToBeReady()
 				})
 				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 					Skip("Failed to find a valid ptp slave configuration")
@@ -223,7 +226,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 			It("Should retrieve the details of hardwares for the Ptp", func() {
 				By("Getting the version of the OCP cluster")
 
-				ocpVersion, err := getOCPVersion()
+				ocpVersion, err := ptphelper.GetOCPVersion()
 				Expect(err).ToNot(HaveOccurred())
 				Expect(ocpVersion).ShouldNot(BeEmpty())
 
@@ -268,8 +271,9 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 			BeforeEach(func() {
 				By("Refreshing configuration", func() {
-					ptphelper.WaitForPtpDaemonToBeReady()
+					ptphelper.WaitForPtpDaemonToExist()
 					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
+					ptphelper.WaitForPtpDaemonToBeReady()
 				})
 				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 					Skip("Failed to find a valid ptp slave configuration")
@@ -543,8 +547,9 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 		Context("PTP metric is present", func() {
 			BeforeEach(func() {
 				By("Refreshing configuration", func() {
-					ptphelper.WaitForPtpDaemonToBeReady()
+					ptphelper.WaitForPtpDaemonToExist()
 					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
+					ptphelper.WaitForPtpDaemonToBeReady()
 				})
 				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 					Skip("Failed to find a valid ptp slave configuration")
@@ -580,8 +585,9 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				}
 
 				By("Refreshing configuration", func() {
-					ptphelper.WaitForPtpDaemonToBeReady()
+					ptphelper.WaitForPtpDaemonToExist()
 					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
+					ptphelper.WaitForPtpDaemonToBeReady()
 				})
 
 				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
@@ -671,8 +677,9 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				time.Sleep(5 * time.Second)
 
 				By("Refreshing configuration", func() {
-					ptphelper.WaitForPtpDaemonToBeReady()
+					ptphelper.WaitForPtpDaemonToExist()
 					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
+					ptphelper.WaitForPtpDaemonToBeReady()
 				})
 				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 					Skip("Failed to find a valid ptp slave configuration")
@@ -760,6 +767,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				By("checking for plugin logs")
 				foundMatch := false
 				for i := 0; i < 3 && !foundMatch; i++ {
+					ptphelper.WaitForPtpDaemonToExist()
 					ptphelper.WaitForPtpDaemonToBeReady()
 					ptpPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
 					Expect(err).NotTo(HaveOccurred())
@@ -803,6 +811,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				}
 				foundMatch := false
 				for i := 0; i < 3 && !foundMatch; i++ {
+					ptphelper.WaitForPtpDaemonToExist()
 					ptphelper.WaitForPtpDaemonToBeReady()
 					ptpPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
 					Expect(err).NotTo(HaveOccurred())
@@ -825,8 +834,9 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 		Context("Running with fifo scheduling", func() {
 			BeforeEach(func() {
 				By("Refreshing configuration", func() {
-					ptphelper.WaitForPtpDaemonToBeReady()
+					ptphelper.WaitForPtpDaemonToExist()
 					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
+					ptphelper.WaitForPtpDaemonToBeReady()
 				})
 				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 					Skip("Failed to find a valid ptp slave configuration")
@@ -884,8 +894,9 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 		var _ = Describe("PTP socket sharing between pods", func() {
 			BeforeEach(func() {
 				By("Refreshing configuration", func() {
-					ptphelper.WaitForPtpDaemonToBeReady()
+					ptphelper.WaitForPtpDaemonToExist()
 					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
+					ptphelper.WaitForPtpDaemonToBeReady()
 				})
 				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 					Skip("Failed to find a valid ptp slave configuration")
@@ -995,7 +1006,8 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 						LabelSelector: "app=linuxptp-daemon",
 					})
 					Expect(err).ToNot(HaveOccurred())
-					ptpMonitoredEntriesByPod, uniqueMetricKeys := collectPtpMetrics(ptpPods.Items)
+					Expect(fullConfig.DiscoveredClockUnderTestPod).ToNot(BeNil())
+					ptpMonitoredEntriesByPod, uniqueMetricKeys := collectPtpMetrics([]k8sv1.Pod{*fullConfig.DiscoveredClockUnderTestPod})
 					Eventually(func() error {
 						podsPerPrometheusMetricKey := collectPrometheusMetrics(uniqueMetricKeys)
 						return containSameMetrics(ptpMonitoredEntriesByPod, podsPerPrometheusMetricKey)
@@ -1008,8 +1020,9 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 		Context("PTP Outage recovery", func() {
 			BeforeEach(func() {
 				By("Refreshing configuration", func() {
-					ptphelper.WaitForPtpDaemonToBeReady()
+					ptphelper.WaitForPtpDaemonToExist()
 					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
+					ptphelper.WaitForPtpDaemonToBeReady()
 				})
 				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 					Skip("Failed to find a valid ptp slave configuration")
@@ -1044,8 +1057,9 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 		Context("WPC GM Verification Tests", func() {
 			BeforeEach(func() {
 				By("Refreshing configuration", func() {
-					ptphelper.WaitForPtpDaemonToBeReady()
+					ptphelper.WaitForPtpDaemonToExist()
 					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
+					ptphelper.WaitForPtpDaemonToBeReady()
 				})
 				if fullConfig.PtpModeDiscovered != testconfig.TelcoGrandMasterClock {
 					Skip("test valid only for GM test config")
@@ -1451,34 +1465,6 @@ func verifyEventsV2(expectedState string) {
 
 	}
 
-}
-
-func getOCPVersion() (string, error) {
-
-	const OpenShiftAPIServer = "openshift-apiserver"
-
-	ocpClient := client.Client.OcpClient
-	clusterOperator, err := ocpClient.ClusterOperators().Get(context.TODO(), OpenShiftAPIServer, metav1.GetOptions{})
-
-	var ocpVersion string
-	if err != nil {
-		switch {
-		case kerrors.IsForbidden(err), kerrors.IsNotFound(err):
-			logrus.Errorf("OpenShift Version not found (must be logged in to cluster as admin): %v", err)
-			err = nil
-		}
-	}
-	if clusterOperator != nil {
-		for _, ver := range clusterOperator.Status.Versions {
-			if ver.Name == OpenShiftAPIServer {
-				ocpVersion = ver.Version
-				break
-			}
-		}
-	}
-	logrus.Infof("OCP Version is %v", ocpVersion)
-
-	return ocpVersion, err
 }
 
 func testCaseEnabled(testCase TestCase) bool {

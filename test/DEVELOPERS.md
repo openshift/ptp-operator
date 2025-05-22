@@ -691,7 +691,7 @@ The global configuration stores the bits and pieces used to represent the cluste
 
 With serial test cases, since all tests share the same process, the configuration can be read only once and be reused by all test cases. In the parallel case, The configuration needs to be discovered by each test case with the GetFullDiscoveredConfig. The following snippet discovers the ptp configuration and initializes the global configuration:
 ```
-ptphelper.WaitForPtpDaemonToBeReady()
+ptphelper.WaitForPtpDaemonToExist()
 fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
 ```
 The Global configuration object is described below:

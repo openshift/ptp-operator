@@ -109,7 +109,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-parallel]", func() 
 			}
 			// this is executed once per thread/test
 			By("Refreshing configuration", func() {
-				ptphelper.WaitForPtpDaemonToBeReady()
+				ptphelper.WaitForPtpDaemonToExist()
 				fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
 				fullConfig.PtpEventsIsConsumerReady = isConsumerReady
 			})

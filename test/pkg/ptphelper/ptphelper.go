@@ -17,8 +17,11 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/openshift/library-go/pkg/config/clusterstatus"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/mod/semver"
+	corev1 "k8s.io/api/core/v1"
 	v1core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/utils/pointer"
 
 	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
@@ -27,6 +30,8 @@ import (
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/nodes"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/pods"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+
 	configv1 "github.com/openshift/api/config/v1"
 	l2exports "github.com/redhat-cne/l2discovery-exports"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -178,7 +183,7 @@ func GetPTPConfigs(namespace string) ([]ptpv1.PtpConfig, []ptpv1.PtpConfig) {
 	return masters, slaves
 }
 func GetPtpPodOnNode(nodeName string) (v1core.Pod, error) {
-	WaitForPtpDaemonToBeReady()
+	WaitForPtpDaemonToExist()
 	runningPod, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
 	Expect(err).NotTo(HaveOccurred(), "Error to get list of pods by label: app=linuxptp-daemon")
 	Expect(len(runningPod.Items)).To(BeNumerically(">", 0), "PTP pods are  not deployed on cluster")
@@ -387,7 +392,7 @@ func RestartPTPDaemon() {
 		Expect(err).ToNot(HaveOccurred())
 	}
 
-	WaitForPtpDaemonToBeReady()
+	WaitForPtpDaemonToExist()
 }
 
 func CheckLeaseDuration(namespace string, leaseDurationDefault int32, leaseDurationSNO int32) int {
@@ -406,7 +411,7 @@ func CheckLeaseDuration(namespace string, leaseDurationDefault int32, leaseDurat
 	return 0
 }
 
-func WaitForPtpDaemonToBeReady() int {
+func WaitForPtpDaemonToExist() int {
 	daemonset, err := client.Client.DaemonSets(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), pkg.PtpDaemonsetName, metav1.GetOptions{})
 	Expect(err).ToNot(HaveOccurred())
 	expectedNumber := daemonset.Status.DesiredNumberScheduled
@@ -421,6 +426,35 @@ func WaitForPtpDaemonToBeReady() int {
 		Expect(err).ToNot(HaveOccurred())
 		return len(ptpPods.Items)
 	}, pkg.TimeoutIn5Minutes, 2*time.Second).Should(Equal(int(expectedNumber)))
+
+	return 0
+}
+
+func WaitForPtpDaemonToBeReady() int {
+	Eventually(func() error {
+		ocpVersion, err := GetOCPVersion()
+		if err != nil {
+			return fmt.Errorf("Failed to fetch OCP version: %w", err)
+		}
+
+		if semver.Compare(ocpVersion, "4.19") >= 0 {
+			return nil
+		}
+
+		ptpPods, err := client.Client.Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{
+			LabelSelector: "app=linuxptp-daemon",
+		})
+		if err != nil {
+			return err
+		}
+		for _, pod := range ptpPods.Items {
+			if out, ok := CheckReadiness(pod); !ok {
+				return fmt.Errorf("Not Ready: %s", out)
+			}
+		}
+		return nil
+	}, 2*time.Minute, 2*time.Second).Should(Not(HaveOccurred()))
+
 	return 0
 }
 
@@ -793,7 +827,7 @@ func checkGNMRCString(deviceName string, nodeName string) bool {
 
 func execPodCommand(nodeName string, cmd []string) (stdoutBuf, stderrBuf bytes.Buffer, err error) {
 
-	WaitForPtpDaemonToBeReady()
+	WaitForPtpDaemonToExist()
 	pod, err := GetPtpPodOnNode(nodeName)
 	so, se := bytes.Buffer{}, bytes.Buffer{}
 	if err != nil {
@@ -832,4 +866,55 @@ func IsV1Api(version string) bool {
 	}
 	// by default use V1
 	return true
+}
+
+func CheckReadiness(pod corev1.Pod) (string, bool) {
+	ocpVersion, err := GetOCPVersion()
+	if err != nil {
+		return fmt.Sprintf("Failed to fetch OCP version: %s", err), false
+	}
+
+	// Endpoint only exists in 4.19 currently
+	if semver.Compare(ocpVersion, "4.19") >= 0 {
+		return "", true
+	}
+
+	stdout, stderr, err := pods.ExecCommand(
+		client.Client,
+		true,
+		&pod,
+		pod.Spec.Containers[0].Name,
+		[]string{"curl", "-v", "localhost:8081/ready"},
+	)
+	if err != nil {
+		return "", false
+	}
+	out := stdout.String() + stderr.String()
+	return out, strings.Contains(out, "HTTP/1.1 200 OK")
+}
+
+func GetOCPVersion() (string, error) {
+	const OpenShiftAPIServer = "openshift-apiserver"
+
+	ocpClient := client.Client.OcpClient
+	clusterOperator, err := ocpClient.ClusterOperators().Get(context.TODO(), OpenShiftAPIServer, metav1.GetOptions{})
+
+	var ocpVersion string
+	if err != nil {
+		switch {
+		case kerrors.IsForbidden(err), kerrors.IsNotFound(err):
+			logrus.Errorf("OpenShift Version not found (must be logged in to cluster as admin): %v", err)
+			err = nil
+		}
+	}
+	if clusterOperator != nil {
+		for _, ver := range clusterOperator.Status.Versions {
+			if ver.Name == OpenShiftAPIServer {
+				ocpVersion = ver.Version
+				break
+			}
+		}
+	}
+
+	return ocpVersion, err
 }

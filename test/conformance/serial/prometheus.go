@@ -3,6 +3,7 @@ package test
 import (
 	"bytes"
 	"fmt"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg"
 	"log"
 	"strings"
 	"time"
@@ -85,18 +86,17 @@ func collectPrometheusMetrics(uniqueMetricKeys []string) map[string][]string {
 }
 
 func collectPtpMetrics(ptpPods []k8sv1.Pod) (map[string][]string, []string) {
-	uniqueMetricKeys := []string{}
+	var uniqueMetricKeys []string
 	ptpMonitoredEntriesByPod := map[string][]string{}
 	for _, pod := range ptpPods {
-		podEntries := []string{}
+		var podEntries []string
 		var stdout bytes.Buffer
 		var err error
 		Eventually(func() error {
-			stdout, _, err = pods.ExecCommand(client.Client, true, &pod, pod.Spec.Containers[0].Name, []string{"curl", "localhost:9091/metrics"})
+			stdout, _, err = pods.ExecCommand(client.Client, true, &pod, pkg.PtpContainerName, []string{"curl", "localhost:9091/metrics"})
 			if len(strings.Split(stdout.String(), "\n")) == 0 {
 				return fmt.Errorf("empty response")
 			}
-
 			return err
 		}, 2*time.Minute, 2*time.Second).Should(Not(HaveOccurred()))
 
