@@ -60,7 +60,7 @@ metadata:
     capabilities: Basic Install
     categories: Networking
     certified: "false"
-    containerImage: quay.io/openshift/origin-ptp-operator:4.19
+    containerImage: quay.io/openshift/origin-ptp-operator:4.20
     createdAt: "2024-06-12"
     description: This software enables configuration of Precision Time Protocol(PTP)
       on Kubernetes. It detects hardware capable PTP devices on each node, and configures
@@ -75,7 +75,7 @@ metadata:
     features.operators.openshift.io/token-auth-aws: "false"
     features.operators.openshift.io/token-auth-azure: "false"
     features.operators.openshift.io/token-auth-gcp: "false"
-    olm.skipRange: ">=4.3.0-0 <4.19.0"
+    olm.skipRange: ">=4.3.0-0 <4.20.0"
     operatorframework.io/suggested-namespace: openshift-ptp
     operators.openshift.io/infrastructure-features: '["disconnected"]'
     operators.operatorframework.io/builder: operator-sdk-v1.22.0-ocp
@@ -83,7 +83,7 @@ metadata:
     provider: Red Hat
     repository: https://github.com/k8snetworkplumbingwg/ptp-operator
     support: Red Hat
-  name: ptp-operator.v4.19.0
+  name: ptp-operator.v4.20.0
   namespace: openshift-ptp
 spec:
   apiservicedefinitions: {}
@@ -285,6 +285,18 @@ spec:
           - list
           - watch
         - apiGroups:
+          - networking.k8s.io
+          resources:
+          - networkpolicies
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
           - ptp.openshift.io
           resources:
           - ptpconfigs
@@ -352,6 +364,7 @@ spec:
                 target.workload.openshift.io/management: '{"effect": "PreferredDuringScheduling"}'
               labels:
                 name: ptp-operator
+                role: ptp
             spec:
               containers:
               - args:
@@ -364,13 +377,13 @@ spec:
                 - name: OPERATOR_NAME
                   value: ptp-operator
                 - name: RELEASE_VERSION
-                  value: v4.19.0
+                  value: v4.20.0
                 - name: LINUXPTP_DAEMON_IMAGE
-                  value: quay.io/openshift/origin-ptp:4.19
+                  value: quay.io/openshift/origin-ptp:4.20
                 - name: KUBE_RBAC_PROXY_IMAGE
-                  value: quay.io/openshift/origin-kube-rbac-proxy:4.19
+                  value: quay.io/openshift/origin-kube-rbac-proxy:4.20
                 - name: SIDECAR_EVENT_IMAGE
-                  value: quay.io/openshift/origin-cloud-event-proxy:4.19
+                  value: quay.io/openshift/origin-cloud-event-proxy:4.20
                 - name: WATCH_NAMESPACE
                   valueFrom:
                     fieldRef:
@@ -379,7 +392,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.name
-                image: quay.io/openshift/origin-ptp-operator:4.19
+                image: quay.io/openshift/origin-ptp-operator:4.20
                 imagePullPolicy: IfNotPresent
                 name: ptp-operator
                 ports:
@@ -474,7 +487,7 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat
-  version: 4.19.0
+  version: 4.20.0
   webhookdefinitions:
   - admissionReviewVersions:
     - v1

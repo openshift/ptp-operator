@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: cloud-event-proxy-network-policy
+  namespace: openshift-ptp
+spec:
+  podSelector:
+    matchLabels:
+      app: linuxptp-daemon
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector: {}  # Allow any pod from any namespace
+      ports:
+        - port: 9043
+          protocol: TCP
+  egress:
+    - to:
+        - namespaceSelector: {}  # Allow connection to any pod in any namespace
+      ports:
+        - protocol: TCP
