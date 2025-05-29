@@ -24,7 +24,7 @@ metadata:
 spec:
   ingress:
     - ports:
-        - port: 4343
+        - port: 9443
           protocol: TCP
   podSelector:
     matchLabels:
