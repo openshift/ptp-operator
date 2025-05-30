@@ -48,6 +48,9 @@ const (
 
 const (
 	DPLL_LOCKED_HO_ACQ = 3
+	DPLL_HOLDOVER      = 4
+	DPLL_FREERUN       = 1
+	DPLL_LOCKED        = 2
 )
 const (
 	ClockClassFreerun = 248
@@ -1225,18 +1228,20 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				}
 			})
 			/*
-				Step | Action
-				1    | Check starting stability (ClockClass 6, locked)
-				2    | Start continuous coldboot
-				3    | Wait for ClockClass 7 (in-spec holdover)
-				4    | Check clock state = 2 (Holdover)
-				5    | Stop coldboot
-				6    | Wait a little (for GNSS to recover)
-				7    | Wait for ClockClass 6 again
-				8    | Confirm clock state = 1 for T-GM (Locked)
+					Step | Action
+					1    | Check starting stability (ClockClass 6, locked)
+					2    | Start continuous coldboot
+					3	 | Wait for DPLL state = 3 (Holdover)
+					3    | Wait for ClockClass 7 (in-spec holdover)
+					4    | Check clock state = 2 (Holdover)
+					5    | Stop coldboot
+					6    | Wait a little (for GNSS to recover)
+					7    | Wait for ClockClass 6 again
+					8    | Confirm clock state = 1 for T-GM (Locked)
+				    9    | Check Dpll State = 1 (Locked)
 			*/
 			It("Testing WPC T-GM holdover through connection loss", func() {
-				By("Coldboot GNSS continuously while waiting for ClockClass 7", func() {
+				By("Coldboot GNSS continuously while waiting for ClockClass 7 and clock state for GM an DPLL", func() {
 					checkStabilityOfWPCGMUsingMetrics(fullConfig)
 
 					// Initially system should be LOCKED (ClockClass 6)
@@ -1251,7 +1256,10 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					waitForClockClass(fullConfig, strconv.Itoa(int(fbprotocol.ClockClass7)))
 
 					// Also verify ClockState 2 (Holdover)
-					checkClockState(fullConfig, "2")
+					checkClockStateForProcess(fullConfig, "GM", "2")
+
+					// Also verify ClockState (Holdover) for DPLL
+					checkClockStateForProcess(fullConfig, "dpll", "2")
 
 					// Once holdover detected, stop coldboot loop
 					close(stopChan)
@@ -1261,9 +1269,13 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 					// Now wait for system to go back to LOCKED (ClockClass 6)
 					waitForClockClass(fullConfig, strconv.Itoa(int(fbprotocol.ClockClass6)))
+					// Give DPLL time update
+					time.Sleep(pkg.Timeout10Seconds)
+					// Also verify ClockState (Holdover) for DPLL
+					checkClockStateForProcess(fullConfig, "dpll", "1")
 
 					// Also verify ClockState 1 (Locked)
-					checkClockState(fullConfig, "1")
+					checkClockStateForProcess(fullConfig, "GM", "1")
 				})
 			})
 
@@ -1553,6 +1565,23 @@ func clockStateByProcesses(input string, state string) (map[string]bool, error) 
 	return processClockState, nil
 }
 
+func getClockStateByProcess(metrics, process string) (string, bool) {
+	scanner := bufio.NewScanner(strings.NewReader(metrics))
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if strings.HasPrefix(line, "openshift_ptp_clock_state") && strings.Contains(line, fmt.Sprintf(`process="%s"`, process)) {
+			// split line to get value
+			parts := strings.Fields(line)
+			if len(parts) == 2 {
+				return parts[1], true
+			}
+		}
+	}
+	return "", false
+}
+
 func checkProcessStatus(fullConfig testconfig.TestConfig, state string) {
 	/*
 		# TYPE openshift_ptp_process_status gauge
@@ -1746,6 +1775,28 @@ func checkClockState(fullConfig testconfig.TestConfig, state string) {
 	// Expect(ret["dpll"]).To(BeTrue(), fmt.Sprintf("Expected dpll clock state to be %s for GM", state))
 	// Expect(ret["ts2phc"]).To(BeTrue(), fmt.Sprintf("Expected ts2phc clock state to be %s for GM", state))
 	// Expect(ret["gnss"]).To(BeTrue(), fmt.Sprintf("Expected gnss clock state to be %s for GM", state))
+}
+
+func checkClockStateForProcess(fullConfig testconfig.TestConfig, process string, state string) {
+	/*
+		# TODO: Revisit this for 2 card as each card will have its own dpll and ts2phc processes
+		# TYPE openshift_ptp_clock_state gauge
+		openshift_ptp_clock_state{iface="CLOCK_REALTIME",node="cnfdg32.ptp.eng.rdu2.dc.redhat.com",process="phc2sys"} 1
+		openshift_ptp_clock_state{iface="ens7fx",node="cnfdg32.ptp.eng.rdu2.dc.redhat.com",process="GM"} 1
+		openshift_ptp_clock_state{iface="ens7fx",node="cnfdg32.ptp.eng.rdu2.dc.redhat.com",process="dpll"} 1
+		openshift_ptp_clock_state{iface="ens7fx",node="cnfdg32.ptp.eng.rdu2.dc.redhat.com",process="gnss"} 1
+		openshift_ptp_clock_state{iface="ens7fx",node="cnfdg32.ptp.eng.rdu2.dc.redhat.com",process="ts2phc"} 1
+	*/
+	Eventually(func() string {
+		buf, _, _ := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
+		return buf.String()
+	}, pkg.TimeoutIn3Minutes, pkg.Timeout10Seconds).Should(ContainSubstring(metrics.OpenshiftPtpClockState),
+		"Clock state metrics are not detected")
+
+	buf, _, _ := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
+	retState, found := getClockStateByProcess(buf.String(), process)
+	Expect(found).To(BeTrue(), fmt.Sprintf("Expected %s clock state to be %s for GM but found %s", process, state, retState))
+	Expect(retState).To(Equal(state), fmt.Sprintf("Expected %s clock state to be %s for GM %s", process, state, buf.String()))
 }
 
 func checkPTPNMEAStatus(fullConfig testconfig.TestConfig, expectedState string) {
