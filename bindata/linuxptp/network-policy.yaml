@@ -26,6 +26,8 @@ spec:
     - ports:
         - port: 9443
           protocol: TCP
+        - port: 443
+          protocol: TCP
   podSelector:
     matchLabels:
       name: ptp-operator  # Target only ptp-operator Pods (adjust if needed)
