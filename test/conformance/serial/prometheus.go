@@ -3,10 +3,11 @@ package test
 import (
 	"bytes"
 	"fmt"
-	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg"
 	"log"
 	"strings"
 	"time"
+
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg"
 
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/metrics"
@@ -43,7 +44,7 @@ type metric struct {
 	Pod string
 }
 
-func collectPrometheusMetrics(uniqueMetricKeys []string) map[string][]string {
+func collectPrometheusMetrics(uniqueMetricKeys []string) (map[string][]string, error) {
 	prometheusPod, err := metrics.GetPrometheusPod()
 	Expect(err).ToNot(HaveOccurred(), "failed to get prometheus pod")
 
@@ -75,14 +76,13 @@ func collectPrometheusMetrics(uniqueMetricKeys []string) map[string][]string {
 
 	// Debugging Output
 	if len(failedQueries) > 0 {
-		log.Printf("Some Prometheus queries failed (%d total):\n%s\n", len(failedQueries), strings.Join(failedQueries, "\n"))
-		Expect(len(failedQueries)).To(Equal(0), "Some Prometheus queries failed")
+		return podsPerPrometheusMetricKey, fmt.Errorf("Some Prometheus queries failed (%d total):\n%s\n", len(failedQueries), strings.Join(failedQueries, "\n"))
 	}
 
 	// Debug Map Size
 	log.Printf("Collected %d unique Prometheus metrics\n", len(podsPerPrometheusMetricKey))
 
-	return podsPerPrometheusMetricKey
+	return podsPerPrometheusMetricKey, nil
 }
 
 func collectPtpMetrics(ptpPods []k8sv1.Pod) (map[string][]string, []string) {

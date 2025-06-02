@@ -1012,7 +1012,10 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					Expect(fullConfig.DiscoveredClockUnderTestPod).ToNot(BeNil())
 					ptpMonitoredEntriesByPod, uniqueMetricKeys := collectPtpMetrics([]k8sv1.Pod{*fullConfig.DiscoveredClockUnderTestPod})
 					Eventually(func() error {
-						podsPerPrometheusMetricKey := collectPrometheusMetrics(uniqueMetricKeys)
+						podsPerPrometheusMetricKey, err := collectPrometheusMetrics(uniqueMetricKeys)
+						if err != nil {
+							return err
+						}
 						return containSameMetrics(ptpMonitoredEntriesByPod, podsPerPrometheusMetricKey)
 					}, 5*time.Minute, 2*time.Second).Should(Not(HaveOccurred()))
 
