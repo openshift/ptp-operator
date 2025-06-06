@@ -1,4 +1,7 @@
 #!/bin/bash
+set -x
+set -euo pipefail
+
 timeout="$1"
 interval="$2"
 shift 2

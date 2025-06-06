@@ -119,7 +119,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 			Expect(err).ToNot(HaveOccurred())
 			Expect(len(ds.Items)).To(BeNumerically(">", 0), "no damonsets found in the namespace "+pkg.PtpLinuxDaemonNamespace)
 			By("Checking number of scheduled instances")
-			Expect(ds.Items[0].Status.CurrentNumberScheduled).To(BeNumerically("==", len(nodes.Items)), "should be one instance per node")
+			Expect(ds.Items[0].Status.CurrentNumberScheduled).To(BeNumerically("==", ds.Items[0].Status.DesiredNumberScheduled), "should be one instance per node")
 		})
 		// Setup verification
 		It("Should check that operator is deployed", func() {
@@ -171,7 +171,9 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				By("Refreshing configuration", func() {
 					ptphelper.WaitForPtpDaemonToExist()
 					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
-					ptphelper.WaitForPtpDaemonToBeReady()
+					podsRunningPTP4l, err := testconfig.GetPodsRunningPTP4l(&fullConfig)
+					Expect(err).NotTo(HaveOccurred())
+					ptphelper.WaitForPtpDaemonToBeReady(podsRunningPTP4l)
 				})
 				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 					Skip("Failed to find a valid ptp slave configuration")
@@ -195,7 +197,9 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				By("Refreshing configuration", func() {
 					ptphelper.WaitForPtpDaemonToExist()
 					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
-					ptphelper.WaitForPtpDaemonToBeReady()
+					podsRunningPTP4l, err := testconfig.GetPodsRunningPTP4l(&fullConfig)
+					Expect(err).NotTo(HaveOccurred())
+					ptphelper.WaitForPtpDaemonToBeReady(podsRunningPTP4l)
 				})
 				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 					Skip("Failed to find a valid ptp slave configuration")
@@ -230,8 +234,11 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				By("Getting the version of the OCP cluster")
 
 				ocpVersion, err := ptphelper.GetOCPVersion()
-				Expect(err).ToNot(HaveOccurred())
-				Expect(ocpVersion).ShouldNot(BeEmpty())
+				if err != nil {
+					logrus.Infof("Kubernetes cluster under test is not Openshift, cannot get OCP version")
+				} else {
+					logrus.Infof("Kubernetes cluster under test is Openshift, OCP version is %s", ocpVersion)
+				}
 
 				By("Getting the version of the PTP operator")
 
@@ -276,7 +283,9 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				By("Refreshing configuration", func() {
 					ptphelper.WaitForPtpDaemonToExist()
 					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
-					ptphelper.WaitForPtpDaemonToBeReady()
+					podsRunningPTP4l, err := testconfig.GetPodsRunningPTP4l(&fullConfig)
+					Expect(err).NotTo(HaveOccurred())
+					ptphelper.WaitForPtpDaemonToBeReady(podsRunningPTP4l)
 				})
 				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 					Skip("Failed to find a valid ptp slave configuration")
@@ -552,7 +561,10 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				By("Refreshing configuration", func() {
 					ptphelper.WaitForPtpDaemonToExist()
 					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
-					ptphelper.WaitForPtpDaemonToBeReady()
+					podsRunningPTP4l, err := testconfig.GetPodsRunningPTP4l(&fullConfig)
+					Expect(err).NotTo(HaveOccurred())
+					ptphelper.WaitForPtpDaemonToBeReady(podsRunningPTP4l)
+
 				})
 				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 					Skip("Failed to find a valid ptp slave configuration")
@@ -574,7 +586,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					Skip("Skipping: test not valid for WPC GM (Telco Grandmaster Clock) config")
 				}
 				Eventually(func() string {
-					buf, _, _ := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
+					buf, _, _ := pods.ExecCommand(client.Client, false, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
 					return buf.String()
 				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring(metrics.OpenshiftPtpOffsetNs),
 					"Time metrics are not detected")
@@ -590,7 +602,9 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				By("Refreshing configuration", func() {
 					ptphelper.WaitForPtpDaemonToExist()
 					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
-					ptphelper.WaitForPtpDaemonToBeReady()
+					podsRunningPTP4l, err := testconfig.GetPodsRunningPTP4l(&fullConfig)
+					Expect(err).NotTo(HaveOccurred())
+					ptphelper.WaitForPtpDaemonToBeReady(podsRunningPTP4l)
 				})
 
 				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
@@ -625,7 +639,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				By("Checking event api is healthy")
 
 				Eventually(func() string {
-					buf, _, _ := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", path.Join(apiBase, "health")})
+					buf, _, _ := pods.ExecCommand(client.Client, false, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", path.Join(apiBase, "health")})
 					return buf.String()
 				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring("OK"),
 					"Event API is not in healthy state")
@@ -633,7 +647,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				By("Checking ptp publisher is created")
 
 				Eventually(func() string {
-					buf, _, _ := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", path.Join(apiBase, "publishers")})
+					buf, _, _ := pods.ExecCommand(client.Client, false, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", path.Join(apiBase, "publishers")})
 					return buf.String()
 				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring(endpointUri),
 					"Event API  did not return publishers")
@@ -656,13 +670,13 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				By("Checking event metrics are present")
 
 				Eventually(func() string {
-					buf, _, _ := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", pkg.MetricsEndPoint})
+					buf, _, _ := pods.ExecCommand(client.Client, false, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", pkg.MetricsEndPoint})
 					return buf.String()
 				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring(metrics.OpenshiftPtpInterfaceRole),
 					"Interface role metrics are not detected")
 
 				Eventually(func() string {
-					buf, _, _ := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", pkg.MetricsEndPoint})
+					buf, _, _ := pods.ExecCommand(client.Client, false, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", pkg.MetricsEndPoint})
 					return buf.String()
 				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring(metrics.OpenshiftPtpThreshold),
 					"Threshold metrics are not detected")
@@ -682,7 +696,10 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				By("Refreshing configuration", func() {
 					ptphelper.WaitForPtpDaemonToExist()
 					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
-					ptphelper.WaitForPtpDaemonToBeReady()
+					podsRunningPTP4l, err := testconfig.GetPodsRunningPTP4l(&fullConfig)
+					Expect(err).NotTo(HaveOccurred())
+					ptphelper.WaitForPtpDaemonToBeReady(podsRunningPTP4l)
+
 				})
 				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 					Skip("Failed to find a valid ptp slave configuration")
@@ -707,9 +724,15 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				Expect(cloudProxyFound).ToNot(BeFalse(), "No event pods detected")
 
 				By("Checking event api is healthy")
-
+				apiVersion := ptphelper.PtpEventEnabled()
+				var apiBase string
+				if apiVersion == 1 {
+					apiBase = event.ApiBaseV1
+				} else {
+					apiBase = event.ApiBaseV2
+				}
 				Eventually(func() string {
-					buf, _, _ := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", path.Join(event.ApiBaseV1, "health")})
+					buf, _, _ := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", path.Join(apiBase, "health")})
 					return buf.String()
 				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring("OK"),
 					"Event API is not in healthy state")
@@ -717,7 +740,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				By("Checking ptp publisher is created")
 
 				Eventually(func() string {
-					buf, _, _ := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", path.Join(event.ApiBaseV1, "publishers")})
+					buf, _, _ := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", path.Join(apiBase, "publishers")})
 					return buf.String()
 				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring("endpointUri"),
 					"Event API  did not return publishers")
@@ -770,8 +793,9 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				By("checking for plugin logs")
 				foundMatch := false
 				for i := 0; i < 3 && !foundMatch; i++ {
-					ptphelper.WaitForPtpDaemonToExist()
-					ptphelper.WaitForPtpDaemonToBeReady()
+					podsRunningPTP4l, err := testconfig.GetPodsRunningPTP4l(&fullConfig)
+					Expect(err).NotTo(HaveOccurred())
+					ptphelper.WaitForPtpDaemonToBeReady(podsRunningPTP4l)
 					ptpPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
 					Expect(err).NotTo(HaveOccurred())
 					Expect(len(ptpPods.Items)).To(BeNumerically(">", 0), "linuxptp-daemon is not deployed on cluster")
@@ -815,7 +839,10 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				foundMatch := false
 				for i := 0; i < 3 && !foundMatch; i++ {
 					ptphelper.WaitForPtpDaemonToExist()
-					ptphelper.WaitForPtpDaemonToBeReady()
+					podsRunningPTP4l, err := testconfig.GetPodsRunningPTP4l(&fullConfig)
+					Expect(err).NotTo(HaveOccurred())
+					ptphelper.WaitForPtpDaemonToBeReady(podsRunningPTP4l)
+
 					ptpPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
 					Expect(err).NotTo(HaveOccurred())
 					Expect(len(ptpPods.Items)).To(BeNumerically(">", 0), "linuxptp-daemon is not deployed on cluster")
@@ -839,7 +866,10 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				By("Refreshing configuration", func() {
 					ptphelper.WaitForPtpDaemonToExist()
 					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
-					ptphelper.WaitForPtpDaemonToBeReady()
+					podsRunningPTP4l, err := testconfig.GetPodsRunningPTP4l(&fullConfig)
+					Expect(err).NotTo(HaveOccurred())
+					ptphelper.WaitForPtpDaemonToBeReady(podsRunningPTP4l)
+
 				})
 				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 					Skip("Failed to find a valid ptp slave configuration")
@@ -899,7 +929,10 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				By("Refreshing configuration", func() {
 					ptphelper.WaitForPtpDaemonToExist()
 					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
-					ptphelper.WaitForPtpDaemonToBeReady()
+					podsRunningPTP4l, err := testconfig.GetPodsRunningPTP4l(&fullConfig)
+					Expect(err).NotTo(HaveOccurred())
+					ptphelper.WaitForPtpDaemonToBeReady(podsRunningPTP4l)
+
 				})
 				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 					Skip("Failed to find a valid ptp slave configuration")
@@ -915,7 +948,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 			var _ = Context("Negative - run pmc in a new unprivileged pod on the slave node", func() {
 				It("Should not be able to use the uds", func() {
 					Eventually(func() string {
-						buf, _, _ := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod, fullConfig.DiscoveredClockUnderTestPod.Spec.Containers[0].Name, []string{"pmc", "-u", "-f", "/var/run/ptp4l.0.config", "GET CURRENT_DATA_SET"})
+						buf, _, _ := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"pmc", "-b", "0", "-u", "-f", "/var/run/ptp4l.0.config", "GET CURRENT_DATA_SET"})
 						return buf.String()
 					}, 1*time.Minute, 2*time.Second).ShouldNot(ContainSubstring("failed to open configuration file"), "ptp config file was not created")
 					podDefinition := pods.DefinePodOnNode(pkg.PtpLinuxDaemonNamespace, fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName)
@@ -946,7 +979,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					err = pods.WaitForCondition(client.Client, pod, v1core.ContainersReady, v1core.ConditionTrue, 3*time.Minute)
 					Expect(err).ToNot(HaveOccurred())
 					Eventually(func() string {
-						buf, _, _ := pods.ExecCommand(client.Client, true, pod, pod.Spec.Containers[0].Name, []string{"pmc", "-u", "-f", "/var/run/ptp4l.0.config", "GET CURRENT_DATA_SET"})
+						buf, _, _ := pods.ExecCommand(client.Client, true, pod, pod.Spec.Containers[0].Name, []string{"pmc", "-b", "0", "-u", "-f", "/var/run/ptp4l.0.config", "GET CURRENT_DATA_SET"})
 						return buf.String()
 					}, 1*time.Minute, 2*time.Second).Should(ContainSubstring("Permission denied"), "unprivileged pod can access the uds socket")
 				})
@@ -957,7 +990,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 					Expect(fullConfig.DiscoveredClockUnderTestPod).ToNot(BeNil())
 					Eventually(func() string {
-						buf, _, _ := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod, fullConfig.DiscoveredClockUnderTestPod.Spec.Containers[0].Name, []string{"pmc", "-u", "-f", "/var/run/ptp4l.0.config", "GET CURRENT_DATA_SET"})
+						buf, _, _ := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"pmc", "-b", "0", "-u", "-f", "/var/run/ptp4l.0.config", "GET CURRENT_DATA_SET"})
 						return buf.String()
 					}, 1*time.Minute, 2*time.Second).ShouldNot(ContainSubstring("failed to open configuration file"), "ptp config file was not created")
 					podDefinition, _ := pods.RedefineAsPrivileged(
@@ -989,12 +1022,12 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					err = pods.WaitForCondition(client.Client, pod, v1core.ContainersReady, v1core.ConditionTrue, 3*time.Minute)
 					Expect(err).ToNot(HaveOccurred())
 					Eventually(func() string {
-						buf, _, _ := pods.ExecCommand(client.Client, true, pod, pod.Spec.Containers[0].Name, []string{"pmc", "-u", "-f", "/var/run/ptp4l.0.config", "GET CURRENT_DATA_SET"})
+						buf, _, _ := pods.ExecCommand(client.Client, true, pod, pod.Spec.Containers[0].Name, []string{"pmc", "-b", "0", "-u", "-f", "/var/run/ptp4l.0.config", "GET CURRENT_DATA_SET"})
 						return buf.String()
 					}, 1*time.Minute, 2*time.Second).ShouldNot(ContainSubstring("failed to open configuration file"), "ptp config file is not shared between pods")
 
 					Eventually(func() int {
-						buf, _, _ := pods.ExecCommand(client.Client, true, pod, pod.Spec.Containers[0].Name, []string{"pmc", "-u", "-f", "/var/run/ptp4l.0.config", "GET CURRENT_DATA_SET"})
+						buf, _, _ := pods.ExecCommand(client.Client, false, pod, pod.Spec.Containers[0].Name, []string{"pmc", "-b", "0", "-u", "-f", "/var/run/ptp4l.0.config", "GET CURRENT_DATA_SET"})
 						return strings.Count(buf.String(), "offsetFromMaster")
 					}, 3*time.Minute, 2*time.Second).Should(BeNumerically(">=", 1))
 				})
@@ -1003,6 +1036,12 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 		var _ = Describe("prometheus", func() {
 			Context("Metrics reported by PTP pods", func() {
+				BeforeEach(func() {
+					createPrometheusService()
+				})
+				AfterEach(func() {
+					deletePrometheusService()
+				})
 				It("Should all be reported by prometheus", func() {
 					var err error
 					ptpPods, err = client.Client.Pods(openshiftPtpNamespace).List(context.Background(), metav1.ListOptions{
@@ -1028,7 +1067,10 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				By("Refreshing configuration", func() {
 					ptphelper.WaitForPtpDaemonToExist()
 					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
-					ptphelper.WaitForPtpDaemonToBeReady()
+					podsRunningPTP4l, err := testconfig.GetPodsRunningPTP4l(&fullConfig)
+					Expect(err).NotTo(HaveOccurred())
+					ptphelper.WaitForPtpDaemonToBeReady(podsRunningPTP4l)
+
 				})
 				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 					Skip("Failed to find a valid ptp slave configuration")
@@ -1065,7 +1107,10 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				By("Refreshing configuration", func() {
 					ptphelper.WaitForPtpDaemonToExist()
 					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
-					ptphelper.WaitForPtpDaemonToBeReady()
+					podsRunningPTP4l, err := testconfig.GetPodsRunningPTP4l(&fullConfig)
+					Expect(err).NotTo(HaveOccurred())
+					ptphelper.WaitForPtpDaemonToBeReady(podsRunningPTP4l)
+
 				})
 				if fullConfig.PtpModeDiscovered != testconfig.TelcoGrandMasterClock {
 					Skip("test valid only for GM test config")

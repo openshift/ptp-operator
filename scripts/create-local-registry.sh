@@ -1,4 +1,7 @@
 #!/bin/bash
+set -x
+set -euo pipefail
+
 VM_IP=$1
 
 mkdir -p ~/registry
