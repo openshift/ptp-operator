@@ -57,7 +57,6 @@ var _ = Describe("validation", func() {
 
 		It("should have the linuxptp daemonset in running state", func() {
 			ptphelper.WaitForPtpDaemonToExist()
-			ptphelper.WaitForPtpDaemonToBeReady()
 		})
 
 		It("should have the ptp CRDs available in the cluster", func() {

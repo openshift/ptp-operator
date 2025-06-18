@@ -158,7 +158,7 @@ Checks that the ptp interface discovered by the ptp API ( node ptp device ) for 
     - HwRawClock
 For each node compile a list of interfaces satisfying the above requirements and compare it to the list retrievd via the node ptp device API. Example API output:
 ```
-[deliedit@redhatwork test]$ oc get nodeptpdevices.ptp.openshift.io  -nopenshift-ptp master-2.clus0.t5g.lab.eng.rdu2.redhat.com -oyaml
+[user@redhatwork test]$ oc get nodeptpdevices.ptp.openshift.io  -nopenshift-ptp master-2.clus0.t5g.lab.eng.rdu2.redhat.com -oyaml
 apiVersion: ptp.openshift.io/v1
 kind: NodePtpDevice
 metadata:
@@ -195,7 +195,7 @@ status:
   - name: ens2f1
   - name: ens3f0
   - name: ens3f1
-[deliedit@redhatwork test]$
+[user@redhatwork test]$
 ```
 #### Should retrieve the details of hardwares for the Ptp
 Dumps the detailed cluster network interfaces PCI information, including:

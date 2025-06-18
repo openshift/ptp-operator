@@ -1470,6 +1470,7 @@ func discoverPTPConfiguration(namespace string) {
 		logrus.Errorf("error getting ptpconfig list, err=%s", err)
 	}
 	logrus.Infof("%d ptpconfig objects recovered", len(configList.Items))
+	resetConfig()
 	for profileIndex := range configList.Items {
 		for _, r := range configList.Items[profileIndex].Spec.Recommend {
 			for _, m := range r.Match {
@@ -1496,6 +1497,16 @@ func discoverPTPConfiguration(namespace string) {
 		}
 	}
 	discoverMode(ptpConfigClockUnderTest)
+}
+
+func resetConfig() {
+	GlobalConfig.Status = DiscoveryFailureStatus
+	GlobalConfig.DiscoveredClockUnderTestPod = nil
+	GlobalConfig.DiscoveredClockUnderTestPtpConfig = nil
+	GlobalConfig.DiscoveredClockUnderTestSecondaryPtpConfig = nil
+	GlobalConfig.DiscoveredSlave1PtpConfig = nil
+	GlobalConfig.DiscoveredSlave2PtpConfig = nil
+	GlobalConfig.DiscoveredGrandMasterPtpConfig = nil
 }
 
 // Helper function analysing ptpconfig to deduce the actual ptp configuration
@@ -1569,4 +1580,32 @@ func discoverMode(ptpConfigClockUnderTest []*ptpv1.PtpConfig) {
 	GlobalConfig.DiscoveredClockUnderTestPod = pod
 	GlobalConfig.DiscoveredFollowerInterfaces = allFollowerIfs
 	GlobalConfig.DiscoveredMasterInterfaces = allMasterIfs
+}
+
+func GetPodsRunningPTP4l(fullConfig *TestConfig) (podList []*v1core.Pod, err error) {
+	allPTPConfigs := []*ptpv1.PtpConfig{}
+
+	allPTPConfigs = append(allPTPConfigs,
+		(*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig),
+		(*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestSecondaryPtpConfig),
+		(*ptpv1.PtpConfig)(fullConfig.DiscoveredSlave1PtpConfig),
+		(*ptpv1.PtpConfig)(fullConfig.DiscoveredSlave2PtpConfig),
+		(*ptpv1.PtpConfig)(fullConfig.DiscoveredGrandMasterPtpConfig),
+	)
+
+	podNames := []string{}
+	for _, aPTPConfig := range allPTPConfigs {
+		if aPTPConfig == nil {
+			continue
+		}
+		var aPod *v1core.Pod
+		aPod, err = ptphelper.GetPTPPodWithPTPConfig(aPTPConfig)
+		if err != nil {
+			return podList, fmt.Errorf("could not determine pod managing this ptpconfig, err: %v", err)
+		}
+		podList = append(podList, aPod)
+		podNames = append(podNames, aPod.Name)
+	}
+	logrus.Infof("List of pods running ptp4l: %v", podNames)
+	return podList, nil
 }

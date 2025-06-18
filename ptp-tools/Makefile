@@ -2,16 +2,30 @@ LOCALBIN ?= $(shell pwd)/../bin
 $(LOCALBIN):
 	mkdir -p $(LOCALBIN)/x86_64/
 
+OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
+ARCH := $(shell uname -m)
+
+# Normalize architecture names
+ifeq ($(ARCH),x86_64)
+  ARCH := amd64
+endif
+ifeq ($(ARCH),aarch64)
+  ARCH := arm64
+endif
+
+PLATFORM := $(OS)/$(ARCH)
+
 ## Tool Binaries
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 
-IMG_PREFIX ?= quay.io/deliedit/test
+IMG_PREFIX ?= quay.io/<your user id here>/<your image name>
 
-VALUES = lptpd-base lptpd cep ptpop krp 
+VALUES = lptpd cep ptpop krp openvswitch
 
 podman-buildall: $(foreach v, $(VALUES), podman-build-$(v))
 
 podman-build-%:
+	@echo "Platform: $(PLATFORM)"
 	sed -i 's/IfNotPresent/Always/g' ../bindata/linuxptp/ptp-daemon.yaml
 	$(MAKE) clean-image VAR=$*;
 	$(MAKE) build-image VAR=$*
@@ -23,21 +37,16 @@ podman-push-%:
 
 build-image:
 	podman manifest create ${IMG_PREFIX}:$(VAR)
-	podman build --no-cache --platform linux/amd64 -f Dockerfile.$(VAR)  --manifest ${IMG_PREFIX}:$(VAR)  ..
-
-build-image-arm:
-	podman manifest create ${IMG_PREFIX}:$(VAR)
-	podman build --no-cache --platform linux/arm64  -f Dockerfile.$(VAR)  --manifest ${IMG_PREFIX}:$(VAR)  ..
-
-podman-build-tools:
-	$(MAKE) clean-image VAR=tools
-	$(MAKE) build-image-arm VAR=tools
-
-podman-push-tools:
-	$(MAKE) push-image VAR=tools
+	podman build --no-cache --platform $(PLATFORM) -f Dockerfile.$(VAR)  --manifest ${IMG_PREFIX}:$(VAR)  ..
 
 clean-image:
+	podman image rm ${IMG_PREFIX}:$(VAR) || true
 	podman manifest rm ${IMG_PREFIX}:$(VAR) || true
+
+podman-clean-%:
+	podman manifest rm ${IMG_PREFIX}:$* || true
+
+podman-cleanall: $(foreach v, $(VALUES), podman-clean-$(v))
 
 deploy-all: 
 	./scripts/customize-env.sh ${IMG_PREFIX} ../config/manager

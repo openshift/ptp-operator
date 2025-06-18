@@ -302,7 +302,7 @@ func toggleNetworkInterface(pod corev1.Pod, interfaceName string, slavePodNodeNa
 	for i := 0; i < offsetRetryCounter && !offsetWithinBound; i++ {
 		offsetVal, err := metrics.GetPtpOffeset(interfaceName, &slavePodNodeName)
 		Expect(err).NotTo(HaveOccurred())
-		offsetWithinBound = offsetVal >= pkg.MasterOffsetLowerBound && offsetVal < pkg.MasterOffsetHigherBound
+		offsetWithinBound = offsetVal >= metrics.MinOffsetNs && offsetVal < metrics.MaxOffsetNs
 	}
 	Expect(offsetWithinBound).To(BeTrue())
 

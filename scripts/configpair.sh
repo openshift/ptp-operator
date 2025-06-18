@@ -1,3 +1,7 @@
+#!/bin/bash
+set -x
+set -euo pipefail
+
 NSIM_DEV_1_ID=$1
 NSIM_DEV_2_ID=$2
 NSIM_DEV_COMMON_NAME=$3
@@ -17,10 +21,11 @@ NSIM_DEV_SYS_LINK=/sys/bus/netdevsim/link_device
 NSIM_DEV_SYS_UNLINK=/sys/bus/netdevsim/unlink_device
 
 cleanup_ns() {
-    echo "$NSIM_DEV_1_FD:$NSIM_DEV_1_IFIDX" >$NSIM_DEV_SYS_UNLINK
-    echo $NSIM_DEV_2_ID >$NSIM_DEV_SYS_DEL
-    echo $NSIM_DEV_1_ID >$NSIM_DEV_SYS_DEL
-
+    if [[ -n "${NSIM_DEV_1_FD:-}" && -n "${NSIM_DEV_2_FD:-}" && -n "${NSIM_DEV_1_IFIDX:-}" ]]; then
+        echo "$NSIM_DEV_1_FD:$NSIM_DEV_1_IFIDX" >"$NSIM_DEV_SYS_UNLINK"
+        echo $NSIM_DEV_2_ID >$NSIM_DEV_SYS_DEL || true
+        echo $NSIM_DEV_1_ID >$NSIM_DEV_SYS_DEL || true
+    fi
 }
 
 setup_ns() {
@@ -30,28 +35,21 @@ setup_ns() {
     NSIM_DEV_2_NAME=$(find $NSIM_DEV_2_SYS/net -maxdepth 1 -type d ! \
         -path $NSIM_DEV_2_SYS/net -exec basename {} \;)
 
-PODMAN_NODE1_NS=$(get_podman_netns_id $CONTAINER1)
-PODMAN_NODE2_NS=$(get_podman_netns_id $CONTAINER2)
+    PODMAN_NODE1_NS=$(get_podman_netns_id $CONTAINER1)
+    PODMAN_NODE2_NS=$(get_podman_netns_id $CONTAINER2)
 
+    ip link set dev $NSIM_DEV_1_NAME name $NSIM_DEV_COMMON_NAME
+    ip link set $NSIM_DEV_COMMON_NAME netns $PODMAN_NODE1_NS
+    ip netns exec $PODMAN_NODE1_NS ip link set $NSIM_DEV_COMMON_NAME netns $PODMAN_NODE1_NS
+    ip netns exec $PODMAN_NODE1_NS ip link set $NSIM_DEV_COMMON_NAME address 00:11:22:33:"$NSIM_DEV_1_ID":"$NSIM_DEV_2_ID"
 
-ip link set dev $NSIM_DEV_1_NAME name $NSIM_DEV_COMMON_NAME
-ip link set $NSIM_DEV_COMMON_NAME netns $PODMAN_NODE1_NS
-ip netns exec $PODMAN_NODE1_NS ip link set $NSIM_DEV_COMMON_NAME  netns $PODMAN_NODE1_NS
-ip netns exec $PODMAN_NODE1_NS ip link set $NSIM_DEV_COMMON_NAME  address 00:11:22:33:"$NSIM_DEV_1_ID":"$NSIM_DEV_2_ID"
-
-ip link set dev $NSIM_DEV_2_NAME name $NSIM_DEV_COMMON_NAME
-ip link set $NSIM_DEV_COMMON_NAME netns $PODMAN_NODE2_NS
-ip netns exec $PODMAN_NODE2_NS ip link set $NSIM_DEV_COMMON_NAME  netns $PODMAN_NODE2_NS
-ip netns exec $PODMAN_NODE2_NS ip link set $NSIM_DEV_COMMON_NAME  address 00:11:22:33:"$NSIM_DEV_2_ID":"$NSIM_DEV_1_ID"
-
-
-    #ip netns exec $PODMAN_NODE1_NS ip addr add '192.168.1.1/24' dev $NSIM_DEV_COMMON_NAME
-    #ip netns exec $PODMAN_NODE2_NS ip addr add '192.168.1.2/24' dev $NSIM_DEV_COMMON_NAME
+    ip link set dev $NSIM_DEV_2_NAME name $NSIM_DEV_COMMON_NAME
+    ip link set $NSIM_DEV_COMMON_NAME netns $PODMAN_NODE2_NS
+    ip netns exec $PODMAN_NODE2_NS ip link set $NSIM_DEV_COMMON_NAME netns $PODMAN_NODE2_NS
+    ip netns exec $PODMAN_NODE2_NS ip link set $NSIM_DEV_COMMON_NAME address 00:11:22:33:"$NSIM_DEV_2_ID":"$NSIM_DEV_1_ID"
 
     ip netns exec $PODMAN_NODE1_NS ip link set dev $NSIM_DEV_COMMON_NAME up
     ip netns exec $PODMAN_NODE2_NS ip link set dev $NSIM_DEV_COMMON_NAME up
-
-
 }
 
 get_podman_netns_id() {

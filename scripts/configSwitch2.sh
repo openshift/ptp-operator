@@ -1,15 +1,19 @@
+#!/bin/bash
 set -x
+set -euo pipefail
+VM_IP=$1
+
 # Create openvswitch container
-podman run -d --privileged --volume /dev:/dev --replace --pull always --name switch1 quay.io/deliedit/test:openvswitch
+podman run -d --privileged --volume /dev:/dev --replace --pull always --name switch1 "$VM_IP"/test:openvswitch
 
 # Install extra tools (to be integrated in openvswitch container image)
 podman exec switch1 yum install iputils iproute ptp4l ethtool ps -y
 
 # Configure netdevsim interface pairs connected with veth (ptp1 <----> ptp1)
-# ./configpair.sh < port1 netdevsim ID (unique)> <port 2 netdevsim ID (unique)> <name of the interface on both side of the link (ptp1)> 
+# ./configpair.sh < port1 netdevsim ID (unique)> <port 2 netdevsim ID (unique)> <name of the interface on both side of the link (ptp1)>
 # <port1 ptp clock ID A (/dev/ptpA)> < port2 ptp clock ID B (/dev/ptpB)> <port1 container name > <port2 container name> <port1 pci ID> <port2 pci ID>
 
-# TODO: netdevsim needs to implement real PCI address, right now we are reusing the address of existing devices 
+# TODO: netdevsim needs to implement real PCI address, right now we are reusing the address of existing devices
 # Server 1 nic 1
 ./configpair.sh 1 2 ens1f0 1 0 kind-netdevsim-worker switch1 0000:00:01.0 0000:00:01.0
 ./configpair.sh 3 4 ens1f1 1 0 kind-netdevsim-worker switch1 0000:00:01.0 0000:00:02.0
@@ -32,7 +36,14 @@ podman exec switch1 yum install iputils iproute ptp4l ethtool ps -y
 ./configpair.sh 17 18 ens6f0 6 0 kind-netdevsim-worker3 switch1 0000:00:04.0 0000:00:09.0
 
 # start openvswitch service
-podman exec switch1 systemctl enable --now openvswitch
+$(podman exec switch1 systemctl enable --now openvswitch)|| {
+    status=$?
+    echo "❌ command failed with code $status"
+    podman exec switch1 systemctl start openvswitch || true
+    podman exec switch1 systemctl status openvswitch
+    podman exec switch1 journalctl -u openvswitch
+    exit $status
+}
 
 # Configure openvswitch bridge with netdevsim ports
 podman exec switch1 ovs-vsctl add-br br0
@@ -66,4 +77,12 @@ podman exec switch1 ovs-ofctl add-flow br0 "dl_type=0x88f7, actions=drop"
 
 # Configure and start ptp4l boundary clock on the bridge ports
 podman cp ptpswitchconfig.cfg switch1:/etc/ptp4l.conf
-podman exec switch1 systemctl enable --now ptp4l
+
+$(podman exec switch1 systemctl enable --now ptp4l) || {
+    status=$?
+    echo "❌ command failed with code $status"
+    podman exec switch1 systemctl start ptp4l || true
+    podman exec switch1 systemctl status ptp4l
+    podman exec switch1 journalctl -u ptp4l
+    exit $status
+}

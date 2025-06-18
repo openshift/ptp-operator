@@ -1,5 +1,6 @@
 #!/bin/bash
 set -x
+set -euo pipefail
 
 VM_IP=$1
 
@@ -13,16 +14,24 @@ export GOMAXPROCS=$(nproc)
 # disable firewall
 systemctl disable firewalld --now
 
-./install-tools.sh
+source ./install-tools.sh
 
-# load go
-source /root/.gvm/scripts/gvm
-gvm use go1.23.0
+# refresh bashrc
+export BASHRCSOURCED=1
+source ~/.bashrc
+
+# cleaning go deps
+go mod tidy
+go mod vendor
+
+# Clean containers
+kind delete cluster --name kind-netdevsim || true
+podman rm switch1 || true
 
 # Build images
 cd ../ptp-tools
 # configure images for local registry
-sed -i "s|IMG_PREFIX ?= quay.io/deliedit/test|IMG_PREFIX ?= $VM_IP/test|" ../ptp-tools/Makefile
+export IMG_PREFIX="$VM_IP/test"
 
 make -j 5 podman-buildall
 cd -
@@ -43,20 +52,19 @@ cd -
 
 # deploy ptp-operator
 cd ../ptp-tools
-make deploy-all
+# Start deployment, it will fail because it is missing certs
+make deploy-all || true
 sleep 5
 cd -
-# build certificates
+
+# Build certificates
 kubectl apply -f certs.yaml
 
-# cleaning go deps
-go mod tidy
-go mod vendor
-
-# fix certificates
+# Fix certificates
 ./retry.sh 60 5 ./fix-certs.sh
+sleep 5
 
-# delete ptp-operator
+# delete ptp-operator pod
 kubectl delete pods -l name=ptp-operator -n openshift-ptp
 
 # wait for operator to come up
@@ -66,7 +74,8 @@ kubectl rollout status deployment ptp-operator -n openshift-ptp
 ./retry.sh 60 5 kubectl patch ptpoperatorconfig default -nopenshift-ptp --type=merge --patch '{"spec": {"ptpEventConfig": {"enableEventPublisher": true, "transportHost": "http://ptp-event-publisher-service-NODE_NAME.openshift-ptp.svc.cluster.local:9043", "storageType": "local-sc"}, "daemonNodeSelector": {"node-role.kubernetes.io/worker": ""}}}'
 
 ./retry.sh 30 3 kubectl rollout status ds linuxptp-daemon -n openshift-ptp
+
 kubectl get pods -n openshift-ptp -o wide
 
 # run tests
-./run-ci-github.sh 
+./run-ci-github.sh "$VM_IP"
