@@ -122,12 +122,6 @@ func (r *PtpOperatorConfigReconciler) Reconcile(ctx context.Context, req ctrl.Re
 		return reconcile.Result{}, err
 	}
 
-	if defaultCfg.Spec.EventConfig != nil && defaultCfg.Spec.EventConfig.EnableEventPublisher {
-		if err = r.applyNetworkPoliciesFromYaml(ctx, filepath.Join(names.ManifestDir, "linuxptp/event-network-policy.yaml"), defaultCfg); err != nil {
-			glog.Errorf("failed to apply Event NetworkPolicy %v", err)
-			return reconcile.Result{}, err
-		}
-	}
 	if err = r.syncLinuxptpDaemon(ctx, defaultCfg, nodeList); err != nil {
 		glog.Errorf("failed to sync linux ptp daemon: %v", err)
 		return reconcile.Result{}, err
