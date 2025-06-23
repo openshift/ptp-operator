@@ -133,8 +133,8 @@ func (r *PtpConfig) validate() error {
 					}
 				case k == "logReduce":
 					v = strings.ToLower(v)
-					if v != "true" && v != "false" {
-						return errors.New("logReduce='" + v + "' is invalid; must be in 'true' or 'false'")
+					if v != "true" && v != "false" && v != "basic" && v != "enhanced" {
+						return errors.New("logReduce='" + v + "' is invalid; must be in 'true', 'false, 'basic', or 'enhanced'")
 					}
 				case k == "haProfiles":
 					if !profileRegEx.MatchString(v) {

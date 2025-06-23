@@ -1,20 +1,4 @@
 ---
-# The "default" policy for a namespace which denies all ingress and egress traffic.
-# This ensures that even pods that aren't selected by any other NetworkPolicy will
-# not be allowed ingress or egress traffic.
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: default-deny-all
-  namespace: openshift-ptp
-spec:
-  podSelector:
-    matchLabels:
-      role: ptp # Target only ptp Pods (adjust if needed) both linuxptp and ptp operator
-  policyTypes:
-    - Ingress
-    - Egress
----
 # Allow access to the webhook server.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -26,61 +10,11 @@ spec:
     - ports:
         - port: 9443
           protocol: TCP
+        - port: 443
+          protocol: TCP
   podSelector:
     matchLabels:
       name: ptp-operator  # Target only ptp-operator Pods (adjust if needed)
   policyTypes:
     - Ingress
----
-# Allow access to the API server.
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-egress-to-api-server
-  namespace: openshift-ptp
-spec:
-  egress:
-    - to:
-        - namespaceSelector: { }  # allow egress to any service inside the cluster
-    - ports:
-        - port: 6443
-          protocol: TCP
-        - port: 443
-          protocol: TCP
-  podSelector:
-    matchLabels:
-      role: ptp
-  policyTypes:
     - Egress
----
-# The "ptp-network-policy" policy allows ingress for the
-# linuxptp-daemon pods on port 8443 for metrics scraping
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-metrics-traffic
-  namespace: openshift-ptp
-spec:
-  podSelector:
-    matchLabels:
-      app: linuxptp-daemon  # Target only linuxptp-daemon Pods (adjust if needed)
-  policyTypes:
-    - Ingress
-    - Egress
-  ingress:
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: openshift-monitoring  # Only from monitoring namespace
-      ports:
-        - port: 8443
-          protocol: TCP
-  egress:
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: openshift-monitoring  # Only to monitoring namespace
-      ports:
-        - port: 8443  # Metrics scraping port
-          protocol: TCP
-

@@ -2,22 +2,29 @@ package test
 
 import (
 	"bytes"
+	"context"
 	"fmt"
-	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg"
 	"log"
 	"strings"
 	"time"
+
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg"
 
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/metrics"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/pods"
 	. "github.com/onsi/gomega"
-
 	k8sv1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	intstr "k8s.io/apimachinery/pkg/util/intstr"
 )
 
-const openshiftPtpNamespace = "openshift-ptp"
-const openshiftPtpMetricPrefix = "openshift_ptp_"
+const (
+	openshiftPtpNamespace    = "openshift-ptp"
+	openshiftPtpMetricPrefix = "openshift_ptp_"
+	serviceName              = "prometheus"
+	namespace                = "openshift-monitoring"
+)
 
 // Needed to deserialize prometheus query output.
 // Sample output (omiting irrelevant fields):
@@ -43,7 +50,7 @@ type metric struct {
 	Pod string
 }
 
-func collectPrometheusMetrics(uniqueMetricKeys []string) map[string][]string {
+func collectPrometheusMetrics(uniqueMetricKeys []string) (map[string][]string, error) {
 	prometheusPod, err := metrics.GetPrometheusPod()
 	Expect(err).ToNot(HaveOccurred(), "failed to get prometheus pod")
 
@@ -75,14 +82,13 @@ func collectPrometheusMetrics(uniqueMetricKeys []string) map[string][]string {
 
 	// Debugging Output
 	if len(failedQueries) > 0 {
-		log.Printf("Some Prometheus queries failed (%d total):\n%s\n", len(failedQueries), strings.Join(failedQueries, "\n"))
-		Expect(len(failedQueries)).To(Equal(0), "Some Prometheus queries failed")
+		return podsPerPrometheusMetricKey, fmt.Errorf("Some Prometheus queries failed (%d total):\n%s\n", len(failedQueries), strings.Join(failedQueries, "\n"))
 	}
 
 	// Debug Map Size
 	log.Printf("Collected %d unique Prometheus metrics\n", len(podsPerPrometheusMetricKey))
 
-	return podsPerPrometheusMetricKey
+	return podsPerPrometheusMetricKey, nil
 }
 
 func collectPtpMetrics(ptpPods []k8sv1.Pod) (map[string][]string, []string) {
@@ -154,4 +160,45 @@ func appendIfMissing(slice []string, newItem string) []string {
 		return slice
 	}
 	return append(slice, newItem)
+}
+
+func createPrometheusService() {
+	service := &k8sv1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "prometheus",
+			Namespace: "openshift-monitoring",
+		},
+		Spec: k8sv1.ServiceSpec{
+			Selector: map[string]string{
+				"app.kubernetes.io/name": "prometheus",
+			},
+			Ports: []k8sv1.ServicePort{
+				{
+					Name:       "web",
+					Port:       9090,
+					TargetPort: intstrFromInt(9090),
+				},
+			},
+			Type: k8sv1.ServiceTypeClusterIP,
+		},
+	}
+
+	svc, err := client.Client.CoreV1().Services("openshift-monitoring").Create(context.TODO(), service, metav1.CreateOptions{})
+	if err != nil {
+		log.Fatalf("Failed to create service: %v", err)
+	}
+
+	fmt.Printf("Created service %q in namespace %q\n", svc.Name, svc.Namespace)
+}
+
+func intstrFromInt(i int) intstr.IntOrString {
+	return intstr.IntOrString{Type: intstr.Int, IntVal: int32(i)}
+}
+
+func deletePrometheusService() {
+	err := client.Client.CoreV1().Services(namespace).Delete(context.TODO(), serviceName, metav1.DeleteOptions{})
+	if err != nil {
+		log.Fatalf("Failed to delete service %q: %v", serviceName, err)
+	}
+	fmt.Printf("Service %q deleted successfully from namespace %q\n", serviceName, namespace)
 }

@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/pods"
 	prometheusModel "github.com/prometheus/common/model"
@@ -80,6 +81,23 @@ func GetPrometheusPod() (*corev1.Pod, error) {
 	return &prometheusPods.Items[0], nil
 }
 
+// GetPrometheusPod is a helper function that returns the first pod of the prometheus statefulset.
+func GetPrometheuTestInitialorPod() (*corev1.Pod, error) {
+	aPodWithCurl, err := client.Client.Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{
+		LabelSelector: pkg.PtpLinuxDaemonPodsLabel,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(aPodWithCurl.Items) == 0 {
+		return nil, errors.New("no prometheus pod found")
+	}
+
+	// Return the first pod from the statefulset.
+	return &aPodWithCurl.Items[0], nil
+}
+
 // RunPrometheusQuery runs a prometheus query in a prometheus pod and unmarshals the response in a given struct.
 // Fails if the curl command failed, the prometheus response is not a "success" or it cannot be unmarshaled.
 func RunPrometheusQuery(prometheusPod *corev1.Pod, query string, response *PrometheusQueryResponse) error {
@@ -88,7 +106,7 @@ func RunPrometheusQuery(prometheusPod *corev1.Pod, query string, response *Prome
 	command := []string{
 		"bash",
 		"-c",
-		"curl -s http://localhost:9090/api/v1/query --data-urlencode " + fmt.Sprintf("'query=%s'", query),
+		"curl -s prometheus.openshift-monitoring.svc.cluster.local:9090/api/v1/query --data-urlencode " + fmt.Sprintf("'query=%s'", query),
 	}
 
 	stdout, _, err := pods.ExecCommand(client.Client, true, prometheusPod, prometheusPod.Spec.Containers[0].Name, command)

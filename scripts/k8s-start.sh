@@ -1,3 +1,7 @@
+#!/bin/bash
+set -x
+set -euo pipefail
+
 VM_IP=$1
 
 # Delete cluster
@@ -27,10 +31,10 @@ kubectl wait --for=condition=Ready pods -A --all --timeout=300s
 
 # Deploy prometheus (required by ptp) and wait for all pods to be ready
 ./deploy-prometheus.sh
-kubectl wait --for=condition=Ready pods -A --all --timeout=300s
+kubectl wait --for=condition=Ready pods -A --all --timeout=300s 
 
 # Create openshift-ptp namespace
 kubectl create namespace openshift-ptp
 
 # Configure openvswitch and netdevsim interfaces 
-./configSwitch2.sh
+./configSwitch2.sh "$VM_IP"

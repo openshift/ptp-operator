@@ -2,7 +2,7 @@ FROM quay.io/fedora/fedora:latest
 # Import the latest Fedora GPG keys
 RUN sed -i 's/^enabled=1/enabled=0/' /etc/yum.repos.d/fedora-updates.repo
 RUN yum update -y
-RUN yum install -y iproute openssh pciutils tcpdump less openvswitch iputils iproute ptp4l ethtool ps
+RUN yum install -y iproute openssh pciutils tcpdump less openvswitch iputils iproute ptp4l ethtool ps gawk
 RUN yum clean all && \
 rm -rf /var/cache/yum
 

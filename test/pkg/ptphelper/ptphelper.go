@@ -21,7 +21,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"k8s.io/utils/pointer"
 
 	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
@@ -30,7 +29,6 @@ import (
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/nodes"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/pods"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 
 	configv1 "github.com/openshift/api/config/v1"
 	l2exports "github.com/redhat-cne/l2discovery-exports"
@@ -430,26 +428,22 @@ func WaitForPtpDaemonToExist() int {
 	return 0
 }
 
-func WaitForPtpDaemonToBeReady() int {
+func WaitForPtpDaemonToBeReady(podList []*v1core.Pod) int {
 	Eventually(func() error {
+		isOCP := true
 		ocpVersion, err := GetOCPVersion()
 		if err != nil {
-			return fmt.Errorf("Failed to fetch OCP version: %w", err)
+			isOCP = false
 		}
 
-		if semver.Compare(ocpVersion, "4.19") >= 0 {
+		if isOCP && semver.Compare(ocpVersion, "4.19") < 0 {
 			return nil
 		}
 
-		ptpPods, err := client.Client.Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{
-			LabelSelector: "app=linuxptp-daemon",
-		})
-		if err != nil {
-			return err
-		}
-		for _, pod := range ptpPods.Items {
-			if out, ok := CheckReadiness(pod); !ok {
-				return fmt.Errorf("Not Ready: %s", out)
+		for _, pod := range podList {
+			err = CheckReadiness(pod)
+			if err != nil {
+				return fmt.Errorf("Not Ready: %v", err)
 			}
 		}
 		return nil
@@ -522,6 +516,20 @@ func EnablePTPEvent(apiVersion, configMapName string) error {
 
 // PtpEventEnabled returns 0 if event is not enabled, 1 for v1 API, 2 for v2 O-RAN Compliant API
 func PtpEventEnabled() int {
+	isOCP := true
+	ocpVersion, err := GetOCPVersion()
+	if err != nil {
+		isOCP = false
+	}
+
+	eventsVersionDefault := 0
+
+	if isOCP && semver.Compare(ocpVersion, "4.18") < 0 {
+		eventsVersionDefault = 1
+	} else {
+		eventsVersionDefault = 2
+	}
+
 	ptpConfig, err := client.Client.PtpV1Interface.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), pkg.PtpConfigOperatorName, metav1.GetOptions{})
 	Expect(err).NotTo(HaveOccurred())
 	if ptpConfig.Spec.EventConfig == nil {
@@ -530,6 +538,11 @@ func PtpEventEnabled() int {
 	if !ptpConfig.Spec.EventConfig.EnableEventPublisher {
 		return 0
 	}
+
+	if ptpConfig.Spec.EventConfig.ApiVersion == "" {
+		return eventsVersionDefault
+	}
+
 	if IsV1Api(ptpConfig.Spec.EventConfig.ApiVersion) {
 		return 1
 	}
@@ -868,53 +881,40 @@ func IsV1Api(version string) bool {
 	return true
 }
 
-func CheckReadiness(pod corev1.Pod) (string, bool) {
-	ocpVersion, err := GetOCPVersion()
-	if err != nil {
-		return fmt.Sprintf("Failed to fetch OCP version: %s", err), false
-	}
-
-	// Endpoint only exists in 4.19 currently
-	if semver.Compare(ocpVersion, "4.19") >= 0 {
-		return "", true
-	}
-
+func CheckReadiness(pod *corev1.Pod) (err error) {
 	stdout, stderr, err := pods.ExecCommand(
 		client.Client,
-		true,
-		&pod,
+		false,
+		pod,
 		pod.Spec.Containers[0].Name,
 		[]string{"curl", "-v", "localhost:8081/ready"},
 	)
 	if err != nil {
-		return "", false
+		return fmt.Errorf("error getting readiness, err: %v", err)
 	}
-	out := stdout.String() + stderr.String()
-	return out, strings.Contains(out, "HTTP/1.1 200 OK")
+	if !strings.Contains(stdout.String()+stderr.String(), "HTTP/1.1 200 OK") {
+		return fmt.Errorf("pod not ready with, err: %s", stdout.String()+stderr.String())
+	}
+
+	return nil
 }
 
-func GetOCPVersion() (string, error) {
+func GetOCPVersion() (ocpVersion string, err error) {
 	const OpenShiftAPIServer = "openshift-apiserver"
 
 	ocpClient := client.Client.OcpClient
-	clusterOperator, err := ocpClient.ClusterOperators().Get(context.TODO(), OpenShiftAPIServer, metav1.GetOptions{})
+	var clusterOperator *configv1.ClusterOperator
+	clusterOperator, err = ocpClient.ClusterOperators().Get(context.TODO(), OpenShiftAPIServer, metav1.GetOptions{})
 
-	var ocpVersion string
 	if err != nil {
-		switch {
-		case kerrors.IsForbidden(err), kerrors.IsNotFound(err):
-			logrus.Errorf("OpenShift Version not found (must be logged in to cluster as admin): %v", err)
-			err = nil
-		}
-	}
-	if clusterOperator != nil {
-		for _, ver := range clusterOperator.Status.Versions {
-			if ver.Name == OpenShiftAPIServer {
-				ocpVersion = ver.Version
-				break
-			}
-		}
+		return ocpVersion, fmt.Errorf("This cluster is not an openshift cluster or the user does not have admin rights, err: %v", err)
 	}
 
+	for _, ver := range clusterOperator.Status.Versions {
+		if ver.Name == OpenShiftAPIServer {
+			ocpVersion = ver.Version
+			break
+		}
+	}
 	return ocpVersion, err
 }

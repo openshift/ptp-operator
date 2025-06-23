@@ -1,3 +1,9 @@
+#!/bin/bash
+set -x
+set -euo pipefail
+
+VM_IP=$1
+
 JUNIT_OUTPUT_DIR="${JUNIT_OUTPUT_DIR:-/tmp/artifacts}"
 JUNIT_OUTPUT_FILE="${JUNIT_OUTPUT_FILE:-unit_report.xml}"
 SUITE=../test/conformance
@@ -7,7 +13,7 @@ go install github.com/onsi/ginkgo/v2/ginkgo
 export MAX_OFFSET_IN_NS=10000
 export MIN_OFFSET_IN_NS=-10000
 
-cat <<EOF > config.yaml
+cat <<EOF >config.yaml
 global:
   maxoffset: $MAX_OFFSET_IN_NS
   minoffset: $MIN_OFFSET_IN_NS
@@ -18,16 +24,20 @@ export USE_CONTAINER_CMDS=
 export PTP_TEST_CONFIG_FILE="$(pwd)/config.yaml"
 export PTP_LOG_LEVEL=info
 export GOFLAGS=-mod=vendor
-export KEEP_PTPCONFIG=false
+export KEEP_PTPCONFIG=true
+
+export SKIP_INTERFACES="eth0"
+export IMAGE_REGISTRY="$VM_IP/"
+export CNF_TESTS_IMAGE=test:lptpd
 
 systemctl stop chronyd
 
 set -e
 # OC
-PTP_TEST_MODE=oc   ginkgo -v --focus=".*Slave can sync to master" --keep-going --output-dir=$JUNIT_OUTPUT_DIR --junit-report=$JUNIT_OUTPUT_FILE -v "$SUITE"/serial
+PTP_TEST_MODE=oc ginkgo --skip=".*The interfaces supporting ptp can be discovered correctly.*" --skip="Negative - run pmc in a new unprivileged pod on the slave node.*" -v --keep-going --output-dir=$JUNIT_OUTPUT_DIR --junit-report=$JUNIT_OUTPUT_FILE -v "$SUITE"/serial
 # BC
-PTP_TEST_MODE=bc KEEP_PTPCONFIG=true  ginkgo -v --focus=".*Slave can sync to master" --keep-going --output-dir=$JUNIT_OUTPUT_DIR --junit-report=$JUNIT_OUTPUT_FILE -v "$SUITE"/serial
+PTP_TEST_MODE=bc ginkgo --skip=".*The interfaces supporting ptp can be discovered correctly.*" --skip="Negative - run pmc in a new unprivileged pod on the slave node.*" -v --keep-going --output-dir=$JUNIT_OUTPUT_DIR --junit-report=$JUNIT_OUTPUT_FILE -v "$SUITE"/serial
 # Dual NIC BC
-PTP_TEST_MODE=dualnicbc KEEP_PTPCONFIG=true  ginkgo -v --focus=".*Slave can sync to master" --keep-going --output-dir=$JUNIT_OUTPUT_DIR --junit-report=$JUNIT_OUTPUT_FILE -v "$SUITE"/serial
+PTP_TEST_MODE=dualnicbc ginkgo --skip=".*The interfaces supporting ptp can be discovered correctly.*" --skip="Negative - run pmc in a new unprivileged pod on the slave node.*" -v --keep-going --output-dir=$JUNIT_OUTPUT_DIR --junit-report=$JUNIT_OUTPUT_FILE -v "$SUITE"/serial
 # Dual port
-PTP_TEST_MODE=dualfollower KEEP_PTPCONFIG=true  ginkgo -v --focus=".*Dual follower can" --focus=".*Slave can sync to master" --keep-going --output-dir=$JUNIT_OUTPUT_DIR --junit-report=$JUNIT_OUTPUT_FILE -v "$SUITE"/serial
+PTP_TEST_MODE=dualfollower ginkgo --skip=".*The interfaces supporting ptp can be discovered correctly.*" --skip="Negative - run pmc in a new unprivileged pod on the slave node.*" -v --keep-going --output-dir=$JUNIT_OUTPUT_DIR --junit-report=$JUNIT_OUTPUT_FILE -v "$SUITE"/serial
