@@ -12,9 +12,36 @@ spec:
           protocol: TCP
         - port: 443
           protocol: TCP
+  egress:
+    - ports:
+        - port: 9443
+          protocol: TCP
+        - port: 443
+          protocol: TCP
   podSelector:
     matchLabels:
       name: ptp-operator  # Target only ptp-operator Pods (adjust if needed)
   policyTypes:
     - Ingress
+    - Egress
+---
+# Allow access to the API server.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-to-api-server
+  namespace: openshift-ptp
+spec:
+  egress:
+    - to:
+        - namespaceSelector: { }  # allow egress to any service inside the cluster
+    - ports:
+        - port: 6443
+          protocol: TCP
+        - port: 443
+          protocol: TCP
+  podSelector:
+    matchLabels:
+      name: ptp-operator
+  policyTypes:
     - Egress
