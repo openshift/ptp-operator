@@ -2,7 +2,6 @@ package test
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -14,17 +13,12 @@ import (
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/metrics"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/pods"
 	. "github.com/onsi/gomega"
+
 	k8sv1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	intstr "k8s.io/apimachinery/pkg/util/intstr"
 )
 
-const (
-	openshiftPtpNamespace    = "openshift-ptp"
-	openshiftPtpMetricPrefix = "openshift_ptp_"
-	serviceName              = "prometheus"
-	namespace                = "openshift-monitoring"
-)
+const openshiftPtpNamespace = "openshift-ptp"
+const openshiftPtpMetricPrefix = "openshift_ptp_"
 
 // Needed to deserialize prometheus query output.
 // Sample output (omiting irrelevant fields):
@@ -160,45 +154,4 @@ func appendIfMissing(slice []string, newItem string) []string {
 		return slice
 	}
 	return append(slice, newItem)
-}
-
-func createPrometheusService() {
-	service := &k8sv1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "prometheus",
-			Namespace: "openshift-monitoring",
-		},
-		Spec: k8sv1.ServiceSpec{
-			Selector: map[string]string{
-				"app.kubernetes.io/name": "prometheus",
-			},
-			Ports: []k8sv1.ServicePort{
-				{
-					Name:       "web",
-					Port:       9090,
-					TargetPort: intstrFromInt(9090),
-				},
-			},
-			Type: k8sv1.ServiceTypeClusterIP,
-		},
-	}
-
-	svc, err := client.Client.CoreV1().Services("openshift-monitoring").Create(context.TODO(), service, metav1.CreateOptions{})
-	if err != nil {
-		log.Fatalf("Failed to create service: %v", err)
-	}
-
-	fmt.Printf("Created service %q in namespace %q\n", svc.Name, svc.Namespace)
-}
-
-func intstrFromInt(i int) intstr.IntOrString {
-	return intstr.IntOrString{Type: intstr.Int, IntVal: int32(i)}
-}
-
-func deletePrometheusService() {
-	err := client.Client.CoreV1().Services(namespace).Delete(context.TODO(), serviceName, metav1.DeleteOptions{})
-	if err != nil {
-		log.Fatalf("Failed to delete service %q: %v", serviceName, err)
-	}
-	fmt.Printf("Service %q deleted successfully from namespace %q\n", serviceName, namespace)
 }
