@@ -1036,12 +1036,6 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 		var _ = Describe("prometheus", func() {
 			Context("Metrics reported by PTP pods", func() {
-				BeforeEach(func() {
-					createPrometheusService()
-				})
-				AfterEach(func() {
-					deletePrometheusService()
-				})
 				It("Should all be reported by prometheus", func() {
 					var err error
 					ptpPods, err = client.Client.Pods(openshiftPtpNamespace).List(context.Background(), metav1.ListOptions{
