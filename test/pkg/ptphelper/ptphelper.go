@@ -13,11 +13,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg"
 	. "github.com/onsi/gomega"
 	"github.com/openshift/library-go/pkg/config/clusterstatus"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/mod/semver"
 	corev1 "k8s.io/api/core/v1"
 	v1core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -430,13 +430,20 @@ func WaitForPtpDaemonToExist() int {
 
 func WaitForPtpDaemonToBeReady(podList []*v1core.Pod) int {
 	Eventually(func() error {
-		isOCP := true
-		ocpVersion, err := GetOCPVersion()
+		ptpVersion, err := GetPtpOperatorVersionFromDeployment()
 		if err != nil {
-			isOCP = false
+			logrus.Infof("Unable to get PTP operator version, skipping readiness check: %v", err)
+			return nil
 		}
 
-		if isOCP && semver.Compare(ocpVersion, "4.19") < 0 {
+		ptpVer, err := semver.NewVersion(ptpVersion)
+		if err != nil {
+			logrus.Infof("Unable to parse PTP operator version %s, skipping readiness check: %v", ptpVersion, err)
+			return nil
+		}
+
+		ptp419, _ := semver.NewVersion("4.19")
+		if ptpVer.LessThan(ptp419) {
 			return nil
 		}
 
@@ -516,18 +523,19 @@ func EnablePTPEvent(apiVersion, configMapName string) error {
 
 // PtpEventEnabled returns 0 if event is not enabled, 1 for v1 API, 2 for v2 O-RAN Compliant API
 func PtpEventEnabled() int {
-	isOCP := true
-	ocpVersion, err := GetOCPVersion()
-	if err != nil {
-		isOCP = false
-	}
-
+	ptpVersion, err := GetPtpOperatorVersionFromDeployment()
 	eventsVersionDefault := 0
 
-	if isOCP && semver.Compare(ocpVersion, "4.18") < 0 {
-		eventsVersionDefault = 1
-	} else {
-		eventsVersionDefault = 2
+	if err == nil {
+		ptpVer, err := semver.NewVersion(ptpVersion)
+		if err == nil {
+			ptp418, _ := semver.NewVersion("4.18")
+			if ptpVer.LessThan(ptp418) {
+				eventsVersionDefault = 1
+			} else {
+				eventsVersionDefault = 2
+			}
+		}
 	}
 
 	ptpConfig, err := client.Client.PtpV1Interface.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), pkg.PtpConfigOperatorName, metav1.GetOptions{})
@@ -596,6 +604,34 @@ func GetPtpOperatorVersion() (string, error) {
 	logrus.Infof("PTP operator version is %v", ptpOperatorVersion)
 
 	return ptpOperatorVersion, err
+}
+
+func GetPtpOperatorVersionFromDeployment() (string, error) {
+	const releaseVersionStr = "RELEASE_VERSION"
+
+	deploy, err := client.Client.AppsV1Interface.Deployments(pkg.PtpLinuxDaemonNamespace).Get(context.TODO(), pkg.PtpOperatorDeploymentName, metav1.GetOptions{})
+	if err != nil {
+		logrus.Infof("PTP Operator deployment not found: %v", err)
+		return "", err
+	}
+
+	// Get the RELEASE_VERSION from the first container's environment variables
+	if len(deploy.Spec.Template.Spec.Containers) == 0 {
+		return "", fmt.Errorf("no containers found in PTP operator deployment")
+	}
+
+	envs := deploy.Spec.Template.Spec.Containers[0].Env
+	for _, env := range envs {
+		if env.Name == releaseVersionStr {
+			ptpOperatorVersion := env.Value
+			// Remove the 'v' prefix if present
+			ptpOperatorVersion = strings.TrimPrefix(ptpOperatorVersion, "v")
+			logrus.Infof("PTP operator version from RELEASE_VERSION: %s", ptpOperatorVersion)
+			return ptpOperatorVersion, nil
+		}
+	}
+
+	return "", fmt.Errorf("RELEASE_VERSION environment variable not found in PTP operator deployment")
 }
 
 // Checks for DualNIC BC
