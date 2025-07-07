@@ -64,7 +64,7 @@ jobs:
             --subnet-id subnet-04ee218fe8f32cad5 \
             --instance-type m6a.xlarge \
             --security-group-ids sg-05e700edc2ed0a2d5 \
-            --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=ptp-operator PR-${{ github.event.number }}-${{ github.actor }}}]' \
+            --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=ptp-operator PR-${{ github.event.number }}-${{ github.actor }}},{Key=ci-job-fullname,Value=PR-${{ github.event.number }}-${{ github.actor }}},{Key=ci-org-name,Value=${{ github.event.pull_request.head.repo.owner.login }}},{Key=ci-repo-name,Value=${{ github.event.pull_request.head.repo.name }}},{Key=ci-job-source,Value=k8ci},{Key=ci-job-branch,Value=${{ github.event.pull_request.head.ref }}},{Key=ci-job-type,Value=ptp-test}]' \
             --query 'Instances[0].InstanceId' \
             --key-name ptp-sshkey-1 \
             --output text)
