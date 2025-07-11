@@ -32,7 +32,7 @@ spec:
       serviceAccountName: linuxptp-daemon
       priorityClassName: "system-node-critical"
       containers:
-       {{ if (eq .EnableEventPublisher true) }}
+        {{ if (eq .EnableEventPublisher true) }}
         - name: cloud-event-proxy
           image: {{ .SideCar }}
           imagePullPolicy: IfNotPresent
@@ -95,7 +95,17 @@ spec:
           image: {{.Image}}
           imagePullPolicy: IfNotPresent
           command: [ "/bin/bash", "-c", "--" ]
-          args: [ "/usr/local/bin/ptp --alsologtostderr -v 10" ]
+          args:
+          {{ $cmd := "/usr/local/bin/ptp --alsologtostderr -v 10" }}
+          {{- if (eq .EnableEventPublisher true) }}
+            {{- $urlVersion := "v1" }}
+            {{- if (eq .EventApiVersion "2.0") }}
+              {{- $urlVersion = "v2"  }}
+            {{- end }}
+            - "until [ $(curl -s -w '%{http_code}' 'http://localhost:9043/api/ocloudNotifications/{{ $urlVersion }}/health' -o /dev/null) -eq 200 ]; do echo 'waiting for cloud event proxy to start'; sleep 10s; done; {{ $cmd }}"
+            {{- else }}
+            - {{ $cmd }}
+          {{- end }}
           resources:
             requests:
               cpu: 20m
@@ -130,7 +140,7 @@ spec:
             name: ptp-configmap
         - name: leap-volume
           configMap:
-            name: leap-configmap            
+            name: leap-configmap
         - name: linuxptp-certs
           secret:
             secretName: linuxptp-daemon-secret
