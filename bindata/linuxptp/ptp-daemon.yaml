@@ -55,6 +55,12 @@ spec:
               containerPort: 9091
             - name: api-port
               containerPort: 9043
+          livenessProbe:
+            exec:
+              command: ["/usr/local/bin/healthcheck.sh"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 3
           env:
             - name: PTP_PLUGIN
               value: "true"
