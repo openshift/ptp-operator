@@ -23,6 +23,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -132,9 +133,25 @@ func (r *PtpConfig) validate() error {
 						return errors.New("stdoutFilter='" + v + "' is invalid; " + err.Error())
 					}
 				case k == "logReduce":
-					v = strings.ToLower(v)
-					if v != "true" && v != "false" && v != "basic" && v != "enhanced" {
-						return errors.New("logReduce='" + v + "' is invalid; must be in 'true', 'false, 'basic', or 'enhanced'")
+					logReduceMode := "false"
+					logReduceSettings := strings.Fields(v)
+					if len(logReduceSettings) >= 1 {
+						logReduceMode = strings.ToLower(logReduceSettings[0])
+					}
+					if logReduceMode != "true" && logReduceMode != "false" && logReduceMode != "basic" && logReduceMode != "enhanced" {
+						return errors.New("logReduce mode '" + logReduceMode + "' is invalid; mode must be in 'true', 'false, 'basic', or 'enhanced'")
+					}
+					if logReduceMode == "enhanced" {
+						if len(logReduceSettings) >= 2 {
+							if _, err := time.ParseDuration(logReduceSettings[1]); err != nil {
+								return errors.New("logReduce time " + logReduceSettings[1] + "' is invalid; must be a valid time duration (e.g. '30s')")
+							}
+						}
+						if len(logReduceSettings) >= 3 {
+							if threshold, err := strconv.Atoi(logReduceSettings[2]); err != nil || threshold < 0 {
+								return errors.New("logReduce threshold " + logReduceSettings[2] + "' is invalid; must be a non-negative integer")
+							}
+						}
 					}
 				case k == "haProfiles":
 					if !profileRegEx.MatchString(v) {
@@ -156,7 +173,6 @@ func (r *PtpConfig) validate() error {
 					}
 				case k == "controllingProfile":
 					// Allow controllingProfile setting - no specific validation required for string
-
 				default:
 					return errors.New("profile.PtpSettings '" + k + "' is not a configurable setting")
 				}
