@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"regexp"
 	"time"
 
@@ -26,8 +25,8 @@ import (
 )
 
 // ExecCommand runs command in the pod and returns buffer output
-func ExecCommand(cs *testclient.ClientSet, useTTY bool, pod *corev1.Pod, containerName string, command []string) (stdoutBuf, stderrBuf bytes.Buffer, err error) {
-	var buf bytes.Buffer
+// If mergeOutput is true, stderr will be merged into stdout, otherwise they are separate
+func ExecCommand(cs *testclient.ClientSet, mergeOutput bool, pod *corev1.Pod, containerName string, command []string) (stdoutBuf, stderrBuf bytes.Buffer, err error) {
 	req := testclient.Client.CoreV1().RESTClient().
 		Post().
 		Namespace(pod.Namespace).
@@ -37,28 +36,35 @@ func ExecCommand(cs *testclient.ClientSet, useTTY bool, pod *corev1.Pod, contain
 		VersionedParams(&corev1.PodExecOptions{
 			Container: containerName,
 			Command:   command,
-			Stdin:     true,
+			Stdin:     false, // Disable stdin for non-interactive commands
 			Stdout:    true,
 			Stderr:    true,
-			TTY:       false,
+			TTY:       false, // Always disable TTY
 		}, scheme.ParameterCodec)
 
+	// Note: Using SPDY executor (deprecated but still functional)
+	// TODO: Upgrade to WebSocket executor when client-go version supports it
 	exec, err := remotecommand.NewSPDYExecutor(cs.Config, "POST", req.URL())
 	if err != nil {
 		return stdoutBuf, stderrBuf, err
 	}
 
-	var bufErr bytes.Buffer
-	err = exec.Stream(remotecommand.StreamOptions{
-		Stdin:  os.Stdin,
+	// Always stream to separate buffers first
+	err = exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
+		Stdin:  nil, // No stdin for non-interactive commands
 		Stdout: &stdoutBuf,
 		Stderr: &stderrBuf,
-		Tty:    false,
+		Tty:    false, // Always disable TTY
 	})
+
+	// If mergeOutput is true, append stderr content to stdout buffer
+	if mergeOutput {
+		stdoutBuf.Write(stderrBuf.Bytes())
+	}
 
 	logrus.Tracef("ExecCommand podName=%s containerName=%s command=%v stdout=%s stderr=%s err=%s", pod.Name, containerName, command, stdoutBuf.String(), stderrBuf.String(), err)
 	if err != nil {
-		return stdoutBuf, stderrBuf, fmt.Errorf("exec.Stream failure. Stdout: %s, Stderr: %s, Err: %w", buf.String(), bufErr.String(), err)
+		return stdoutBuf, stderrBuf, fmt.Errorf("exec.StreamWithContext failure. Stdout: %s, Stderr: %s, Err: %w", stdoutBuf.String(), stderrBuf.String(), err)
 	}
 
 	return stdoutBuf, stderrBuf, nil

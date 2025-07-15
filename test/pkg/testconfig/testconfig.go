@@ -452,7 +452,7 @@ func CreatePtpConfigurations() error {
 	if err != nil {
 		return fmt.Errorf("getting L2 discovery info failed with err=%s", err)
 	}
-	fmt.Printf("L2DiscoveryConfig: %s\n", config)
+	logrus.Tracef("L2DiscoveryConfig: %s\n", config)
 	logrus.Tracef("L2 ifListFiltered=%+v, ifListUnfiltered=%+v", config.GetPtpIfList(), config.GetPtpIfListUnfiltered())
 	GlobalConfig.L2Config = config
 
