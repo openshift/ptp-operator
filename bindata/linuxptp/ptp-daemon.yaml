@@ -98,12 +98,8 @@ spec:
           args:
           {{ $cmd := "/usr/local/bin/ptp --alsologtostderr -v 10" }}
           {{- if (eq .EnableEventPublisher true) }}
-            {{- $urlVersion := "v1" }}
-            {{- if (eq .EventApiVersion "2.0") }}
-              {{- $urlVersion = "v2"  }}
-            {{- end }}
-            - "until [ $(curl -s -w '%{http_code}' 'http://localhost:9043/api/ocloudNotifications/{{ $urlVersion }}/health' -o /dev/null) -eq 200 ]; do echo 'waiting for cloud event proxy to start'; sleep 10s; done; {{ $cmd }}"
-            {{- else }}
+            - "until [ $(curl -s -w '%{http_code}' 'http://localhost:9043/api/ocloudNotifications/v2/health' -o /dev/null) -eq 200 ]; do echo 'waiting for cloud event proxy to start'; sleep 10s; done; {{ $cmd }}"
+          {{- else }}
             - {{ $cmd }}
           {{- end }}
           resources:
