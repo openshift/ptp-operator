@@ -103,8 +103,21 @@ jobs:
             
             ./ptp-operator/scripts/retry.sh 60 5 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null fedora@"$public_ip" uptime
             rsync -r -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" ptp-operator fedora@"$public_ip":~/.
-            ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null fedora@"$public_ip" sudo ./ptp-operator/scripts/run-on-vm.sh "$private_ip"
-
+            ssh -o StrictHostKeyChecking=no \
+                -o UserKnownHostsFile=/dev/null \
+                -o ServerAliveInterval=60 \
+                -o ServerAliveCountMax=10 \
+                -o ConnectTimeout=30 \
+                -o TCPKeepAlive=yes \
+                fedora@"$public_ip" \
+                "set +e; \
+                sudo ./ptp-operator/scripts/run-on-vm.sh '$private_ip'; \
+                exit_code=\$?; \
+                echo '=== Script completed with exit code:' \$exit_code '==='; \
+                echo '=== Recent system logs ==='; \
+                sudo journalctl --no-pager -n 100 --since '5 minutes ago'; \
+                echo '=== End of logs ==='; \
+                exit \$exit_code"
       - name: Cleanup - Delete EC2 instance
         if: always()  # Ensure cleanup runs even if previous steps fail
         run: |
