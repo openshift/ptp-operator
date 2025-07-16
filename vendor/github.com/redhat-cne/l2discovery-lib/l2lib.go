@@ -55,6 +55,8 @@ const (
 	L2ContainerCPUReq              = "100m"
 	L2ContainerMemLim              = "100M"
 	L2ContainerMemReq              = "100M"
+	// ptpIfIndent defines the indentation level for PtpIf detailed output
+	ptpIfIndent = 6
 )
 
 type L2DaemonsetMode int64
@@ -119,6 +121,80 @@ type L2DiscoveryConfig struct {
 	SkippedInterfaces []string
 	// Indicates that the L2 configuration must be refreshed
 	refresh bool
+}
+
+func (config L2DiscoveryConfig) String() string { //nolint:funlen
+	var result strings.Builder
+
+	result.WriteString("L2DiscoveryConfig:\n")
+	result.WriteString(fmt.Sprintf("  MaxL2GraphSize: %d\n", config.MaxL2GraphSize))
+	result.WriteString(fmt.Sprintf("  L2DsMode: %s\n", config.L2DsMode))
+	result.WriteString(fmt.Sprintf("  refresh: %t\n", config.refresh))
+
+	// PtpIfList
+	result.WriteString("  PtpIfList: \n")
+	for i, ptpIf := range config.PtpIfList {
+		result.WriteString(fmt.Sprintf("    %d:\n%s\n", i, ptpIf.StringFull(ptpIfIndent)))
+	}
+
+	// PtpIfListUnfiltered
+	result.WriteString("  PtpIfListUnfiltered: \n")
+	for key, ptpIf := range config.PtpIfListUnfiltered {
+		result.WriteString(fmt.Sprintf("    %s:\n%s\n", key, ptpIf.StringFull(ptpIfIndent)))
+	}
+
+	// L2DiscoveryPods
+	result.WriteString("  L2DiscoveryPods: \n")
+	for key, pod := range config.L2DiscoveryPods {
+		result.WriteString(fmt.Sprintf("    [%s]: %s\n", key, pod.Name))
+	}
+
+	// ClusterMacs
+	result.WriteString("  ClusterMacs:\n")
+	for key, mac := range config.ClusterMacs {
+		result.WriteString(fmt.Sprintf("    [%s]: %s\n", key, mac))
+	}
+
+	// ClusterIndexToInt
+	result.WriteString("  ClusterIndexToInt:\n")
+	for key, value := range config.ClusterIndexToInt {
+		result.WriteString(fmt.Sprintf("    [%s]: %d\n", key, value))
+	}
+
+	// ClusterMacToInt
+	result.WriteString("  ClusterMacToInt:\n")
+	for key, value := range config.ClusterMacToInt {
+		result.WriteString(fmt.Sprintf("    [%s]: %d\n", key, value))
+	}
+
+	// ClusterIndexes
+	result.WriteString("  ClusterIndexes:\n")
+	for key, value := range config.ClusterIndexes {
+		result.WriteString(fmt.Sprintf("    [%s]: %s\n", key, value))
+	}
+
+	// LANs
+	result.WriteString("  LANs: \n")
+	if config.LANs != nil {
+		for i, lan := range *config.LANs {
+			result.WriteString(fmt.Sprintf("    [%d]: %v\n", i, lan))
+		}
+	} else {
+		result.WriteString("nil\n")
+	}
+
+	// PortsGettingPTP
+	result.WriteString("  PortsGettingPTP:\n")
+	for i, ptpIf := range config.PortsGettingPTP {
+		result.WriteString(fmt.Sprintf("    [%d]: %s\n", i, ptpIf))
+	}
+
+	// SkippedInterfaces
+	result.WriteString("  SkippedInterfaces:\n")
+	for i, iface := range config.SkippedInterfaces {
+		result.WriteString(fmt.Sprintf("    [%d]: %s\n", i, iface))
+	}
+	return result.String()
 }
 
 var GlobalL2DiscoveryConfig L2DiscoveryConfig
@@ -248,7 +324,12 @@ func (config *L2DiscoveryConfig) getL2Disc(ptpInterfacesOnly bool) error {
 		if err := json.Unmarshal([]byte(report), &discDataPerNode); err != nil {
 			return err
 		}
-
+		jsonData, err := json.MarshalIndent(discDataPerNode, "", "  ")
+		if err != nil {
+			return err
+		}
+		// print the formatted json data
+		logrus.Tracef("key= %s discDataPerNode: %s", k, string(jsonData))
 		if _, ok := config.DiscoveryMap[config.L2DiscoveryPods[k].Spec.NodeName]; !ok {
 			config.DiscoveryMap[config.L2DiscoveryPods[k].Spec.NodeName] = make(map[string]map[string]*l2.Neighbors)
 		}

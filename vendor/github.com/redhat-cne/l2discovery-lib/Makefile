@@ -1,6 +1,9 @@
 GOLANGCI_VERSION=v1.53.2
 
-.PHONY: all clean test build
+.PHONY: all clean test build lint install-lint vet fmt
+
+fmt:
+	go fmt ./...
 
 lint:
 	golangci-lint run

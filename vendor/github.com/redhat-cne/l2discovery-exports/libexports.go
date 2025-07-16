@@ -13,8 +13,16 @@ type PCIAddress struct {
 	Device, Function, Description, Subsystem string
 }
 
+func (pci PCIAddress) String() string {
+	return fmt.Sprintf("Device:%s Function:%s Description:%s Subsystem:%s", pci.Device, pci.Function, pci.Description, pci.Subsystem)
+}
+
 type PTPCaps struct {
 	HwRx, HwTx, HwRawClock bool
+}
+
+func (caps PTPCaps) String() string {
+	return fmt.Sprintf("HwRx:%t HwTx:%t HwRawClock:%t", caps.HwRx, caps.HwTx, caps.HwRawClock)
 }
 
 type Iface struct {
@@ -31,15 +39,6 @@ type Iface struct {
 type Neighbors struct {
 	Local  Iface
 	Remote map[string]bool
-}
-
-func (mac Mac) String() string {
-	return strings.ToUpper(string([]byte(mac.Data)[0:2]) + ":" +
-		string([]byte(mac.Data)[2:4]) + ":" +
-		string([]byte(mac.Data)[4:6]) + ":" +
-		string([]byte(mac.Data)[6:8]) + ":" +
-		string([]byte(mac.Data)[8:10]) + ":" +
-		string([]byte(mac.Data)[10:12]))
 }
 
 // Object representing a ptp interface within a cluster.
@@ -68,4 +67,31 @@ func (iface *PtpIf) String() string {
 
 func (iface *PtpIf) String1() string {
 	return fmt.Sprintf("index:%s mac:%s", iface.IfClusterIndex, iface.IfMac)
+}
+
+func (iface *PtpIf) StringFull(indent int) string {
+	var result strings.Builder
+
+	// Generate the indentation string
+	const indentIncrement = 2
+	indentStr := strings.Repeat(" ", indent)
+	childIndentStr := strings.Repeat(" ", indent+indentIncrement)
+
+	// IfClusterIndex fields
+	result.WriteString(indentStr + "IfClusterIndex:\n")
+	result.WriteString(fmt.Sprintf(childIndentStr+"  InterfaceName: %s\n", iface.InterfaceName))
+	result.WriteString(fmt.Sprintf(childIndentStr+"  NodeName: %s\n", iface.NodeName))
+
+	// Iface fields
+	result.WriteString(indentStr + "Iface:\n")
+	result.WriteString(fmt.Sprintf(childIndentStr+"  IfName: %s\n", iface.IfName))
+	result.WriteString(fmt.Sprintf(childIndentStr+"  IfMac: %s\n", iface.IfMac))
+	result.WriteString(fmt.Sprintf(childIndentStr+"  IfIndex: %d\n", iface.IfIndex))
+	result.WriteString(fmt.Sprintf(childIndentStr+"  IfPci: %s\n", iface.IfPci))
+	result.WriteString(fmt.Sprintf(childIndentStr+"  IfPTPCaps: %s\n", iface.IfPTPCaps))
+	result.WriteString(fmt.Sprintf(childIndentStr+"  IfUp: %t\n", iface.IfUp))
+	result.WriteString(fmt.Sprintf(childIndentStr+"  IfMaster: %s\n", iface.IfMaster))
+	result.WriteString(fmt.Sprintf(childIndentStr+"  IfSlaveType: %s", iface.IfSlaveType))
+
+	return result.String()
 }
