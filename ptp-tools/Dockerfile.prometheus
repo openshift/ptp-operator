@@ -1,0 +1,12 @@
+FROM registry.access.redhat.com/ubi8/ubi
+
+RUN dnf install -y wget tar && \
+    wget https://github.com/prometheus/prometheus/releases/download/v3.4.2/prometheus-3.4.2.linux-amd64.tar.gz && \
+    tar -xzf prometheus-3.4.2.linux-amd64.tar.gz && \
+    mv prometheus-3.4.2.linux-amd64/prometheus /usr/local/bin/ && \
+    mv prometheus-3.4.2.linux-amd64/promtool /usr/local/bin/ && \
+    dnf clean all && rm -rf prometheus-3.4.2.linux-amd64*
+
+USER 1000
+ENTRYPOINT ["/usr/local/bin/prometheus"]
+CMD ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus"]

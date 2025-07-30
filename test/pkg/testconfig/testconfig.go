@@ -450,8 +450,10 @@ func CreatePtpConfigurations() error {
 	// Collect L2 info
 	config, err := l2lib.GlobalL2DiscoveryConfig.GetL2DiscoveryConfig(true, false, useContainerCmds, L2_DISCOVERY_IMAGE)
 	if err != nil {
-		return fmt.Errorf("Getting L2 discovery info failed with err=%s", err)
+		return fmt.Errorf("getting L2 discovery info failed with err=%s", err)
 	}
+	logrus.Tracef("L2DiscoveryConfig: %s\n", config)
+	logrus.Tracef("L2 ifListFiltered=%+v, ifListUnfiltered=%+v", config.GetPtpIfList(), config.GetPtpIfListUnfiltered())
 	GlobalConfig.L2Config = config
 
 	if GlobalConfig.PtpModeDesired != Discovery {

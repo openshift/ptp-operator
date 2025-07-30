@@ -20,7 +20,7 @@ KUSTOMIZE ?= $(LOCALBIN)/kustomize
 
 IMG_PREFIX ?= quay.io/<your user id here>/<your image name>
 
-VALUES = lptpd cep ptpop krp openvswitch
+VALUES = lptpd cep ptpop krp openvswitch prometheus
 
 podman-buildall: $(foreach v, $(VALUES), podman-build-$(v))
 

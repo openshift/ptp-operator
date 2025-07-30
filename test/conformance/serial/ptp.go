@@ -1035,6 +1035,22 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 		})
 
 		var _ = Describe("prometheus", func() {
+			BeforeEach(func() {
+				By("Refreshing configuration", func() {
+					ptphelper.WaitForPtpDaemonToExist()
+					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
+					podsRunningPTP4l, err := testconfig.GetPodsRunningPTP4l(&fullConfig)
+					Expect(err).NotTo(HaveOccurred())
+					ptphelper.WaitForPtpDaemonToBeReady(podsRunningPTP4l)
+
+				})
+				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
+					Skip("Failed to find a valid ptp slave configuration")
+				}
+			})
+			AfterEach(func() {
+
+			})
 			Context("Metrics reported by PTP pods", func() {
 				It("Should all be reported by prometheus", func() {
 					var err error
