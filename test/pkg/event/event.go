@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	ptpEvent "github.com/redhat-cne/sdk-go/pkg/event/ptp"
 	"os"
 	"regexp"
 	"strconv"
@@ -493,6 +494,8 @@ func MonitorPodLogsRegex() (term chan bool, err error) {
 					aStoredEvent, eType, err := createStoredEvent([]byte(matches[0][1]))
 					if err == nil {
 						PubSub.Publish(eType, aStoredEvent)
+					} else {
+						logrus.Infof("received error in  MonitorPodLogsRegex %s", err)
 					}
 				}
 			}
@@ -623,4 +626,48 @@ func isEventValidV2(aEvent *ce.Event) bool {
 		return false
 	}
 	return true
+}
+
+type Subscriptions struct {
+	GNSS       <-chan exports.StoredEvent
+	CLOCKCLASS <-chan exports.StoredEvent
+	LOCKSTATE  <-chan exports.StoredEvent
+
+	gID, cID, lID int
+} // Subscriptions holds the channels for GNSS, CC and LS events and their IDs
+
+// SubscribeChangeEvents subscribes to GNSS/ClockClass/State change topics,
+// optionally pushes initial events, and returns a cleanup() to defer.
+func SubscribeToGMChangeEvents(
+	buffer int,
+	pushInitial bool,
+	initialTTL time.Duration,
+) (subs Subscriptions, cleanup func()) {
+	gnssTopic := string(ptpEvent.GnssStateChange)
+	ccTopic := string(ptpEvent.PtpClockClassChange)
+	lsTopic := string(ptpEvent.PtpStateChange)
+
+	gnssCh, gID := PubSub.Subscribe(gnssTopic, buffer)
+	ccCh, cID := PubSub.Subscribe(ccTopic, buffer)
+	lsCh, lID := PubSub.Subscribe(lsTopic, buffer)
+
+	if pushInitial {
+		_ = PushInitialEvent(gnssTopic, initialTTL)
+		_ = PushInitialEvent(ccTopic, initialTTL)
+		_ = PushInitialEvent(lsTopic, initialTTL)
+	}
+
+	return Subscriptions{
+			GNSS:       gnssCh,
+			CLOCKCLASS: ccCh,
+			LOCKSTATE:  lsCh,
+			gID:        gID,
+			cID:        cID,
+			lID:        lID,
+		},
+		func() {
+			PubSub.Unsubscribe(gnssTopic, gID)
+			PubSub.Unsubscribe(ccTopic, cID)
+			PubSub.Unsubscribe(lsTopic, lID)
+		}
 }
