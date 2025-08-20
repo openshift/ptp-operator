@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -37,6 +38,8 @@ import (
 
 	fbprotocol "github.com/facebook/time/ptp/protocol"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/testconfig"
+	exports "github.com/redhat-cne/ptp-listener-exports"
+	ptpEvent "github.com/redhat-cne/sdk-go/pkg/event/ptp"
 	k8sv1 "k8s.io/api/core/v1"
 )
 
@@ -1114,6 +1117,9 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 		Context("WPC GM Verification Tests", func() {
 			BeforeEach(func() {
+				if fullConfig.PtpModeDiscovered != testconfig.TelcoGrandMasterClock {
+					Skip("test valid only for GM test config")
+				}
 				By("Refreshing configuration", func() {
 					ptphelper.WaitForPtpDaemonToExist()
 					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
@@ -1122,9 +1128,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					ptphelper.WaitForPtpDaemonToBeReady(podsRunningPTP4l)
 
 				})
-				if fullConfig.PtpModeDiscovered != testconfig.TelcoGrandMasterClock {
-					Skip("test valid only for GM test config")
-				}
+
 			})
 			It("is verifying WPC GM state based on logs", func() {
 
@@ -1345,10 +1349,6 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					Skip("test valid only for GM test config")
 				}
 			})
-			PIt("Verify Events during GNSS Loss flow (V1)", func() {
-
-			})
-
 		})
 
 		Context("WPC GM Events verification (V2)", func() {
@@ -1356,14 +1356,105 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				if fullConfig.PtpModeDiscovered != testconfig.TelcoGrandMasterClock {
 					Skip("test valid only for GM test config")
 				}
+
+				// Set up consumer pod for event monitoring
+				if fullConfig.DiscoveredClockUnderTestPod != nil {
+					nodeName := fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName
+					if nodeName != "" {
+						logrus.Info("Deploy consumer app for testing event API v2")
+						err := event.CreateConsumerApp(nodeName)
+						if err != nil {
+							logrus.Errorf("PTP events are not available due to consumer app creation error err=%s", err)
+							Skip("Consumer app setup failed")
+						}
+
+						// Wait a bit more for the consumer pod to be fully ready
+						logrus.Info("Waiting for consumer pod to be fully ready...")
+						time.Sleep(10 * time.Second)
+
+						// Initialize pub/sub system
+						event.InitPubSub()
+					}
+				}
 			})
-			PIt("Verify Events during GNSS Loss flow (V2)", func() {
+
+			AfterEach(func() {
+				// Clean up consumer namespace
+				DeferCleanup(func() {
+					err := event.DeleteConsumerNamespace()
+					if err != nil {
+						logrus.Debugf("Deleting consumer namespace failed because of err=%s", err)
+					}
+				})
+
+				// Close internal pubsub
+				if event.PubSub != nil {
+					event.PubSub.Close()
+				}
+			})
+
+			It("Testing T-GM Events on GNSS reboot and recovery", func() {
+				By("Verifying Clock Class, GNSS, and PTP State")
+
+				// Ensure system starts in LOCKED (ClockClass 6)
+				logrus.Info("Verifying current LOCKED state...")
+				By("Check current LOCKED state")
+				checkClockClassState(fullConfig, strconv.Itoa(int(fbprotocol.ClockClass6)))
+
+				// Subscribe to CHANGE events (consistent with later verifications)
+				const incomingEventsBuffer = 100
+				subs, cleanup := event.SubscribeToGMChangeEvents(incomingEventsBuffer, true, 60*time.Second)
+				defer cleanup()
+
+				// Start cold boot in background; will be stopped via stop1
+				stop := make(chan struct{})
+				var once sync.Once
+				safeClose := func() { once.Do(func() { close(stop) }) }
+				defer safeClose()
+
+				// Start log monitor once
+				term, err := event.MonitorPodLogsRegex()
+				defer func() { stopMonitor(term) }()
+				Expect(err).ToNot(HaveOccurred(), "could not start listening to events")
+				By("Starting cold boot in background")
+				go coldBootInBackground(stop, fullConfig)
+				time.Sleep(2 * time.Second) // Allow some time for cold boot to start
+
+				// now use subs.GNSS, subs.CC, subs.LS
+				events := getGMEvents(subs.GNSS, subs.CLOCKCLASS, subs.LOCKSTATE, 10*time.Second)
+				fmt.Fprintf(GinkgoWriter, "First Event recieved  %v, ", events)
+
+				// Verify expected HOLDOVER conditions
+				By("Verifying GNSS state Antenna Disconnected")
+				verifyEvent(events[ptpEvent.GnssStateChange], ptpEvent.ANTENNA_DISCONNECTED)
+				By("Verifying ClockClass value to 7")
+				verifyMetric(events[ptpEvent.PtpClockClassChange], float64(fbprotocol.ClockClass7))
+				By("Verifying PTP state Holdover")
+				verifyEvent(events[ptpEvent.PtpStateChange], ptpEvent.HOLDOVER)
+				stopMonitor(term)
+				// Stop phase 1 collection / cold boot
+				By("Stopping cold boot")
+				safeClose()
+				//Phase 2 verify GNSS recovery events
+				term2, err2 := event.MonitorPodLogsRegex()
+				defer func() { stopMonitor(term2) }()
+				Expect(err2).ToNot(HaveOccurred(), "could not start listening to events")
+				By("Waiting for GNSS recovery to LOCKED state via clock class metrics")
+				waitForClockClass(fullConfig, strconv.Itoa(int(fbprotocol.ClockClass6)))
+
+				// Phase 2: collect again after GNSS recovery
+				events = getGMEvents(subs.GNSS, subs.CLOCKCLASS, subs.LOCKSTATE, 10*time.Second)
+				fmt.Fprintf(GinkgoWriter, "Event recieved  %v, ", events)
+
+				// Verify conditions have returned to LOCKED
+				By("Verifying GNSS state Synchronized")
+				verifyEvent(events[ptpEvent.GnssStateChange], ptpEvent.SYNCHRONIZED)
+				By("Verifying ClockClass value to 6")
+				verifyMetric(events[ptpEvent.PtpClockClassChange], float64(fbprotocol.ClockClass6))
+				By("Verifying PTP state Locked")
+				verifyEvent(events[ptpEvent.PtpStateChange], ptpEvent.LOCKED)
 
 			})
-			PIt("Verify Events during GNSS holdover state  (V2)", func() {
-
-			})
-
 		})
 	})
 })
@@ -1641,6 +1732,17 @@ func getClockStateByProcess(metrics, process string) (string, bool) {
 }
 
 func checkProcessStatus(fullConfig testconfig.TestConfig, state string) {
+	// Add nil checks to prevent panic
+	if fullConfig.DiscoveredClockUnderTestPod == nil {
+		Fail("DiscoveredClockUnderTestPod is nil - cannot check process status")
+		return
+	}
+
+	if client.Client == nil {
+		Fail("Client is nil - cannot execute commands")
+		return
+	}
+
 	/*
 		# TYPE openshift_ptp_process_status gauge
 		openshift_ptp_process_status{config="ptp4l.0.config",node="cnfde22.ptp.lab.eng.bos.redhat.com",process="phc2sys"} 1
@@ -1944,4 +2046,85 @@ func checkClockClassStateReturnBool(fullConfig testconfig.TestConfig, expectedSt
 		}
 	}
 	return false
+}
+
+// EventResult holds a parsed event
+type EventResult struct {
+	Type   ptpEvent.EventType
+	Values exports.StoredEventValues
+}
+
+// processEvent parses a StoredEvent into EventResult
+func processEvent(eventType ptpEvent.EventType, ev exports.StoredEvent) (*EventResult, bool) {
+	values, ok := ev[exports.EventValues].(exports.StoredEventValues)
+	if !ok {
+		logrus.Warnf("%s event: unable to parse values: %v", eventType, ev)
+		return nil, false
+	}
+	return &EventResult{Type: eventType, Values: values}, true
+}
+
+// getEvents listens and aggregates events into a map until stopChan is closed
+func getGMEvents(
+	gnssEventChan <-chan exports.StoredEvent,
+	ccEventChan <-chan exports.StoredEvent,
+	lsEventChan <-chan exports.StoredEvent,
+	timeout time.Duration,
+) map[ptpEvent.EventType]exports.StoredEventValues {
+
+	results := make(map[ptpEvent.EventType]exports.StoredEventValues)
+	timer := time.NewTimer(timeout)
+
+	for {
+		select {
+		case <-timer.C:
+			return results
+		case ev := <-gnssEventChan:
+			if res, ok := processEvent(ptpEvent.GnssStateChange, ev); ok {
+				results[res.Type] = res.Values
+				fmt.Fprintf(GinkgoWriter, "GnssStateChange Event recieved  %v, ", res.Values)
+			}
+		case ev := <-ccEventChan:
+			if res, ok := processEvent(ptpEvent.PtpClockClassChange, ev); ok {
+				results[res.Type] = res.Values
+				fmt.Fprintf(GinkgoWriter, "PtpClockClassChange Event recieved  %v, ", res.Values)
+			}
+		case ev := <-lsEventChan:
+			if res, ok := processEvent(ptpEvent.PtpStateChange, ev); ok {
+				results[res.Type] = res.Values
+				fmt.Fprintf(GinkgoWriter, "PtpStateChange Event recieved  %v, ", res.Values)
+			}
+		}
+	}
+}
+
+// verifyEvent looks for a particular state (string) inside a slice of StoredEventValues
+func verifyEvent(events exports.StoredEventValues, expectedState ptpEvent.SyncState) {
+	found := false
+	if state, ok := events["notification"].(string); ok {
+		if state == string(expectedState) {
+			found = true
+		}
+	}
+	Expect(found).To(BeTrue(),
+		"expected state %q not found in %+v", expectedState, events)
+}
+
+// verifyMetricThreshold checks if any event has metric within a range
+func verifyMetric(events exports.StoredEventValues, value float64) {
+	found := false
+	if metricValue, ok := events["metric"].(float64); ok {
+		if metricValue == value {
+			found = true
+		}
+	}
+	Expect(found).To(BeTrue(),
+		"expected a metric [%f] but got %+v", value, events)
+}
+
+func stopMonitor(term chan bool) {
+	select {
+	case term <- true: // tell goroutine to exit
+	default: // avoid blocking if it’s already been stopped
+	}
 }
