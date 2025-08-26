@@ -42,6 +42,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sort"
 	"strings"
 	"time"
 )
@@ -256,7 +257,7 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 	} else {
 		pluginList = []string{"e810"} // Enable e810 by default if plugins not specified
 	}
-
+	sort.Strings(pluginList)
 	enabledPlugins := strings.Join(pluginList, ",")
 	data.Data["EnabledPlugins"] = enabledPlugins
 	if enabledPlugins != "" {
