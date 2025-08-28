@@ -1,0 +1,48 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ptp-event-publisher-service-{{.NodeName}}
+  namespace: openshift-ptp
+  annotations:
+    service.beta.openshift.io/serving-cert-secret-name: ptp-event-publisher-certs-{{.NodeName}}
+    prometheus.io/scrape: "false"
+  labels:
+    app: linuxptp-daemon
+spec:
+  clusterIP: None
+  selector:
+    app: linuxptp-daemon
+    nodeName: {{.NodeName}}
+  ports:
+    - name: publisher-port
+      port: 9043
+  sessionAffinity: None
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ptp-event-publisher-ca-bundle-{{.NodeName}}
+  namespace: openshift-ptp
+  annotations:
+    service.beta.openshift.io/inject-cabundle: "true"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ptp-event-publisher-auth-{{.NodeName}}
+  namespace: openshift-ptp
+data:
+  config.json: |
+    {
+      "enableMTLS": true,
+      "caCertPath": "/etc/cloud-event-proxy/ca-bundle/service-ca.crt",
+      "serverCertPath": "/etc/cloud-event-proxy/certs/tls.crt",
+      "serverKeyPath": "/etc/cloud-event-proxy/certs/tls.key",
+      "enableOAuth": true,
+      "oauthIssuer": "https://kubernetes.default.svc",
+      "oauthJWKSURL": "https://kubernetes.default.svc/.well-known/openid-configuration",
+      "requiredScopes": ["cloud-event-proxy"],
+      "requiredAudience": "cloud-event-proxy"
+    }

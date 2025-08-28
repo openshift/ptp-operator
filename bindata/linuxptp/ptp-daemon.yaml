@@ -21,6 +21,7 @@ spec:
       labels:
         app: linuxptp-daemon
         role: ptp
+        nodeName: {{.NodeName}}
     spec:
       hostNetwork: true
       hostPID: true
@@ -42,6 +43,7 @@ spec:
             - "--transport-host={{ .EventTransportHost }}"
             - "--api-version={{ .EventApiVersion }}"
             - "--api-port=9043"
+            - "--auth-config=/etc/cloud-event-proxy/auth/config.json"
           volumeMounts:
             - name: config-volume
               mountPath: /etc/linuxptp
@@ -51,6 +53,15 @@ spec:
               mountPath: /cloud-native
             - name: socket-dir
               mountPath: /var/run
+            - name: server-certs
+              mountPath: /etc/cloud-event-proxy/certs
+              readOnly: true
+            - name: ca-bundle
+              mountPath: /etc/cloud-event-proxy/ca-bundle
+              readOnly: true
+            - name: auth-config
+              mountPath: /etc/cloud-event-proxy/auth
+              readOnly: true
           ports:
             - name: metrics-port
               containerPort: 9091
@@ -98,7 +109,7 @@ spec:
           args:
           {{ $cmd := "/usr/local/bin/ptp --alsologtostderr -v 10" }}
           {{- if (eq .EnableEventPublisher true) }}
-            - "until [ $(curl -s -w '%{http_code}' 'http://localhost:9043/api/ocloudNotifications/v2/health' -o /dev/null) -eq 200 ]; do echo 'waiting for cloud event proxy to start'; sleep 10s; done; {{ $cmd }}"
+            - "until [ $(curl -s -w '%{http_code}' 'https://localhost:9043/api/ocloudNotifications/v2/health' --cacert /etc/cloud-event-proxy/ca-bundle/service-ca.crt -o /dev/null) -eq 200 ]; do echo 'waiting for cloud event proxy to start'; sleep 10s; done; {{ $cmd }}"
           {{- else }}
             - {{ $cmd }}
           {{- end }}
@@ -129,6 +140,9 @@ spec:
             {{ if (eq .EnableEventPublisher true) }}
             - name: event-bus-socket
               mountPath: /cloud-native
+            - name: ca-bundle
+              mountPath: /etc/cloud-event-proxy/ca-bundle
+              readOnly: true
             {{ end }}
       volumes:
         - name: config-volume
@@ -145,6 +159,15 @@ spec:
           emptyDir: {}
         - name: event-bus-socket
           emptyDir: {}
+        - name: server-certs
+          secret:
+            secretName: ptp-event-publisher-certs-{{.NodeName}}
+        - name: ca-bundle
+          configMap:
+            name: ptp-event-publisher-ca-bundle-{{.NodeName}}
+        - name: auth-config
+          configMap:
+            name: ptp-event-publisher-auth-{{.NodeName}}
         {{ end }}
         - name: socket-dir
           hostPath:
