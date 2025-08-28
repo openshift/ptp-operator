@@ -20,6 +20,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+	"time"
+
 	"github.com/go-logr/logr"
 	"github.com/golang/glog"
 	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
@@ -35,16 +42,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
 	kscheme "k8s.io/client-go/kubernetes/scheme"
-	"net/url"
-	"os"
-	"path/filepath"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sort"
-	"strings"
-	"time"
 )
 
 // PtpOperatorConfigReconciler reconciles a PtpOperatorConfig object
@@ -56,7 +57,7 @@ type PtpOperatorConfigReconciler struct {
 
 const (
 	ResyncPeriod         = 2 * time.Minute
-	DefaultTransportHost = "http://ptp-event-publisher-service-NODE_NAME.openshift-ptp.svc.cluster.local:9043"
+	DefaultTransportHost = "http://ptp-event-publisher-service-{{.NodeName}}.openshift-ptp.svc.cluster.local:9043"
 	DefaultStorageType   = "emptyDir"
 	DefaultApiVersion    = "2.0"
 )
@@ -224,6 +225,12 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 	data.Data["NodeName"] = os.Getenv("NODE_NAME")
 	data.Data["StorageType"] = DefaultStorageType
 	data.Data["EventApiVersion"] = DefaultApiVersion
+	// Get cluster name from environment variable with fallback
+	clusterName := os.Getenv("CLUSTER_NAME")
+	if clusterName == "" {
+		clusterName = "openshift.local" // Default fallback
+	}
+	data.Data["ClusterName"] = clusterName
 	// configure EventConfig
 	if defaultCfg.Spec.EventConfig == nil {
 		data.Data["EnableEventPublisher"] = false
@@ -269,6 +276,15 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 		return fmt.Errorf("failed to render linuxptp daemon manifest: %v", err)
 	}
 
+	// Process auth-config.yaml if event publisher is enabled
+	if defaultCfg.Spec.EventConfig != nil && defaultCfg.Spec.EventConfig.EnableEventPublisher {
+		authObjs, err := render.RenderTemplate(filepath.Join(names.ManifestDir, "linuxptp/auth-config.yaml"), &data)
+		if err != nil {
+			return fmt.Errorf("failed to render auth config manifest: %v", err)
+		}
+		objs = append(objs, authObjs...)
+	}
+
 	for _, obj := range objs {
 		obj, err = r.setDaemonNodeSelector(defaultCfg, obj)
 		if err != nil {
@@ -299,6 +315,7 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 					return fmt.Errorf("failed to apply service object %v with err: %v", obj, err)
 				}
 			}
+
 		}
 	}
 

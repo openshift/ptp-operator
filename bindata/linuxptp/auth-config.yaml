@@ -1,0 +1,77 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-info
+  namespace: openshift-ptp
+data:
+  cluster-name: "{{.ClusterName}}"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ptp-event-publisher-ca-bundle
+  namespace: openshift-ptp
+  annotations:
+    service.beta.openshift.io/inject-cabundle: "true"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ptp-event-publisher-server
+  namespace: openshift-ptp
+  annotations:
+    service.beta.openshift.io/serving-cert-secret-name: ptp-event-publisher-server-tls
+  labels:
+    app: linuxptp-daemon
+spec:
+  clusterIP: None
+  selector:
+    app: linuxptp-daemon
+  ports:
+    - name: server-port
+      port: 9043
+  sessionAffinity: None
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloud-event-proxy-ca
+  namespace: openshift-ptp
+  annotations:
+    service.beta.openshift.io/serving-cert-secret-name: cloud-event-proxy-ca-tls
+  labels:
+    app: linuxptp-daemon
+spec:
+  clusterIP: None
+  selector:
+    app: linuxptp-daemon
+  ports:
+    - name: ca-port
+      port: 9044
+  sessionAffinity: None
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ptp-event-publisher-auth
+  namespace: openshift-ptp
+data:
+  config.json: |
+    {
+      "enableMTLS": true,
+      "useServiceCA": true,
+      "caCertPath": "/etc/cloud-event-proxy/ca-bundle/tls.crt",
+      "serverCertPath": "/etc/cloud-event-proxy/server-certs/tls.crt",
+      "serverKeyPath": "/etc/cloud-event-proxy/server-certs/tls.key",
+      "enableOAuth": true,
+      "useOpenShiftOAuth": true,
+      "oauthIssuer": "https://oauth-openshift.apps.{{.ClusterName}}",
+      "oauthJWKSURL": "https://oauth-openshift.apps.{{.ClusterName}}/oauth/jwks",
+      "requiredScopes": ["user:info"],
+      "requiredAudience": "https://kubernetes.default.svc",
+      "serviceAccountName": "cloud-event-proxy-sa",
+      "serviceAccountToken": "/var/run/secrets/kubernetes.io/serviceaccount/token"
+    }
