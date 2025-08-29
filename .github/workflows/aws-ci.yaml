@@ -60,7 +60,7 @@ jobs:
         id: launch
         run: |
           INSTANCE_ID=$(aws ec2 run-instances \
-            --image-id ami-0f7270e9a0e492eac \
+            --image-id ami-03f4e4724537a687c \
             --subnet-id subnet-04ee218fe8f32cad5 \
             --instance-type m6a.xlarge \
             --security-group-ids sg-05e700edc2ed0a2d5 \
