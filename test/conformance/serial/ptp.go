@@ -1281,6 +1281,54 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				})
 			})
 
+			It("gpsd and gpspipe restart quickly updates process status metrics", func() {
+				if fullConfig.PtpModeDiscovered != testconfig.TelcoGrandMasterClock {
+					Skip("test valid only for GM test config")
+				}
+
+				By("Ensuring gpsd and gpspipe are running (process_status == 1)")
+				checkStatusByProcess(fullConfig, "gpsd", "1")
+				checkStatusByProcess(fullConfig, "gpspipe", "1")
+
+				By("Starting fast watchers to capture 1→0→1 flips while killing processes")
+				resultCh := make(chan string, 2)
+				ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+				defer cancel()
+				go func() {
+					ok := watchProcessFlipOneZeroOne(fullConfig, "gpsd", 30*time.Second)
+					if ok {
+						resultCh <- "gpsd"
+					}
+				}()
+				go func() {
+					ok := watchProcessFlipOneZeroOne(fullConfig, "gpspipe", 30*time.Second)
+					if ok {
+						resultCh <- "gpspipe"
+					}
+				}()
+				time.Sleep(1 * time.Second) // Give watchers time to start
+				By("Killing gpsd and gpspipe to trigger restart while watchers are running")
+				_, _, killErr := pods.ExecCommand(
+					client.Client,
+					true,
+					fullConfig.DiscoveredClockUnderTestPod,
+					pkg.PtpContainerName,
+					[]string{"sh", "-c", "pkill -TERM gpsd || true; pkill -TERM gpspipe || true"},
+				)
+				Expect(killErr).To(BeNil(), "failed to kill gpsd/gpspipe")
+
+				seen := map[string]bool{"gpsd": false, "gpspipe": false}
+				for !seen["gpsd"] || !seen["gpspipe"] {
+					select {
+					case <-ctx.Done():
+						Fail("Timed out waiting for fast 1→0→1 metric flip for gpsd/gpspipe")
+						return
+					case name := <-resultCh:
+						seen[name] = true
+					}
+				}
+			})
+
 		})
 
 		Context("WPC GM GNSS signal loss tests", func() {
@@ -1771,9 +1819,8 @@ func checkProcessStatus(fullConfig testconfig.TestConfig, state string) {
 	Expect(ret["phc2sys"]).To(BeTrue(), fmt.Sprintf("Expected phc2sys to be  %s for GM", state))
 	Expect(ret["ptp4l"]).To(BeTrue(), fmt.Sprintf("Expected ptp4l to be  %s for GM", state))
 	Expect(ret["ts2phc"]).To(BeTrue(), fmt.Sprintf("Expected ts2phc to be  %s for GM", state))
-	//TODO: Re-enable these checks once bugfix is merged
-	// Expect(ret["gpspipe"]).To(BeTrue(), fmt.Sprintf("Expected gpspipe to be %s for GM", state))
-	// Expect(ret["gpsd"]).To(BeTrue(), fmt.Sprintf("Expected gpsd to be q %s for GM", state))
+	Expect(ret["gpspipe"]).To(BeTrue(), fmt.Sprintf("Expected gpspipe to be %s for GM", state))
+	Expect(ret["gpsd"]).To(BeTrue(), fmt.Sprintf("Expected gpsd to be q %s for GM", state))
 }
 
 func checkClockClassState(fullConfig testconfig.TestConfig, expectedState string) {
@@ -1957,6 +2004,117 @@ func checkClockStateForProcess(fullConfig testconfig.TestConfig, process string,
 	retState, found := getClockStateByProcess(buf.String(), process)
 	Expect(found).To(BeTrue(), fmt.Sprintf("Expected %s clock state to be %s for GM but found %s", process, state, retState))
 	Expect(retState).To(Equal(state), fmt.Sprintf("Expected %s clock state to be %s for GM %s", process, state, buf.String()))
+}
+
+// getProcessStatusByProcess parses openshift_ptp_process_status lines and returns the value for a given process
+func getProcessStatusByProcess(metricsText, process string) (string, bool) {
+	scanner := bufio.NewScanner(strings.NewReader(metricsText))
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if strings.HasPrefix(line, metrics.OpenshiftPtpProcessStatus) && strings.Contains(line, fmt.Sprintf(`process="%s"`, process)) {
+			// split line to get value
+			parts := strings.Fields(line)
+			if len(parts) == 2 {
+				return parts[1], true
+			}
+		}
+	}
+	return "", false
+}
+
+// checkStatusByProcess mirrors checkClockStateForProcess but for process status (1/0)
+func checkStatusByProcess(fullConfig testconfig.TestConfig, process string, state string) {
+	Eventually(func() string {
+		buf, _, _ := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
+		retState, found := getProcessStatusByProcess(buf.String(), process)
+		if !found {
+			return ""
+		}
+		return retState
+	}, pkg.TimeoutIn3Minutes, pkg.Timeout10Seconds).Should(Equal(state),
+		fmt.Sprintf("Expected %s process status to be %s for GM", process, state))
+}
+
+// watchProcessFlipOneZeroOne aggressively samples metrics to detect a fast 1→0→1 flip for a process.
+// It returns true if it observed 1, then 0, then 1 again in order within totalTimeout.
+func watchProcessFlipOneZeroOne(fullConfig testconfig.TestConfig, process string, totalTimeout time.Duration) bool {
+	deadline := time.Now().Add(totalTimeout)
+	sawOne := false
+	sawZero := false
+
+	// Collect many samples per exec to avoid missing brief flips
+	const samplesPerChunk = 120
+	const sampleDelimiter = "__SAMPLE_END__"
+
+	for time.Now().Before(deadline) {
+		cmd := fmt.Sprintf(`for i in $(seq 1 %d); do curl -s %s; echo %s; done`, samplesPerChunk, pkg.MetricsEndPoint, sampleDelimiter)
+		buf, _, _ := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"sh", "-c", cmd})
+
+		scanner := bufio.NewScanner(strings.NewReader(buf.String()))
+		foundThisSample := false
+		valueThisSample := ""
+		restartHappened := false
+		commitSample := func() bool {
+			current := "0" // default to 0 if metric line missing in this sample
+			if foundThisSample {
+				current = valueThisSample
+			}
+			if current == "1" {
+				if !sawOne {
+					sawOne = true
+				} else if sawZero {
+					return true
+				}
+			} else if current == "0" {
+				if sawOne {
+					sawZero = true
+				}
+			}
+			if restartHappened && sawOne {
+				return true
+			}
+			foundThisSample = false
+			valueThisSample = ""
+			return false
+		}
+
+		for scanner.Scan() {
+			line := scanner.Text()
+			if line == sampleDelimiter {
+				if commitSample() {
+					return true
+				}
+				continue
+			}
+			if strings.HasPrefix(line, "openshift_ptp_process_restart_count") && strings.Contains(line, fmt.Sprintf(`process="%s"`, process)) {
+				parts := strings.Fields(line)
+				if len(parts) == 2 {
+					// Any increment indicates a restart happened during this observation window
+					restartHappened = true
+				}
+				continue
+			}
+			if strings.HasPrefix(line, metrics.OpenshiftPtpProcessStatus) && strings.Contains(line, fmt.Sprintf(`process="%s"`, process)) {
+				parts := strings.Fields(line)
+				if len(parts) != 2 {
+					continue
+				}
+				foundThisSample = true
+				valueThisSample = parts[1]
+			}
+		}
+		// Commit last partial sample if any content was seen without a delimiter
+		if foundThisSample {
+			if commitSample() {
+				return true
+			}
+		}
+
+		time.Sleep(10 * time.Millisecond)
+	}
+	return false
 }
 
 func checkPTPNMEAStatus(fullConfig testconfig.TestConfig, expectedState string) {
