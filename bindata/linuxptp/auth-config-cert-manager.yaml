@@ -1,0 +1,163 @@
+# cert-manager Certificate for mTLS server certificates
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: cloud-event-proxy-mtls-{{.NodeName}}
+  namespace: openshift-ptp
+spec:
+  secretName: cloud-event-proxy-mtls-tls-{{.NodeName}}
+  issuerRef:
+    name: openshift-cluster-issuer
+    kind: ClusterIssuer
+  dnsNames:
+  - cloud-event-proxy.openshift-ptp.svc.cluster.local
+  - cloud-event-proxy.openshift-ptp.svc
+  - cloud-event-proxy
+  - {{.NodeName}}.openshift-ptp.svc.cluster.local
+  usages:
+  - digital signature
+  - key encipherment
+  - client auth
+  - server auth
+---
+# cert-manager Certificate for CA
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: cloud-event-proxy-ca-{{.NodeName}}
+  namespace: openshift-ptp
+spec:
+  secretName: cloud-event-proxy-ca-tls-{{.NodeName}}
+  issuerRef:
+    name: openshift-cluster-issuer
+    kind: ClusterIssuer
+  dnsNames:
+  - cloud-event-proxy-ca.openshift-ptp.svc.cluster.local
+  - cloud-event-proxy-ca.openshift-ptp.svc
+  - cloud-event-proxy-ca
+  usages:
+  - digital signature
+  - key encipherment
+  - cert sign
+---
+# Service for cloud-event-proxy with cert-manager certificates
+apiVersion: v1
+kind: Service
+metadata:
+  name: ptp-event-publisher-service-{{.NodeName}}
+  namespace: openshift-ptp
+  annotations:
+    prometheus.io/scrape: "false"
+  labels:
+    app: linuxptp-daemon
+spec:
+  clusterIP: None
+  selector:
+    app: linuxptp-daemon
+    nodeName: {{.NodeName}}
+  ports:
+    - name: publisher-port
+      port: 9043
+  sessionAffinity: None
+  type: ClusterIP
+---
+# ConfigMap for authentication configuration using cert-manager and OpenShift Authentication Operator
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ptp-event-publisher-auth-{{.NodeName}}
+  namespace: openshift-ptp
+data:
+  config.json: |
+    {
+      "enableMTLS": true,
+      "caCertPath": "/etc/cloud-event-proxy/ca-bundle/ca.crt",
+      "serverCertPath": "/etc/cloud-event-proxy/server-certs/tls.crt",
+      "serverKeyPath": "/etc/cloud-event-proxy/server-certs/tls.key",
+      "certManagerIssuer": "openshift-cluster-issuer",
+      "certManagerNamespace": "openshift-ptp",
+      "enableOAuth": true,
+      "oauthIssuer": "https://oauth-openshift.apps.openshift.example.com",
+      "oauthJWKSURL": "https://oauth-openshift.apps.openshift.example.com/.well-known/openid_configuration",
+      "requiredScopes": ["user:info", "user:check-access"],
+      "requiredAudience": "openshift",
+      "serviceAccountName": "cloud-event-proxy-client",
+      "serviceAccountToken": "/var/run/secrets/kubernetes.io/serviceaccount/token",
+      "authenticationOperator": true
+    }
+---
+# ServiceAccount for client authentication
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cloud-event-proxy-client
+  namespace: openshift-ptp
+---
+# ServiceAccount for server
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cloud-event-proxy-{{.NodeName}}
+  namespace: openshift-ptp
+---
+# Role for OAuth token validation using OpenShift Authentication Operator
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: openshift-ptp
+  name: cloud-event-proxy-oauth-{{.NodeName}}
+rules:
+- apiGroups: [""]
+  resources: ["serviceaccounts"]
+  verbs: ["get", "list"]
+- apiGroups: ["authentication.k8s.io"]
+  resources: ["tokenreviews"]
+  verbs: ["create"]
+- apiGroups: ["authorization.k8s.io"]
+  resources: ["subjectaccessreviews"]
+  verbs: ["create"]
+- apiGroups: ["user.openshift.io"]
+  resources: ["users", "groups"]
+  verbs: ["get", "list"]
+---
+# RoleBinding for OAuth
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cloud-event-proxy-oauth-{{.NodeName}}
+  namespace: openshift-ptp
+subjects:
+- kind: ServiceAccount
+  name: cloud-event-proxy-{{.NodeName}}
+  namespace: openshift-ptp
+roleRef:
+  kind: Role
+  name: cloud-event-proxy-oauth-{{.NodeName}}
+  apiGroup: rbac.authorization.k8s.io
+---
+# ClusterRole for cert-manager access
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cloud-event-proxy-cert-manager-{{.NodeName}}
+rules:
+- apiGroups: ["cert-manager.io"]
+  resources: ["certificates", "certificaterequests", "issuers", "clusterissuers"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list", "watch"]
+---
+# ClusterRoleBinding for cert-manager access
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cloud-event-proxy-cert-manager-{{.NodeName}}
+subjects:
+- kind: ServiceAccount
+  name: cloud-event-proxy-{{.NodeName}}
+  namespace: openshift-ptp
+roleRef:
+  kind: ClusterRole
+  name: cloud-event-proxy-cert-manager-{{.NodeName}}
+  apiGroup: rbac.authorization.k8s.io

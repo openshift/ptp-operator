@@ -54,7 +54,7 @@ spec:
             - name: socket-dir
               mountPath: /var/run
             - name: server-certs
-              mountPath: /etc/cloud-event-proxy/certs
+              mountPath: /etc/cloud-event-proxy/server-certs
               readOnly: true
             - name: ca-bundle
               mountPath: /etc/cloud-event-proxy/ca-bundle
@@ -109,7 +109,7 @@ spec:
           args:
           {{ $cmd := "/usr/local/bin/ptp --alsologtostderr -v 10" }}
           {{- if (eq .EnableEventPublisher true) }}
-            - "until [ $(curl -s -w '%{http_code}' 'https://localhost:9043/api/ocloudNotifications/v2/health' --cacert /etc/cloud-event-proxy/ca-bundle/service-ca.crt -o /dev/null) -eq 200 ]; do echo 'waiting for cloud event proxy to start'; sleep 10s; done; {{ $cmd }}"
+            - "until [ $(curl -s -w '%{http_code}' 'https://localhost:9043/api/ocloudNotifications/v2/health' --cacert /etc/cloud-event-proxy/ca-bundle/ca.crt -o /dev/null) -eq 200 ]; do echo 'waiting for cloud event proxy to start'; sleep 10s; done; {{ $cmd }}"
           {{- else }}
             - {{ $cmd }}
           {{- end }}
@@ -161,10 +161,10 @@ spec:
           emptyDir: {}
         - name: server-certs
           secret:
-            secretName: ptp-event-publisher-certs-{{.NodeName}}
+            secretName: cloud-event-proxy-mtls-tls-{{.NodeName}}
         - name: ca-bundle
-          configMap:
-            name: ptp-event-publisher-ca-bundle-{{.NodeName}}
+          secret:
+            secretName: cloud-event-proxy-ca-tls-{{.NodeName}}
         - name: auth-config
           configMap:
             name: ptp-event-publisher-auth-{{.NodeName}}
