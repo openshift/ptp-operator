@@ -42,6 +42,10 @@ spec:
               profile:
                 items:
                   properties:
+                    chronydConf:
+                      type: string
+                    chronydOpts:
+                      type: string
                     interface:
                       type: string
                     name:
