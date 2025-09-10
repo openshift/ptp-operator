@@ -30,7 +30,7 @@ kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/
 kubectl wait --for=condition=Ready pods -A --all --timeout=300s
 
 # Deploy prometheus (required by ptp) and wait for all pods to be ready
-./deploy-prometheus.sh
+./deploy-prometheus.sh "$VM_IP"
 kubectl wait --for=condition=Ready pods -A --all --timeout=300s 
 
 # Create openshift-ptp namespace

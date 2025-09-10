@@ -350,6 +350,9 @@ func testSyncState(soakTestConfig ptptestconfig.SoakTestConfig, fullConfig testc
 	// buffer to hold events until they can be processed. Buffering is needed to avoid dropping POST messages at the HTML server
 	// During testing maximum buffer length could reach 20. Increase it as needed if the length reaches the capacity (see logs)
 	const incomingEventsBuffer = 100
+	// wait for 300 seconds for the initial event to be pushed
+	const maxPushInitialEventAttempts = 30
+
 	slaveClockSyncTestSpec := soakTestConfig.SlaveClockSyncConfig.TestSpec
 	logrus.Infof("%+v", slaveClockSyncTestSpec)
 	syncEvents := ""
@@ -362,8 +365,15 @@ func testSyncState(soakTestConfig ptptestconfig.SoakTestConfig, fullConfig testc
 	defer event.PubSub.Unsubscribe(string(ptpEvent.OsClockSyncStateChange), subscriberID)
 	// creates and push an initial event indicating the initial state of the clock
 	// otherwise no events would be received as long as the clock is not changing states
-	err := event.PushInitialEvent(string(ptpEvent.OsClockSyncStateChange), 60*time.Second)
-	if err != nil {
+	var err error
+	var i int
+	for i = 0; i < maxPushInitialEventAttempts; i++ {
+		err = event.PushInitialEvent(string(ptpEvent.OsClockSyncStateChange), 10*time.Second)
+		if err == nil {
+			break
+		}
+	}
+	if i == maxPushInitialEventAttempts {
 		Fail(fmt.Sprintf("could not push initial event, err=%s", err))
 	}
 	term, err := event.MonitorPodLogsRegex()

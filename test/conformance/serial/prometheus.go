@@ -93,7 +93,7 @@ func collectPtpMetrics(ptpPods []k8sv1.Pod) (map[string][]string, []string) {
 		var stdout bytes.Buffer
 		var err error
 		Eventually(func() error {
-			stdout, _, err = pods.ExecCommand(client.Client, true, &pod, pkg.PtpContainerName, []string{"curl", "localhost:9091/metrics"})
+			stdout, _, err = pods.ExecCommand(client.Client, true, &pod, pkg.EventProxyContainerName, []string{"curl", "-s", pkg.MetricsEndPoint})
 			if len(strings.Split(stdout.String(), "\n")) == 0 {
 				return fmt.Errorf("empty response")
 			}

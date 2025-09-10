@@ -75,6 +75,9 @@ kubectl rollout status deployment ptp-operator -n openshift-ptp
 
 ./retry.sh 30 3 kubectl rollout status ds linuxptp-daemon -n openshift-ptp
 
+# Fix prometheus monitoring
+./fix-ptp-prometheus-monitoring.sh
+
 kubectl get pods -n openshift-ptp -o wide
 
 # run tests

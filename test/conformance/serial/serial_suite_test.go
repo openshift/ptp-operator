@@ -11,6 +11,7 @@ import (
 
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/clean"
 	testclient "github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/event"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/logging"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/testconfig"
 
@@ -44,6 +45,9 @@ var _ = BeforeSuite(func() {
 	logrus.Info("Executed from serial suite")
 	testclient.Client = testclient.New("")
 	Expect(testclient.Client).NotTo(BeNil())
+
+	// Initialize the pub/sub system for event handling
+	event.InitPubSub()
 })
 
 var _ = AfterSuite(func() {
