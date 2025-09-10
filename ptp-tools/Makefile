@@ -2,6 +2,9 @@ LOCALBIN ?= $(shell pwd)/../bin
 $(LOCALBIN):
 	mkdir -p $(LOCALBIN)/x86_64/
 
+# Allow PLATFORM to be overridden via environment variable
+# If not provided, auto-discover the platform
+ifndef PLATFORM
 OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 ARCH := $(shell uname -m)
 
@@ -14,6 +17,7 @@ ifeq ($(ARCH),aarch64)
 endif
 
 PLATFORM := $(OS)/$(ARCH)
+endif
 
 ## Tool Binaries
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
