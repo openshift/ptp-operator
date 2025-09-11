@@ -609,6 +609,11 @@ func GetPtpOperatorVersion() (string, error) {
 func GetPtpOperatorVersionFromDeployment() (string, error) {
 	const releaseVersionStr = "RELEASE_VERSION"
 
+	// Return cached if available to avoid repeated logs and API calls
+	if cachedReleaseVersion != "" {
+		return cachedReleaseVersion, nil
+	}
+
 	deploy, err := client.Client.AppsV1Interface.Deployments(pkg.PtpLinuxDaemonNamespace).Get(context.TODO(), pkg.PtpOperatorDeploymentName, metav1.GetOptions{})
 	if err != nil {
 		logrus.Infof("PTP Operator deployment not found: %v", err)
@@ -623,11 +628,13 @@ func GetPtpOperatorVersionFromDeployment() (string, error) {
 	envs := deploy.Spec.Template.Spec.Containers[0].Env
 	for _, env := range envs {
 		if env.Name == releaseVersionStr {
-			ptpOperatorVersion := env.Value
-			// Remove the 'v' prefix if present
-			ptpOperatorVersion = strings.TrimPrefix(ptpOperatorVersion, "v")
-			logrus.Infof("PTP operator version from RELEASE_VERSION: %s", ptpOperatorVersion)
-			return ptpOperatorVersion, nil
+			ptpOperatorVersion := strings.TrimPrefix(env.Value, "v")
+			cachedReleaseVersion = ptpOperatorVersion
+			if !releaseVersionLogged {
+				logrus.Infof("PTP operator version from RELEASE_VERSION: %s", ptpOperatorVersion)
+				releaseVersionLogged = true
+			}
+			return cachedReleaseVersion, nil
 		}
 	}
 
@@ -763,6 +770,10 @@ func GetPtpInterfacePerNode(nodeName string, ifList map[string]*l2exports.PtpIf)
 }
 
 var mu sync.RWMutex
+
+// cache for operator version logging
+var cachedReleaseVersion string
+var releaseVersionLogged bool
 
 // saves events to file
 func SaveStoreEventsToFile(allEvents, filename string) {
