@@ -59,6 +59,10 @@ const (
 	ClockClassFreerun = 248
 )
 
+var (
+	clockClassPattern = `^openshift_ptp_clock_class\{(?:config="ptp4l\.\d+\.config",)?node="([^"]+)",process="([^"]+)"\}\s+(\d+)`
+	clockClassRe      = regexp.MustCompile(clockClassPattern)
+)
 var DesiredMode = testconfig.GetDesiredConfig(true).PtpModeDesired
 
 var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, func() {
@@ -1391,6 +1395,67 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 		})
 
+		Context("WPC GM ts2phc termination tests", func() {
+			BeforeEach(func() {
+				if fullConfig.PtpModeDiscovered != testconfig.TelcoGrandMasterClock {
+					Skip("test valid only for GM test config")
+				}
+			})
+
+			It("Terminating ts2phc triggers FREERUN event and then recovers to LOCKED", func() {
+				By("Ensure initial state is LOCKED via clock class 6")
+				checkClockClassState(fullConfig, strconv.Itoa(int(fbprotocol.ClockClass6)))
+
+				// Ensure event consumer exists and pubsub is initialized (V2)
+				nodeName := fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName
+				Expect(nodeName).ToNot(BeEmpty(), "clock-under-test pod node is empty")
+				By("Deploy consumer app for event API v2")
+				err := event.CreateConsumerApp(nodeName)
+				if err != nil {
+					Skip(fmt.Sprintf("Consumer app setup failed: %v", err))
+				}
+				// Wait for consumer to be fully ready
+				time.Sleep(10 * time.Second)
+				// Initialize pub/sub
+				event.InitPubSub()
+				// Ensure cleanup regardless of test outcome
+				DeferCleanup(func() {
+					_ = event.DeleteConsumerNamespace()
+					if event.PubSub != nil {
+						event.PubSub.Close()
+					}
+				})
+
+				By("Subscribe to GM change events and start log monitor")
+				const incomingEventsBuffer = 100
+				subs, cleanup := event.SubscribeToGMChangeEvents(incomingEventsBuffer, true, 60*time.Second)
+				DeferCleanup(cleanup)
+				term, monErr := event.MonitorPodLogsRegex()
+				Expect(monErr).ToNot(HaveOccurred(), "could not start listening to events")
+				DeferCleanup(func() { stopMonitor(term) })
+
+				By("Killing ts2phc once and waiting for FREERUN event")
+				_, _, killErr := pods.ExecCommand(
+					client.Client,
+					true,
+					fullConfig.DiscoveredClockUnderTestPod,
+					pkg.PtpContainerName,
+					[]string{"sh", "-c", "pkill -TERM ts2phc || true"},
+				)
+				Expect(killErr).To(BeNil(), "failed to kill ts2phc")
+				// Phase 1: Wait for FREERUN and Clock Class 248 after ts2phc kill
+				By("Waiting for FREERUN and ClockClass 248 after ts2phc kill")
+				waitForStateAndCC(subs, ptpEvent.FREERUN, 248, 90*time.Second)
+				// Phase 2: Re-subscribe with initial snapshot to handle fast recovery to LOCKED/CC=6
+				const buf2 = 100
+				subs2, cleanup2 := event.SubscribeToGMChangeEvents(buf2, true, 60*time.Second)
+				defer cleanup2()
+				By("Waiting for LOCKED and ClockClass 6 after recovery")
+				waitForStateAndCC(subs2, ptpEvent.LOCKED, 6, 90*time.Second)
+
+			})
+		})
+
 		Context("WPC GM Events verification (V1)", func() {
 			BeforeEach(func() {
 				if fullConfig.PtpModeDiscovered != testconfig.TelcoGrandMasterClock {
@@ -1825,10 +1890,6 @@ func checkProcessStatus(fullConfig testconfig.TestConfig, state string) {
 
 func checkClockClassState(fullConfig testconfig.TestConfig, expectedState string) {
 	By(fmt.Sprintf("Waiting for clock class to become %s", expectedState))
-
-	clockClassPattern := `openshift_ptp_clock_class\{node="([^"]+)",process="([^"]+)"\} (\d+)`
-	clockClassRe := regexp.MustCompile(clockClassPattern)
-
 	Eventually(func() bool {
 		// Get the latest metrics output
 		buf, _, err := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
@@ -2189,10 +2250,6 @@ func waitForClockClass(fullConfig testconfig.TestConfig, expectedState string) {
 func checkClockClassStateReturnBool(fullConfig testconfig.TestConfig, expectedState string) bool {
 	buf, _, _ := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
 	scanner := bufio.NewScanner(strings.NewReader(buf.String()))
-
-	clockClassPattern := `openshift_ptp_clock_class\{node="([^"]+)",process="([^"]+)"\} (\d+)`
-	clockClassRe := regexp.MustCompile(clockClassPattern)
-
 	for scanner.Scan() {
 		line := scanner.Text()
 		if matches := clockClassRe.FindStringSubmatch(line); matches != nil {
@@ -2284,5 +2341,56 @@ func stopMonitor(term chan bool) {
 	select {
 	case term <- true: // tell goroutine to exit
 	default: // avoid blocking if it’s already been stopped
+	}
+}
+
+// waitForPtpStateEvent waits until a PTP state event with given state appears on the channel
+func waitForPtpStateEvent(events <-chan exports.StoredEvent, expected ptpEvent.SyncState, timeout time.Duration) {
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	for {
+		select {
+		case <-timer.C:
+			Fail(fmt.Sprintf("Timed out waiting for PTP state event %s", expected))
+			return
+		case ev := <-events:
+			if res, ok := processEvent(ptpEvent.PtpStateChange, ev); ok {
+				if state, ok2 := res.Values["notification"].(string); ok2 && state == string(expected) {
+					return
+				}
+			}
+		}
+	}
+}
+
+// waitForStateAndCC waits until the given state and clock class value (int) are both observed
+func waitForStateAndCC(subs event.Subscriptions, state ptpEvent.SyncState, cc int, timeout time.Duration) {
+	deadline := time.NewTimer(timeout)
+	defer deadline.Stop()
+
+	stateSeen := false
+	ccSeen := false
+
+	for {
+		if stateSeen && ccSeen {
+			return
+		}
+		select {
+		case <-deadline.C:
+			Fail(fmt.Sprintf("Timed out waiting for state %s and ClockClass %d", state, cc))
+			return
+		case ev := <-subs.LOCKSTATE:
+			if res, ok := processEvent(ptpEvent.PtpStateChange, ev); ok {
+				if s, ok2 := res.Values["notification"].(string); ok2 && s == string(state) {
+					stateSeen = true
+				}
+			}
+		case ev := <-subs.CLOCKCLASS:
+			if res, ok := processEvent(ptpEvent.PtpClockClassChange, ev); ok {
+				if v, ok2 := res.Values["metric"].(float64); ok2 && int(v) == cc {
+					ccSeen = true
+				}
+			}
+		}
 	}
 }
