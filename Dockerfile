@@ -1,7 +1,7 @@
-FROM golang:1.22.4  AS builder
+FROM golang:1.24.7 AS builder
 WORKDIR /go/src/github.com/k8snetworkplumbingwg/ptp-operator
 COPY . .
-ENV GO111MODULE=off
+ENV CGO_ENABLED=0
 RUN make
 
 FROM quay.io/centos/centos:stream9
