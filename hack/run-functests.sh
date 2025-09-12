@@ -3,7 +3,7 @@ set -x
 # Set go version
 
 # T5CI_VERSION is used in CI pipeline. Do not set it when run locally
-if [[ "$T5CI_VERSION" =~ 4.1[0-9]+ ]]; then
+if [[ -n "$T5CI_VERSION" ]]; then
   export PATH=$(echo $PATH | sed -e 's#:/usr/local/1.20/go/bin:/go/bin##g')
   export PATH=$(echo $PATH | sed -e 's#:/usr/local/1.21.11/go/bin:/go/bin##g')
   source $HOME/golang-1.22.4
