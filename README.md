@@ -34,7 +34,7 @@ metadata:
   resourceVersion: ""
   selfLink: ""
 ```
-### Enable PTP events via fast event framework 
+### Enable PTP events via fast event framework
 PTP Operator supports fast event publisher for events such as PTP state change, os clock out of sync, clock class change and port failure.
 Event publisher is enabled by deploying PTP operator with [cloud events framework](https://github.com/redhat-cne/cloud-event-proxy) (based on O-RAN API specifications).
 The events are published via HTTP or AMQP transport and available for local subscribers.
@@ -171,6 +171,28 @@ spec:
     ptpSettings:
       stdoutFilter: "^.*delay   filtered.*$"
       logReduce: "true"
+  recommend:
+  - profile: "profile1"
+    priority: 4
+    match:
+    - nodeLabel: "node-role.kubernetes.io/worker"
+    
+```
+### ptpConfig to filter 'master offset' logs and report periodic summary every 5 seconds
+```
+apiVersion: ptp.openshift.io/v1
+kind: PtpConfig
+metadata:
+  name: suppress-logs-ptpconfig
+  namespace: openshift-ptp
+spec:
+  profile:
+  - name: "profile1"
+    ...
+    ...
+    ......   
+    ptpSettings:
+      logReduce: "enhanced 5s 100"
   recommend:
   - profile: "profile1"
     priority: 4
