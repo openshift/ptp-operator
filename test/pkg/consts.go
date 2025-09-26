@@ -31,6 +31,7 @@ const (
 	PtpSlave1PolicyName         = "test-slave1"
 	PtpBcMaster2PolicyName      = "test-bc-master2"
 	PtpSlave2PolicyName         = "test-slave2"
+	PtpDualNicBCHAPolicyName    = "test-dual-nic-bc-ha"
 	PtpTempPolicyName           = "temp"
 
 	// node labels
