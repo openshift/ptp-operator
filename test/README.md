@@ -426,7 +426,7 @@ each step in the algorithm means:
 note: parameter0 ... parameterN are integers representing an interface. 0 means p0, 1 means p1, etc...
 
 
-# Running PTP tests on amazon EC2
+# Running PTP tests on amazon EC2 or local VM
 ## Using netdevsim framework to simulate PHC
 Existing netdevsim framework defines simulated clocks (not truly functional), supports virtual interfaces capable of transmitting frames. See: [link](https://developers.redhat.com/blog/2018/10/22/introduction-to-linux-interfaces-for-virtual-networking?source=sso#netdevsim)
 Maciek Machnikowski(Nvidia)/Milena Olech (intel) video describes a simple netdevsim kernel patch to add real simulated clocks (phc_mock) to simulate ptp: [link]( https://www.youtube.com/watch?v=txgekOBen6c) 
@@ -464,7 +464,7 @@ The following diagram shows an example of configuration that can be created in t
 - `deploy-prometheus.sh`: Deploys prometheus
 - `kind-config.yaml`: reference kind cluster configuration
 - `reset-devices.sh`: loads netdevsim and openvswitch kernel drivers
-- `run-on-vm.sh`: top level script called by the github action to run CI tests
+- `run-on-vm.sh`: top level script called by the github action to run CI tests.  Can also be used on local VM with netdevsim to run tests locally.
 ```
 run-ci-github.sh <EC2 private VM IP >
 ```
