@@ -1402,7 +1402,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				}
 			})
 
-			It("Terminating ts2phc triggers FREERUN event and then recovers to LOCKED", func() {
+			It("Continuously terminating ts2phc triggers FREERUN event and then recovers to LOCKED", func() {
 				By("Ensure initial state is LOCKED via clock class 6")
 				checkClockClassState(fullConfig, strconv.Itoa(int(fbprotocol.ClockClass6)))
 
@@ -1434,24 +1434,25 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				Expect(monErr).ToNot(HaveOccurred(), "could not start listening to events")
 				DeferCleanup(func() { stopMonitor(term) })
 
-				By("Killing ts2phc once and waiting for FREERUN event")
-				_, _, killErr := pods.ExecCommand(
-					client.Client,
-					true,
-					fullConfig.DiscoveredClockUnderTestPod,
-					pkg.PtpContainerName,
-					[]string{"sh", "-c", "pkill -TERM ts2phc || true"},
-				)
-				Expect(killErr).To(BeNil(), "failed to kill ts2phc")
-				// Phase 1: Wait for FREERUN and Clock Class 248 after ts2phc kill
-				By("Waiting for FREERUN and ClockClass 248 after ts2phc kill")
-				waitForStateAndCC(subs, ptpEvent.FREERUN, 248, 90*time.Second, true)
-				// Phase 2: Re-subscribe with initial snapshot to handle fast recovery to LOCKED/CC=6
+				By("Continuously killing ts2phc while waiting for FREERUN event and ClockClass 248")
+				stopChan := make(chan struct{})
+
+				// Start continuous ts2phc killing in background
+				go killTs2phcInBackground(stopChan, fullConfig)
+
+				// Phase 1: Wait for FREERUN and Clock Class 248 after continuous ts2phc kills
+				By("Waiting for FREERUN and ClockClass 248 after continuous ts2phc kills")
+				waitForStateAndCC(subs, ptpEvent.FREERUN, 248, 90*time.Second)
+
+				// Once FREERUN/holdover detected, stop continuous killing
+				close(stopChan)
+
+				// Phase 2: Re-subscribe with initial snapshot to handle recovery to LOCKED/CC=6
 				const buf2 = 100
 				subs2, cleanup2 := event.SubscribeToGMChangeEvents(buf2, true, 60*time.Second)
 				defer cleanup2()
 				By("Waiting for LOCKED and ClockClass 6 after recovery")
-				waitForStateAndCC(subs2, ptpEvent.LOCKED, 6, 90*time.Second, false)
+				waitForStateAndCC(subs2, ptpEvent.LOCKED, 6, 90*time.Second)
 
 			})
 		})
@@ -1905,7 +1906,7 @@ func checkClockClassState(fullConfig testconfig.TestConfig, expectedState string
 
 			// Check if the line matches the clock class pattern
 			matches := clockClassRe.FindStringSubmatch(line)
-			if matches != nil && len(matches) >= 4 {
+			if len(matches) >= 4 {
 				fmt.Fprintf(GinkgoWriter, "Matched line: %v\n", matches)
 				process := matches[2]
 				class := matches[3]
@@ -2227,6 +2228,26 @@ func coldBootInBackground(stopChan chan struct{}, fullConfig testconfig.TestConf
 	}
 }
 
+func killTs2phcInBackground(stopChan chan struct{}, fullConfig testconfig.TestConfig) {
+	for {
+		select {
+		case <-stopChan:
+			fmt.Fprintf(GinkgoWriter, "Stopping ts2phc kill loop\n")
+			return
+		default:
+			// Kill ts2phc
+			_, _, err := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod,
+				pkg.PtpContainerName, []string{"sh", "-c", "pkill -TERM ts2phc || true"})
+			if err != nil {
+				fmt.Fprintf(GinkgoWriter, "Error killing ts2phc: %v\n", err)
+			} else {
+				fmt.Fprintf(GinkgoWriter, "ts2phc killed\n")
+			}
+			time.Sleep(2 * time.Millisecond) // Keep hammering every 2 ms
+		}
+	}
+}
+
 func waitForClockClass(fullConfig testconfig.TestConfig, expectedState string) {
 	start := time.Now()
 
@@ -2364,7 +2385,7 @@ func waitForPtpStateEvent(events <-chan exports.StoredEvent, expected ptpEvent.S
 }
 
 // waitForStateAndCC waits until the given state and clock class value (int) are both observed
-func waitForStateAndCC(subs event.Subscriptions, state ptpEvent.SyncState, cc int, timeout time.Duration, ccOptional bool) {
+func waitForStateAndCC(subs event.Subscriptions, state ptpEvent.SyncState, cc int, timeout time.Duration) {
 	deadline := time.NewTimer(timeout)
 	defer deadline.Stop()
 
@@ -2372,7 +2393,7 @@ func waitForStateAndCC(subs event.Subscriptions, state ptpEvent.SyncState, cc in
 	ccSeen := false
 
 	for {
-		if stateSeen && (ccSeen || ccOptional) {
+		if stateSeen && ccSeen {
 			return
 		}
 		select {
