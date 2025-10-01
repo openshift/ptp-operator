@@ -169,6 +169,12 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				ptphelper.RestartPTPDaemon()
 			}
 
+			ptphelper.WaitForPtpDaemonToExist()
+			fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
+			podsRunningPTP4l, err := testconfig.GetPodsRunningPTP4l(&fullConfig)
+			Expect(err).NotTo(HaveOccurred())
+			ptphelper.WaitForPtpDaemonToBeReady(podsRunningPTP4l)
+
 			isExternalMaster := ptphelper.IsExternalGM()
 
 			if fullConfig.L2Config != nil && !isExternalMaster {
