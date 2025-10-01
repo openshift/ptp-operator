@@ -40,7 +40,7 @@ BUNDLE_GEN_FLAGS ?= -q --overwrite --version $(VERSION).0 $(BUNDLE_METADATA_OPTS
 
 # Set the Operator SDK version to use. By default, what is installed on the system is used.
 # This is useful for CI or a project to utilize a specific version of the operator-sdk toolkit.
-OPERATOR_SDK_VERSION ?= v1.22.0-ocp
+OPERATOR_SDK_VERSION ?= v1.36.1-ocp
 
 # Image URL to use all building/pushing image targets
 IMG ?= ghcr.io/k8snetworkplumbingwg/ptp-operator:$(VERSION)
@@ -174,19 +174,16 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 	GOFLAGS=-mod=mod GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
 
 .PHONY: operator-sdk
-ifeq ($(OS), Darwin)
+
 OPERATOR_SDK ?= $(LOCALBIN)/x86_64/operator-sdk
-else
-OPERATOR_SDK ?= $(LOCALBIN)/operator-sdk
-endif
 OPERATOR_SDK_VERSION_INSTALLED = $(shell $(OPERATOR_SDK) version 2>/dev/null | sed 's/^operator-sdk version: "\([^"]*\).*/\1/')
 operator-sdk: ## Download operator-sdk locally if necessary.
 ifneq ($(OPERATOR_SDK_VERSION),$(OPERATOR_SDK_VERSION_INSTALLED))
 ifeq ($(OS), Darwin)
 	mkdir -p $(LOCALBIN)/x86_64/
-	curl -L https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/operator-sdk/4.11.0/operator-sdk-darwin-x86_64.tar.gz? | tar -xz -C bin/x86_64/
+	curl -L https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/operator-sdk/4.17.0/operator-sdk-v1.36.1-ocp-darwin-x86_64.tar.gz? | tar -xz -C bin/
 else
-	curl -L https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/operator-sdk/4.11.0/operator-sdk-linux-x86_64.tar.gz? | tar -xz -C bin/
+	curl -L https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/operator-sdk/4.17.0/operator-sdk-v1.36.1-ocp-linux-x86_64.tar.gz? | tar -xz -C bin/
 endif
 endif
 

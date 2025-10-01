@@ -1,10 +1,11 @@
 #!/bin/bash
 
 RC=0
-if [ -n "$(git status --porcelain)" ]; then
+# exclude createdAt from the diff
+if [ $(git diff -I createdAt |wc -l ) -gt 0 ]; then
     echo "Unstaged or untracked changes exist:"
-    git status --porcelain
-    git diff
+    git status
+    git diff -I createdAt
     RC=1
 else
     echo "git tree is clean"
