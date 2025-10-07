@@ -474,7 +474,7 @@ func (p *PortEngine) TurnPortUp(port string) error {
 	stdout, stderr, err := pods.ExecCommand(client.Client, true, p.ClockPod, pkg.RecoveryNetworkOutageDaemonSetContainerName,
 		[]string{"ip", "link", "set", port, "up"})
 
-	logrus.Infof("Turning interface: %s in pod %s up, stdout: %s, stderr: %s", port, p.ClockPod.Name, stdout.String(), stderr.String())
+	logrus.Infof("Turning interface: %s in pod %s down, stdout: %s, stderr: %s", port, p.ClockPod.Name, stdout.String(), stderr.String())
 	return err
 }
 
@@ -493,19 +493,7 @@ func (p *PortEngine) TurnAllPortsUp() error {
 
 func (p *PortEngine) SetInitialRoles() (err error) {
 	p.InitialRoles, err = metrics.GetClockIfRoles(p.Ports, &p.ClockPod.Spec.NodeName)
-	if err != nil {
-		return err
-	}
-
-	// Display initial roles per interface name
-	logrus.Infof("Setting up initial roles for interfaces on node %s:", p.ClockPod.Spec.NodeName)
-	for i, port := range p.Ports {
-		if i < len(p.InitialRoles) {
-			logrus.Infof("  Interface %s: %s", port, p.InitialRoles[i].String())
-		}
-	}
-
-	return nil
+	return err
 }
 
 func (p *PortEngine) CheckClockRole(port0, port1 string, role0, role1 metrics.MetricRole) (err error) {
