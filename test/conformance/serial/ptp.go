@@ -382,6 +382,14 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					grandmasterID = &aString
 					Expect(err).To(BeNil())
 				}
+				By("Check sync")
+				err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig),
+					grandmasterID, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
+
+				// Set initial roles
+				err = portEngine.SetInitialRoles()
+				Expect(err).To(BeNil())
+
 				// Retry until there is no error or we timeout
 				Eventually(func() error {
 					return portEngine.RolesInOnly([]metrics.MetricRole{metrics.MetricRoleSlave, metrics.MetricRoleListening})
