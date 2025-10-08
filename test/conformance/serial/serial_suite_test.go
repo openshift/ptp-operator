@@ -41,18 +41,45 @@ func TestTest(t *testing.T) {
 	RunSpecs(t, "PTP e2e integration tests")
 }
 
-var _ = BeforeSuite(func() {
+var _ = SynchronizedBeforeSuite(func() []byte {
+	// This runs ONCE on node 1
 	logrus.Info("Executed from serial suite")
 	testclient.Client = testclient.New("")
 	Expect(testclient.Client).NotTo(BeNil())
 
 	// Initialize the pub/sub system for event handling
 	event.InitPubSub()
+
+	// Start log collection if enabled
+	err := logging.StartLogCollection("serial")
+	if err != nil {
+		logrus.Errorf("Failed to start log collection: %v", err)
+	}
+
+	return nil
+}, func(data []byte) {
+	// This runs on ALL parallel nodes (including node 1)
+	testclient.Client = testclient.New("")
+	Expect(testclient.Client).NotTo(BeNil())
 })
 
-var _ = AfterSuite(func() {
-
+var _ = SynchronizedAfterSuite(func() {
+	// This runs on all parallel nodes
 	if DeletePtpConfig && testconfig.GetDesiredConfig(false).PtpModeDesired != testconfig.Discovery {
 		clean.All()
 	}
+}, func() {
+	// This runs ONCE on node 1 (after all other nodes finish)
+	// Stop log collection
+	logging.StopLogCollection()
+})
+
+var _ = ReportBeforeEach(func(report SpecReport) {
+	// Write test start marker to all log files
+	logging.WriteTestStart(report)
+})
+
+var _ = ReportAfterEach(func(report SpecReport) {
+	// Write test end marker to all log files
+	logging.WriteTestEnd(report)
 })

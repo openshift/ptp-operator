@@ -52,6 +52,12 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	testclient.Client = testclient.New("")
 	Expect(testclient.Client).NotTo(BeNil())
 
+	// Start log collection if enabled (runs once on node 1 only)
+	err = logging.StartLogCollection("parallel")
+	if err != nil {
+		logrus.Errorf("Failed to start log collection: %v", err)
+	}
+
 	// discovers valid ptp configurations based on clock type
 	err = testconfig.CreatePtpConfigurations()
 	Expect(err).To(BeNil(), "Could not create a ptp config")
@@ -106,8 +112,23 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 		fullConfig.PtpEventsIsConsumerReady = isConsumerReady
 	})
 })
-var _ = AfterSuite(func() {
+var _ = SynchronizedAfterSuite(func() {
+	// This runs on all parallel nodes
 	if DeletePtpConfig {
 		clean.All()
 	}
+}, func() {
+	// This runs ONCE on node 1 (after all other nodes finish)
+	// Stop log collection
+	logging.StopLogCollection()
+})
+
+var _ = ReportBeforeEach(func(report SpecReport) {
+	// Write test start marker to all log files
+	logging.WriteTestStart(report)
+})
+
+var _ = ReportAfterEach(func(report SpecReport) {
+	// Write test end marker to all log files
+	logging.WriteTestEnd(report)
 })

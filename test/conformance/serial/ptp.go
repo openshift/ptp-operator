@@ -1350,17 +1350,17 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				}
 			})
 			/*
-					Step | Action
-					1    | Check starting stability (ClockClass 6, locked)
-					2    | Start continuous coldboot
-					3	 | Wait for DPLL state = 3 (Holdover)
-					3    | Wait for ClockClass 7 (in-spec holdover)
-					4    | Check clock state = 2 (Holdover)
-					5    | Stop coldboot
-					6    | Wait a little (for GNSS to recover)
-					7    | Wait for ClockClass 6 again
-					8    | Confirm clock state = 1 for T-GM (Locked)
-				    9    | Check Dpll State = 1 (Locked)
+				Step | Action
+				1    | Check starting stability (ClockClass 6, locked)
+				2    | Start continuous coldboot
+				3	 | Wait for DPLL state = 3 (Holdover)
+				3    | Wait for ClockClass 7 (in-spec holdover)
+				4    | Check clock state = 2 (Holdover)
+				5    | Stop coldboot
+				6    | Wait a little (for GNSS to recover)
+				7    | Wait for ClockClass 6 again
+				8    | Confirm clock state = 1 for T-GM (Locked)
+				9    | Check Dpll State = 1 (Locked)
 			*/
 			It("Testing WPC T-GM holdover through connection loss", func() {
 				By("Coldboot GNSS continuously while waiting for ClockClass 7 and clock state for GM an DPLL", func() {
