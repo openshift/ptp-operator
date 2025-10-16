@@ -21,9 +21,9 @@ To run the conformance tests, first set the following environment variables:
 - **ENABLE_V1_REGRESSION**: enable V1 regression for event based tests. For 4.16 and 4.17, event based tests will be repeated the second time with v1 REST-API. These tests are marked with "v1 regression".
 - **EXTERNAL_GM**: enables external grandmaster scenarios
 - **PTP_TEST_CONFIG_FILE**: configuration file to set for instance min/max offsets in ptpconfig. Example is at[link](test/conformance/config/ptptestconfig.yaml)
-- **COLLECT_POD_LOGS**: if set to `true`, enables continuous log collection from PTP pods during test execution. Default is `false`
-- **LOG_TEST_MARKERS**: if set to `true`, injects test start/end markers into pod logs. Default is `true` when `COLLECT_POD_LOGS` is enabled
-- **LOG_ARTIFACTS_DIR**: directory where pod logs will be saved. Default is `./test-logs`
+- **COLLECT_POD_LOGS**: enable automatic collection of raw container logs during test execution (default: false). See [Pod Log Collection](#pod-log-collection) section for details.
+- **LOG_ARTIFACTS_DIR**: directory where log files are stored (default: /tmp/ptp-logs)
+- **LOG_TEST_MARKERS**: enable test boundary markers in log files (default: false)
 
 Then run the following command:
 ```
@@ -39,79 +39,6 @@ To run all the tests
 KUBECONFIG="/home/usr/.kube/config" ENABLE_TEST_CASE=reboot PTP_TEST_MODE=Discovery make functests
 ```
 
-To run tests with pod log collection enabled:
-```
-KUBECONFIG="/home/user/.kube/config" PTP_TEST_MODE=Discovery COLLECT_POD_LOGS=true make functests
-```
-
-To collect logs without test markers (raw logs only):
-```
-KUBECONFIG="/home/user/.kube/config" PTP_TEST_MODE=Discovery COLLECT_POD_LOGS=true LOG_TEST_MARKERS=false make functests
-```
-
-### Pod Log Collection
-
-When `COLLECT_POD_LOGS=true` is set, the test framework automatically collects raw container logs from all PTP-related pods during the entire test run. This feature is useful for debugging test failures and understanding pod behavior.
-
-**Features:**
-- Continuous streaming of logs from all PTP pods throughout the test suite
-- Automatically handles pod restarts and deletions
-- Test markers are injected into logs to correlate container activity with specific tests
-- Separate log files per node for linuxptp-daemon pods
-- Combined log file for all ptp-operator pods
-
-**Log Files Structure:**
-```
-./test-logs/
-├── run_2025-10-07_15-30-45_serial/
-│   ├── ptp-operator.log
-│   ├── linuxptp-daemon-node1-linuxptp-daemon-container.log
-│   ├── linuxptp-daemon-node1-cloud-event-proxy.log
-│   ├── linuxptp-daemon-node2-linuxptp-daemon-container.log
-│   └── linuxptp-daemon-node2-cloud-event-proxy.log
-└── run_2025-10-07_15-31-22_parallel/
-    ├── ptp-operator.log
-    ├── linuxptp-daemon-node1-linuxptp-daemon-container.log
-    ├── linuxptp-daemon-node1-cloud-event-proxy.log
-    ├── linuxptp-daemon-node2-linuxptp-daemon-container.log
-    └── linuxptp-daemon-node2-cloud-event-proxy.log
-```
-
-**Note:** Each test suite (serial/parallel) creates its own uniquely named log directory. The directory name includes the suite name to make it easy to identify which logs belong to which suite.
-
-**Log Format:**
-Each log file contains:
-- Pod stream start/end markers when pods are created/destroyed
-- Test start/end markers with test name, status, and duration
-- Raw container logs with timestamps and pod names
-- Suite start/end markers
-
-**Example log content:**
-```
-#################### TEST START ####################
-# Test: Should check whether PTP operator appropriate resource exists
-# Started: 2025-10-07T15:31:00.123Z
-# File: ptp.go:87
-####################################################
-
-[linuxptp-daemon-xyz] 2025-10-07T15:31:01.789Z some log line
-[linuxptp-daemon-xyz] 2025-10-07T15:31:02.123Z more logs
-
-#################### TEST END ######################
-# Test: Should check whether PTP operator appropriate resource exists
-# Status: PASSED
-# Duration: 2.5s
-# Ended: 2025-10-07T15:31:02.623Z
-####################################################
-```
-
-**Extracting logs for specific tests:**
-```bash
-# Get all logs for a specific test
-sed -n '/TEST START.*Should check whether PTP/,/TEST END.*Should check whether PTP/p' \
-  linuxptp-daemon-node1-linuxptp-daemon-container.log
-```
-
 To run all the tests with a container:
 ```
 docker run -e PTP_TEST_MODE=<TEST MODE> -e ENABLE_TEST_CASE=<EXTRA TEST CASES> -v <KUBECONFIG PATH>:/tmp/config:Z -v <OUTPUT DIRECTORY PATH>:/output:Z <IMAGE>
@@ -120,6 +47,48 @@ for example:
 ```
 docker run -e PTP_TEST_MODE=OC -e ENABLE_TEST_CASE=reboot -v /home/usr/.kube/config.3nodes:/tmp/config:Z -v .:/output:Z quay.io/redhat-cne/ptp-operator-test:latest
 ```
+
+## Pod Log Collection
+
+The test suite can automatically collect raw container logs from `ptp-operator`, `linuxptp-daemon-container`, and `cloud-event-proxy` containers during test execution. Logs are continuously streamed and captured even when pods restart or are deleted.
+
+### Configuration
+
+- **COLLECT_POD_LOGS**: Set to `true` to enable log collection (default: `false`)
+- **LOG_ARTIFACTS_DIR**: Directory where logs are stored (default: `/tmp/ptp-logs`)
+- **LOG_TEST_MARKERS**: Set to `true` to add test boundary markers in log files (default: `false`)
+
+### Log File Structure
+
+Logs are organized by test suite (serial/parallel) in separate directories:
+```
+<LOG_ARTIFACTS_DIR>/
+├── serial/
+│   ├── serial_ptp-operator-<hash>_ptp-operator.log
+│   ├── serial_linuxptp-daemon-<node>_linuxptp-daemon-container.log
+│   └── serial_linuxptp-daemon-<node>_cloud-event-proxy.log
+└── parallel/
+    └── parallel_ptp-operator-<hash>_ptp-operator.log
+```
+
+Each `linuxptp-daemon` pod gets separate log files per container.
+
+### Usage
+
+**Basic usage:**
+```bash
+export COLLECT_POD_LOGS=true
+make functests
+```
+
+**With test markers:**
+```bash
+export COLLECT_POD_LOGS=true
+export LOG_TEST_MARKERS=true
+make functests
+```
+
+When markers are enabled, log files include formatted timestamps and markers to indicate test suite boundaries, individual test start/end, and pod restart events.
 
 ## Run SOAK test
 

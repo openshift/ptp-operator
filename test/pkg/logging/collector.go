@@ -22,46 +22,82 @@ import (
 	testclient "github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
 )
 
-// LogCollector manages continuous log streaming from PTP pods
-type LogCollector struct {
-	logDir string
-	ctx    context.Context
-	cancel context.CancelFunc
+// ============================================================================
+// Configuration and Setup
+// ============================================================================
 
-	// Map: node name -> file handle
-	daemonContainerFiles map[string]*os.File
-	cloudProxyFiles      map[string]*os.File
-	ptpOperatorFile      *os.File
-
-	// Track which pods we're already streaming from
-	streamingPods map[string]bool
-
-	mu sync.Mutex
-}
-
-var (
-	// globalCollector is a singleton to ensure only one log collector runs per process.
-	// This prevents conflicts when multiple test suites (serial/parallel) run in the same process.
-	globalCollector *LogCollector
+const (
+	logChannelBuffer    = 100             // Buffer size per file writer channel
+	watcherRetryDelay   = 5 * time.Second // Delay before recreating watcher
+	syncInterval        = 1 * time.Second // How often to sync file to disk
+	shutdownGracePeriod = 2 * time.Second // Time to wait for goroutines on shutdown
 )
 
-// ShouldCollectLogs checks if log collection is enabled via environment variable
+const (
+	// Marker delimiters
+	streamMarkerLine = "=========="
+	suiteMarkerLine  = "##################################################"
+	testMarkerLine   = "####################################################"
+	testMarkerHeader = "####################"
+
+	// Suite name
+	suiteNameConst = "PTP e2e integration tests"
+)
+
+var (
+	collector *PodLogCollector // Global singleton
+)
+
+// PodLogCollector manages log streaming from PTP pods
+type PodLogCollector struct {
+	logDir        string
+	ctx           context.Context
+	cancel        context.CancelFunc
+	writers       *fileWriterSet
+	streamTracker *streamTracker
+	wg            sync.WaitGroup // Wait for all goroutines to finish
+}
+
+// fileWriterSet manages individual file writers
+type fileWriterSet struct {
+	ptpOperatorWriter *fileWriter
+	nodeWriters       map[string]*nodeFileWriters // key: nodeName
+	mu                sync.Mutex                  // Only for nodeWriters map creation
+}
+
+// nodeFileWriters holds writers for a single node's containers
+type nodeFileWriters struct {
+	daemonWriter *fileWriter
+	proxyWriter  *fileWriter
+}
+
+// fileWriter manages writing to a single file via a channel
+type fileWriter struct {
+	file    *os.File
+	channel chan string
+	ctx     context.Context
+	cancel  context.CancelFunc
+}
+
+// streamTracker prevents duplicate streams (simple goroutine-safe map)
+type streamTracker struct {
+	active map[string]bool
+	mu     sync.Mutex
+}
+
 func ShouldCollectLogs() bool {
 	value := strings.ToLower(os.Getenv("COLLECT_POD_LOGS"))
 	return value == "true" || value == "1"
 }
 
-// ShouldWriteTestMarkers checks if test markers should be written to logs
 func ShouldWriteTestMarkers() bool {
 	value := strings.ToLower(os.Getenv("LOG_TEST_MARKERS"))
-	// Default to true if COLLECT_POD_LOGS is enabled and LOG_TEST_MARKERS is not explicitly set
 	if value == "" {
 		return ShouldCollectLogs()
 	}
 	return value == "true" || value == "1"
 }
 
-// GetLogArtifactsDir returns the directory for log artifacts
 func GetLogArtifactsDir() string {
 	if dir := os.Getenv("LOG_ARTIFACTS_DIR"); dir != "" {
 		return dir
@@ -69,299 +105,408 @@ func GetLogArtifactsDir() string {
 	return "./test-logs"
 }
 
-// StartLogCollection initializes and starts the log collector.
-// This function is idempotent - calling it multiple times is safe and will only initialize once per process.
-// suiteName is used to distinguish between different test suites (e.g., "serial", "parallel")
+// ============================================================================
+// Public API
+// ============================================================================
+
+// StartLogCollection starts collecting logs from PTP pods
 func StartLogCollection(suiteName string) error {
 	if !ShouldCollectLogs() {
 		logrus.Info("Log collection disabled. Set COLLECT_POD_LOGS=true to enable.")
 		return nil
 	}
 
-	// If log collection is already running, skip re-initialization
-	// This prevents conflicts when multiple test suites run in the same process
-	if globalCollector != nil {
-		logrus.Info("Log collection already started, skipping re-initialization")
+	if collector != nil {
+		logrus.Info("Log collection already started")
 		return nil
 	}
 
-	// Default suite name if not provided
 	if suiteName == "" {
 		suiteName = "default"
 	}
 
+	// Create log directory
 	baseDir := GetLogArtifactsDir()
-	// Include suite name to distinguish between serial and parallel test suites
-	logDir := filepath.Join(baseDir, fmt.Sprintf("run_%s_%s", time.Now().Format("2006-01-02_15-04-05"), suiteName))
+	timestamp := time.Now().Format("2006-01-02_15-04-05")
+	logDir := filepath.Join(baseDir, fmt.Sprintf("run_%s_%s", timestamp, suiteName))
 
 	if err := os.MkdirAll(logDir, 0755); err != nil {
-		return fmt.Errorf("failed to create log directory %s: %w", logDir, err)
+		return fmt.Errorf("failed to create log directory: %w", err)
 	}
 
+	// Initialize collector
 	ctx, cancel := context.WithCancel(context.Background())
-
-	globalCollector = &LogCollector{
-		logDir:               logDir,
-		ctx:                  ctx,
-		cancel:               cancel,
-		daemonContainerFiles: make(map[string]*os.File),
-		cloudProxyFiles:      make(map[string]*os.File),
-		streamingPods:        make(map[string]bool),
+	collector = &PodLogCollector{
+		logDir: logDir,
+		ctx:    ctx,
+		cancel: cancel,
+		writers: &fileWriterSet{
+			nodeWriters: make(map[string]*nodeFileWriters),
+		},
+		streamTracker: &streamTracker{
+			active: make(map[string]bool),
+		},
 	}
 
-	// Create ptp-operator log file
+	// Create ptp-operator file writer
 	var err error
-	globalCollector.ptpOperatorFile, err = os.OpenFile(
+	collector.writers.ptpOperatorWriter, err = newFileWriter(
+		ctx,
 		filepath.Join(logDir, "ptp-operator.log"),
-		os.O_CREATE|os.O_APPEND|os.O_WRONLY,
-		0644,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to create ptp-operator log file: %w", err)
+		return fmt.Errorf("failed to create ptp-operator writer: %w", err)
 	}
+
+	// Start the writer goroutine
+	collector.wg.Add(1)
+	go collector.writers.ptpOperatorWriter.run(&collector.wg)
 
 	// Write suite start marker
 	if ShouldWriteTestMarkers() {
-		globalCollector.WriteSuiteStart()
+		collector.writers.writeToAll(createSuiteStartMarker())
 	}
 
-	// Start pod watchers in background
-	go globalCollector.WatchPTPOperatorPods()
-	go globalCollector.WatchLinuxPTPDaemonPods()
+	// Start watching for pods
+	collector.wg.Add(2)
+	go func() {
+		defer collector.wg.Done()
+		collector.watchPTPOperatorPods()
+	}()
+	go func() {
+		defer collector.wg.Done()
+		collector.watchLinuxPTPDaemonPods()
+	}()
 
 	// Stream from existing pods
-	globalCollector.StreamExistingPods()
+	collector.streamExistingPods()
 
 	logrus.Infof("Log collection started. Logs will be saved to: %s", logDir)
-	if ShouldWriteTestMarkers() {
-		logrus.Info("Test markers enabled. Test boundaries will be marked in log files.")
-	}
 	return nil
 }
 
-// StopLogCollection stops the log collector and closes all files.
-// This function is idempotent - calling it multiple times is safe (only the first call does anything).
+// StopLogCollection stops log collection and closes all files
 func StopLogCollection() {
-	if globalCollector == nil {
+	if collector == nil {
 		return
 	}
 
 	logrus.Info("Stopping log collection...")
-
-	// Store log dir before we nil the collector
-	logDir := globalCollector.logDir
+	logDir := collector.logDir
 
 	// Write suite end marker
 	if ShouldWriteTestMarkers() {
-		globalCollector.WriteSuiteEnd()
+		collector.writers.writeToAll(createSuiteEndMarker())
 	}
 
-	// Cancel context to stop all goroutines
-	globalCollector.cancel()
+	// Cancel context to stop all operations
+	collector.cancel()
 
-	// Give goroutines time to finish
-	time.Sleep(2 * time.Second)
+	// Wait for all goroutines to finish (with timeout for safety)
+	done := make(chan struct{})
+	go func() {
+		collector.wg.Wait()
+		close(done)
+	}()
 
-	// Close all files
-	globalCollector.mu.Lock()
-
-	if globalCollector.ptpOperatorFile != nil {
-		globalCollector.ptpOperatorFile.Close()
+	select {
+	case <-done:
+		// All goroutines finished cleanly
+	case <-time.After(shutdownGracePeriod):
+		logrus.Warn("Shutdown timeout exceeded, forcing close")
 	}
 
-	for _, f := range globalCollector.daemonContainerFiles {
-		f.Close()
-	}
+	// Close all file writers
+	collector.writers.closeAll()
 
-	for _, f := range globalCollector.cloudProxyFiles {
-		f.Close()
-	}
-
-	globalCollector.mu.Unlock()
-
-	// Set to nil to prevent double-cleanup
-	globalCollector = nil
-
+	collector = nil
 	logrus.Infof("Logs saved to: %s", logDir)
 }
 
-// WriteTestStart writes a test start marker to all log files
+// WriteTestStart writes a test start marker
 func WriteTestStart(report ginkgo.SpecReport) {
-	if globalCollector != nil && ShouldWriteTestMarkers() {
-		globalCollector.WriteTestStart(report)
+	if collector != nil && ShouldWriteTestMarkers() {
+		collector.writers.writeToAll(createTestStartMarker(report))
 	}
 }
 
-// WriteTestEnd writes a test end marker to all log files
+// WriteTestEnd writes a test end marker
 func WriteTestEnd(report ginkgo.SpecReport) {
-	if globalCollector != nil && ShouldWriteTestMarkers() {
-		globalCollector.WriteTestEnd(report)
+	if collector != nil && ShouldWriteTestMarkers() {
+		collector.writers.writeToAll(createTestEndMarker(report))
 	}
 }
 
-// WriteTestStart writes a test start marker to all log files
-func (lc *LogCollector) WriteTestStart(report ginkgo.SpecReport) {
-	fileName := "unknown"
-	lineNumber := 0
+// ============================================================================
+// File Writer - One goroutine per file
+// ============================================================================
 
-	if len(report.ContainerHierarchyLocations) > 0 {
-		loc := report.ContainerHierarchyLocations[len(report.ContainerHierarchyLocations)-1]
-		fileName = filepath.Base(loc.FileName)
-		lineNumber = loc.LineNumber
-	}
-
-	marker := fmt.Sprintf(`
-#################### TEST START ####################
-# Test: %s
-# Started: %s
-# File: %s:%d
-####################################################
-`,
-		report.FullText(),
-		report.StartTime.Format(time.RFC3339),
-		fileName,
-		lineNumber,
-	)
-
-	lc.WriteMarkerToAllFiles(marker)
-}
-
-// WriteTestEnd writes a test end marker to all log files
-func (lc *LogCollector) WriteTestEnd(report ginkgo.SpecReport) {
-	status := "PASSED"
-	if report.Failed() {
-		status = "FAILED"
-	} else if report.State.Is(types.SpecStateSkipped) {
-		status = "SKIPPED"
-	} else if report.State.Is(types.SpecStatePending) {
-		status = "PENDING"
-	}
-
-	marker := fmt.Sprintf(`
-#################### TEST END ######################
-# Test: %s
-# Status: %s
-# Duration: %s
-# Ended: %s
-####################################################
-`,
-		report.FullText(),
-		status,
-		report.RunTime.String(),
-		report.EndTime.Format(time.RFC3339),
-	)
-
-	lc.WriteMarkerToAllFiles(marker)
-}
-
-// WriteSuiteStart writes a suite start marker
-func (lc *LogCollector) WriteSuiteStart() {
-	marker := fmt.Sprintf(`
-##################################################
-# TEST SUITE STARTED
-# Suite: PTP e2e integration tests
-# Time: %s
-##################################################
-`, time.Now().Format(time.RFC3339))
-
-	lc.WriteMarkerToAllFiles(marker)
-}
-
-// WriteSuiteEnd writes a suite end marker
-func (lc *LogCollector) WriteSuiteEnd() {
-	marker := fmt.Sprintf(`
-##################################################
-# TEST SUITE ENDED
-# Time: %s
-##################################################
-`, time.Now().Format(time.RFC3339))
-
-	lc.WriteMarkerToAllFiles(marker)
-}
-
-// WriteMarkerToAllFiles writes a marker to all open log files
-func (lc *LogCollector) WriteMarkerToAllFiles(marker string) {
-	lc.mu.Lock()
-	defer lc.mu.Unlock()
-
-	// Write to ptp-operator file
-	if lc.ptpOperatorFile != nil {
-		fmt.Fprintln(lc.ptpOperatorFile, marker)
-		lc.ptpOperatorFile.Sync()
-	}
-
-	// Write to all daemon container files
-	for _, file := range lc.daemonContainerFiles {
-		fmt.Fprintln(file, marker)
-		file.Sync()
-	}
-
-	// Write to all cloud-event-proxy files
-	for _, file := range lc.cloudProxyFiles {
-		fmt.Fprintln(file, marker)
-		file.Sync()
-	}
-}
-
-// getOrCreateLogFile gets or creates a log file for a specific node and container
-func (lc *LogCollector) getOrCreateLogFile(nodeName, containerName string) (*os.File, error) {
-	lc.mu.Lock()
-	defer lc.mu.Unlock()
-
-	var fileMap map[string]*os.File
-	switch containerName {
-	case pkg.PtpContainerName:
-		fileMap = lc.daemonContainerFiles
-	case pkg.EventProxyContainerName:
-		fileMap = lc.cloudProxyFiles
-	default:
-		return nil, fmt.Errorf("unknown container name: %s", containerName)
-	}
-
-	// Check if file already open
-	if file, exists := fileMap[nodeName]; exists {
-		return file, nil
-	}
-
-	// Create new file
-	filename := fmt.Sprintf("linuxptp-daemon-%s-%s.log", nodeName, containerName)
-	file, err := os.OpenFile(
-		filepath.Join(lc.logDir, filename),
-		os.O_CREATE|os.O_APPEND|os.O_WRONLY,
-		0644,
-	)
+// newFileWriter creates a new file writer
+func newFileWriter(ctx context.Context, filePath string) (*fileWriter, error) {
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create log file %s: %w", filename, err)
+		return nil, err
 	}
 
-	fileMap[nodeName] = file
-	return file, nil
+	writerCtx, cancel := context.WithCancel(ctx)
+	return &fileWriter{
+		file:    file,
+		channel: make(chan string, logChannelBuffer),
+		ctx:     writerCtx,
+		cancel:  cancel,
+	}, nil
 }
 
-// WatchPTPOperatorPods watches for ptp-operator pod events and streams logs
-func (lc *LogCollector) WatchPTPOperatorPods() {
-	watcher, err := testclient.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).Watch(
-		lc.ctx,
-		metav1.ListOptions{
-			LabelSelector: pkg.PtPOperatorPodsLabel,
-		},
-	)
-	if err != nil {
-		logrus.Errorf("Failed to create watcher for ptp-operator pods: %v", err)
-		return
-	}
-	defer watcher.Stop()
+// run is the writer goroutine - one per file
+func (fw *fileWriter) run(wg *sync.WaitGroup) {
+	defer wg.Done()
+	defer fw.file.Close()
+
+	// Sync timer to batch disk writes
+	syncTicker := time.NewTicker(syncInterval)
+	defer syncTicker.Stop()
 
 	for {
 		select {
-		case <-lc.ctx.Done():
+		case <-fw.ctx.Done():
+			// Drain remaining messages
+			fw.drainAndClose()
 			return
+
+		case msg, ok := <-fw.channel:
+			if !ok {
+				fw.file.Sync()
+				return
+			}
+			fmt.Fprint(fw.file, msg)
+
+		case <-syncTicker.C:
+			// Periodic sync to disk
+			fw.file.Sync()
+		}
+	}
+}
+
+// drainAndClose drains remaining messages and syncs before closing
+func (fw *fileWriter) drainAndClose() {
+	for {
+		select {
+		case msg := <-fw.channel:
+			fmt.Fprint(fw.file, msg)
+		default:
+			fw.file.Sync()
+			return
+		}
+	}
+}
+
+// write sends a message to the writer's channel (blocks if full)
+func (fw *fileWriter) write(msg string) {
+	select {
+	case fw.channel <- msg:
+		// Message sent successfully
+	case <-fw.ctx.Done():
+		// Context cancelled, don't block
+	}
+}
+
+// close stops the writer
+func (fw *fileWriter) close() {
+	fw.cancel()
+	close(fw.channel)
+}
+
+// ============================================================================
+// File Writer Set Management
+// ============================================================================
+
+// getOrCreateNodeWriters gets or creates writers for a node
+func (fws *fileWriterSet) getOrCreateNodeWriters(nodeName string) *nodeFileWriters {
+	fws.mu.Lock()
+	defer fws.mu.Unlock()
+
+	if writers, exists := fws.nodeWriters[nodeName]; exists {
+		return writers
+	}
+
+	// Create new writers for this node
+	daemonWriter, err := newFileWriter(
+		collector.ctx,
+		filepath.Join(collector.logDir, fmt.Sprintf("linuxptp-daemon-%s-%s.log", nodeName, pkg.PtpContainerName)),
+	)
+	if err != nil {
+		logrus.Errorf("Failed to create daemon writer for node %s: %v", nodeName, err)
+		return nil
+	}
+
+	proxyWriter, err := newFileWriter(
+		collector.ctx,
+		filepath.Join(collector.logDir, fmt.Sprintf("linuxptp-daemon-%s-%s.log", nodeName, pkg.EventProxyContainerName)),
+	)
+	if err != nil {
+		logrus.Errorf("Failed to create proxy writer for node %s: %v", nodeName, err)
+		daemonWriter.close()
+		return nil
+	}
+
+	writers := &nodeFileWriters{
+		daemonWriter: daemonWriter,
+		proxyWriter:  proxyWriter,
+	}
+
+	// Start writer goroutines
+	collector.wg.Add(2)
+	go daemonWriter.run(&collector.wg)
+	go proxyWriter.run(&collector.wg)
+
+	fws.nodeWriters[nodeName] = writers
+	return writers
+}
+
+// writeToAll writes a message to all files
+func (fws *fileWriterSet) writeToAll(msg string) {
+	// Write to ptp-operator
+	if fws.ptpOperatorWriter != nil {
+		fws.ptpOperatorWriter.write(msg + "\n")
+	}
+
+	// Write to all node files
+	fws.mu.Lock()
+	nodeWriters := make([]*nodeFileWriters, 0, len(fws.nodeWriters))
+	for _, writers := range fws.nodeWriters {
+		nodeWriters = append(nodeWriters, writers)
+	}
+	fws.mu.Unlock()
+
+	for _, writers := range nodeWriters {
+		if writers.daemonWriter != nil {
+			writers.daemonWriter.write(msg + "\n")
+		}
+		if writers.proxyWriter != nil {
+			writers.proxyWriter.write(msg + "\n")
+		}
+	}
+}
+
+// closeAll closes all file writers
+func (fws *fileWriterSet) closeAll() {
+	if fws.ptpOperatorWriter != nil {
+		fws.ptpOperatorWriter.close()
+	}
+
+	fws.mu.Lock()
+	defer fws.mu.Unlock()
+
+	for _, writers := range fws.nodeWriters {
+		if writers.daemonWriter != nil {
+			writers.daemonWriter.close()
+		}
+		if writers.proxyWriter != nil {
+			writers.proxyWriter.close()
+		}
+	}
+}
+
+// ============================================================================
+// Stream Tracker
+// ============================================================================
+
+func (st *streamTracker) markActive(key string) bool {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+
+	if st.active[key] {
+		return false // Already active
+	}
+	st.active[key] = true
+	return true
+}
+
+func (st *streamTracker) markInactive(key string) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	delete(st.active, key)
+}
+
+// ============================================================================
+// Pod Watching
+// ============================================================================
+
+func (c *PodLogCollector) watchPTPOperatorPods() {
+	c.processWatchEvents(pkg.PtPOperatorPodsLabel, func(pod *corev1.Pod) {
+		c.wg.Add(1)
+		go func() {
+			defer c.wg.Done()
+			c.streamPodLogs(pod.Name, "", c.writers.ptpOperatorWriter)
+		}()
+	})
+}
+
+func (c *PodLogCollector) watchLinuxPTPDaemonPods() {
+	c.processWatchEvents(pkg.PtpLinuxDaemonPodsLabel, func(pod *corev1.Pod) {
+		if pod.Spec.NodeName == "" {
+			return
+		}
+
+		c.wg.Add(2)
+		go func() {
+			defer c.wg.Done()
+			c.streamDaemonContainer(pod.Name, pod.Spec.NodeName, pkg.PtpContainerName)
+		}()
+		go func() {
+			defer c.wg.Done()
+			c.streamDaemonContainer(pod.Name, pod.Spec.NodeName, pkg.EventProxyContainerName)
+		}()
+	})
+}
+
+func (c *PodLogCollector) createWatcher(labelSelector string) (watch.Interface, error) {
+	return testclient.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).Watch(
+		c.ctx,
+		metav1.ListOptions{LabelSelector: labelSelector},
+	)
+}
+
+func (c *PodLogCollector) processWatchEvents(labelSelector string, onPodReady func(*corev1.Pod)) {
+	var watcher watch.Interface
+	var err error
+
+	for {
+		// Create or recreate watcher
+		if watcher == nil {
+			watcher, err = c.createWatcher(labelSelector)
+			if err != nil {
+				logrus.Errorf("Failed to create watcher for %s: %v", labelSelector, err)
+				select {
+				case <-c.ctx.Done():
+					return
+				case <-time.After(watcherRetryDelay):
+					continue
+				}
+			}
+		}
+
+		// Process events from watcher
+		select {
+		case <-c.ctx.Done():
+			if watcher != nil {
+				watcher.Stop()
+			}
+			return
+
 		case event, ok := <-watcher.ResultChan():
 			if !ok {
-				// Watcher closed, try to recreate
-				time.Sleep(5 * time.Second)
-				go lc.WatchPTPOperatorPods()
-				return
+				// Watcher closed (timeout, error, etc.) - recreate it
+				logrus.Debugf("Watcher closed for %s, recreating", labelSelector)
+				watcher.Stop()
+				watcher = nil
+
+				select {
+				case <-c.ctx.Done():
+					return
+				case <-time.After(watcherRetryDelay):
+					continue
+				}
 			}
 
 			pod, ok := event.Object.(*corev1.Pod)
@@ -372,173 +517,78 @@ func (lc *LogCollector) WatchPTPOperatorPods() {
 			switch event.Type {
 			case watch.Added, watch.Modified:
 				if pod.Status.Phase == corev1.PodRunning {
-					podKey := fmt.Sprintf("%s/%s", pod.Namespace, pod.Name)
-					lc.mu.Lock()
-					if !lc.streamingPods[podKey] {
-						lc.streamingPods[podKey] = true
-						lc.mu.Unlock()
-						go lc.streamPTPOperatorPod(pod.Name)
-					} else {
-						lc.mu.Unlock()
-					}
+					onPodReady(pod)
 				}
+			case watch.Deleted:
+				logrus.Debugf("Pod deleted: %s", pod.Name)
 			}
 		}
 	}
 }
 
-// WatchLinuxPTPDaemonPods watches for linuxptp-daemon pod events and streams logs
-func (lc *LogCollector) WatchLinuxPTPDaemonPods() {
-	watcher, err := testclient.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).Watch(
-		lc.ctx,
-		metav1.ListOptions{
-			LabelSelector: pkg.PtpLinuxDaemonPodsLabel,
-		},
-	)
-	if err != nil {
-		logrus.Errorf("Failed to create watcher for linuxptp-daemon pods: %v", err)
-		return
-	}
-	defer watcher.Stop()
+// ============================================================================
+// Log Streaming
+// ============================================================================
 
-	for {
-		select {
-		case <-lc.ctx.Done():
-			return
-		case event, ok := <-watcher.ResultChan():
-			if !ok {
-				// Watcher closed, try to recreate
-				time.Sleep(5 * time.Second)
-				go lc.WatchLinuxPTPDaemonPods()
-				return
-			}
-
-			pod, ok := event.Object.(*corev1.Pod)
-			if !ok {
-				continue
-			}
-
-			switch event.Type {
-			case watch.Added, watch.Modified:
-				if pod.Status.Phase == corev1.PodRunning && pod.Spec.NodeName != "" {
-					// Stream both containers
-					podKey := fmt.Sprintf("%s/%s/%s", pod.Namespace, pod.Name, pkg.PtpContainerName)
-					lc.mu.Lock()
-					if !lc.streamingPods[podKey] {
-						lc.streamingPods[podKey] = true
-						lc.mu.Unlock()
-						go lc.streamPodToNodeFile(pod.Name, pkg.PtpContainerName, pod.Spec.NodeName)
-					} else {
-						lc.mu.Unlock()
-					}
-
-					podKey = fmt.Sprintf("%s/%s/%s", pod.Namespace, pod.Name, pkg.EventProxyContainerName)
-					lc.mu.Lock()
-					if !lc.streamingPods[podKey] {
-						lc.streamingPods[podKey] = true
-						lc.mu.Unlock()
-						go lc.streamPodToNodeFile(pod.Name, pkg.EventProxyContainerName, pod.Spec.NodeName)
-					} else {
-						lc.mu.Unlock()
-					}
-				}
-			}
-		}
-	}
-}
-
-// streamPTPOperatorPod streams logs from a ptp-operator pod
-func (lc *LogCollector) streamPTPOperatorPod(podName string) {
-	defer func() {
-		lc.mu.Lock()
-		podKey := fmt.Sprintf("%s/%s", pkg.PtpLinuxDaemonNamespace, podName)
-		delete(lc.streamingPods, podKey)
-		lc.mu.Unlock()
-	}()
-
-	file := lc.ptpOperatorFile
-	if file == nil {
+func (c *PodLogCollector) streamDaemonContainer(podName, nodeName, containerName string) {
+	// Get the appropriate writer for this node/container
+	writers := c.writers.getOrCreateNodeWriters(nodeName)
+	if writers == nil {
 		return
 	}
 
-	// Write marker
-	marker := fmt.Sprintf("\n========== [%s] Starting stream from pod: %s ==========\n",
-		time.Now().Format(time.RFC3339), podName)
-	lc.mu.Lock()
-	fmt.Fprint(file, marker)
-	file.Sync()
-	lc.mu.Unlock()
+	var writer *fileWriter
+	switch containerName {
+	case pkg.PtpContainerName:
+		writer = writers.daemonWriter
+	case pkg.EventProxyContainerName:
+		writer = writers.proxyWriter
+	default:
+		logrus.Errorf("Unknown container: %s", containerName)
+		return
+	}
+
+	// Write stream start marker
+	writer.write(createStreamStartMarker(podName, containerName))
 
 	// Stream logs
-	lc.streamLogs(podName, "", file)
+	c.streamPodLogs(podName, containerName, writer)
 
-	// Write end marker
-	marker = fmt.Sprintf("\n========== [%s] Stream ended for pod: %s ==========\n\n",
-		time.Now().Format(time.RFC3339), podName)
-	lc.mu.Lock()
-	fmt.Fprint(file, marker)
-	file.Sync()
-	lc.mu.Unlock()
+	// Write stream end marker
+	writer.write(createStreamEndMarker(podName, containerName))
 }
 
-// streamPodToNodeFile streams logs from a pod container to a node-specific file
-func (lc *LogCollector) streamPodToNodeFile(podName, containerName, nodeName string) {
-	defer func() {
-		lc.mu.Lock()
-		podKey := fmt.Sprintf("%s/%s/%s", pkg.PtpLinuxDaemonNamespace, podName, containerName)
-		delete(lc.streamingPods, podKey)
-		lc.mu.Unlock()
-	}()
+func (c *PodLogCollector) streamPodLogs(podName, containerName string, writer *fileWriter) {
+	streamKey := fmt.Sprintf("%s/%s/%s", pkg.PtpLinuxDaemonNamespace, podName, containerName)
 
-	file, err := lc.getOrCreateLogFile(nodeName, containerName)
-	if err != nil {
-		logrus.Errorf("Failed to get log file for node %s, container %s: %v", nodeName, containerName, err)
-		return
+	// Check if already streaming
+	if !c.streamTracker.markActive(streamKey) {
+		return // Already streaming
 	}
+	defer c.streamTracker.markInactive(streamKey)
 
-	// Write marker
-	marker := fmt.Sprintf("\n========== [%s] Starting stream from pod: %s, container: %s ==========\n",
-		time.Now().Format(time.RFC3339), podName, containerName)
-	lc.mu.Lock()
-	fmt.Fprint(file, marker)
-	file.Sync()
-	lc.mu.Unlock()
-
-	// Stream logs
-	lc.streamLogs(podName, containerName, file)
-
-	// Write end marker
-	marker = fmt.Sprintf("\n========== [%s] Stream ended for pod: %s, container: %s ==========\n\n",
-		time.Now().Format(time.RFC3339), podName, containerName)
-	lc.mu.Lock()
-	fmt.Fprint(file, marker)
-	file.Sync()
-	lc.mu.Unlock()
-}
-
-// streamLogs streams logs from a pod/container to a file
-func (lc *LogCollector) streamLogs(podName, containerName string, file *os.File) {
+	// Get log stream
 	logOptions := &corev1.PodLogOptions{
 		Follow:     true,
 		Timestamps: true,
 	}
-
 	if containerName != "" {
 		logOptions.Container = containerName
 	}
 
 	req := testclient.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).GetLogs(podName, logOptions)
-	stream, err := req.Stream(lc.ctx)
+	stream, err := req.Stream(c.ctx)
 	if err != nil {
-		logrus.Debugf("Failed to stream logs from pod %s, container %s: %v", podName, containerName, err)
+		logrus.Debugf("Failed to stream logs from pod %s: %v", podName, err)
 		return
 	}
 	defer stream.Close()
 
+	// Read and write logs
 	reader := bufio.NewReader(stream)
 	for {
 		select {
-		case <-lc.ctx.Done():
+		case <-c.ctx.Done():
 			return
 		default:
 			line, err := reader.ReadString('\n')
@@ -549,76 +599,148 @@ func (lc *LogCollector) streamLogs(podName, containerName string, file *os.File)
 				return
 			}
 
-			lc.mu.Lock()
-			fmt.Fprintf(file, "[%s] %s", podName, line)
-			file.Sync()
-			lc.mu.Unlock()
+			writer.write(fmt.Sprintf("[%s] %s", podName, line))
 		}
 	}
 }
 
-// StreamExistingPods starts streaming from pods that already exist
-func (lc *LogCollector) StreamExistingPods() {
-	// Stream from existing ptp-operator pods
-	ptpOpPods, err := testclient.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(
-		lc.ctx,
-		metav1.ListOptions{
-			LabelSelector: pkg.PtPOperatorPodsLabel,
-		},
+func (c *PodLogCollector) streamExistingPods() {
+	c.streamExistingPTPOperatorPods()
+	c.streamExistingLinuxPTPDaemonPods()
+}
+
+func (c *PodLogCollector) streamExistingPTPOperatorPods() {
+	pods, err := testclient.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(
+		c.ctx,
+		metav1.ListOptions{LabelSelector: pkg.PtPOperatorPodsLabel},
 	)
 	if err != nil {
 		logrus.Errorf("Failed to list ptp-operator pods: %v", err)
-	} else {
-		for i := range ptpOpPods.Items {
-			pod := &ptpOpPods.Items[i]
-			if pod.Status.Phase == corev1.PodRunning {
-				podKey := fmt.Sprintf("%s/%s", pod.Namespace, pod.Name)
-				lc.mu.Lock()
-				if !lc.streamingPods[podKey] {
-					lc.streamingPods[podKey] = true
-					lc.mu.Unlock()
-					go lc.streamPTPOperatorPod(pod.Name)
-				} else {
-					lc.mu.Unlock()
-				}
-			}
-		}
+		return
 	}
 
-	// Stream from existing linuxptp-daemon pods
-	daemonPods, err := testclient.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(
-		lc.ctx,
-		metav1.ListOptions{
-			LabelSelector: pkg.PtpLinuxDaemonPodsLabel,
-		},
+	for i := range pods.Items {
+		pod := &pods.Items[i]
+		if pod.Status.Phase == corev1.PodRunning {
+			c.wg.Add(1)
+			go func(p *corev1.Pod) {
+				defer c.wg.Done()
+				c.streamPodLogs(p.Name, "", c.writers.ptpOperatorWriter)
+			}(pod)
+		}
+	}
+}
+
+func (c *PodLogCollector) streamExistingLinuxPTPDaemonPods() {
+	pods, err := testclient.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(
+		c.ctx,
+		metav1.ListOptions{LabelSelector: pkg.PtpLinuxDaemonPodsLabel},
 	)
 	if err != nil {
 		logrus.Errorf("Failed to list linuxptp-daemon pods: %v", err)
-	} else {
-		for i := range daemonPods.Items {
-			pod := &daemonPods.Items[i]
-			if pod.Status.Phase == corev1.PodRunning && pod.Spec.NodeName != "" {
-				// Stream both containers
-				podKey := fmt.Sprintf("%s/%s/%s", pod.Namespace, pod.Name, pkg.PtpContainerName)
-				lc.mu.Lock()
-				if !lc.streamingPods[podKey] {
-					lc.streamingPods[podKey] = true
-					lc.mu.Unlock()
-					go lc.streamPodToNodeFile(pod.Name, pkg.PtpContainerName, pod.Spec.NodeName)
-				} else {
-					lc.mu.Unlock()
-				}
+		return
+	}
 
-				podKey = fmt.Sprintf("%s/%s/%s", pod.Namespace, pod.Name, pkg.EventProxyContainerName)
-				lc.mu.Lock()
-				if !lc.streamingPods[podKey] {
-					lc.streamingPods[podKey] = true
-					lc.mu.Unlock()
-					go lc.streamPodToNodeFile(pod.Name, pkg.EventProxyContainerName, pod.Spec.NodeName)
-				} else {
-					lc.mu.Unlock()
-				}
-			}
+	for i := range pods.Items {
+		pod := &pods.Items[i]
+		if pod.Status.Phase == corev1.PodRunning && pod.Spec.NodeName != "" {
+			c.wg.Add(2)
+			go func(p *corev1.Pod) {
+				defer c.wg.Done()
+				c.streamDaemonContainer(p.Name, p.Spec.NodeName, pkg.PtpContainerName)
+			}(pod)
+			go func(p *corev1.Pod) {
+				defer c.wg.Done()
+				c.streamDaemonContainer(p.Name, p.Spec.NodeName, pkg.EventProxyContainerName)
+			}(pod)
 		}
 	}
+}
+
+// ============================================================================
+// Marker Creation Functions
+// ============================================================================
+
+func createStreamStartMarker(podName, containerName string) string {
+	return fmt.Sprintf("\n%s [%s] Starting stream from pod: %s, container: %s %s\n",
+		streamMarkerLine, time.Now().Format(time.RFC3339), podName, containerName, streamMarkerLine)
+}
+
+func createStreamEndMarker(podName, containerName string) string {
+	return fmt.Sprintf("\n%s [%s] Stream ended for pod: %s, container: %s %s\n\n",
+		streamMarkerLine, time.Now().Format(time.RFC3339), podName, containerName, streamMarkerLine)
+}
+
+func createSuiteStartMarker() string {
+	return fmt.Sprintf(`
+%s
+# TEST SUITE STARTED
+# Suite: %s
+# Time: %s
+%s
+`, suiteMarkerLine, suiteNameConst, time.Now().Format(time.RFC3339), suiteMarkerLine)
+}
+
+func createSuiteEndMarker() string {
+	return fmt.Sprintf(`
+%s
+# TEST SUITE ENDED
+# Time: %s
+%s
+`, suiteMarkerLine, time.Now().Format(time.RFC3339), suiteMarkerLine)
+}
+
+func createTestStartMarker(report ginkgo.SpecReport) string {
+	fileName := "unknown"
+	lineNumber := 0
+
+	if len(report.ContainerHierarchyLocations) > 0 {
+		loc := report.ContainerHierarchyLocations[len(report.ContainerHierarchyLocations)-1]
+		fileName = filepath.Base(loc.FileName)
+		lineNumber = loc.LineNumber
+	}
+
+	return fmt.Sprintf(`
+%s TEST START %s
+# Test: %s
+# Started: %s
+# File: %s:%d
+%s
+`,
+		testMarkerHeader,
+		testMarkerHeader,
+		report.FullText(),
+		report.StartTime.Format(time.RFC3339),
+		fileName,
+		lineNumber,
+		testMarkerLine,
+	)
+}
+
+func createTestEndMarker(report ginkgo.SpecReport) string {
+	status := "PASSED"
+	if report.Failed() {
+		status = "FAILED"
+	} else if report.State.Is(types.SpecStateSkipped) {
+		status = "SKIPPED"
+	} else if report.State.Is(types.SpecStatePending) {
+		status = "PENDING"
+	}
+
+	return fmt.Sprintf(`
+%s TEST END %s
+# Test: %s
+# Status: %s
+# Duration: %s
+# Ended: %s
+%s
+`,
+		testMarkerHeader,
+		testMarkerHeader,
+		report.FullText(),
+		status,
+		report.RunTime.String(),
+		report.EndTime.Format(time.RFC3339),
+		testMarkerLine,
+	)
 }
