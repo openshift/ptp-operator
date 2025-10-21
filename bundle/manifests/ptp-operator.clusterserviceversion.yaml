@@ -78,6 +78,7 @@ metadata:
     olm.skipRange: ">=4.3.0-0 <4.21.0"
     operatorframework.io/suggested-namespace: openshift-ptp
     operators.openshift.io/infrastructure-features: '["disconnected"]'
+    operators.openshift.io/must-gather-image: registry.redhat.io/openshift4/ptp-must-gather-rhel9:latest
     operators.operatorframework.io/builder: operator-sdk-v1.22.0-ocp
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     provider: Red Hat
@@ -87,6 +88,17 @@ metadata:
   namespace: openshift-ptp
 spec:
   apiservicedefinitions: {}
+  relatedImages:
+    - name: ptp-operator
+      image: quay.io/openshift/origin-ptp-operator:4.21
+    - name: linuxptp-daemon
+      image: quay.io/openshift/origin-ptp:4.21
+    - name: kube-rbac-proxy
+      image: quay.io/openshift/origin-kube-rbac-proxy:4.21
+    - name: cloud-event-proxy
+      image: quay.io/openshift/origin-cloud-event-proxy:4.21
+    - name: ptp-must-gather
+      image: registry.redhat.io/openshift4/ptp-must-gather-rhel9:latest
   customresourcedefinitions:
     owned:
     - description: NodePtpDevice is the Schema for the nodeptpdevices API
