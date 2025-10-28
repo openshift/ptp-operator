@@ -134,8 +134,8 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | kubectl apply -f -
-	$(KUSTOMIZE) build config/custom | kubectl apply -f -
+	export CLUSTER_NAME=$${CLUSTER_NAME:-openshift.local} && $(KUSTOMIZE) build config/default | envsubst | kubectl apply -f -
+	export CLUSTER_NAME=$${CLUSTER_NAME:-openshift.local} && $(KUSTOMIZE) build config/custom | envsubst | kubectl apply -f -
 
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | kubectl delete -f -

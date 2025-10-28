@@ -384,6 +384,8 @@ spec:
                   value: quay.io/openshift/origin-kube-rbac-proxy:4.21
                 - name: SIDECAR_EVENT_IMAGE
                   value: quay.io/openshift/origin-cloud-event-proxy:4.21
+                - name: CLUSTER_NAME
+                  value: openshift.local
                 - name: WATCH_NAMESPACE
                   valueFrom:
                     fieldRef:
