@@ -11,9 +11,6 @@ echo "Now in: $(pwd)"
 
 export GOMAXPROCS=$(nproc)
 
-# disable firewall
-systemctl disable firewalld --now
-
 source ./install-tools.sh
 
 # refresh bashrc
@@ -26,13 +23,17 @@ go mod vendor
 
 # Clean containers
 kind delete cluster --name kind-netdevsim || true
-podman rm switch1 || true
+podman rm -f switch1 || true
 
 # Build images
 cd ../ptp-tools
 # configure images for local registry
 export IMG_PREFIX="$VM_IP/test"
 
+# Clean all images and manifests
+make -j 5 podman-cleanall
+
+# Build images
 make -j 5 podman-buildall
 cd -
 

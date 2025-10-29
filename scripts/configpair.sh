@@ -12,8 +12,8 @@ CONTAINER2=$7
 PCI1=$8
 PCI2=$9
 
-NSIM_DEV_1_SYS=/sys/bus/netdevsim/devices/netdevsim$NSIM_DEV_1_ID
-NSIM_DEV_2_SYS=/sys/bus/netdevsim/devices/netdevsim$NSIM_DEV_2_ID
+NSIM_DEV_1_SYS=/sys/bus/pci/devices/$PCI1
+NSIM_DEV_2_SYS=/sys/bus/pci/devices/$PCI2
 
 NSIM_DEV_SYS_NEW=/sys/bus/netdevsim/new_device
 NSIM_DEV_SYS_DEL=/sys/bus/netdevsim/del_device
