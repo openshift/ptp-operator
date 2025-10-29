@@ -1521,7 +1521,7 @@ func createConfig(profileName string, ifaceName, ptp4lOpts *string, ptp4lConfig 
 	thresholds.MinOffsetThreshold = int64(testParameters.GlobalConfig.MinOffset)
 	thresholds.HoldOverTimeout = int64(testParameters.GlobalConfig.HoldOverTimeout)
 
-	if ptp4lConfig != "" && testParameters.GlobalConfig.DisableAllSlaveRTUpdate && nodeLabel != pkg.PtpGrandmasterNodeLabel && phc2sysOpts != nil {
+	if testParameters.GlobalConfig.DisableAllSlaveRTUpdate && nodeLabel != pkg.PtpGrandmasterNodeLabel && phc2sysOpts != nil {
 		temp := "-v"
 		phc2sysOpts = &temp
 	}
