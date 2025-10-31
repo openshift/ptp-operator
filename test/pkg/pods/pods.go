@@ -3,6 +3,7 @@ package pods
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -137,6 +138,71 @@ func WaitForPhase(cs *testclient.ClientSet, pod *corev1.Pod, phaseType corev1.Po
 	})
 }
 
+func findRegexInStream(stream io.ReadCloser, r *regexp.Regexp, timeout time.Duration) (matches [][]string, err error) {
+	logContent := ""
+	buf := make([]byte, 2000)
+
+	for start := time.Now(); time.Since(start) <= timeout && len(matches) == 0; {
+		numBytes, err := stream.Read(buf)
+		if err != nil {
+			if err == io.EOF {
+				logContent += string(buf[:numBytes])
+				matches = r.FindAllStringSubmatch(logContent, -1)
+				break
+			} else {
+				return nil, fmt.Errorf("error reading from stream: %s", err)
+			}
+		}
+
+		if numBytes == 0 {
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+
+		logContent += string(buf[:numBytes])
+		matches = r.FindAllStringSubmatch(logContent, -1)
+	}
+
+	if len(matches) == 0 {
+		return matches, errors.New("timedout waiting for matches")
+	}
+
+	return matches, nil
+}
+
+// returns last Regex match in the logs for a given pod
+func GetPodLogsRegexSince(namespace string, podName string, containerName, regex string, isLiteralText bool, timeout time.Duration, since time.Time) (matches [][]string, err error) {
+	const matchOnlyFullLines = `\s*^`
+	if isLiteralText {
+		regex = regexp.QuoteMeta(regex)
+	} else {
+		regex += matchOnlyFullLines
+	}
+
+	r := regexp.MustCompile(regex)
+
+	podLogOptions := corev1.PodLogOptions{
+		Container: containerName,
+		Follow:    true,
+		SinceTime: &metav1.Time{Time: since},
+	}
+
+	podLogRequest := testclient.Client.CoreV1().Pods(namespace).GetLogs(podName, &podLogOptions)
+
+	stream, err := podLogRequest.Stream(context.TODO())
+	if err != nil {
+		return matches, fmt.Errorf("failed to open log streamn for %s/%s container=%s, err=%s", namespace, podName, containerName, err)
+	}
+	defer stream.Close()
+
+	matches, err = findRegexInStream(stream, r, timeout)
+	if err != nil {
+		return matches, fmt.Errorf("could not find regex in log stream for %s/%s container=%s, err=%s", namespace, podName, containerName, err)
+	}
+
+	return matches, nil
+}
+
 // returns last Regex match in the logs for a given pod
 func GetPodLogsRegex(namespace string, podName string, containerName, regex string, isLiteralText bool, timeout time.Duration) (matches [][]string, err error) {
 	const matchOnlyFullLines = `\s*^`
@@ -145,46 +211,27 @@ func GetPodLogsRegex(namespace string, podName string, containerName, regex stri
 	} else {
 		regex += matchOnlyFullLines
 	}
-	//count := int64(100)
+
+	r := regexp.MustCompile(regex)
+
 	podLogOptions := corev1.PodLogOptions{
 		Container: containerName,
 		Follow:    true,
-		//TailLines: &count,
 	}
 
 	podLogRequest := testclient.Client.CoreV1().Pods(namespace).GetLogs(podName, &podLogOptions)
+
 	stream, err := podLogRequest.Stream(context.TODO())
 	if err != nil {
-		return matches, fmt.Errorf("could not retrieve log in ns=%s pod=%s, err=%s", namespace, podName, err)
+		return matches, fmt.Errorf("failed to open log streamn for %s/%s container=%s, err=%s", namespace, podName, containerName, err)
 	}
 	defer stream.Close()
-	start := time.Now()
-	message := ""
-	for {
-		t := time.Now()
-		elapsed := t.Sub(start)
-		if elapsed > timeout {
-			return matches, fmt.Errorf("timedout waiting for log in ns=%s pod=%s, looking for = %s", namespace, podName, regex)
-		}
-		buf := make([]byte, 2000)
-		numBytes, err := stream.Read(buf)
-		if numBytes == 0 {
-			continue
-		}
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return matches, fmt.Errorf("error getting log stream in ns=%s pod=%s, err=%s", namespace, podName, err)
-		}
-		message += string(buf[:numBytes])
-		r := regexp.MustCompile(regex)
-		matches = r.FindAllStringSubmatch(message, -1)
-		if len(matches) > 0 {
-			return matches, nil
-		}
 
+	matches, err = findRegexInStream(stream, r, timeout)
+	if err != nil {
+		return matches, fmt.Errorf("could not find regex in log stream for %s/%s container=%s, err=%s", namespace, podName, containerName, err)
 	}
+
 	return matches, nil
 }
 

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -364,7 +365,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				}
 				err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), grandmasterID, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
 				Expect(err).To(BeNil())
-				if fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock {
+				if fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock || fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClockHA {
 					err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestSecondaryPtpConfig), grandmasterID, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
 					Expect(err).To(BeNil())
 				}
@@ -474,9 +475,11 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				}
 
 				if fullConfig.PtpModeDiscovered != testconfig.BoundaryClock &&
-					fullConfig.PtpModeDiscovered != testconfig.DualNICBoundaryClock {
+					fullConfig.PtpModeDiscovered != testconfig.DualNICBoundaryClock &&
+					fullConfig.PtpModeDiscovered != testconfig.DualNICBoundaryClockHA {
 					Skip("test only valid for Boundary clock in multi-node clusters")
 				}
+
 				if !fullConfig.FoundSolutions[testconfig.AlgoBCWithSlavesString] &&
 					!fullConfig.FoundSolutions[testconfig.AlgoDualNicBCWithSlavesString] &&
 					!fullConfig.FoundSolutions[testconfig.AlgoBCWithSlavesExtGMString] &&
@@ -489,8 +492,8 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredSlave1PtpConfig), &masterIDBc1, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
 				Expect(err).To(BeNil())
 
-				if (fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock) && (fullConfig.FoundSolutions[testconfig.AlgoDualNicBCWithSlavesExtGMString] ||
-					fullConfig.FoundSolutions[testconfig.AlgoDualNicBCWithSlavesString]) {
+				if (fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock || fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClockHA) &&
+					(fullConfig.FoundSolutions[testconfig.AlgoDualNicBCWithSlavesExtGMString] || fullConfig.FoundSolutions[testconfig.AlgoDualNicBCWithSlavesString]) {
 					aLabel := pkg.PtpClockUnderTestNodeLabel
 					masterIDBc2, err := ptphelper.GetClockIDMaster(pkg.PtpBcMaster2PolicyName, &aLabel, nil, false)
 					Expect(err).To(BeNil())
@@ -522,7 +525,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 						policyName = pkg.PtpSlave1PolicyName
 					case testconfig.BoundaryClock:
 						policyName = pkg.PtpBcMaster1PolicyName
-					case testconfig.DualNICBoundaryClock:
+					case testconfig.DualNICBoundaryClock, testconfig.DualNICBoundaryClockHA:
 						policyName = pkg.PtpBcMaster1PolicyName
 					}
 					ptpConfigToModify, err := client.Client.PtpV1Interface.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), policyName, metav1.GetOptions{})
@@ -574,6 +577,111 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 						Fail(fmt.Sprintf("could not get profile name, err=%s", err))
 					}
 				})
+			})
+
+			It("DualNICBCHA phc2sys switches to secondary ptp4l when primary interface fails", func() {
+				if fullConfig.PtpModeDiscovered != testconfig.DualNICBoundaryClockHA {
+					Skip("Test only valid for Dual NIC Boundary Clocks with phc2sys HA configuration (DualNICBCHA)")
+				}
+
+				By("Identifying which interface phc2sys is currently using")
+				primaryPtpConfig := (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig)
+				primaryBCSlaveInterfaces := ptpv1.GetInterfaces(*primaryPtpConfig, ptpv1.Slave)
+
+				secondaryPtpConfig := (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestSecondaryPtpConfig)
+				secondaryBCSlaveInterfaces := ptpv1.GetInterfaces(*secondaryPtpConfig, ptpv1.Slave)
+
+				logrus.Infof("Primary   BC slave interfaces: %v", primaryBCSlaveInterfaces)
+				logrus.Infof("Secondary BC slave interfaces: %v", secondaryBCSlaveInterfaces)
+
+				// Get phc2sys logs to identify which interface it's using
+				const phc2sysLogPattern = `phc2sys(?m).*?:.* selecting (\w+) as out-of-domain source clock`
+				var selectedInterface string
+
+				logMatches, err := pods.GetPodLogsRegex(fullConfig.DiscoveredClockUnderTestPod.Namespace,
+					fullConfig.DiscoveredClockUnderTestPod.Name, pkg.PtpContainerName,
+					phc2sysLogPattern, false, pkg.TimeoutIn1Minute)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(len(logMatches)).To(BeNumerically("==", 1), "Could not identify which interface phc2sys is using")
+
+				logrus.Infof("phc2sys log matching line: %v", logMatches[0][0])
+				selectedInterface = logMatches[0][1]
+
+				// Save it as primary interface
+				primaryInterface := selectedInterface
+				By("Verifying the selected interface " + selectedInterface + " is a primary BC's slave interface")
+				// Check if the selected interface belongs to the primary boundary clock config
+
+				// Check if the selected interface belongs to the primary boundary clock config
+				if !slices.Contains(primaryBCSlaveInterfaces, selectedInterface) {
+					Fail(fmt.Sprintf("Selected interface %s does not belong to the primary boundary clock config. Primary interfaces: %v", selectedInterface, primaryBCSlaveInterfaces))
+				}
+
+				// Wait for some time to ensure the regex won't match the previous log entry
+				time.Sleep(2 * time.Second)
+				ifDownTime := time.Now()
+				By("Taking down the selected interface " + selectedInterface)
+
+				// Use the PortEngine to turn down the interface so phc2sys will switch to the slave interface in the secondary boundary clock
+				portEngine.TurnPortDown(selectedInterface)
+
+				// Wait for the interface to be down and ptp4l to report freerun
+				Eventually(func() error {
+					return metrics.CheckClockRole([]metrics.MetricRole{metrics.MetricRoleFaulty}, []string{selectedInterface}, &fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName)
+				}, 30*time.Second, 5*time.Second).Should(BeNil(), "Primary BC's slave interface "+selectedInterface+" should be in FAULTY state")
+
+				By("Waiting for 5 seconds for the new interface to be selected")
+				time.Sleep(5 * time.Second)
+
+				By("Verifying phc2sys switches to a different interface")
+				// Wait for phc2sys to switch to a different interface
+				var newSelectedInterface string
+				logMatches, err = pods.GetPodLogsRegexSince(fullConfig.DiscoveredClockUnderTestPod.Namespace,
+					fullConfig.DiscoveredClockUnderTestPod.Name, pkg.PtpContainerName,
+					phc2sysLogPattern, false, pkg.TimeoutIn1Minute, ifDownTime)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(len(logMatches)).To(BeNumerically("==", 1), "Could not identify which interface phc2sys is using")
+				// Get the most recent log entry
+				logrus.Infof("phc2sys log matching line: %v", logMatches[0][0])
+				newSelectedInterface = logMatches[0][1]
+
+				// Verify that phc2sys switched to a different interface
+				Expect(newSelectedInterface).ToNot(Equal(selectedInterface), "phc2sys should have switched to a different interface")
+
+				By("Verifying the new selected interface " + newSelectedInterface + " is a secondary BC's slave interface")
+				// Check if the selected interface belongs to the primary boundary clock config
+				if !slices.Contains(secondaryBCSlaveInterfaces, newSelectedInterface) {
+					Fail(fmt.Sprintf("Selected interface %s does not belong to the secondary boundary clock config. Secondary interfaces: %v", newSelectedInterface, secondaryBCSlaveInterfaces))
+				}
+
+				time.Sleep(2 * time.Second)
+				ifUpTime := time.Now()
+				By("Restoring the primary BC's slave interface " + primaryInterface)
+				// Bring the interface back up
+				portEngine.TurnPortUp(primaryInterface)
+
+				// Wait for the interface to recover to SLAVE state
+				Eventually(func() error {
+					return metrics.CheckClockRole([]metrics.MetricRole{metrics.MetricRoleSlave}, []string{primaryInterface}, &fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName)
+				}, 30*time.Second, 5*time.Second).Should(BeNil(), "Primary BC's slave interface "+primaryInterface+" should recover to SLAVE state")
+
+				By("Waiting 5 seconds for the primary BC's slave interface to be selected again")
+				time.Sleep(5 * time.Second)
+
+				// Check the new interfaces is the primary one
+				logMatches, err = pods.GetPodLogsRegexSince(fullConfig.DiscoveredClockUnderTestPod.Namespace,
+					fullConfig.DiscoveredClockUnderTestPod.Name, pkg.PtpContainerName,
+					phc2sysLogPattern, false, pkg.TimeoutIn1Minute, ifUpTime)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(len(logMatches)).To(BeNumerically("==", 1), "Could not identify which interface phc2sys is using")
+				// Get the most recent log entry
+				logrus.Infof("phc2sys log matching line: %v", logMatches[0][0])
+				selectedInterface = logMatches[0][1]
+
+				By("Verifying the selected interface " + selectedInterface + " is the original primary BC's slave interface " + primaryInterface)
+				if selectedInterface != primaryInterface {
+					Fail(fmt.Sprintf("Selected interface %s is not the original primary interface %s", selectedInterface, primaryInterface))
+				}
 			})
 		})
 
