@@ -1,0 +1,665 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.15.0
+  name: hardwareconfigs.ptp.openshift.io
+spec:
+  group: ptp.openshift.io
+  names:
+    kind: HardwareConfig
+    listKind: HardwareConfigList
+    plural: hardwareconfigs
+    singular: hardwareconfig
+  scope: Namespaced
+  versions:
+  - name: v2alpha1
+    schema:
+      openAPIV3Schema:
+        description: HardwareConfig is the Schema for the hardwareconfigs API
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: HardwareConfigSpec defines the desired state of HardwareConfig
+            properties:
+              profile:
+                description: Profile contains the hardware profile with its configuration
+                properties:
+                  clockChain:
+                    description: ClockChain contains the complete clock chain configuration
+                      for this profile
+                    properties:
+                      behavior:
+                        description: |-
+                          Behavior defines the system behavior based on synchronization sources, conditions and
+                          associated actions. The conditions for the sources can be "init", "locked" or "lost".
+                          The "init" condition initializes the hardware in each subsystem to allow the "Acquiring" state.
+                          Bidirectional links between different subsystems can remain disconnected, as the desired link
+                          direction is still unknown. The "locked" condition in one of the subsystems will configure
+                          the bidirectional links to be disciplined by the locked subsystem. If more than one subsystem
+                          is locked, the source with the smaller index will have higher priority. If the active source
+                          is lost, and no other sources are "locked", the subsystem of the last active source may enter
+                          holdover (subject to the daemon holdover decision). Other subsystems will be connected to
+                          follow the DPLL in holdover.
+                        properties:
+                          conditions:
+                            description: Conditions define behavior rules that evaluate
+                              sources and apply desired states when triggered.
+                            items:
+                              description: |-
+                                Condition defines a condition that evaluates an array of source states with implicit AND logic between them.
+                                The first trigger in the array is the primary triggering condition, while all others are supporting conditions
+                                (that must be true for the desired states to be applied). For example, if two different subsystems have
+                                two different sources, there is still only one subsystem that will activate holdover if all other sources are lost.
+                              properties:
+                                desiredStates:
+                                  description: |-
+                                    DesiredStates is a list of pin and connector settings that together define the desired state.
+                                    The configurations are applied (in the order they are listed) when the condition is triggered.
+                                  items:
+                                    description: |-
+                                      DesiredState defines the desired configuration that is applied when a condition is triggered.
+                                      It supports either DPLL pin configurations OR sysFS-based Ethernet subsystem configurations.
+                                    properties:
+                                      dpll:
+                                        description: DPLL defines DPLL pin configurations
+                                          for the subsystem
+                                        properties:
+                                          boardLabel:
+                                            description: |-
+                                              BoardLabel identifies the specific DPLL pin within the subsystem,
+                                              together with an optional external connector, if defined.
+                                              If the pin is routed through an external connector, the connector settings (direction, frequency, etc.)
+                                              are derived from the pin configuration.
+                                            type: string
+                                          eec:
+                                            description: EEC defines the desired state
+                                              for the Enhanced Ethernet Clock pin
+                                            properties:
+                                              priority:
+                                                description: Priority is the pin input
+                                                  priority (for input pins only)
+                                                format: int64
+                                                type: integer
+                                              state:
+                                                description: 'State is the pin desired
+                                                  state. Valid values: "connected",
+                                                  "disconnected", "selectable"'
+                                                type: string
+                                            type: object
+                                          pps:
+                                            description: PPS defines the desired state
+                                              for the Pulse Per Second pin
+                                            properties:
+                                              priority:
+                                                description: Priority is the pin input
+                                                  priority (for input pins only)
+                                                format: int64
+                                                type: integer
+                                              state:
+                                                description: 'State is the pin desired
+                                                  state. Valid values: "connected",
+                                                  "disconnected", "selectable"'
+                                                type: string
+                                            type: object
+                                          subsystem:
+                                            description: |-
+                                              Subsystem references the subsystem name from structure[].name.
+                                              Identifies which subsystem to configure.
+                                            type: string
+                                        type: object
+                                      sysfs:
+                                        description: |-
+                                          SysFS defines a sysFS-based configuration for the Ethernet part of the subsystem.
+                                          This configuration is applied by writing a value to a sysFS path, often including interface names
+                                          that can be obtained from PTP sources' ptpTimeReceivers field.
+                                        properties:
+                                          description:
+                                            description: Description provides optional
+                                              context about this sysFS configuration
+                                            type: string
+                                          path:
+                                            description: |-
+                                              Path is the sysFS path where the value should be written.
+                                              It supports templating with interface names using the format: /sys/class/net/{interface}/...
+                                              The {interface} placeholder will be replaced with actual interface names from PTP sources.
+                                            type: string
+                                          sourceName:
+                                            description: |-
+                                              SourceName specifies which source to use for obtaining interface names.
+                                              If specified, the interface names will be taken from the PTP source's ptpTimeReceivers field.
+                                              If not specified, all available PTP sources will be considered for interface name resolution.
+                                            type: string
+                                          value:
+                                            description: Value is the value to write
+                                              to the sysFS path
+                                            type: string
+                                        required:
+                                        - path
+                                        - value
+                                        type: object
+                                    type: object
+                                  type: array
+                                name:
+                                  description: Name is a human-readable condition
+                                    name
+                                  type: string
+                                triggers:
+                                  description: |-
+                                    Triggers is an array of source state conditions that must ALL be true (implicit AND operation).
+                                    The first trigger in the array is the primary triggering condition, while all others are supporting conditions.
+                                  items:
+                                    description: SourceState represents the state
+                                      of a source in a condition evaluation.
+                                    properties:
+                                      conditionType:
+                                        description: |-
+                                          ConditionType is the state condition of the source.
+                                          Valid values: "default", "locked", "lost"
+                                        type: string
+                                      sourceName:
+                                        description: SourceName is the name of the
+                                          source being evaluated
+                                        type: string
+                                    required:
+                                    - conditionType
+                                    - sourceName
+                                    type: object
+                                  type: array
+                              required:
+                              - desiredStates
+                              - name
+                              - triggers
+                              type: object
+                            type: array
+                          sources:
+                            description: |-
+                              Sources of frequency, phase and time reference. Sources are identified by subsystem name and board label,
+                              tying them to the specific subsystem entity. Sources are characterized by type and can be referenced
+                              system-wide by the name.
+                            items:
+                              description: |-
+                                SourceConfig defines a source of frequency, phase and time reference.
+                                Sources are identified by subsystem name and board label, tying them to the specific subsystem entity.
+                                Sources are characterized by type and can be referenced system-wide by the name.
+                              properties:
+                                boardLabel:
+                                  description: BoardLabel and subsystem together unambiguously
+                                    identify the subsystem and the DPLL pin receiving
+                                    the source
+                                  type: string
+                                name:
+                                  description: Name is the source name that must be
+                                    unique system-wide
+                                  type: string
+                                ptpTimeReceivers:
+                                  description: |-
+                                    PTPTimeReceivers are ports configured to act as PTP time receivers
+                                    (required if the sourceType is set to 'ptpTimeReceiver')
+                                  items:
+                                    type: string
+                                  type: array
+                                sourceType:
+                                  description: |-
+                                    SourceType identifies the source type. Valid values: "ptpTimeReceiver", "gnss"
+                                    If sourceType is ptpTimeReceiver, ptpTimeReceivers must be specified.
+                                    In all cases, boardLabel must be specified.
+                                  type: string
+                                subsystem:
+                                  description: |-
+                                    Subsystem references the subsystem name from structure[].name.
+                                    The subsystem's network interface will be used to derive the clock ID.
+                                  type: string
+                              required:
+                              - boardLabel
+                              - name
+                              - sourceType
+                              - subsystem
+                              type: object
+                            type: array
+                        type: object
+                      commonDefinitions:
+                        description: |-
+                          CommonDefinitions includes definitions applied to multiple entities within the chain,
+                          such as ESync configurations. They can be referenced in the relevant entities by name,
+                          to avoid multiple copies.
+                        properties:
+                          eSyncDefinitions:
+                            description: |-
+                              ESyncDefinitions is an array of named eSync configurations that can be referenced
+                              by name from pin configurations throughout the system.
+                            items:
+                              description: ESyncDefinition defines a named eSync configuration
+                                that can be referenced by name from pin configurations.
+                              properties:
+                                eSyncConfig:
+                                  description: ESyncConfig contains the eSync feature
+                                    configuration parameters
+                                  properties:
+                                    dutyCyclePct:
+                                      description: 'DutyCyclePct is the phase signal
+                                        pulse duty cycle in percent. If omitted, set
+                                        to 25%. Default: 25'
+                                      format: int64
+                                      type: integer
+                                    embeddedSyncFrequency:
+                                      description: 'EmbeddedSyncFrequency is the embedded
+                                        sync frequency in Hz. If omitted, set to 1Hz
+                                        (1PPS). Default: 1'
+                                      format: int64
+                                      type: integer
+                                    transferFrequency:
+                                      description: TransferFrequency is the configurable
+                                        transfer frequency in Hz (required)
+                                      format: int64
+                                      type: integer
+                                  required:
+                                  - transferFrequency
+                                  type: object
+                                name:
+                                  description: Name is a unique identifier for this
+                                    eSync configuration
+                                  type: string
+                              required:
+                              - eSyncConfig
+                              - name
+                              type: object
+                            type: array
+                          refSyncDefinitions:
+                            description: |-
+                              RefSyncDefinitions is an array of named reference sync configurations that can be
+                              referenced by name from pin configurations throughout the system.
+                              A ref-sync configuration typically ties a reference sync definition to a specific
+                              related pin or board label.
+                            items:
+                              description: |-
+                                RefSyncDefinition defines a named reference sync configuration that can be
+                                referenced by name from pin configurations. It optionally relates to a specific
+                                pin board label.
+                              properties:
+                                name:
+                                  description: Name is a unique identifier for this
+                                    ref-sync configuration
+                                  type: string
+                                relatedPinBoardLabel:
+                                  description: RelatedPinBoardLabel is an optional
+                                    label for a related pin/board
+                                  type: string
+                              required:
+                              - name
+                              type: object
+                            type: array
+                        type: object
+                      structure:
+                        description: |-
+                          Structure defines the system structure as a list of atomic synchronization subsystems.
+                          Must contain at least one subsystem.
+                        items:
+                          description: |-
+                            Subsystem defines an atomic synchronization subsystem of a single DPLL and one or more Ethernet subsystems linked together.
+                            Each subsystem represents a cohesive unit that can operate independently or in coordination with other subsystems.
+                          properties:
+                            dpll:
+                              description: DPLL contains the DPLL configuration for
+                                this subsystem
+                              properties:
+                                frequencyInputs:
+                                  additionalProperties:
+                                    description: |-
+                                      PinConfig represents pin configuration for DPLL phase or frequency signals in a dictionary format
+                                      (boardLabel is the key). The frequency and esyncConfigName properties are mutually exclusive.
+                                    properties:
+                                      connector:
+                                        description: |-
+                                          Connector is an optional identifier on the device (e.g., "SMA1", "U.FL2").
+                                          Defines the physical connector this pin is statically or dynamically routed to.
+                                          Used by the hardware plugin software to configure connector logic, if present.
+                                        type: string
+                                      description:
+                                        description: Description is an optional description
+                                          for this pin configuration
+                                        type: string
+                                      eSyncConfigName:
+                                        description: |-
+                                          ESyncConfigName is an optional eSync configuration name (defined in CommonDefinitions).
+                                          Mutually exclusive with frequency.
+                                        type: string
+                                      frequency:
+                                        description: |-
+                                          Frequency is the frequency value in Hz (for frequency pins) or phase reference frequency
+                                          (for phase pins, defaults to 1 PPS). Mutually exclusive with esyncConfigName.
+                                        format: int64
+                                        type: integer
+                                      phaseAdjustment:
+                                        description: PhaseAdjustment is optional phase
+                                          adjustment in picoseconds
+                                        properties:
+                                          description:
+                                            description: Description is an optional
+                                              description for this phase adjustment
+                                            type: string
+                                          external:
+                                            description: |-
+                                              External is the external phase adjustment in picoseconds.
+                                              Compensates for delays introduced by external cables.
+                                            type: integer
+                                          internal:
+                                            description: |-
+                                              Internal is the internal phase adjustment in picoseconds (required).
+                                              Usually compensates for the board hardware delays and should not be changed by the user.
+                                            type: integer
+                                        required:
+                                        - internal
+                                        type: object
+                                      referenceSync:
+                                        description: |-
+                                          ReferenceSync applies to frequency pins that can be paired to a phase pin by board label
+                                          The value should match a phase pin label (from phaseInputs) within the same subsystem
+                                        type: string
+                                    type: object
+                                  description: FrequencyInputs are optional frequency
+                                    reference inputs, keyed by board label
+                                  type: object
+                                frequencyOutputs:
+                                  additionalProperties:
+                                    description: |-
+                                      PinConfig represents pin configuration for DPLL phase or frequency signals in a dictionary format
+                                      (boardLabel is the key). The frequency and esyncConfigName properties are mutually exclusive.
+                                    properties:
+                                      connector:
+                                        description: |-
+                                          Connector is an optional identifier on the device (e.g., "SMA1", "U.FL2").
+                                          Defines the physical connector this pin is statically or dynamically routed to.
+                                          Used by the hardware plugin software to configure connector logic, if present.
+                                        type: string
+                                      description:
+                                        description: Description is an optional description
+                                          for this pin configuration
+                                        type: string
+                                      eSyncConfigName:
+                                        description: |-
+                                          ESyncConfigName is an optional eSync configuration name (defined in CommonDefinitions).
+                                          Mutually exclusive with frequency.
+                                        type: string
+                                      frequency:
+                                        description: |-
+                                          Frequency is the frequency value in Hz (for frequency pins) or phase reference frequency
+                                          (for phase pins, defaults to 1 PPS). Mutually exclusive with esyncConfigName.
+                                        format: int64
+                                        type: integer
+                                      phaseAdjustment:
+                                        description: PhaseAdjustment is optional phase
+                                          adjustment in picoseconds
+                                        properties:
+                                          description:
+                                            description: Description is an optional
+                                              description for this phase adjustment
+                                            type: string
+                                          external:
+                                            description: |-
+                                              External is the external phase adjustment in picoseconds.
+                                              Compensates for delays introduced by external cables.
+                                            type: integer
+                                          internal:
+                                            description: |-
+                                              Internal is the internal phase adjustment in picoseconds (required).
+                                              Usually compensates for the board hardware delays and should not be changed by the user.
+                                            type: integer
+                                        required:
+                                        - internal
+                                        type: object
+                                      referenceSync:
+                                        description: |-
+                                          ReferenceSync applies to frequency pins that can be paired to a phase pin by board label
+                                          The value should match a phase pin label (from phaseInputs) within the same subsystem
+                                        type: string
+                                    type: object
+                                  description: FrequencyOutputs are optional frequency
+                                    outputs for other devices or measurements, keyed
+                                    by board label
+                                  type: object
+                                holdoverParameters:
+                                  description: HoldoverParameters defines the combination
+                                    of the DPLL complex hardware parameters and the
+                                    holdover specification threshold.
+                                  properties:
+                                    localHoldoverTimeout:
+                                      description: |-
+                                        LocalHoldoverTimeout is the time the clock will stay in the holdover state before reaching the
+                                        LocalMaxHoldoverOffset (in seconds). Default - 14400s
+                                      format: int64
+                                      type: integer
+                                    localMaxHoldoverOffset:
+                                      description: LocalMaxHoldoverOffset is the maximum
+                                        holdover offset in nanoseconds. Default -
+                                        1500ns
+                                      format: int64
+                                      type: integer
+                                    maxInSpecOffset:
+                                      description: MaxInSpecOffset is the holdover
+                                        specification threshold in nanoseconds. Default
+                                        - 100ns
+                                      format: int64
+                                      type: integer
+                                  type: object
+                                networkInterface:
+                                  description: |-
+                                    NetworkInterface identifies the network interface of the subsystem.
+                                    The clock ID will be derived from this interface's MAC address.
+                                    If omitted, the hardware must support clock ID discovery from the first ethernet port.
+                                  type: string
+                                phaseInputs:
+                                  additionalProperties:
+                                    description: |-
+                                      PinConfig represents pin configuration for DPLL phase or frequency signals in a dictionary format
+                                      (boardLabel is the key). The frequency and esyncConfigName properties are mutually exclusive.
+                                    properties:
+                                      connector:
+                                        description: |-
+                                          Connector is an optional identifier on the device (e.g., "SMA1", "U.FL2").
+                                          Defines the physical connector this pin is statically or dynamically routed to.
+                                          Used by the hardware plugin software to configure connector logic, if present.
+                                        type: string
+                                      description:
+                                        description: Description is an optional description
+                                          for this pin configuration
+                                        type: string
+                                      eSyncConfigName:
+                                        description: |-
+                                          ESyncConfigName is an optional eSync configuration name (defined in CommonDefinitions).
+                                          Mutually exclusive with frequency.
+                                        type: string
+                                      frequency:
+                                        description: |-
+                                          Frequency is the frequency value in Hz (for frequency pins) or phase reference frequency
+                                          (for phase pins, defaults to 1 PPS). Mutually exclusive with esyncConfigName.
+                                        format: int64
+                                        type: integer
+                                      phaseAdjustment:
+                                        description: PhaseAdjustment is optional phase
+                                          adjustment in picoseconds
+                                        properties:
+                                          description:
+                                            description: Description is an optional
+                                              description for this phase adjustment
+                                            type: string
+                                          external:
+                                            description: |-
+                                              External is the external phase adjustment in picoseconds.
+                                              Compensates for delays introduced by external cables.
+                                            type: integer
+                                          internal:
+                                            description: |-
+                                              Internal is the internal phase adjustment in picoseconds (required).
+                                              Usually compensates for the board hardware delays and should not be changed by the user.
+                                            type: integer
+                                        required:
+                                        - internal
+                                        type: object
+                                      referenceSync:
+                                        description: |-
+                                          ReferenceSync applies to frequency pins that can be paired to a phase pin by board label
+                                          The value should match a phase pin label (from phaseInputs) within the same subsystem
+                                        type: string
+                                    type: object
+                                  description: PhaseInputs are phase reference input
+                                    pins, keyed by board label
+                                  type: object
+                                phaseOutputs:
+                                  additionalProperties:
+                                    description: |-
+                                      PinConfig represents pin configuration for DPLL phase or frequency signals in a dictionary format
+                                      (boardLabel is the key). The frequency and esyncConfigName properties are mutually exclusive.
+                                    properties:
+                                      connector:
+                                        description: |-
+                                          Connector is an optional identifier on the device (e.g., "SMA1", "U.FL2").
+                                          Defines the physical connector this pin is statically or dynamically routed to.
+                                          Used by the hardware plugin software to configure connector logic, if present.
+                                        type: string
+                                      description:
+                                        description: Description is an optional description
+                                          for this pin configuration
+                                        type: string
+                                      eSyncConfigName:
+                                        description: |-
+                                          ESyncConfigName is an optional eSync configuration name (defined in CommonDefinitions).
+                                          Mutually exclusive with frequency.
+                                        type: string
+                                      frequency:
+                                        description: |-
+                                          Frequency is the frequency value in Hz (for frequency pins) or phase reference frequency
+                                          (for phase pins, defaults to 1 PPS). Mutually exclusive with esyncConfigName.
+                                        format: int64
+                                        type: integer
+                                      phaseAdjustment:
+                                        description: PhaseAdjustment is optional phase
+                                          adjustment in picoseconds
+                                        properties:
+                                          description:
+                                            description: Description is an optional
+                                              description for this phase adjustment
+                                            type: string
+                                          external:
+                                            description: |-
+                                              External is the external phase adjustment in picoseconds.
+                                              Compensates for delays introduced by external cables.
+                                            type: integer
+                                          internal:
+                                            description: |-
+                                              Internal is the internal phase adjustment in picoseconds (required).
+                                              Usually compensates for the board hardware delays and should not be changed by the user.
+                                            type: integer
+                                        required:
+                                        - internal
+                                        type: object
+                                      referenceSync:
+                                        description: |-
+                                          ReferenceSync applies to frequency pins that can be paired to a phase pin by board label
+                                          The value should match a phase pin label (from phaseInputs) within the same subsystem
+                                        type: string
+                                    type: object
+                                  description: PhaseOutputs are optional phase output
+                                    pins, keyed by board label
+                                  type: object
+                              type: object
+                            ethernet:
+                              description: Ethernet defines one or more Ethernet subsystems
+                                associated with this synchronization subsystem
+                              items:
+                                description: |-
+                                  Ethernet defines the Ethernet subsystem and unambiguously identifies Ethernet ports belonging to it.
+                                  This may be required to support various port naming schemes.
+                                properties:
+                                  ports:
+                                    description: |-
+                                      Ports is a list of Ethernet port names associated with this Ethernet subsystem.
+                                      The default port, or the port used to address the network adapter configuration through sysfs, is listed first.
+                                    items:
+                                      type: string
+                                    type: array
+                                required:
+                                - ports
+                                type: object
+                              type: array
+                            hardwareSpecificDefinitions:
+                              description: HardwareSpecificDefinitions is the hardware-specific
+                                identifier that handles default configurations
+                              type: string
+                            name:
+                              description: Name is a human-readable identifier for
+                                this subsystem
+                              type: string
+                          required:
+                          - dpll
+                          - ethernet
+                          - name
+                          type: object
+                        type: array
+                    required:
+                    - structure
+                    type: object
+                  description:
+                    description: Description provides optional context about this
+                      hardware profile
+                    type: string
+                  name:
+                    description: Name is the unique identifier for this hardware profile
+                    type: string
+                required:
+                - clockChain
+                - name
+                type: object
+              relatedPtpProfileName:
+                description: RelatedPtpProfileName specifies the name of the related
+                  PTP profile
+                type: string
+            required:
+            - profile
+            type: object
+          status:
+            description: HardwareConfigStatus defines the observed state of HardwareConfig
+            properties:
+              matchedNodes:
+                description: |-
+                  MatchedNodes contains the list of nodes that have been matched to this hardware config
+                  based on PTP profile recommendations
+                items:
+                  description: MatchedNode represents a node that has been matched
+                    to this hardware config
+                  properties:
+                    nodeName:
+                      description: NodeName is the name of the matched node
+                      type: string
+                    ptpProfile:
+                      description: PtpProfile is the PTP profile that was recommended
+                        for this node
+                      type: string
+                  required:
+                  - nodeName
+                  - ptpProfile
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

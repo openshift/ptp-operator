@@ -27,6 +27,32 @@ rules:
 - apiGroups:
   - ptp.openshift.io
   resources:
+  - hardwareconfigs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - ptp.openshift.io
+  resources:
+  - hardwareconfigs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - ptp.openshift.io
+  resources:
+  - hardwareconfigs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - ptp.openshift.io
+  resources:
   - ptpconfigs
   verbs:
   - create
