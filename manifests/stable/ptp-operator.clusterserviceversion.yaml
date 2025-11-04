@@ -61,7 +61,7 @@ metadata:
     categories: Networking
     certified: "false"
     containerImage: quay.io/openshift/origin-ptp-operator:4.21
-    createdAt: "2025-09-25T09:20:14Z"
+    createdAt: "2025-11-03T12:52:29Z"
     description: This software enables configuration of Precision Time Protocol(PTP)
       on Kubernetes. It detects hardware capable PTP devices on each node, and configures
       linuxptp processes such as ptp4l, phc2sys and timemaster.
@@ -89,6 +89,9 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
+    - kind: HardwareConfig
+      name: hardwareconfigs.ptp.openshift.io
+      version: v2alpha1
     - description: NodePtpDevice is the Schema for the nodeptpdevices API
       displayName: Node Ptp Device
       kind: NodePtpDevice
@@ -297,6 +300,32 @@ spec:
           - patch
           - update
           - watch
+        - apiGroups:
+          - ptp.openshift.io
+          resources:
+          - hardwareconfigs
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - ptp.openshift.io
+          resources:
+          - hardwareconfigs/finalizers
+          verbs:
+          - update
+        - apiGroups:
+          - ptp.openshift.io
+          resources:
+          - hardwareconfigs/status
+          verbs:
+          - get
+          - patch
+          - update
         - apiGroups:
           - ptp.openshift.io
           resources:
