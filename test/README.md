@@ -335,7 +335,7 @@ If only one LAN is available, the following configuration is tested. In this cas
 
 #### DualNICBC HA
 
-This mode allows same scenarios as DualNIC BC and will run all of its test cases, but it will create three PtpConfig resources: two for the BCs, with ptp4l config only, and [a third one with just phc2sys config](../README.md#ptpconfig-to-enable-high-availability-for-phc2sys-by-adding-profiles-of-ptp4l-enabled-configs-under-haprofiles) using the ptp4l profiles as HA profiles. Thus, if the slave interface from the primary BC fails, phc2sys will switch to the secondary BC slave interface as time source for the system clock. In this case, apart from syncing the system clock, the secondary BC's PHC will also sync the primary BC's PHC while its slave interface is down.
+This mode allows same scenarios as DualNIC BC and will run all of its test cases, but it will create three PtpConfig resources: two for the BCs, with ptp4l config only, and [a third one with just phc2sys config](../README.md#ptpconfig-to-enable-high-availability-for-phc2sys-by-adding-profiles-of-ptp4l-enabled-configs-under-haprofiles) using the ptp4l profiles as HA profiles. Thus, if the primary slave interface/link for the primary BC fails, phc2sys will switch to the secondary BC slave interface as time source for the system clock. In this case, apart from syncing the system clock, the secondary BC's PHC will also sync the primary BC's PHC while its slave interface is down.
 
 ##### Both BCs are syncing their PHCs, but primary BC is selected to sync the system clock
 
