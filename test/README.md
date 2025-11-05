@@ -333,6 +333,18 @@ If only one LAN is available, the following configuration is tested. In this cas
 
 ![multi_dnbc](doc/multi_dnbc.svg)
 
+#### DualNICBC HA
+
+This mode allows same scenarios as DualNIC BC and will run all of its test cases, but it will create three PtpConfig resources: two for the BCs, with ptp4l config only, and [a third one with just phc2sys config](../README.md#ptpconfig-to-enable-high-availability-for-phc2sys-by-adding-profiles-of-ptp4l-enabled-configs-under-haprofiles) using the ptp4l profiles as HA profiles. Thus, if the primary slave interface/link for the primary BC fails, phc2sys will switch to the secondary BC slave interface as time source for the system clock. In this case, apart from syncing the system clock, the secondary BC's PHC will also sync the primary BC's PHC while its slave interface is down.
+
+##### Both BCs are syncing their PHCs, but primary BC is selected to sync the system clock
+
+![dualnicbc-ha-primary-bc-selected](doc/dualnic-bc-ha-primary-bc-selected.svg)
+
+##### Primary BC is down: system clock and both PHCs are synced by the slave interface of the secondary BC.
+
+![dualnicbc-ha-primary-bc-selected](doc/dualnic-bc-ha-secondary-bc-selected.svg)
+
 #### External Grandmaster support
 
 It is also possible to use an existing Grandmaster to synchronize clock to. This is specified by setting the EXTERNAL_GM environement variable. The PTP test mode is configured according to the following table:
