@@ -306,6 +306,14 @@ catalog-build: catalog.Dockerfile catalog/index.yaml catalog/operator.yaml catal
 catalog-push:
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 
+.PHONY: catalog-deploy
+catalog-deploy:
+	hack/catalog-deploy.sh $(CATALOG_IMG)
+
+.PHONY: catalog-undeploy
+catalog-undeploy:
+	hack/catalog-deploy.sh --remove
+
 .PHONY: common-deps-update
 common-deps-update:	controller-gen kustomize
 	go mod tidy && \
