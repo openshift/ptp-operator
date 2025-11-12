@@ -19,4 +19,7 @@ spec:
     from:
       kind: DockerImage
       name: quay.io/openshift/origin-cloud-event-proxy:4.21
-
+  - name: ptp-operator-must-gather
+    from:
+      kind: DockerImage
+      name: quay.io/openshift/origin-ptp-operator-must-gather:4.21
