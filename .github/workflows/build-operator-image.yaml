@@ -9,12 +9,15 @@ on:
 jobs:
       push-operator-image:
         runs-on: ubuntu-latest
+        permissions:
+          packages: write
+          contents: read
         defaults:
           run:
             working-directory: '.'
         env:
           CONTAINER_TOOL: docker
-          IMG : ghcr.io/${{ github.repository }}  
+          IMG : ghcr.io/${{ github.repository }}
           VERSION: latest
         steps:
           - name: 'Checkout GitHub Action'

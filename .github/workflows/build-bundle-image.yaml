@@ -9,6 +9,9 @@ on:
 jobs:
       push-bundle-image:
         runs-on: ubuntu-latest
+        permissions:
+          packages: write
+          contents: read
         defaults:
           run:
             working-directory: '.'
