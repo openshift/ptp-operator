@@ -171,8 +171,20 @@ func (r *PtpConfig) validate() error {
 					if _, err := strconv.ParseUint(v, 10, 32); err != nil {
 						return errors.New("inSyncConditionThreshold='" + v + "' is invalid; must be an unsigned integer")
 					}
+
+				case strings.Contains(k, "clockId"):
+					// Allow explicit clockId
+					if _, err := strconv.ParseUint(v, 10, 64); err != nil {
+						if _, err := strconv.ParseUint(v, 16, 64); err != nil {
+							return errors.New("clockId='" + v + "' is invalid; must be an unsigned integer")
+						}
+					}
 				case k == "controllingProfile":
 					// Allow controllingProfile setting - no specific validation required for string
+				case k == "upstreamPort":
+					// Temporary allow upstreamPort setting - no specific validation required for string
+				case k == "leadingInterface":
+					// Temporary allow leadingInterface setting - no specific validation required for string
 				default:
 					return errors.New("profile.PtpSettings '" + k + "' is not a configurable setting")
 				}

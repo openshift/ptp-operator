@@ -542,7 +542,7 @@ func (p *PortEngine) RolesInOnly(roles []metrics.MetricRole) (err error) {
 	if len(roles) != len(p.InitialRoles) {
 		return fmt.Errorf("len(InitialRoles) != len(roles)")
 	}
-	sortedInitialRoles := p.InitialRoles
+	sortedInitialRoles := slices.Clone(p.InitialRoles)
 	slices.Sort(sortedInitialRoles)
 	slices.Sort(roles)
 

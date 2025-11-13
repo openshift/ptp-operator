@@ -5,6 +5,7 @@ resources:
 - bases/ptp.openshift.io_ptpconfigs.yaml
 - bases/ptp.openshift.io_nodeptpdevices.yaml
 - bases/ptp.openshift.io_ptpoperatorconfigs.yaml
+- bases/ptp.openshift.io_hardwareconfigs.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:

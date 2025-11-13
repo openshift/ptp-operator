@@ -63,7 +63,8 @@ func Configs() {
 			ptpConfig.Name == pkg.PtpSlave1PolicyName ||
 			ptpConfig.Name == pkg.PtpBcMaster2PolicyName ||
 			ptpConfig.Name == pkg.PtpSlave2PolicyName ||
-			ptpConfig.Name == pkg.PtpTempPolicyName {
+			ptpConfig.Name == pkg.PtpTempPolicyName ||
+			ptpConfig.Name == pkg.PtpDualNicBCHAPolicyName {
 			err = client.Client.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Delete(context.Background(), ptpConfig.Name, metav1.DeleteOptions{})
 			if err != nil {
 				logrus.Infof("clean.All: Failed to delete ptp config %s %v", ptpConfig.Name, err)

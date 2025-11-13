@@ -2,6 +2,9 @@
 set -x
 set -euo pipefail
 
+# Install tools required for testing
+yum install -y podman pciutils helm
+
 ARCH=$(uname -m)
 if [[ "$ARCH" == "x86_64" ]]; then
     GOARCH="amd64"

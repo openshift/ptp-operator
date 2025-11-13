@@ -48,6 +48,12 @@ var _ = BeforeSuite(func() {
 
 	// Initialize the pub/sub system for event handling
 	event.InitPubSub()
+
+	// Start log collection if enabled
+	err := logging.StartLogCollection("serial")
+	if err != nil {
+		logrus.Errorf("Failed to start log collection: %v", err)
+	}
 })
 
 var _ = AfterSuite(func() {
@@ -55,4 +61,17 @@ var _ = AfterSuite(func() {
 	if DeletePtpConfig && testconfig.GetDesiredConfig(false).PtpModeDesired != testconfig.Discovery {
 		clean.All()
 	}
+
+	// Stop log collection
+	logging.StopLogCollection()
+})
+
+var _ = ReportBeforeEach(func(report SpecReport) {
+	// Write test start marker to all log files
+	logging.WriteTestStart(report)
+})
+
+var _ = ReportAfterEach(func(report SpecReport) {
+	// Write test end marker to all log files
+	logging.WriteTestEnd(report)
 })

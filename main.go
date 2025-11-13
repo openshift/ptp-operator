@@ -47,6 +47,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
+	ptpv2alpha1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v2alpha1"
 	"github.com/k8snetworkplumbingwg/ptp-operator/controllers"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/leaderelection"
 	//+kubebuilder:scaffold:imports
@@ -60,6 +61,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(ptpv1.AddToScheme(scheme))
+	utilruntime.Must(ptpv2alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -145,6 +147,15 @@ func main() {
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PtpConfig")
+		os.Exit(1)
+	}
+
+	if err = (&controllers.HardwareConfigReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("HardwareConfig"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "HardwareConfig")
 		os.Exit(1)
 	}
 

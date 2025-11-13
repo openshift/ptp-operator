@@ -1,0 +1,139 @@
+apiVersion: ptp.openshift.io/v2alpha1
+kind: HardwareConfig
+metadata:
+  name: test
+  namespace: openshift-ptp
+spec:
+  profile:
+    clockChain:
+      behavior:
+        conditions:
+        - desiredStates:
+          - sysfs:
+              path: /sys/class/net/{interface}/device/ptp/ptp*/pins/SMA2
+              value: "2 2"
+              sourceName: PTP
+          - sysfs:
+              path: /sys/class/net/{interface}/device/ptp/ptp*/period
+              value: "2 0 0 1 0"
+              sourceName: PTP 
+          - dpll:
+              subsystem: leader
+              boardLabel: GNSS-1PPS
+              eec:
+                priority: 255
+              pps:
+                priority: 255
+          - dpll:
+              subsystem: follower
+              boardLabel: GNSS-1PPS
+              eec:
+                priority: 255
+              pps:
+                priority: 255
+          - dpll:
+              subsystem: leader
+              boardLabel: CVL-SDP20
+              eec:
+                priority: 255
+              pps:
+                priority: 255
+          - dpll:
+              subsystem: leader
+              boardLabel: CVL-SDP21
+              eec:
+                state: disconnected
+              pps:
+                state: disconnected
+          name: Initialize T-BC
+          triggers:
+          - conditionType: init
+            sourceName: PTP
+        - desiredStates:
+          - dpll:
+              subsystem: leader
+              boardLabel: CVL-SDP22
+              eec:
+                priority: 255
+              pps:
+                priority: 0
+          - dpll:
+              subsystem: leader
+              boardLabel: CVL-SDP23
+              eec:
+                state: disconnected
+              pps:
+                state: disconnected
+          name: PTP Source Active
+          triggers:
+          - conditionType: locked
+            sourceName: PTP
+        - desiredStates:
+          - dpll:
+              subsystem: leader
+              boardLabel: CVL-SDP22
+              eec:
+                priority: 255
+              pps:
+                priority: 255
+          - dpll:
+              subsystem: leader
+              boardLabel: CVL-SDP23
+              eec:
+                state: connected
+              pps:
+                state: connected
+          name: PTP Source Lost - Leader Holdover
+          triggers:
+          - conditionType: lost
+            sourceName: PTP
+        sources:
+        - boardLabel: CVL-SDP22
+          subsystem: leader
+          name: PTP
+          ptpTimeReceivers:
+          - ens4f1
+          sourceType: ptpTimeReceiver
+      commonDefinitions:
+        eSyncDefinitions:
+        - name: esync-10-1
+          eSyncConfig:
+            transferFrequency: 10000000
+            embeddedSyncFrequency: 1
+            dutyCyclePct: 25
+      structure:
+      - dpll:
+          networkInterface: ens4f0
+          holdoverParameters:
+            maxInSpecOffset: 20
+            localMaxHoldoverOffset: 30
+            localHoldoverTimeout: 288
+          phaseInputs:
+            CVL_SDP22:
+              description: PTP time receiver input
+              frequency: 1
+          phaseOutputs:
+            REF-SMA1:
+              connector: SMA1
+              description: Output to the follower
+              eSyncConfigName: esync-10-1
+        ethernet:
+        - ports:
+          - ens4f0
+          - ens4f1
+        hardwareSpecificDefinitions: intel/e810
+        name: leader
+      - dpll:
+          networkInterface: ens8f0
+          phaseInputs:
+            SMA1:
+              connector: SMA1 
+              eSyncConfigName: esync-10-1
+              description: Input from the leader
+        ethernet:
+        - ports:
+          - ens8f0
+        hardwareSpecificDefinitions: intel/e810
+        name: follower
+    name: tbc
+  relatedPtpProfileName: 01-tbc-tr
