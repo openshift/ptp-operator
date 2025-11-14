@@ -73,6 +73,7 @@ metadata:
     olm.skipRange: ">=4.3.0-0 <4.21.0"
     operatorframework.io/suggested-namespace: openshift-ptp
     operators.openshift.io/infrastructure-features: '["disconnected"]'
+    operators.openshift.io/must-gather-image: registry.redhat.io/openshift4/ptp-must-gather-rhel9:latest
     provider: Red Hat
     repository: https://github.com/k8snetworkplumbingwg/ptp-operator
     support: Red Hat
@@ -175,4 +176,15 @@ spec:
   maturity: alpha
   provider:
     name: Red Hat
+  relatedImages:
+  - image: quay.io/openshift/origin-ptp-operator:4.21
+    name: ptp-operator
+  - image: quay.io/openshift/origin-ptp:4.21
+    name: linuxptp-daemon
+  - image: quay.io/openshift/origin-kube-rbac-proxy:4.21
+    name: kube-rbac-proxy
+  - image: quay.io/openshift/origin-cloud-event-proxy:4.21
+    name: cloud-event-proxy
+  - image: registry.redhat.io/openshift4/ptp-must-gather-rhel9:latest
+    name: ptp-must-gather
   version: 0.0.0

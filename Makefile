@@ -279,6 +279,37 @@ functests:
 test-validation-only:
 	SUITE=./test/validation hack/run-functests.sh
 
+test-bundle-must-gather:
+	@echo "Validating must-gather configuration in CSV..."
+	@CSV_FILE="bundle/manifests/ptp-operator.clusterserviceversion.yaml"; \
+	if ! grep -q "operators.openshift.io/must-gather-image" "$$CSV_FILE"; then \
+		echo "ERROR: CSV missing operators.openshift.io/must-gather-image annotation"; \
+		exit 1; \
+	fi; \
+	echo "✓ Must-gather annotation present"; \
+	if ! grep -q "relatedImages:" "$$CSV_FILE"; then \
+		echo "ERROR: CSV missing spec.relatedImages section"; \
+		exit 1; \
+	fi; \
+	IMAGES_COUNT=$$(grep -A 30 "relatedImages:" "$$CSV_FILE" | grep "image:" | wc -l | tr -d ' '); \
+	echo "✓ CSV contains relatedImages section with $$IMAGES_COUNT images"; \
+	if ! grep -A 30 "relatedImages:" "$$CSV_FILE" | grep -q "ptp-must-gather"; then \
+		echo "ERROR: Must-gather image not found in relatedImages"; \
+		exit 1; \
+	fi; \
+	echo "✓ Must-gather image found in relatedImages"; \
+	echo "CSV validation passed - operator images will be mirrored correctly"
+
+test-must-gather-mirroring:
+	@echo "Running must-gather image mirroring integration test (requires podman, opm, oc-mirror)..."
+	@echo "Checking required tools..."
+	@command -v podman >/dev/null 2>&1 || { echo "ERROR: podman is required but not installed"; exit 1; }
+	@command -v opm >/dev/null 2>&1 || { echo "ERROR: opm is required but not installed"; exit 1; }
+	@command -v oc-mirror >/dev/null 2>&1 || { echo "ERROR: oc-mirror is required but not installed"; exit 1; }
+	@command -v curl >/dev/null 2>&1 || { echo "ERROR: curl is required but not installed"; exit 1; }
+	@echo "All required tools available"
+	@cd bundle/tests && bash test_must_gather_mirroring.sh
+
 buildtest:
 	PATH=${PATH}:${GOBIN} ginkgo build ./test/conformance
 	cp ./test/conformance/conformance.test ./bin/testptp
