@@ -12,7 +12,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -1466,11 +1465,11 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 			/*
 				Step | Action
 				1    | Check starting stability (ClockClass 6, locked)
-				2    | Start continuous coldboot
+				2    | Disable GNSS
 				3	 | Wait for DPLL state = 3 (Holdover)
 				3    | Wait for ClockClass 7 (in-spec holdover)
 				4    | Check clock state = 2 (Holdover)
-				5    | Stop coldboot
+				5    | Enable GNSS
 				6    | Wait a little (for GNSS to recover)
 				7    | Wait for ClockClass 6 again
 				8    | Confirm clock state = 1 for T-GM (Locked)
@@ -1483,10 +1482,8 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					// Initially system should be LOCKED (ClockClass 6)
 					checkClockClassState(fullConfig, strconv.Itoa(int(fbprotocol.ClockClass6)))
 
-					stopChan := make(chan struct{})
-
-					// Start coldboot in background
-					go coldBootInBackground(stopChan, fullConfig)
+					// Disable GNSS
+					disableGNSSViaSignalRequirements(fullConfig)
 
 					// Meanwhile, wait for ClockClass 7 (GNSS loss - Holdover In Spec)
 					waitForClockClass(fullConfig, strconv.Itoa(int(fbprotocol.ClockClass7)))
@@ -1497,8 +1494,8 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					// Also verify ClockState (Holdover) for DPLL
 					checkClockStateForProcess(fullConfig, "dpll", "2")
 
-					// Once holdover detected, stop coldboot loop
-					close(stopChan)
+					// Once holdover detected, enable GNSS
+					enableGNSSViaSignalRequirements(fullConfig)
 
 					// Give GNSS time to fully recover
 					time.Sleep(pkg.Timeout10Seconds)
@@ -1643,19 +1640,13 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				subs, cleanup := event.SubscribeToGMChangeEvents(incomingEventsBuffer, true, 60*time.Second)
 				defer cleanup()
 
-				// Start cold boot in background; will be stopped via stop1
-				stop := make(chan struct{})
-				var once sync.Once
-				safeClose := func() { once.Do(func() { close(stop) }) }
-				defer safeClose()
-
 				// Start log monitor once
 				term, err := event.MonitorPodLogsRegex()
 				defer func() { stopMonitor(term) }()
 				Expect(err).ToNot(HaveOccurred(), "could not start listening to events")
-				By("Starting cold boot in background")
-				go coldBootInBackground(stop, fullConfig)
-				time.Sleep(2 * time.Second) // Allow some time for cold boot to start
+
+				By("Disabling GNSS")
+				disableGNSSViaSignalRequirements(fullConfig)
 
 				// now use subs.GNSS, subs.CC, subs.LS
 				events := getGMEvents(subs.GNSS, subs.CLOCKCLASS, subs.LOCKSTATE, 10*time.Second)
@@ -1669,9 +1660,11 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				By("Verifying PTP state Holdover")
 				verifyEvent(events[ptpEvent.PtpStateChange], ptpEvent.HOLDOVER)
 				stopMonitor(term)
-				// Stop phase 1 collection / cold boot
-				By("Stopping cold boot")
-				safeClose()
+
+				// Stop phase 1 collection / enable GNSS
+				By("Enabling GNSS")
+				enableGNSSViaSignalRequirements(fullConfig)
+
 				//Phase 2 verify GNSS recovery events
 				term2, err2 := event.MonitorPodLogsRegex()
 				defer func() { stopMonitor(term2) }()
@@ -2331,23 +2324,23 @@ func checkPTPNMEAStatus(fullConfig testconfig.TestConfig, expectedState string) 
 	}, pkg.TimeoutIn3Minutes, 5*time.Second).Should(BeTrue(), fmt.Sprintf("Expected ts2phc NMEA state to be %s for GM", expectedState))
 }
 
-func coldBootInBackground(stopChan chan struct{}, fullConfig testconfig.TestConfig) {
-	for {
-		select {
-		case <-stopChan:
-			fmt.Fprintf(GinkgoWriter, "Stopping coldboot loop\n")
-			return
-		default:
-			// Send coldboot
-			_, _, err := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod,
-				pkg.PtpContainerName, []string{"ubxtool", "-P", "29.20", "-p", "COLDBOOT", "-v", "3"})
-			if err != nil {
-				fmt.Fprintf(GinkgoWriter, "Error running coldboot: %v\n", err)
-			} else {
-				fmt.Fprintf(GinkgoWriter, "Coldboot sent\n")
-			}
-			time.Sleep(2 * time.Second) // Keep hammering every 2 sec
-		}
+func disableGNSSViaSignalRequirements(fullConfig testconfig.TestConfig) {
+	_, _, err := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod,
+		pkg.PtpContainerName, []string{"ubxtool", "-P", "29.25", "-w", "1", "-v", "3", "-z", "CFG-NAVSPG-INFIL_NCNOTHRS,50,1"})
+	if err != nil {
+		fmt.Fprintf(GinkgoWriter, "Error disabling GNSS: %v\n", err)
+	} else {
+		fmt.Fprintf(GinkgoWriter, "GNSS disabled\n")
+	}
+}
+
+func enableGNSSViaSignalRequirements(fullConfig testconfig.TestConfig) {
+	_, _, err := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod,
+		pkg.PtpContainerName, []string{"ubxtool", "-P", "29.25", "-w", "1", "-v", "3", "-z", "CFG-NAVSPG-INFIL_NCNOTHRS,0,1"})
+	if err != nil {
+		fmt.Fprintf(GinkgoWriter, "Error enabling GNSS: %v\n", err)
+	} else {
+		fmt.Fprintf(GinkgoWriter, "GNSS enabled\n")
 	}
 }
 
