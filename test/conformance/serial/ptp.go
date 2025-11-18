@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -1558,6 +1559,8 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 				// Start continuous ts2phc killing in background
 				go killTs2phcInBackground(stopChan, fullConfig)
+				closeTs2phcStopChan := sync.OnceFunc(func() { close(stopChan) })
+				DeferCleanup(closeTs2phcStopChan)
 
 				// Phase 1: Wait for FREERUN and Clock Class 248 after continuous ts2phc kills
 				By("Waiting for FREERUN and ClockClass 248 after continuous ts2phc kills")
@@ -1565,12 +1568,12 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				waitForStateAndCC(subs, ptpEvent.FREERUN, 248, 90*time.Second, true)
 
 				// Once FREERUN/holdover detected, stop continuous killing
-				close(stopChan)
+				closeTs2phcStopChan()
 
 				// Phase 2: Re-subscribe with initial snapshot to handle recovery to LOCKED/CC=6
 				const buf2 = 100
 				subs2, cleanup2 := event.SubscribeToGMChangeEvents(buf2, true, 60*time.Second)
-				defer cleanup2()
+				DeferCleanup(cleanup2)
 				By("Waiting for LOCKED and ClockClass 6 after recovery")
 				waitForStateAndCC(subs2, ptpEvent.LOCKED, 6, 90*time.Second, false)
 
@@ -2352,10 +2355,10 @@ func killTs2phcInBackground(stopChan chan struct{}, fullConfig testconfig.TestCo
 			return
 		default:
 			// Kill ts2phc
-			_, _, err := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod,
-				pkg.PtpContainerName, []string{"sh", "-c", "pkill -TERM ts2phc || true"})
+			_, stderr, err := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod,
+				pkg.PtpContainerName, []string{"sh", "-c", "pkill -TERM ts2phc"})
 			if err != nil {
-				fmt.Fprintf(GinkgoWriter, "Error killing ts2phc: %v\n", err)
+				fmt.Fprintf(GinkgoWriter, "Error killing ts2phc: %v stdout '%s'\n", err, stderr.String())
 			} else {
 				fmt.Fprintf(GinkgoWriter, "ts2phc killed\n")
 			}
