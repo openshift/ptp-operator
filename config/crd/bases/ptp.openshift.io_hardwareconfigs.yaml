@@ -218,9 +218,8 @@ spec:
                                   type: array
                                 sourceType:
                                   description: |-
-                                    SourceType identifies the source type. Valid values: "ptpTimeReceiver", "gnss"
+                                    SourceType identifies the source type. Valid values: "ptpTimeReceiver", "gnss", "dpllPhaseLocked"
                                     If sourceType is ptpTimeReceiver, ptpTimeReceivers must be specified.
-                                    In all cases, boardLabel must be specified.
                                   type: string
                                 subsystem:
                                   description: |-
@@ -228,7 +227,6 @@ spec:
                                     The subsystem's network interface will be used to derive the clock ID.
                                   type: string
                               required:
-                              - boardLabel
                               - name
                               - sourceType
                               - subsystem
