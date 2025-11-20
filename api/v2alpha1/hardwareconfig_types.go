@@ -106,13 +106,12 @@ type SourceConfig struct {
 	// The subsystem's network interface will be used to derive the clock ID.
 	Subsystem string `json:"subsystem" yaml:"subsystem"`
 
-	// SourceType identifies the source type. Valid values: "ptpTimeReceiver", "gnss"
+	// SourceType identifies the source type. Valid values: "ptpTimeReceiver", "gnss", "dpllPhaseLocked"
 	// If sourceType is ptpTimeReceiver, ptpTimeReceivers must be specified.
-	// In all cases, boardLabel must be specified.
 	SourceType string `json:"sourceType" yaml:"sourceType"`
 
 	// BoardLabel and subsystem together unambiguously identify the subsystem and the DPLL pin receiving the source
-	BoardLabel string `json:"boardLabel" yaml:"boardLabel"`
+	BoardLabel string `json:"boardLabel,omitempty" yaml:"boardLabel,omitempty"`
 
 	// PTPTimeReceivers are ports configured to act as PTP time receivers
 	// (required if the sourceType is set to 'ptpTimeReceiver')
