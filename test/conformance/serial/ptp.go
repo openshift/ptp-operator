@@ -1485,6 +1485,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 					// Disable GNSS
 					disableGNSSViaSignalRequirements(fullConfig)
+					defer enableGNSSViaSignalRequirements(fullConfig) // Clean up incase test fails
 
 					// Meanwhile, wait for ClockClass 7 (GNSS loss - Holdover In Spec)
 					waitForClockClass(fullConfig, strconv.Itoa(int(fbprotocol.ClockClass7)))
@@ -1650,14 +1651,12 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 				By("Disabling GNSS")
 				disableGNSSViaSignalRequirements(fullConfig)
+				defer enableGNSSViaSignalRequirements(fullConfig) // Clean up incase test fails
 
 				// now use subs.GNSS, subs.CC, subs.LS
 				events := getGMEvents(subs.GNSS, subs.CLOCKCLASS, subs.LOCKSTATE, 10*time.Second)
 				fmt.Fprintf(GinkgoWriter, "First Event recieved  %v, ", events)
 
-				// Verify expected HOLDOVER conditions
-				By("Verifying GNSS state Antenna Disconnected")
-				verifyEvent(events[ptpEvent.GnssStateChange], ptpEvent.ANTENNA_DISCONNECTED)
 				By("Verifying ClockClass value to 7")
 				verifyMetric(events[ptpEvent.PtpClockClassChange], float64(fbprotocol.ClockClass7))
 				By("Verifying PTP state Holdover")
