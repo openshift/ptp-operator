@@ -217,6 +217,10 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 
 	data := render.MakeRenderData()
 	data.Data["Image"] = os.Getenv("LINUXPTP_DAEMON_IMAGE")
+	data.Data["ImagePullPolicy"] = "IfNotPresent"
+	if overridePolicy, ok := os.LookupEnv("IMAGE_PULL_POLICY"); ok {
+		data.Data["ImagePullPolicy"] = overridePolicy
+	}
 	data.Data["Namespace"] = names.Namespace
 	data.Data["ReleaseVersion"] = os.Getenv("RELEASEVERSION")
 	data.Data["KubeRbacProxy"] = os.Getenv("KUBE_RBAC_PROXY_IMAGE")
