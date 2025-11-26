@@ -78,6 +78,7 @@ metadata:
     olm.skipRange: ">=4.3.0-0 <4.21.0"
     operatorframework.io/suggested-namespace: openshift-ptp
     operators.openshift.io/infrastructure-features: '["disconnected"]'
+    operators.openshift.io/must-gather-image: quay.io/openshift/origin-ptp-operator-must-gather:4.21
     operators.operatorframework.io/builder: operator-sdk-v1.36.1-ocp
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     provider: Red Hat
@@ -422,7 +423,7 @@ spec:
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.name
-                image: ghcr.io/k8snetworkplumbingwg/ptp-operator:4.21
+                image: quay.io/openshift/origin-ptp-operator:4.21
                 imagePullPolicy: IfNotPresent
                 name: ptp-operator
                 ports:
