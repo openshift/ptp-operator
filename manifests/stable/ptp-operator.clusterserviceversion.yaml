@@ -61,7 +61,7 @@ metadata:
     categories: Networking
     certified: "false"
     containerImage: quay.io/openshift/origin-ptp-operator:4.21
-    createdAt: "2025-09-10"
+    createdAt: "2025-11-20T09:31:49Z"
     description: This software enables configuration of Precision Time Protocol(PTP)
       on Kubernetes. It detects hardware capable PTP devices on each node, and configures
       linuxptp processes such as ptp4l, phc2sys and timemaster.
@@ -79,7 +79,7 @@ metadata:
     operatorframework.io/suggested-namespace: openshift-ptp
     operators.openshift.io/infrastructure-features: '["disconnected"]'
     operators.openshift.io/must-gather-image: quay.io/openshift/origin-ptp-operator-must-gather:4.21
-    operators.operatorframework.io/builder: operator-sdk-v1.22.0-ocp
+    operators.operatorframework.io/builder: operator-sdk-v1.36.1-ocp
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
     provider: Red Hat
     repository: https://github.com/k8snetworkplumbingwg/ptp-operator
@@ -90,6 +90,9 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
+    - kind: HardwareConfig
+      name: hardwareconfigs.ptp.openshift.io
+      version: v2alpha1
     - description: NodePtpDevice is the Schema for the nodeptpdevices API
       displayName: Node Ptp Device
       kind: NodePtpDevice
@@ -105,10 +108,10 @@ spec:
       kind: PtpOperatorConfig
       name: ptpoperatorconfigs.ptp.openshift.io
       specDescriptors:
-      - description: 'ApiVersion is used to determine which API is used for the event
-          service 1.0: default version. event service is mapped to internal REST-API.
-          2.x: event service is mapped to O-RAN v3.0 Compliant O-Cloud Notification
-          REST-API.'
+      - description: |-
+          ApiVersion is used to determine which API is used for the event service
+          1.0: default version. event service is mapped to internal REST-API.
+          2.x: event service is mapped to O-RAN v3.0 Compliant O-Cloud Notification REST-API.
         displayName: ApiVersion
         path: ptpEventConfig.apiVersion
         x-descriptors:
@@ -118,8 +121,9 @@ spec:
         path: ptpEventConfig.storageType
         x-descriptors:
         - urn:alm:descriptor:com.tectonic.ui:text
-      - description: 'TransportHost format is <protocol>://<transport-service>.<namespace>.svc.cluster.local:<transport-port>
-          Example HTTP transport: "http://ptp-event-publisher-service-NODE_NAME.openshift-ptp.svc.cluster.local:9043"'
+      - description: |-
+          TransportHost format is <protocol>://<transport-service>.<namespace>.svc.cluster.local:<transport-port>
+          Example HTTP transport: "http://ptp-event-publisher-service-NODE_NAME.openshift-ptp.svc.cluster.local:9043"
         displayName: Transport Host
         path: ptpEventConfig.transportHost
         x-descriptors:
@@ -297,6 +301,32 @@ spec:
           - patch
           - update
           - watch
+        - apiGroups:
+          - ptp.openshift.io
+          resources:
+          - hardwareconfigs
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
+        - apiGroups:
+          - ptp.openshift.io
+          resources:
+          - hardwareconfigs/finalizers
+          verbs:
+          - update
+        - apiGroups:
+          - ptp.openshift.io
+          resources:
+          - hardwareconfigs/status
+          verbs:
+          - get
+          - patch
+          - update
         - apiGroups:
           - ptp.openshift.io
           resources:

@@ -3,6 +3,19 @@ set -x
 set -euo pipefail
 VM_IP=$1
 
+# Detect platform architecture and set PCI address prefix
+ARCH=$(uname -m)
+if [[ "$ARCH" == "x86_64" ]]; then
+    PCI_PREFIX="0000:1f"
+elif [[ "$ARCH" == "aarch64" ]]; then
+    PCI_PREFIX="0001:1f"
+else
+    echo "Unsupported architecture: $ARCH"
+    exit 1
+fi
+
+echo "Detected architecture: $ARCH, using PCI prefix: $PCI_PREFIX"
+
 # Create openvswitch container
 podman run -d --privileged --volume /dev:/dev --replace --pull always --name switch1 "$VM_IP"/test:openvswitch
 
@@ -15,25 +28,25 @@ podman exec switch1 yum install iputils iproute ptp4l ethtool ps -y
 
 # TODO: netdevsim needs to implement real PCI address, right now we are reusing the address of existing devices
 # Server 1 nic 1
-./configpair.sh 1 2 ens1f0 1 0 kind-netdevsim-worker switch1 0000:00:01.0 0000:00:01.0
-./configpair.sh 3 4 ens1f1 1 0 kind-netdevsim-worker switch1 0000:00:01.0 0000:00:02.0
+./configpair.sh 1 2 ens1f0 1 0 kind-netdevsim-worker switch1 ${PCI_PREFIX}:01.0 ${PCI_PREFIX}:07.0
+./configpair.sh 3 4 ens1f1 1 0 kind-netdevsim-worker switch1 ${PCI_PREFIX}:01.1 ${PCI_PREFIX}:08.0
 
 # Server 1 nic 2
-./configpair.sh 5 6 ens2f0 2 0 kind-netdevsim-worker switch1 0000:00:03.0 0000:00:03.0
-./configpair.sh 7 8 ens2f1 2 0 kind-netdevsim-worker switch1 0000:00:03.0 0000:00:04.0
+./configpair.sh 5 6 ens2f0 2 0 kind-netdevsim-worker switch1 ${PCI_PREFIX}:02.0 ${PCI_PREFIX}:09.0
+./configpair.sh 7 8 ens2f1 2 0 kind-netdevsim-worker switch1 ${PCI_PREFIX}:02.1 ${PCI_PREFIX}:0a.0
 
 # Server 2 nic 1
-./configpair.sh 9 10 ens3f0 3 0 kind-netdevsim-worker2 switch1 0000:00:01.0 0000:00:05.0
-./configpair.sh 11 12 ens3f1 3 0 kind-netdevsim-worker2 switch1 0000:00:01.0 0000:00:06.0
+./configpair.sh 9 10 ens3f0 3 0 kind-netdevsim-worker2 switch1 ${PCI_PREFIX}:03.0 ${PCI_PREFIX}:0b.0
+./configpair.sh 11 12 ens3f1 3 0 kind-netdevsim-worker2 switch1 ${PCI_PREFIX}:03.1 ${PCI_PREFIX}:0c.0
 
 # Server 3 nic 1
-./configpair.sh 13 14 ens4f0 4 0 kind-netdevsim-worker3 switch1 0000:00:01.0 0000:00:07.0
+./configpair.sh 13 14 ens4f0 4 0 kind-netdevsim-worker3 switch1 ${PCI_PREFIX}:04.0 ${PCI_PREFIX}:0d.0
 
 # Server 3 nic 2
-./configpair.sh 15 16 ens5f0 5 0 kind-netdevsim-worker3 switch1 0000:00:03.0 0000:00:08.0
+./configpair.sh 15 16 ens5f0 5 0 kind-netdevsim-worker3 switch1 ${PCI_PREFIX}:05.0 ${PCI_PREFIX}:0e.0
 
 # Server 3 nic 3
-./configpair.sh 17 18 ens6f0 6 0 kind-netdevsim-worker3 switch1 0000:00:04.0 0000:00:09.0
+./configpair.sh 17 18 ens6f0 6 0 kind-netdevsim-worker3 switch1 ${PCI_PREFIX}:06.0 ${PCI_PREFIX}:0f.0
 
 # start openvswitch service
 $(podman exec switch1 systemctl enable --now openvswitch)|| {

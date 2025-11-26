@@ -19,8 +19,11 @@ To run the conformance tests, first set the following environment variables:
 - **ENABLE_PTP_EVENT**: enable event based tests.
 - **EVENT_API_VERSION**: passes the default REST-API version for the event based tests. Set this to "2.0" for 4.16+ PUT, "1.0" for 4.15 and earlier. If this is not set, default value "2.0" is used.
 - **ENABLE_V1_REGRESSION**: enable V1 regression for event based tests. For 4.16 and 4.17, event based tests will be repeated the second time with v1 REST-API. These tests are marked with "v1 regression".
-- **EXTERNAL_GM**: enables external grandmaster scenarios 
+- **EXTERNAL_GM**: enables external grandmaster scenarios
 - **PTP_TEST_CONFIG_FILE**: configuration file to set for instance min/max offsets in ptpconfig. Example is at[link](test/conformance/config/ptptestconfig.yaml)
+- **COLLECT_POD_LOGS**: enable automatic collection of raw container logs during test execution (default: false). See [Pod Log Collection](#pod-log-collection) section for details.
+- **LOG_ARTIFACTS_DIR**: directory where log files are stored (default: /tmp/ptp-logs)
+- **LOG_TEST_MARKERS**: enable test boundary markers in log files (default: false)
 
 Then run the following command:
 ```
@@ -44,6 +47,48 @@ for example:
 ```
 docker run -e PTP_TEST_MODE=OC -e ENABLE_TEST_CASE=reboot -v /home/usr/.kube/config.3nodes:/tmp/config:Z -v .:/output:Z quay.io/redhat-cne/ptp-operator-test:latest
 ```
+
+## Pod Log Collection
+
+The test suite can automatically collect raw container logs from `ptp-operator`, `linuxptp-daemon-container`, and `cloud-event-proxy` containers during test execution. Logs are continuously streamed and captured even when pods restart or are deleted.
+
+### Configuration
+
+- **COLLECT_POD_LOGS**: Set to `true` to enable log collection (default: `false`)
+- **LOG_ARTIFACTS_DIR**: Directory where logs are stored (default: `/tmp/ptp-logs`)
+- **LOG_TEST_MARKERS**: Set to `true` to add test boundary markers in log files (default: `false`)
+
+### Log File Structure
+
+Logs are organized by test suite (serial/parallel) in separate directories:
+```
+<LOG_ARTIFACTS_DIR>/
+├── serial/
+│   ├── serial_ptp-operator-<hash>_ptp-operator.log
+│   ├── serial_linuxptp-daemon-<node>_linuxptp-daemon-container.log
+│   └── serial_linuxptp-daemon-<node>_cloud-event-proxy.log
+└── parallel/
+    └── parallel_ptp-operator-<hash>_ptp-operator.log
+```
+
+Each `linuxptp-daemon` pod gets separate log files per container.
+
+### Usage
+
+**Basic usage:**
+```bash
+export COLLECT_POD_LOGS=true
+make functests
+```
+
+**With test markers:**
+```bash
+export COLLECT_POD_LOGS=true
+export LOG_TEST_MARKERS=true
+make functests
+```
+
+When markers are enabled, log files include formatted timestamps and markers to indicate test suite boundaries, individual test start/end, and pod restart events.
 
 ## Run SOAK test
 
@@ -257,7 +302,7 @@ The OC configurations includes a grandmaster providing a clock signal to a slave
 
 ![multi_oc](doc/multi_oc.svg)
 
-#### Dual Follower 
+#### Dual Follower
 The Dual Follower configuration includes a grand master providing a clock signal to 2 port belonging to the same NIC. One port is in LISTENING state while the other is in SLAVE state. If the SLAVE port looses the grandmaster signal, the LISTENING port transitions to SLAVE.
 When running the test in a cluster with a least 2 nodes and one lan connecting a port to 2 remote ports on the same NIC, the following local GM configuration could be resolved for testing:
 
@@ -287,6 +332,18 @@ In the optimal scenario, the openshift cluster needs to be at least connected to
 If only one LAN is available, the following configuration is tested. In this case, the synchronization of the slave ordinary clocks cannot be tested
 
 ![multi_dnbc](doc/multi_dnbc.svg)
+
+#### DualNICBC HA
+
+This mode allows same scenarios as DualNIC BC and will run all of its test cases, but it will create three PtpConfig resources: two for the BCs, with ptp4l config only, and [a third one with just phc2sys config](../README.md#ptpconfig-to-enable-high-availability-for-phc2sys-by-adding-profiles-of-ptp4l-enabled-configs-under-haprofiles) using the ptp4l profiles as HA profiles. Thus, if the primary slave interface/link for the primary BC fails, phc2sys will switch to the secondary BC slave interface as time source for the system clock. In this case, apart from syncing the system clock, the secondary BC's PHC will also sync the primary BC's PHC while its slave interface is down.
+
+##### Both BCs are syncing their PHCs, but primary BC is selected to sync the system clock
+
+![dualnicbc-ha-primary-bc-selected](doc/dualnic-bc-ha-primary-bc-selected.svg)
+
+##### Primary BC is down: system clock and both PHCs are synced by the slave interface of the secondary BC.
+
+![dualnicbc-ha-primary-bc-selected](doc/dualnic-bc-ha-secondary-bc-selected.svg)
 
 #### External Grandmaster support
 
@@ -426,12 +483,12 @@ each step in the algorithm means:
 note: parameter0 ... parameterN are integers representing an interface. 0 means p0, 1 means p1, etc...
 
 
-# Running PTP tests on amazon EC2
+# Running PTP tests on amazon EC2 or local VM
 ## Using netdevsim framework to simulate PHC
 Existing netdevsim framework defines simulated clocks (not truly functional), supports virtual interfaces capable of transmitting frames. See: [link](https://developers.redhat.com/blog/2018/10/22/introduction-to-linux-interfaces-for-virtual-networking?source=sso#netdevsim)
-Maciek Machnikowski(Nvidia)/Milena Olech (intel) video describes a simple netdevsim kernel patch to add real simulated clocks (phc_mock) to simulate ptp: [link]( https://www.youtube.com/watch?v=txgekOBen6c) 
+Maciek Machnikowski(Nvidia)/Milena Olech (intel) video describes a simple netdevsim kernel patch to add real simulated clocks (phc_mock) to simulate ptp: [link]( https://www.youtube.com/watch?v=txgekOBen6c)
 We are extending the initial idea to be able to test ptp-operator scenarios which would otherwise require real hardware:
-- added support for pci ID reporting: enable defining NICs with multiple ports 
+- added support for pci ID reporting: enable defining NICs with multiple ports
 - added support for one PHC per NIC instead of 1 PHC per port
 - integration into test network
 Future work for netdevsim:
@@ -444,7 +501,7 @@ We created a VM with the modifications specified above and optimized to run in A
 ![switch](doc/ptp-ci-aws-switch.svg)
 Netdevsim defines interface pairs connected by a virtual link
 openvswitch used to simulate a real switch
-- ptp4l is configured as a boundary clock 
+- ptp4l is configured as a boundary clock
 - ptp packets are dropped by the switch
 ptp4l boundary clock used to bridge ptp information:
 - note: in this implementation ptp packets cannot be switched since they do not have timestamps (ptp packets should not be switched anyways). Timestamps are passed directly from the local port’s phc to the remote port.
@@ -458,13 +515,13 @@ The following diagram shows an example of configuration that can be created in t
 ## Scripts documentation
 - `configpair.sh`: creates a 2 netdevsim interfaces and connected via a virtual link
 ```
-  ./configpair.sh < port1 netdevsim ID (unique)> <port 2 netdevsim ID (unique)> <name of the interface on both side of the link (ptp1)> 
+  ./configpair.sh < port1 netdevsim ID (unique)> <port 2 netdevsim ID (unique)> <name of the interface on both side of the link (ptp1)>
 # <port1 ptp clock ID A (/dev/ptpA)> < port2 ptp clock ID B (/dev/ptpB)> <port1 container name > <port2 container name> <port1 pci ID> <port2 pci ID>
 ```
 - `deploy-prometheus.sh`: Deploys prometheus
 - `kind-config.yaml`: reference kind cluster configuration
 - `reset-devices.sh`: loads netdevsim and openvswitch kernel drivers
-- `run-on-vm.sh`: top level script called by the github action to run CI tests
+- `run-on-vm.sh`: top level script called by the github action to run CI tests.  Can also be used on local VM with netdevsim to run tests locally.
 ```
 run-ci-github.sh <EC2 private VM IP >
 ```
@@ -477,11 +534,11 @@ run-ci-github.sh <EC2 private VM IP >
 ./retry.sh <timeout> <interval> <command>
 ```
 - `create-local-registry.sh`: creare local docker registry
-- `k8s-start.sh`: starts the kind cluster            
+- `k8s-start.sh`: starts the kind cluster
 - `ptpswitchconfig.cfg`: ptp4l configuration for the Openvswitch switch1
 - `run-ci-github.sh`: Runs all PTP tests (sync tests only for now)
 
-## ptp-tools 
+## ptp-tools
 The ptp-tools list a set set a make targets to build all images required to run the ptp-operator
 
 To build all images (ptp-operator, linuxptp-daemon, kube-rbac-proxy, cloud-event-proxy) in a single personal repository. First create a repository in quay.io or another registry the same repository will be used to store all various debug images. The tag part of the image url indicates the image type.
@@ -491,7 +548,7 @@ The command uses a single quay.io repository ans stores the different images as 
 - `cep` tag: cloud-event-proxy
 - `ptpop` tag: ptp-operator
 - `lptpd` tag: linuxptp-daemon
-- `krp` tag: kube-rbac-proxy  
+- `krp` tag: kube-rbac-proxy
 
 
 ```
