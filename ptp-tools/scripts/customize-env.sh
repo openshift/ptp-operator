@@ -13,6 +13,7 @@ spec:
     spec:
       containers:
         - name: ptp-operator
+          imagePullPolicy: Always
           env:
             - name: OPERATOR_NAME
               value: "ptp-operator"
@@ -24,6 +25,6 @@ spec:
               value: "$IMG_PREFIX:krp"
             - name: SIDECAR_EVENT_IMAGE
               value: "$IMG_PREFIX:cep"
+            - name: IMAGE_PULL_POLICY
+              value: "Always"
 EOF
-
-sed -i 's/IfNotPresent/Always/g' $ENV_PATH/manager.yaml
