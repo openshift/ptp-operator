@@ -182,6 +182,7 @@ const (
 
 type ptpDiscoveryRes ptpv1.PtpConfig
 
+// BasePtp4lConfig is the base ptp4l configuration template
 const BasePtp4lConfig = `[global]
 #
 # Default Data Set
@@ -277,6 +278,41 @@ manufacturerIdentity 00:00:00
 userDescription ;
 timeSource 0xA0
 `
+
+// GetPtp4lConfigWithAuth returns the base config with optional auth settings
+// When auth is enabled:
+// - [global] gets sa_file + spp -1 (auth disabled by default, including UDS sockets)
+// - Per-interface sections should get spp + active_key_id via AddInterfaceWithAuth()
+func GetPtp4lConfigWithAuth(baseConfig string) string {
+	authEnabled := os.Getenv("PTP_AUTH_ENABLED")
+	if authEnabled == "true" {
+		// Add auth settings to [global] section
+		// spp -1 disables auth by default (allows phc2sys/pmc to use UDS without auth)
+		// Per-interface auth is added via AddInterfaceWithAuth()
+		authSettings := `sa_file /etc/ptp-secret-mount/ptp-security-conf/ptp-security.conf
+spp -1
+`
+		// Insert auth settings after the [global] line
+		lines := strings.Split(baseConfig, "\n")
+		result := []string{}
+		for i, line := range lines {
+			result = append(result, line)
+			// After [global] line and comments, insert auth
+			if line == "[global]" && i+3 < len(lines) {
+				// Skip comment lines, insert before twoStepFlag
+				result = append(result, authSettings)
+			}
+		}
+		return strings.Join(result, "\n")
+	}
+	return baseConfig
+}
+
+// IsAuthEnabled returns true if PTP_AUTH_ENABLED environment variable is set to "true"
+func IsAuthEnabled() bool {
+	return os.Getenv("PTP_AUTH_ENABLED") == "true"
+}
+
 const BaseTs2PhcConfig = `[nmea]
 ts2phc.master 1
 [global]
@@ -733,8 +769,9 @@ func CreatePtpConfigGrandMaster(nodeName, ifName string) error {
 		logrus.Errorf("Error setting Grandmaster node role label: %s", err)
 	}
 
-	// Grandmaster
-	gmConfig := BasePtp4lConfig + "\nmasterOnly 1\npriority1 0\npriority2 0\nclockClass 6\n"
+	// Grandmaster - add interface section with auth settings
+	gmConfig := GetPtp4lConfigWithAuth(BasePtp4lConfig) + "\npriority1 0\npriority2 0\nclockClass 6"
+	gmConfig = AddAuthSettings(AddInterface(gmConfig, ifName, 1))
 	ptp4lsysOpts := ptp4lEthernet
 	phc2sysOpts := phc2sysGM
 	return createConfig(pkg.PtpGrandMasterPolicyName,
@@ -764,9 +801,9 @@ func CreatePtpConfigWPCGrandMaster(policyName string, nodeName string, ifList []
 
 	ts2phcConfig := BaseTs2PhcConfig + fmt.Sprintf("\nts2phc.nmea_serialport  /dev/%s\n", deviceID)
 	ts2phcConfig = fmt.Sprintf("%s\n[%s]\nts2phc.extts_polarity rising\nts2phc.extts_correction 0\n", ts2phcConfig, ifList[0])
-	ptp4lConfig := BasePtp4lConfig + "boundary_clock_jbod 1\n"
-	ptp4lConfig = AddInterface(ptp4lConfig, ifList[0], 1)
-	ptp4lConfig = AddInterface(ptp4lConfig, ifList[1], 1)
+	ptp4lConfig := GetPtp4lConfigWithAuth(BasePtp4lConfig) + "boundary_clock_jbod 1\n"
+	ptp4lConfig = AddAuthSettings(AddInterface(ptp4lConfig, ifList[0], 1))
+	ptp4lConfig = AddAuthSettings(AddInterface(ptp4lConfig, ifList[1], 1))
 	ptp4lsysOpts := ptp4lEthernet
 	ts2phcOpts := " "
 	ph2sysOpts := fmt.Sprintf("-r -u 0 -m -N 8 -R 16 -s %s -n 24", ifList[0])
@@ -893,9 +930,9 @@ func CreatePtpConfigBC(policyName, nodeName, ifMasterName, ifSlaveName string, p
 		logrus.Errorf("Error setting BC node role label: %s", err)
 	}
 
-	bcConfig := BasePtp4lConfig + "\nboundary_clock_jbod 1\ngmCapable 0"
-	bcConfig = AddInterface(bcConfig, ifSlaveName, 0)
-	bcConfig = AddInterface(bcConfig, ifMasterName, 1)
+	bcConfig := GetPtp4lConfigWithAuth(BasePtp4lConfig) + "\nboundary_clock_jbod 1\ngmCapable 0"
+	bcConfig = AddAuthSettings(AddInterface(bcConfig, ifSlaveName, 0))
+	bcConfig = AddAuthSettings(AddInterface(bcConfig, ifMasterName, 1))
 	ptp4lsysOpts := ptp4lEthernet
 
 	var phc2sysOpts *string
@@ -937,10 +974,13 @@ func CreatePtpConfigOC(profileName, nodeName, ifSlaveName string, phc2sys bool, 
 		phc2sysOpts = nil
 	}
 
+	// Slave OC - add interface section with auth settings
+	slaveConfig := GetPtp4lConfigWithAuth(BasePtp4lConfig)
+	slaveConfig = AddAuthSettings(AddInterface(slaveConfig, ifSlaveName, 0))
 	return createConfig(profileName,
 		&ifSlaveName,
 		&ptp4lsysOpts,
-		BasePtp4lConfig,
+		slaveConfig,
 		phc2sysOpts,
 		label,
 		pointer.Int64Ptr(int5),
@@ -969,7 +1009,9 @@ func CreatePtpConfigDualFollower(profileName, nodeName, ifSlave1Name, ifSlave2Na
 		phc2sysOpts = nil
 	}
 
-	ptp4lDualFollowerConfig := BasePtp4lConfig + "\nslaveOnly 1\n[" + ifSlave1Name + "]\nmasterOnly 0\n" + "\n[" + ifSlave2Name + "]\nmasterOnly 0\n"
+	ptp4lDualFollowerConfig := GetPtp4lConfigWithAuth(BasePtp4lConfig) + "\nslaveOnly 1"
+	ptp4lDualFollowerConfig = AddAuthSettings(AddInterface(ptp4lDualFollowerConfig, ifSlave1Name, 0))
+	ptp4lDualFollowerConfig = AddAuthSettings(AddInterface(ptp4lDualFollowerConfig, ifSlave2Name, 0))
 
 	return createConfig(profileName,
 		nil,
@@ -1482,6 +1524,15 @@ func AddInterface(ptpConfig, iface string, masterOnly int) (updatedPtpConfig str
 	return fmt.Sprintf("%s\n[%s]\nmasterOnly %d", ptpConfig, iface, masterOnly)
 }
 
+// AddAuthSettings appends spp and active_key_id to the config if auth is enabled
+// Use this after adding interface sections to add auth settings
+func AddAuthSettings(ptpConfig string) string {
+	if IsAuthEnabled() {
+		return ptpConfig + "\nspp 1\nactive_key_id 1"
+	}
+	return ptpConfig
+}
+
 func createConfigWithTs2PhcAndPlugins(profileName string, ifaceName, ptp4lOpts *string, ptp4lConfig string, ts2phcConfig string, phc2sysOpts *string, nodeLabel string, priority *int64, ptpSchedulingPolicy string, ptpSchedulingPriority *int64, ts2phcOpts *string, plugins map[string]*apiextensions.JSON) error {
 	thresholds := ptpv1.PtpClockThreshold{}
 
@@ -1528,6 +1579,7 @@ func createConfig(profileName string, ifaceName, ptp4lOpts *string, ptp4lConfig 
 
 	ptpProfile := ptpv1.PtpProfile{Name: &profileName, Interface: ifaceName, Phc2sysOpts: phc2sysOpts, Ptp4lOpts: ptp4lOpts, PtpSchedulingPolicy: &ptpSchedulingPolicy, PtpSchedulingPriority: ptpSchedulingPriority,
 		PtpClockThreshold: &thresholds}
+
 	if ptp4lConfig != "" {
 		ptpProfile.Ptp4lConf = &ptp4lConfig
 	}
