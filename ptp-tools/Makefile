@@ -30,7 +30,6 @@ podman-buildall: $(foreach v, $(VALUES), podman-build-$(v))
 
 podman-build-%:
 	@echo "Platform: $(PLATFORM)"
-	sed -i 's/IfNotPresent/Always/g' ../bindata/linuxptp/ptp-daemon.yaml
 	$(MAKE) clean-image VAR=$*;
 	$(MAKE) build-image VAR=$*
 
