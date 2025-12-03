@@ -463,6 +463,16 @@ spec:
         serviceAccountName: linuxptp-daemon
       - rules:
         - apiGroups:
+          - apps
+          resources:
+          - daemonsets
+          verbs:
+          - get
+          - list
+          - watch
+          - update
+          - patch
+        - apiGroups:
           - ""
           resources:
           - configmaps
@@ -493,6 +503,14 @@ spec:
           verbs:
           - create
           - patch
+        - apiGroups:
+          - ""
+          resources:
+          - secrets
+          verbs:
+          - get
+          - list
+          - watch
         serviceAccountName: ptp-operator
     strategy: deployment
   installModes:

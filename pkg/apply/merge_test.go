@@ -2,6 +2,7 @@ package apply
 
 import (
 	"bytes"
+	"context"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -41,7 +42,7 @@ metadata:
     c: upd`)
 
 	// this mutates updated
-	err := MergeObjectForUpdate(cur, upd)
+	err := MergeObjectForUpdate(context.Background(), cur, upd)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	g.Expect(upd.GetLabels()).To(Equal(map[string]string{
@@ -87,7 +88,7 @@ metadata:
     c: upd`)
 
 	// this mutates updated
-	err := MergeObjectForUpdate(cur, upd)
+	err := MergeObjectForUpdate(context.Background(), cur, upd)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	// labels are not merged
@@ -129,7 +130,7 @@ metadata:
     c: upd`)
 
 	// this mutates updated
-	err := MergeObjectForUpdate(cur, upd)
+	err := MergeObjectForUpdate(context.Background(), cur, upd)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	g.Expect(upd.GetLabels()).To(Equal(map[string]string{
@@ -159,7 +160,7 @@ metadata:
   name: d1`)
 
 	// this mutates updated
-	err := MergeObjectForUpdate(cur, upd)
+	err := MergeObjectForUpdate(context.Background(), cur, upd)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	g.Expect(upd.GetLabels()).To(BeEmpty())
@@ -187,7 +188,7 @@ metadata:
   name: d1`)
 
 	// this mutates updated
-	err := MergeObjectForUpdate(cur, upd)
+	err := MergeObjectForUpdate(context.Background(), cur, upd)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	g.Expect(upd.GetLabels()).To(Equal(map[string]string{
@@ -220,7 +221,7 @@ metadata:
 spec:
   clusterIP: upd`)
 
-	err := MergeObjectForUpdate(cur, upd)
+	err := MergeObjectForUpdate(context.Background(), cur, upd)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	ip, _, err := uns.NestedString(upd.Object, "spec", "clusterIP")
@@ -252,7 +253,7 @@ metadata:
 	err := IsObjectSupported(cur)
 	g.Expect(err).To(MatchError(ContainSubstring("cannot create ServiceAccount with secrets")))
 
-	err = MergeObjectForUpdate(cur, upd)
+	err = MergeObjectForUpdate(context.Background(), cur, upd)
 	g.Expect(err).NotTo(HaveOccurred())
 
 	s, ok, err := uns.NestedSlice(upd.Object, "secrets")

@@ -20,6 +20,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+	"time"
+
 	"github.com/go-logr/logr"
 	"github.com/golang/glog"
 	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
@@ -35,16 +42,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
 	kscheme "k8s.io/client-go/kubernetes/scheme"
-	"net/url"
-	"os"
-	"path/filepath"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sort"
-	"strings"
-	"time"
 )
 
 // PtpOperatorConfigReconciler reconciles a PtpOperatorConfig object
@@ -273,6 +274,10 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 		return fmt.Errorf("failed to render linuxptp daemon manifest: %v", err)
 	}
 
+	// Set context to indicate this update is from PtpOperatorConfig controller
+	// This allows the merge logic to preserve security volumes from current DaemonSet
+	ctxWithSource := context.WithValue(ctx, apply.ControllerSourceKey, apply.SourcePtpOperatorConfig)
+
 	for _, obj := range objs {
 		obj, err = r.setDaemonNodeSelector(defaultCfg, obj)
 		if err != nil {
@@ -282,7 +287,7 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 		if err = controllerutil.SetControllerReference(defaultCfg, obj, r.Scheme); err != nil {
 			return fmt.Errorf("failed to set owner reference for daemon: %v", err)
 		}
-		if err = apply.ApplyObject(ctx, r.Client, obj); err != nil {
+		if err = apply.ApplyObject(ctxWithSource, r.Client, obj); err != nil {
 			return fmt.Errorf("failed to apply object %v with err: %v", obj, err)
 		}
 	}
