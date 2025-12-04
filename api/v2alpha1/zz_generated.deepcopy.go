@@ -421,6 +421,11 @@ func (in *HardwareProfile) DeepCopyInto(out *HardwareProfile) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.ClockType != nil {
+		in, out := &in.ClockType, &out.ClockType
+		*out = new(string)
+		**out = **in
+	}
 	if in.ClockChain != nil {
 		in, out := &in.ClockChain, &out.ClockChain
 		*out = new(ClockChain)

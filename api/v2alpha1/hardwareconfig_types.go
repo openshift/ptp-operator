@@ -218,10 +218,11 @@ type Subsystem struct {
 	HardwareSpecificDefinitions string `json:"hardwareSpecificDefinitions,omitempty" yaml:"hardwareSpecificDefinitions,omitempty"`
 
 	// DPLL contains the DPLL configuration for this subsystem
-	DPLL DPLL `json:"dpll" yaml:"dpll"`
+	// When clockType is specified, this can be omitted and will be derived from ptpProfile and vendor defaults.
+	DPLL DPLL `json:"dpll,omitempty" yaml:"dpll,omitempty"`
 
 	// Ethernet defines one or more Ethernet subsystems associated with this synchronization subsystem
-	Ethernet []Ethernet `json:"ethernet" yaml:"ethernet"`
+	Ethernet []Ethernet `json:"ethernet,omitempty" yaml:"ethernet,omitempty"`
 }
 
 // HoldoverParameters defines the combination of the DPLL complex hardware parameters and the holdover specification threshold.
@@ -266,7 +267,8 @@ type DPLL struct {
 type Ethernet struct {
 	// Ports is a list of Ethernet port names associated with this Ethernet subsystem.
 	// The default port, or the port used to address the network adapter configuration through sysfs, is listed first.
-	Ports []string `json:"ports" yaml:"ports"`
+	// When clockType is specified, this can be omitted and will be derived from ptpconfig leading interfaces.
+	Ports []string `json:"ports,omitempty" yaml:"ports,omitempty"`
 }
 
 // PinConfig represents pin configuration for DPLL phase or frequency signals in a dictionary format
@@ -614,6 +616,11 @@ type HardwareConfigList struct {
 type HardwareProfile struct {
 	// Name is the unique identifier for this hardware profile
 	Name *string `json:"name" yaml:"name"`
+	// ClockType specifies the clock mode: "T-BC", "T-GM", or "APTS"
+	// When specified, behavior templates are loaded from vendor defaults based on
+	// each subsystem's hardwareSpecificDefinitions and resolved with user-provided overrides.
+	// If not specified, the behavior section must be explicitly provided in ClockChain.
+	ClockType *string `json:"clockType,omitempty" yaml:"clockType,omitempty"`
 
 	// ClockChain contains the complete clock chain configuration for this profile
 	ClockChain *ClockChain `json:"clockChain" yaml:"clockChain"`
