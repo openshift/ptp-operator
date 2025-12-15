@@ -371,6 +371,169 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				}
 			})
 
+			It("Slave fails to sync when authentication mismatch occurs (negative test)", func() {
+				// Only run if authentication is enabled
+				authEnabled := os.Getenv("PTP_AUTH_ENABLED")
+				if authEnabled != "true" {
+					Skip("Authentication negative test requires PTP_AUTH_ENABLED=true")
+				}
+
+				if fullConfig.PtpModeDesired == testconfig.TelcoGrandMasterClock {
+					Skip("Skipping as slave interface is not available with a WPC-GM profile")
+				}
+
+				// Save original GM config for restoration
+				var originalGMConfig *ptpv1.PtpConfig
+
+				By("Creating attacker secret with different SPP (simulates key mismatch)", func() {
+					// Delete if already exists
+					client.Client.Secrets(pkg.PtpLinuxDaemonNamespace).Delete(
+						context.Background(),
+						"ptp-security-mismatch",
+						metav1.DeleteOptions{},
+					)
+					time.Sleep(2 * time.Second)
+
+					// Create secret with spp 0 but DIFFERENT KEYS than ptp-security-conf
+					// GM signs with these keys, BC has different keys for spp 0 → signature mismatch
+					mismatchSecret := &v1core.Secret{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "ptp-security-mismatch",
+							Namespace: pkg.PtpLinuxDaemonNamespace,
+						},
+						StringData: map[string]string{
+							"ptp-security.conf": `[security_association]
+spp 0
+1 AES128 HEX:0000000000000000000000000000000000000000000000000000000000000000
+2 SHA256-128 HEX:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+`,
+						},
+					}
+
+					_, err := client.Client.Secrets(pkg.PtpLinuxDaemonNamespace).Create(
+						context.Background(),
+						mismatchSecret,
+						metav1.CreateOptions{},
+					)
+					Expect(err).NotTo(HaveOccurred())
+					fmt.Fprintf(GinkgoWriter, "Created mismatch secret with only spp 0\n")
+				})
+
+				By("Changing test-grandmaster to use spp 0 secret", func() {
+					// Get current PtpConfig
+					ptpConfig, err := client.Client.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Get(
+						context.Background(),
+						pkg.PtpGrandMasterPolicyName,
+						metav1.GetOptions{},
+					)
+					Expect(err).NotTo(HaveOccurred())
+
+					// Save the original config for restoration
+					originalGMConfig = ptpConfig.DeepCopy()
+
+					// Change sa_file to point to mismatch secret
+					// Also change interface spp from 1 to 0
+					ptp4lConf := *ptpConfig.Spec.Profile[0].Ptp4lConf
+					modifiedConf := strings.Replace(ptp4lConf,
+						"sa_file /etc/ptp-secret-mount/ptp-security-conf/ptp-security.conf",
+						"sa_file /etc/ptp-secret-mount/ptp-security-mismatch/ptp-security.conf", 1)
+					modifiedConf = strings.Replace(modifiedConf, "spp 1", "spp 0", 1) // Change first spp 1 to spp 0
+					ptpConfig.Spec.Profile[0].Ptp4lConf = &modifiedConf
+
+					// Update the PtpConfig
+					_, err = client.Client.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Update(
+						context.Background(),
+						ptpConfig,
+						metav1.UpdateOptions{},
+					)
+					Expect(err).NotTo(HaveOccurred())
+
+					fmt.Fprintf(GinkgoWriter, "GM now uses spp 0 (slaves use spp 1 - mismatch!)\n")
+					// Wait for controller to reconcile and pods to restart
+					time.Sleep(60 * time.Second)
+				})
+
+				By("Verifying slave FAILS to sync due to SPP mismatch (2 minute check)", func() {
+					// For negative test: expect sync to FAIL
+					// Check that slave does NOT reach LOCKED state for 2 minutes
+
+					// Wait 2 minutes and continuously verify slave is NOT in LOCKED state
+					slavePod := fullConfig.DiscoveredClockUnderTestPod
+					Expect(slavePod).NotTo(BeNil())
+
+					// Use a simple metric check in a loop
+					failedToSync := false
+					for i := 0; i < 12; i++ { // 12 iterations × 10 seconds = 2 minutes
+						// Try to check if it's in LOCKED state (this will return error if not LOCKED)
+						if len(fullConfig.DiscoveredFollowerInterfaces) > 0 {
+							slaveInterface := fullConfig.DiscoveredFollowerInterfaces[0]
+							nodeNameStr := slavePod.Spec.NodeName
+
+							err := metrics.CheckClockState(metrics.MetricClockStateLocked, slaveInterface, &nodeNameStr)
+							if err != nil {
+								// Error means NOT in LOCKED state - good for negative test
+								failedToSync = true
+							} else {
+								// No error means it IS in LOCKED state - bad for negative test!
+								Fail("Slave unexpectedly reached LOCKED state despite SPP mismatch")
+								return
+							}
+						}
+						time.Sleep(10 * time.Second)
+					}
+
+					Expect(failedToSync).To(BeTrue(), "Slave should fail to sync for 2 minutes due to authentication mismatch")
+					fmt.Fprintf(GinkgoWriter, "✓ PASS: Authentication mismatch prevented sync (slave did not lock for 2 minutes)\n")
+				})
+
+				By("Restoring authentication to test-grandmaster (cleanup)", func() {
+					// Restore the original config with auth settings intact
+					Expect(originalGMConfig).NotTo(BeNil(), "Original GM config should have been saved")
+
+					// Clear resource version for update
+					originalGMConfig.SetResourceVersion("")
+
+					// Delete the current config with spp 0
+					err := client.Client.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Delete(
+						context.Background(),
+						pkg.PtpGrandMasterPolicyName,
+						metav1.DeleteOptions{},
+					)
+					Expect(err).NotTo(HaveOccurred())
+
+					// Wait for deletion
+					time.Sleep(10 * time.Second)
+
+					// Recreate with the original config (spp 1)
+					_, err = client.Client.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Create(
+						context.Background(),
+						originalGMConfig,
+						metav1.CreateOptions{},
+					)
+					Expect(err).NotTo(HaveOccurred())
+
+					// Delete mismatch secret
+					client.Client.Secrets(pkg.PtpLinuxDaemonNamespace).Delete(
+						context.Background(),
+						"ptp-security-mismatch",
+						metav1.DeleteOptions{},
+					)
+
+					fmt.Fprintf(GinkgoWriter, "Restored test-grandmaster with original authentication settings\n")
+
+					// Wait for pods to restart and stabilize
+					time.Sleep(60 * time.Second)
+					ptphelper.WaitForPtpDaemonToExist()
+					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
+					podsRunningPTP4l, err := testconfig.GetPodsRunningPTP4l(&fullConfig)
+					Expect(err).NotTo(HaveOccurred())
+					ptphelper.WaitForPtpDaemonToBeReady(podsRunningPTP4l)
+
+					// Additional wait for clock sync to complete in multi-hop topologies (GM → BC → Slave)
+					time.Sleep(30 * time.Second)
+				})
+			})
+
 			// Test That clock can sync in dual follower scenario when one port is down
 			It("Dual follower can sync when one follower port goes down", func() {
 				if fullConfig.PtpModeDesired != testconfig.DualFollowerClock {
@@ -1103,6 +1266,25 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 							MountPath: "/host",
 						},
 					}
+					// If authentication enabled, mount the Secret resource for sa_file access
+					authEnabled := os.Getenv("PTP_AUTH_ENABLED")
+					if authEnabled == "true" {
+						// Mount the same secret that linuxptp-daemon uses
+						podDefinition.Spec.Volumes = append(podDefinition.Spec.Volumes, v1core.Volume{
+							Name: "ptp-security-conf-tlv-auth",
+							VolumeSource: v1core.VolumeSource{
+								Secret: &v1core.SecretVolumeSource{
+									SecretName: "ptp-security-conf", // Same secret as linuxptp-daemon
+								},
+							},
+						})
+						podDefinition.Spec.Containers[0].VolumeMounts = append(podDefinition.Spec.Containers[0].VolumeMounts, v1core.VolumeMount{
+							Name:      "ptp-security-conf-tlv-auth",
+							MountPath: "/etc/ptp-secret-mount/ptp-security-conf",
+							ReadOnly:  true,
+						})
+						logrus.Infof("[PMC UDS Test] Auth enabled: mounting secret 'ptp-security-conf' to /etc/ptp-secret-mount/ptp-security-conf/ptp-security.conf in test pod")
+					}
 					pod, err := client.Client.Pods(pkg.PtpLinuxDaemonNamespace).Create(context.Background(), podDefinition, metav1.CreateOptions{})
 					Expect(err).ToNot(HaveOccurred())
 					err = pods.WaitForCondition(client.Client, pod, v1core.ContainersReady, v1core.ConditionTrue, 3*time.Minute)
@@ -1145,6 +1327,25 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 							Name:      "socket-dir",
 							MountPath: "/host",
 						},
+					}
+					// If authentication enabled, mount the Secret resource for sa_file access
+					authEnabled := os.Getenv("PTP_AUTH_ENABLED")
+					if authEnabled == "true" {
+						// Mount the same secret that linuxptp-daemon uses
+						podDefinition.Spec.Volumes = append(podDefinition.Spec.Volumes, v1core.Volume{
+							Name: "ptp-security-conf-tlv-auth",
+							VolumeSource: v1core.VolumeSource{
+								Secret: &v1core.SecretVolumeSource{
+									SecretName: "ptp-security-conf", // Same secret as linuxptp-daemon
+								},
+							},
+						})
+						podDefinition.Spec.Containers[0].VolumeMounts = append(podDefinition.Spec.Containers[0].VolumeMounts, v1core.VolumeMount{
+							Name:      "ptp-security-conf-tlv-auth",
+							MountPath: "/etc/ptp-secret-mount/ptp-security-conf",
+							ReadOnly:  true,
+						})
+						logrus.Infof("[PMC UDS Test] Auth enabled: mounting secret 'ptp-security-conf' to /etc/ptp-secret-mount/ptp-security-conf/ptp-security.conf in test pod")
 					}
 					pod, err := client.Client.Pods(pkg.PtpLinuxDaemonNamespace).Create(context.Background(), podDefinition, metav1.CreateOptions{})
 					Expect(err).ToNot(HaveOccurred())

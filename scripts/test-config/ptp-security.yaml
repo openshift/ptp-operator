@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ptp-security-conf
+  namespace: openshift-ptp
+type: Opaque
+stringData:
+  ptp-security.conf: |
+    [security_association]
+    spp 0
+    allow_mutable 1
+    1 SHA256-128 HEX:F8ADC6B8B8E9AA709106BA42481EC9E29607334DE2C3C737A11A12931DB27F8C
+    2 SHA256 32 HEX:EE91D469B3A8ADC6AC8EB28E21794C706E08FDE48863828A7B0281AFCA81B17D
+
+    [security_association]
+    spp 1
+    seqid_window 20
+    1 AES128 HEX:FAF48EBA01E7C5966A76CB787AED4E7B
+    2 AES256 B64:PKTF9VQz94qPaoAzW4eE3JtFoQ8Ov1OTQSojalWyMbs=
+    3 SHA256 26 abcdefghijklmnopqrstuvwxyz
