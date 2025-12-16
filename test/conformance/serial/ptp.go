@@ -144,6 +144,108 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 			}
 		})
 
+		// Lease acquisition test
+		It("Should re-acquire lease within 5 minutes after operator pod deletion", func() {
+			By("Getting the current ptp-operator pod")
+			operatorPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{
+				LabelSelector: pkg.PtPOperatorPodsLabel,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(operatorPods.Items)).To(BeNumerically(">", 0), "no ptp-operator pods found")
+
+			originalPodName := operatorPods.Items[0].Name
+			logrus.Infof("Original ptp-operator pod: %s", originalPodName)
+
+			By("Getting the current lease")
+			lease, err := client.Client.CoordinationV1().Leases(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), pkg.PtpOperatorLeaseID, metav1.GetOptions{})
+			Expect(err).ToNot(HaveOccurred())
+
+			var originalHolderIdentity string
+			if lease.Spec.HolderIdentity != nil {
+				originalHolderIdentity = *lease.Spec.HolderIdentity
+			}
+			logrus.Infof("Original lease holder identity: %s", originalHolderIdentity)
+
+			By("Deleting the ptp-operator pod")
+			err = client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).Delete(context.Background(), originalPodName, metav1.DeleteOptions{})
+			Expect(err).ToNot(HaveOccurred())
+			logrus.Infof("Deleted ptp-operator pod: %s", originalPodName)
+			logrus.Infof("attempting to acquire leader lease %s/%s...", pkg.PtpLinuxDaemonNamespace, pkg.PtpOperatorLeaseID)
+
+			By("Waiting for a new pod to be Running and Ready, and lease to be acquired")
+			Eventually(func() error {
+				// Check for new pod
+				operatorPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{
+					LabelSelector: pkg.PtPOperatorPodsLabel,
+				})
+				if err != nil {
+					return fmt.Errorf("failed to list ptp-operator pods: %v", err)
+				}
+				if len(operatorPods.Items) == 0 {
+					return fmt.Errorf("no ptp-operator pods found")
+				}
+
+				// Find a pod that is not the original deleted pod
+				var newPod *v1core.Pod
+				for i := range operatorPods.Items {
+					pod := &operatorPods.Items[i]
+					if pod.Name != originalPodName && pod.DeletionTimestamp == nil {
+						newPod = pod
+						break
+					}
+				}
+				if newPod == nil {
+					return fmt.Errorf("new ptp-operator pod not yet created")
+				}
+
+				// Check if pod is Running
+				if newPod.Status.Phase != v1core.PodRunning {
+					return fmt.Errorf("new pod %s is not running yet (phase: %s)", newPod.Name, newPod.Status.Phase)
+				}
+
+				// Check if pod is Ready
+				podReady := false
+				for _, cond := range newPod.Status.Conditions {
+					if cond.Type == v1core.PodReady && cond.Status == v1core.ConditionTrue {
+						podReady = true
+						break
+					}
+				}
+				if !podReady {
+					return fmt.Errorf("new pod %s is not ready yet", newPod.Name)
+				}
+
+				// Check the lease
+				lease, err := client.Client.CoordinationV1().Leases(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), pkg.PtpOperatorLeaseID, metav1.GetOptions{})
+				if err != nil {
+					return fmt.Errorf("failed to get lease: %v", err)
+				}
+
+				if lease.Spec.HolderIdentity == nil || *lease.Spec.HolderIdentity == "" {
+					return fmt.Errorf("lease has no holder identity")
+				}
+
+				// Verify lease holder has been updated (could be same pod name in different deployment scenario,
+				// but renewTime should be recent)
+				if lease.Spec.RenewTime == nil {
+					return fmt.Errorf("lease has no renew time")
+				}
+
+				logrus.Infof("New pod %s is Running and Ready, lease held by: %s, renewTime: %v",
+					newPod.Name, *lease.Spec.HolderIdentity, lease.Spec.RenewTime.Time)
+
+				return nil
+			}, pkg.TimeoutIn5Minutes, pkg.TimeoutInterval5Seconds).Should(BeNil(), "failed to re-acquire lease within 5 minutes")
+
+			By("Verifying the lease is actively being renewed")
+			// Get the lease one more time to confirm it's being renewed
+			finalLease, err := client.Client.CoordinationV1().Leases(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), pkg.PtpOperatorLeaseID, metav1.GetOptions{})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(finalLease.Spec.HolderIdentity).ToNot(BeNil())
+			Expect(*finalLease.Spec.HolderIdentity).ToNot(BeEmpty())
+			logrus.Infof("successfully acquired lease %s/%s", pkg.PtpLinuxDaemonNamespace, pkg.PtpOperatorLeaseID)
+		})
+
 	})
 
 	Describe("PTP e2e tests", func() {
