@@ -1,12 +1,44 @@
-package libexports
+package exports
 
 import (
 	"fmt"
 	"strings"
 )
 
+// L2Info interface for L2 discovery configuration
+type L2Info interface {
+	// list of cluster interfaces indexed with a simple integer (X) for readability in the graph
+	GetPtpIfList() []*PtpIf
+	// list of unfiltered cluster interfaces indexed with a simple integer (X) for readability in the graph
+	GetPtpIfListUnfiltered() map[string]*PtpIf
+	// LANs identified in the graph
+	GetLANs() *[][]int
+	// List of port receiving PTP frames (assuming valid GM signal received)
+	GetPortsGettingPTP() []*PtpIf
+}
+
+// SolverConfig interface for graph solver configuration
+type SolverConfig interface {
+	// problem definition
+	InitProblem(string, [][][]int, []int)
+	// L2 configuration
+	SetL2Config(L2Info)
+	// Run solver on problem
+	Run(string)
+	// Prints all solutions
+	PrintAllSolutions()
+	// Prints first solution only
+	PrintFirstSolution()
+	// map storing solutions
+	GetSolutions() map[string]*[][]int
+}
+
 type Mac struct {
 	Data string
+}
+
+func (mac Mac) String() string {
+	return mac.Data
 }
 
 type PCIAddress struct {

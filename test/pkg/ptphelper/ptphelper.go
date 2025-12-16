@@ -31,7 +31,7 @@ import (
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/pods"
 
 	configv1 "github.com/openshift/api/config/v1"
-	l2exports "github.com/redhat-cne/l2discovery-exports"
+	l2exports "github.com/redhat-cne/l2discovery-lib/exports"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
