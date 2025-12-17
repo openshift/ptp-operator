@@ -103,3 +103,7 @@ tags
 # Generated files
 test/conformance/parallel/linuxptp-daemon-*
 # End of https://www.gitignore.io/api/go,vim,emacs,visualstudiocode
+
+.env
+catalog/*
+catalog.Dockerfile

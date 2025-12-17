@@ -50,6 +50,7 @@ import (
 	ptpv2alpha1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v2alpha1"
 	"github.com/k8snetworkplumbingwg/ptp-operator/controllers"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/leaderelection"
+	corev1 "k8s.io/api/core/v1"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -121,9 +122,29 @@ func main() {
 
 		options.NewCache = func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
 			opts.DefaultNamespaces = defaultNamespaces
+			// Restrict Secret watching to openshift-ptp namespace only
+			opts.ByObject = map[client.Object]cache.ByObject{
+				&corev1.Secret{}: {
+					Namespaces: map[string]cache.Config{
+						names.Namespace: {},
+					},
+				},
+			}
 			return cache.New(config, opts)
 		}
 		setupLog.Info(fmt.Sprintf("Namespaces added to the cache: %s", namespace))
+	} else {
+		// If no WATCH_NAMESPACE is set, still restrict Secret watching to openshift-ptp namespace
+		options.Cache = cache.Options{
+			ByObject: map[client.Object]cache.ByObject{
+				&corev1.Secret{}: {
+					Namespaces: map[string]cache.Config{
+						names.Namespace: {},
+					},
+				},
+			},
+		}
+		setupLog.Info("Restricting Secret watching to openshift-ptp namespace only")
 	}
 
 	mgr, err := ctrl.NewManager(restConfig, options)

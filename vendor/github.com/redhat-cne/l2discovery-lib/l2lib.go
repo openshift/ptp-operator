@@ -13,7 +13,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
-	l2 "github.com/redhat-cne/l2discovery-exports"
+	"github.com/redhat-cne/l2discovery-lib/exports"
 	"github.com/redhat-cne/l2discovery-lib/pkg/l2client"
 	"github.com/redhat-cne/l2discovery-lib/pkg/pods"
 	daemonsets "github.com/redhat-cne/privileged-daemonset"
@@ -28,13 +28,13 @@ func init() {
 
 type L2Info interface {
 	// list of cluster interfaces indexed with a simple integer (X) for readability in the graph
-	GetPtpIfList() []*l2.PtpIf
+	GetPtpIfList() []*exports.PtpIf
 	// list of unfiltered cluster interfaces indexed with a simple integer (X) for readability in the graph
-	GetPtpIfListUnfiltered() map[string]*l2.PtpIf
+	GetPtpIfListUnfiltered() map[string]*exports.PtpIf
 	// LANs identified in the graph
 	GetLANs() *[][]int
 	// List of port receiving PTP frames (assuming valid GM signal received)
-	GetPortsGettingPTP() []*l2.PtpIf
+	GetPortsGettingPTP() []*exports.PtpIf
 
 	SetL2Client(kubernetes.Interface, *rest.Config)
 	GetL2DiscoveryConfig(ptpInterfacesOnly, allIFs, useContainerCmds bool, l2DiscoveryImage string) (config L2Info, err error)
@@ -92,31 +92,31 @@ func StringToL2Mode(aString string) L2DaemonsetMode {
 
 type L2DiscoveryConfig struct {
 	// Map of L2 topology as discovered by L2 discovery mechanism
-	DiscoveryMap map[string]map[string]map[string]*l2.Neighbors
+	DiscoveryMap map[string]map[string]map[string]*exports.Neighbors
 	// L2 topology graph created from discovery map. This is the main internal graph
 	L2ConnectivityMap *graph.Mutable
 	// Max size of graph
 	MaxL2GraphSize int
 	// list of cluster interfaces indexed with a simple integer (X) for readability in the graph
-	PtpIfList []*l2.PtpIf
+	PtpIfList []*exports.PtpIf
 	// list of unfiltered cluster interfaces indexed with a simple integer (X) for readability in the graph
-	PtpIfListUnfiltered map[string]*l2.PtpIf
+	PtpIfListUnfiltered map[string]*exports.PtpIf
 	// list of L2discovery daemonset pods
 	L2DiscoveryPods map[string]*v1core.Pod
 	// Mapping between clusterwide interface index and Mac address
-	ClusterMacs map[l2.IfClusterIndex]string
+	ClusterMacs map[exports.IfClusterIndex]string
 	// Mapping between clusterwide interface index and a simple integer (X) for readability in the graph
-	ClusterIndexToInt map[l2.IfClusterIndex]int
+	ClusterIndexToInt map[exports.IfClusterIndex]int
 	// Mapping between a cluster wide MAC address and a simple integer (X) for readability in the graph
 	ClusterMacToInt map[string]int
 	// Mapping between a Mac address and a cluster wide interface index
-	ClusterIndexes map[string]l2.IfClusterIndex
+	ClusterIndexes map[string]exports.IfClusterIndex
 	// indicates whether the L2discovery daemonset is created by the test suite (managed) or not
 	L2DsMode L2DaemonsetMode
 	// LANs identified in the graph
 	LANs *[][]int
 	// List of port receiving PTP frames (assuming valid GM signal received)
-	PortsGettingPTP []*l2.PtpIf
+	PortsGettingPTP []*exports.PtpIf
 	// interfaces to avoid when running the tests
 	SkippedInterfaces []string
 	// Indicates that the L2 configuration must be refreshed
@@ -199,16 +199,16 @@ func (config L2DiscoveryConfig) String() string { //nolint:funlen
 
 var GlobalL2DiscoveryConfig L2DiscoveryConfig
 
-func (config *L2DiscoveryConfig) GetPtpIfList() []*l2.PtpIf {
+func (config *L2DiscoveryConfig) GetPtpIfList() []*exports.PtpIf {
 	return config.PtpIfList
 }
-func (config *L2DiscoveryConfig) GetPtpIfListUnfiltered() map[string]*l2.PtpIf {
+func (config *L2DiscoveryConfig) GetPtpIfListUnfiltered() map[string]*exports.PtpIf {
 	return config.PtpIfListUnfiltered
 }
 func (config *L2DiscoveryConfig) GetLANs() *[][]int {
 	return config.LANs
 }
-func (config *L2DiscoveryConfig) GetPortsGettingPTP() []*l2.PtpIf {
+func (config *L2DiscoveryConfig) GetPortsGettingPTP() []*exports.PtpIf {
 	return config.PortsGettingPTP
 }
 func (config *L2DiscoveryConfig) SetL2Client(k8sClient kubernetes.Interface, restClient *rest.Config) {
@@ -230,14 +230,14 @@ func (config *L2DiscoveryConfig) GetL2DiscoveryConfig(ptpInterfacesOnly, allIFs,
 
 // Resets the L2 configuration
 func (config *L2DiscoveryConfig) reset() {
-	GlobalL2DiscoveryConfig.PtpIfList = []*l2.PtpIf{}
+	GlobalL2DiscoveryConfig.PtpIfList = []*exports.PtpIf{}
 	GlobalL2DiscoveryConfig.L2DiscoveryPods = make(map[string]*v1core.Pod)
-	GlobalL2DiscoveryConfig.ClusterMacs = make(map[l2.IfClusterIndex]string)
-	GlobalL2DiscoveryConfig.ClusterIndexes = make(map[string]l2.IfClusterIndex)
+	GlobalL2DiscoveryConfig.ClusterMacs = make(map[exports.IfClusterIndex]string)
+	GlobalL2DiscoveryConfig.ClusterIndexes = make(map[string]exports.IfClusterIndex)
 	GlobalL2DiscoveryConfig.ClusterMacToInt = make(map[string]int)
-	GlobalL2DiscoveryConfig.ClusterIndexToInt = make(map[l2.IfClusterIndex]int)
-	GlobalL2DiscoveryConfig.ClusterIndexes = make(map[string]l2.IfClusterIndex)
-	GlobalL2DiscoveryConfig.PtpIfListUnfiltered = make(map[string]*l2.PtpIf)
+	GlobalL2DiscoveryConfig.ClusterIndexToInt = make(map[exports.IfClusterIndex]int)
+	GlobalL2DiscoveryConfig.ClusterIndexes = make(map[string]exports.IfClusterIndex)
+	GlobalL2DiscoveryConfig.PtpIfListUnfiltered = make(map[string]*exports.PtpIf)
 }
 
 // Discovers the L2 connectivity using l2discovery daemonset
@@ -307,7 +307,7 @@ func (config *L2DiscoveryConfig) PrintAllNICs() {
 
 // Gets the latest topology reports from the l2discovery pods
 func (config *L2DiscoveryConfig) getL2Disc(ptpInterfacesOnly bool) error {
-	config.DiscoveryMap = make(map[string]map[string]map[string]*l2.Neighbors)
+	config.DiscoveryMap = make(map[string]map[string]map[string]*exports.Neighbors)
 	index := 0
 	keys := make([]string, 0, len(config.L2DiscoveryPods))
 
@@ -320,7 +320,7 @@ func (config *L2DiscoveryConfig) getL2Disc(ptpInterfacesOnly bool) error {
 		podLogs, _ := pods.GetLog(config.L2DiscoveryPods[k], config.L2DiscoveryPods[k].Spec.Containers[0].Name)
 		indexReport := strings.LastIndex(podLogs, "JSON_REPORT")
 		report := strings.Split(strings.Split(podLogs[indexReport:], `\n`)[0], "JSON_REPORT")[1]
-		var discDataPerNode map[string]map[string]*l2.Neighbors
+		var discDataPerNode map[string]map[string]*exports.Neighbors
 		if err := json.Unmarshal([]byte(report), &discDataPerNode); err != nil {
 			return err
 		}
@@ -331,7 +331,7 @@ func (config *L2DiscoveryConfig) getL2Disc(ptpInterfacesOnly bool) error {
 		// print the formatted json data
 		logrus.Tracef("key= %s discDataPerNode: %s", k, string(jsonData))
 		if _, ok := config.DiscoveryMap[config.L2DiscoveryPods[k].Spec.NodeName]; !ok {
-			config.DiscoveryMap[config.L2DiscoveryPods[k].Spec.NodeName] = make(map[string]map[string]*l2.Neighbors)
+			config.DiscoveryMap[config.L2DiscoveryPods[k].Spec.NodeName] = make(map[string]map[string]*exports.Neighbors)
 		}
 		config.DiscoveryMap[config.L2DiscoveryPods[k].Spec.NodeName] = discDataPerNode
 
@@ -354,7 +354,7 @@ func (config *L2DiscoveryConfig) createL2InternalGraph(ptpInterfacesOnly bool) e
 	for _, k := range keys {
 		for iface, ifaceMap := range config.DiscoveryMap[config.L2DiscoveryPods[k].Spec.NodeName][ExperimentalEthertype] {
 			for mac := range ifaceMap.Remote {
-				if v, ok := config.ClusterIndexToInt[l2.IfClusterIndex{InterfaceName: iface, NodeName: config.L2DiscoveryPods[k].Spec.NodeName}]; ok {
+				if v, ok := config.ClusterIndexToInt[exports.IfClusterIndex{InterfaceName: iface, NodeName: config.L2DiscoveryPods[k].Spec.NodeName}]; ok {
 					if w, ok := config.ClusterMacToInt[mac]; ok {
 						if ptpInterfacesOnly &&
 							(strings.Contains(config.PtpIfList[v].IfPci.Description, "Virtual") ||
@@ -396,7 +396,7 @@ func (config *L2DiscoveryConfig) getInterfacesReceivingPTP(ptpInterfacesOnly boo
 			if len(ifaceMap.Remote) == 0 {
 				continue
 			}
-			aPortGettingPTP := &l2.PtpIf{}
+			aPortGettingPTP := &exports.PtpIf{}
 			aPortGettingPTP.Iface = ifaceMap.Local
 			aPortGettingPTP.NodeName = config.L2DiscoveryPods[k].Spec.NodeName
 			aPortGettingPTP.InterfaceName = aPortGettingPTP.Iface.IfName
@@ -415,7 +415,7 @@ func (config *L2DiscoveryConfig) getInterfacesReceivingPTP(ptpInterfacesOnly boo
 }
 
 // Creates Mapping tables between interfaces index, mac address, and graph integer indexes
-func (config *L2DiscoveryConfig) createMaps(disc map[string]map[string]*l2.Neighbors, nodeName string, index *int, ptpInterfacesOnly bool) {
+func (config *L2DiscoveryConfig) createMaps(disc map[string]map[string]*exports.Neighbors, nodeName string, index *int, ptpInterfacesOnly bool) {
 	config.updateMaps(disc, nodeName, index, ExperimentalEthertype, ptpInterfacesOnly)
 	config.updateMaps(disc, nodeName, index, LocalInterfaces, ptpInterfacesOnly)
 	config.getInterfacesReceivingPTP(ptpInterfacesOnly)
@@ -445,7 +445,7 @@ func (config *L2DiscoveryConfig) isSkipped(aIfToCheck string) bool {
 }
 
 // updates Mapping tables between interfaces index, mac address, and graph integer indexes for a given ethertype
-func (config *L2DiscoveryConfig) updateMaps(disc map[string]map[string]*l2.Neighbors, nodeName string, index *int, ethertype string, ptpInterfacesOnly bool) {
+func (config *L2DiscoveryConfig) updateMaps(disc map[string]map[string]*exports.Neighbors, nodeName string, index *int, ethertype string, ptpInterfacesOnly bool) {
 	// Sorting L2 discovery
 	keys := make([]string, 0, len(disc[ethertype]))
 
@@ -459,7 +459,7 @@ func (config *L2DiscoveryConfig) updateMaps(disc map[string]map[string]*l2.Neigh
 			continue
 		}
 
-		aInterface := l2.PtpIf{}
+		aInterface := exports.PtpIf{}
 		aInterface.NodeName = nodeName
 		aInterface.InterfaceName = disc[ethertype][k].Local.IfName
 		aInterface.Iface = disc[ethertype][k].Local
@@ -479,9 +479,9 @@ func (config *L2DiscoveryConfig) updateMaps(disc map[string]map[string]*l2.Neigh
 
 		// create maps
 		config.ClusterMacToInt[disc[ethertype][k].Local.IfMac.Data] = *index
-		config.ClusterIndexToInt[l2.IfClusterIndex{InterfaceName: disc[ethertype][k].Local.IfName, NodeName: nodeName}] = *index
-		config.ClusterMacs[l2.IfClusterIndex{InterfaceName: disc[ethertype][k].Local.IfName, NodeName: nodeName}] = disc[ethertype][k].Local.IfMac.Data
-		config.ClusterIndexes[disc[ethertype][k].Local.IfMac.Data] = l2.IfClusterIndex{InterfaceName: disc[ethertype][k].Local.IfName, NodeName: nodeName}
+		config.ClusterIndexToInt[exports.IfClusterIndex{InterfaceName: disc[ethertype][k].Local.IfName, NodeName: nodeName}] = *index
+		config.ClusterMacs[exports.IfClusterIndex{InterfaceName: disc[ethertype][k].Local.IfName, NodeName: nodeName}] = disc[ethertype][k].Local.IfMac.Data
+		config.ClusterIndexes[disc[ethertype][k].Local.IfMac.Data] = exports.IfClusterIndex{InterfaceName: disc[ethertype][k].Local.IfName, NodeName: nodeName}
 
 		config.PtpIfList = append(config.PtpIfList, &aInterface)
 		(*index)++

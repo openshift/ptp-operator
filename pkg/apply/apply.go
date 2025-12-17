@@ -14,6 +14,18 @@ import (
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// contextKey is a custom type for context keys to avoid collisions
+type contextKey string
+
+// ControllerSourceKey is the context key for identifying the controller source
+const ControllerSourceKey contextKey = "controller-source"
+
+// Controller source constants
+const (
+	SourcePtpConfig         = "ptpconfig"
+	SourcePtpOperatorConfig = "ptpoperatorconfig"
+)
+
 // ApplyObject applies the desired object against the apiserver,
 // merging it with any existing objects if already present.
 func ApplyObject(ctx context.Context, client k8sclient.Client, obj *uns.Unstructured) error {
@@ -50,15 +62,34 @@ func ApplyObject(ctx context.Context, client k8sclient.Client, obj *uns.Unstruct
 	}
 
 	// Merge the desired object with what actually exists
-	if err := MergeObjectForUpdate(existing, obj); err != nil {
+	if err := MergeObjectForUpdate(ctx, existing, obj); err != nil {
 		return errors.Wrapf(err, "could not merge object %s with existing", objDesc)
 	}
+
 	if !equality.Semantic.DeepEqual(existing, obj) {
+		log.Printf("updating %s (object differs from existing)", objDesc)
+
+		// Log volumes for DaemonSet updates to help debug
+		if gvk.Kind == "DaemonSet" {
+			if volumes, found, _ := uns.NestedSlice(obj.Object, "spec", "template", "spec", "volumes"); found {
+				log.Printf("  DaemonSet volumes after merge: %d volumes", len(volumes))
+				for _, vol := range volumes {
+					if volMap, ok := vol.(map[string]interface{}); ok {
+						if name, ok := volMap["name"].(string); ok {
+							log.Printf("    - volume: %s", name)
+						}
+					}
+				}
+			}
+		}
+
 		if err := client.Update(ctx, obj); err != nil {
 			return errors.Wrapf(err, "could not update object %s", objDesc)
 		} else {
 			log.Printf("update was successful")
 		}
+	} else {
+		log.Printf("no update needed for %s (objects are equal)", objDesc)
 	}
 
 	return nil

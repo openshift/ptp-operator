@@ -315,8 +315,9 @@ spec:
                             Each subsystem represents a cohesive unit that can operate independently or in coordination with other subsystems.
                           properties:
                             dpll:
-                              description: DPLL contains the DPLL configuration for
-                                this subsystem
+                              description: |-
+                                DPLL contains the DPLL configuration for this subsystem
+                                When clockType is specified, this can be omitted and will be derived from ptpProfile and vendor defaults.
                               properties:
                                 frequencyInputs:
                                   additionalProperties:
@@ -590,11 +591,10 @@ spec:
                                     description: |-
                                       Ports is a list of Ethernet port names associated with this Ethernet subsystem.
                                       The default port, or the port used to address the network adapter configuration through sysfs, is listed first.
+                                      When clockType is specified, this can be omitted and will be derived from ptpconfig leading interfaces.
                                     items:
                                       type: string
                                     type: array
-                                required:
-                                - ports
                                 type: object
                               type: array
                             hardwareSpecificDefinitions:
@@ -606,14 +606,19 @@ spec:
                                 this subsystem
                               type: string
                           required:
-                          - dpll
-                          - ethernet
                           - name
                           type: object
                         type: array
                     required:
                     - structure
                     type: object
+                  clockType:
+                    description: |-
+                      ClockType specifies the clock mode: "T-BC", "T-GM", or "APTS"
+                      When specified, behavior templates are loaded from vendor defaults based on
+                      each subsystem's hardwareSpecificDefinitions and resolved with user-provided overrides.
+                      If not specified, the behavior section must be explicitly provided in ClockChain.
+                    type: string
                   description:
                     description: Description provides optional context about this
                       hardware profile

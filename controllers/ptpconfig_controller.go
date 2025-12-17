@@ -26,15 +26,24 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/golang/glog"
 	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/apply"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/names"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	uns "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	kscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
+
+const PTP_SEC_FOLDER = "/etc/ptp-secret-mount/"
+const TLV_AUTH_SUFFIX = "-tlv-auth"
 
 // PtpConfigReconciler reconciles a PtpConfig object
 type PtpConfigReconciler struct {
@@ -69,6 +78,11 @@ func (r *PtpConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	if err = r.syncPtpConfig(ctx, instances, nodeList); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	// After syncing ConfigMap, update DaemonSet with secret mounts
+	if err = r.syncLinuxptpDaemonSecrets(ctx, instances); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -243,6 +257,176 @@ func ptpNodeMatches(node *corev1.Node, matchRuleList []ptpv1.MatchRule) bool {
 
 func (r *PtpConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&ptpv1.PtpConfig{}).
+		For(&ptpv1.PtpConfig{}, builder.WithPredicates(predicate.NewPredicateFuncs(func(object client.Object) bool {
+			return object.GetNamespace() == names.Namespace
+		}))).
 		Complete(r)
+}
+
+// secretMount represents a secret and sa_file pair for a profile
+type secretMount struct {
+	secretName string
+	saFilePath string
+	secretKey  string // The actual key name in the secret
+}
+
+// syncLinuxptpDaemonSecrets updates the linuxptp-daemon DaemonSet with secret volume mounts
+func (r *PtpConfigReconciler) syncLinuxptpDaemonSecrets(ctx context.Context, ptpConfigList *ptpv1.PtpConfigList) error {
+	// 1. Collect {secretName, sa_file} pairs from each profile
+	var mounts []secretMount
+
+	glog.Info("Scanning PtpConfigs for {secretName, sa_file} pairs...")
+	for _, cfg := range ptpConfigList.Items {
+		for _, profile := range cfg.Spec.Profile {
+			profileName := "unknown"
+			if profile.Name != nil {
+				profileName = *profile.Name
+			}
+
+			if profile.Ptp4lConf == nil {
+				continue
+			}
+			// Parse ptp4lConf to get sa_file
+			conf := &ptpv1.Ptp4lConf{}
+			if err := conf.PopulatePtp4lConf(profile.Ptp4lConf, profile.Ptp4lOpts); err != nil {
+				glog.Warningf("Failed to parse ptp4lConf for profile %s: %v", profileName, err)
+				continue
+			}
+
+			// Get sa_file from [global] section
+			saFilePath := conf.GetOption("[global]", "sa_file")
+			if saFilePath == "" {
+				continue
+			}
+			secretName := ptpv1.GetSecretNameFromSaFilePath(saFilePath)
+			glog.Infof("Found {secret, sa_file} pair in PtpConfig %s, profile %s: {%s, %s}",
+				cfg.Name, profileName, secretName, saFilePath)
+
+			// extract the secret key from the sa_file path
+			secretKey := ptpv1.GetSecretKeyFromSaFilePath(saFilePath)
+
+			mounts = append(mounts, secretMount{
+				secretName: secretName,
+				saFilePath: saFilePath,
+				secretKey:  secretKey,
+			})
+		}
+	}
+
+	uniqueSecrets := make(map[string]secretMount)
+	for _, mount := range mounts {
+		if _, exists := uniqueSecrets[mount.secretName]; !exists {
+			uniqueSecrets[mount.secretName] = mount
+			glog.Infof("Adding unique secret '%s'", mount.secretName)
+		} else {
+			glog.Infof("Skipping duplicate secret '%s'", mount.secretName)
+		}
+	}
+
+	glog.Infof("Found %d unique secret(s) to mount", len(uniqueSecrets))
+
+	// 2. Get the linuxptp-daemon DaemonSet
+	daemonSet := &appsv1.DaemonSet{}
+	err := r.Get(ctx, types.NamespacedName{
+		Namespace: names.Namespace,
+		Name:      "linuxptp-daemon",
+	}, daemonSet)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			glog.Info("linuxptp-daemon DaemonSet not found yet - will retry in 10 seconds")
+			return fmt.Errorf("DaemonSet not found, will retry")
+		}
+		return fmt.Errorf("failed to get linuxptp-daemon DaemonSet: %v", err)
+	}
+	// 3. Remove all old security volumes first
+	removeSecurityVolumesFromDaemonSet(daemonSet)
+
+	// 4. Add volumes - iterate over DEDUPLICATED secrets
+	for _, mount := range uniqueSecrets {
+		glog.Infof("Injecting security volume for secret '%s'", mount.secretName)
+		injectPtpSecurityVolume(daemonSet, mount.secretName)
+	}
+	// 5. Convert to Unstructured and apply with merge (like PtpOperatorConfig does)
+	scheme := kscheme.Scheme
+	updated := &uns.Unstructured{}
+	if err := scheme.Convert(daemonSet, updated, nil); err != nil {
+		return fmt.Errorf("failed to convert DaemonSet to Unstructured: %v", err)
+	}
+
+	// 6. Use apply.ApplyObject which will call MergeObjectForUpdate
+	// Set context to indicate this update is from PtpConfig controller
+	// This allows the merge logic to use security volumes from updated (even if empty)
+	ctxWithSource := context.WithValue(ctx, apply.ControllerSourceKey, apply.SourcePtpConfig)
+	if err := apply.ApplyObject(ctxWithSource, r.Client, updated); err != nil {
+		return fmt.Errorf("failed to apply DaemonSet: %v", err)
+	}
+
+	glog.Info("Successfully updated linuxptp-daemon DaemonSet with security mounts")
+	return nil
+}
+
+// removeSecurityVolumesFromDaemonSet removes all PTP security-related volumes and mounts from DaemonSet
+// Security volumes are identified by: ending with "-tlv-auth" suffix
+func removeSecurityVolumesFromDaemonSet(ds *appsv1.DaemonSet) {
+	// Remove security volumes (both regular and projected)
+	var filteredVolumes []corev1.Volume
+	for _, vol := range ds.Spec.Template.Spec.Volumes {
+		// Check if volume ends with "-tlv-auth" (9 characters)
+		if len(vol.Name) >= 9 && vol.Name[len(vol.Name)-9:] == TLV_AUTH_SUFFIX {
+			glog.Infof("Removing old security volume: %s", vol.Name)
+			continue
+		}
+		filteredVolumes = append(filteredVolumes, vol)
+	}
+	ds.Spec.Template.Spec.Volumes = filteredVolumes
+
+	// Remove security volume mounts from linuxptp-daemon-container
+	for i := range ds.Spec.Template.Spec.Containers {
+		if ds.Spec.Template.Spec.Containers[i].Name == "linuxptp-daemon-container" {
+			var filteredMounts []corev1.VolumeMount
+			for _, mount := range ds.Spec.Template.Spec.Containers[i].VolumeMounts {
+				// Skip mounts ending with "-tlv-auth" (9 characters)
+				if len(mount.Name) >= 9 && mount.Name[len(mount.Name)-9:] == TLV_AUTH_SUFFIX {
+					glog.Infof("Removing old security mount: %s", mount.Name)
+					continue
+				}
+				filteredMounts = append(filteredMounts, mount)
+			}
+			ds.Spec.Template.Spec.Containers[i].VolumeMounts = filteredMounts
+			break
+		}
+	}
+}
+
+// injectPtpSecurityVolume adds a single secret volume and mount to the DaemonSet
+func injectPtpSecurityVolume(ds *appsv1.DaemonSet, secretName string) {
+	volumeName := secretName + TLV_AUTH_SUFFIX
+	mountDir := PTP_SEC_FOLDER + secretName
+
+	// Add volume - mount ENTIRE secret (all keys become files)
+	ds.Spec.Template.Spec.Volumes = append(ds.Spec.Template.Spec.Volumes, corev1.Volume{
+		Name: volumeName,
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: secretName,
+			},
+		},
+	})
+
+	// Add volume mount
+	for i := range ds.Spec.Template.Spec.Containers {
+		if ds.Spec.Template.Spec.Containers[i].Name == "linuxptp-daemon-container" {
+			ds.Spec.Template.Spec.Containers[i].VolumeMounts = append(
+				ds.Spec.Template.Spec.Containers[i].VolumeMounts,
+				corev1.VolumeMount{
+					Name:      volumeName,
+					MountPath: mountDir,
+					ReadOnly:  true,
+				},
+			)
+			break
+		}
+	}
+
+	glog.Infof("Mounted secret '%s' to %s", secretName, mountDir)
 }

@@ -144,6 +144,108 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 			}
 		})
 
+		// Lease acquisition test
+		It("Should re-acquire lease within 5 minutes after operator pod deletion", func() {
+			By("Getting the current ptp-operator pod")
+			operatorPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{
+				LabelSelector: pkg.PtPOperatorPodsLabel,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(operatorPods.Items)).To(BeNumerically(">", 0), "no ptp-operator pods found")
+
+			originalPodName := operatorPods.Items[0].Name
+			logrus.Infof("Original ptp-operator pod: %s", originalPodName)
+
+			By("Getting the current lease")
+			lease, err := client.Client.CoordinationV1().Leases(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), pkg.PtpOperatorLeaseID, metav1.GetOptions{})
+			Expect(err).ToNot(HaveOccurred())
+
+			var originalHolderIdentity string
+			if lease.Spec.HolderIdentity != nil {
+				originalHolderIdentity = *lease.Spec.HolderIdentity
+			}
+			logrus.Infof("Original lease holder identity: %s", originalHolderIdentity)
+
+			By("Deleting the ptp-operator pod")
+			err = client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).Delete(context.Background(), originalPodName, metav1.DeleteOptions{})
+			Expect(err).ToNot(HaveOccurred())
+			logrus.Infof("Deleted ptp-operator pod: %s", originalPodName)
+			logrus.Infof("attempting to acquire leader lease %s/%s...", pkg.PtpLinuxDaemonNamespace, pkg.PtpOperatorLeaseID)
+
+			By("Waiting for a new pod to be Running and Ready, and lease to be acquired")
+			Eventually(func() error {
+				// Check for new pod
+				operatorPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{
+					LabelSelector: pkg.PtPOperatorPodsLabel,
+				})
+				if err != nil {
+					return fmt.Errorf("failed to list ptp-operator pods: %v", err)
+				}
+				if len(operatorPods.Items) == 0 {
+					return fmt.Errorf("no ptp-operator pods found")
+				}
+
+				// Find a pod that is not the original deleted pod
+				var newPod *v1core.Pod
+				for i := range operatorPods.Items {
+					pod := &operatorPods.Items[i]
+					if pod.Name != originalPodName && pod.DeletionTimestamp == nil {
+						newPod = pod
+						break
+					}
+				}
+				if newPod == nil {
+					return fmt.Errorf("new ptp-operator pod not yet created")
+				}
+
+				// Check if pod is Running
+				if newPod.Status.Phase != v1core.PodRunning {
+					return fmt.Errorf("new pod %s is not running yet (phase: %s)", newPod.Name, newPod.Status.Phase)
+				}
+
+				// Check if pod is Ready
+				podReady := false
+				for _, cond := range newPod.Status.Conditions {
+					if cond.Type == v1core.PodReady && cond.Status == v1core.ConditionTrue {
+						podReady = true
+						break
+					}
+				}
+				if !podReady {
+					return fmt.Errorf("new pod %s is not ready yet", newPod.Name)
+				}
+
+				// Check the lease
+				lease, err := client.Client.CoordinationV1().Leases(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), pkg.PtpOperatorLeaseID, metav1.GetOptions{})
+				if err != nil {
+					return fmt.Errorf("failed to get lease: %v", err)
+				}
+
+				if lease.Spec.HolderIdentity == nil || *lease.Spec.HolderIdentity == "" {
+					return fmt.Errorf("lease has no holder identity")
+				}
+
+				// Verify lease holder has been updated (could be same pod name in different deployment scenario,
+				// but renewTime should be recent)
+				if lease.Spec.RenewTime == nil {
+					return fmt.Errorf("lease has no renew time")
+				}
+
+				logrus.Infof("New pod %s is Running and Ready, lease held by: %s, renewTime: %v",
+					newPod.Name, *lease.Spec.HolderIdentity, lease.Spec.RenewTime.Time)
+
+				return nil
+			}, pkg.TimeoutIn5Minutes, pkg.TimeoutInterval5Seconds).Should(BeNil(), "failed to re-acquire lease within 5 minutes")
+
+			By("Verifying the lease is actively being renewed")
+			// Get the lease one more time to confirm it's being renewed
+			finalLease, err := client.Client.CoordinationV1().Leases(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), pkg.PtpOperatorLeaseID, metav1.GetOptions{})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(finalLease.Spec.HolderIdentity).ToNot(BeNil())
+			Expect(*finalLease.Spec.HolderIdentity).ToNot(BeEmpty())
+			logrus.Infof("successfully acquired lease %s/%s", pkg.PtpLinuxDaemonNamespace, pkg.PtpOperatorLeaseID)
+		})
+
 	})
 
 	Describe("PTP e2e tests", func() {
@@ -369,6 +471,169 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestSecondaryPtpConfig), grandmasterID, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
 					Expect(err).To(BeNil())
 				}
+			})
+
+			It("Slave fails to sync when authentication mismatch occurs (negative test)", func() {
+				// Only run if authentication is enabled
+				authEnabled := os.Getenv("PTP_AUTH_ENABLED")
+				if authEnabled != "true" {
+					Skip("Authentication negative test requires PTP_AUTH_ENABLED=true")
+				}
+
+				if fullConfig.PtpModeDesired == testconfig.TelcoGrandMasterClock {
+					Skip("Skipping as slave interface is not available with a WPC-GM profile")
+				}
+
+				// Save original GM config for restoration
+				var originalGMConfig *ptpv1.PtpConfig
+
+				By("Creating attacker secret with different SPP (simulates key mismatch)", func() {
+					// Delete if already exists
+					client.Client.Secrets(pkg.PtpLinuxDaemonNamespace).Delete(
+						context.Background(),
+						"ptp-security-mismatch",
+						metav1.DeleteOptions{},
+					)
+					time.Sleep(2 * time.Second)
+
+					// Create secret with spp 0 but DIFFERENT KEYS than ptp-security-conf
+					// GM signs with these keys, BC has different keys for spp 0 → signature mismatch
+					mismatchSecret := &v1core.Secret{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "ptp-security-mismatch",
+							Namespace: pkg.PtpLinuxDaemonNamespace,
+						},
+						StringData: map[string]string{
+							"ptp-security.conf": `[security_association]
+spp 0
+1 AES128 HEX:0000000000000000000000000000000000000000000000000000000000000000
+2 SHA256-128 HEX:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+`,
+						},
+					}
+
+					_, err := client.Client.Secrets(pkg.PtpLinuxDaemonNamespace).Create(
+						context.Background(),
+						mismatchSecret,
+						metav1.CreateOptions{},
+					)
+					Expect(err).NotTo(HaveOccurred())
+					fmt.Fprintf(GinkgoWriter, "Created mismatch secret with only spp 0\n")
+				})
+
+				By("Changing test-grandmaster to use spp 0 secret", func() {
+					// Get current PtpConfig
+					ptpConfig, err := client.Client.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Get(
+						context.Background(),
+						pkg.PtpGrandMasterPolicyName,
+						metav1.GetOptions{},
+					)
+					Expect(err).NotTo(HaveOccurred())
+
+					// Save the original config for restoration
+					originalGMConfig = ptpConfig.DeepCopy()
+
+					// Change sa_file to point to mismatch secret
+					// Also change interface spp from 1 to 0
+					ptp4lConf := *ptpConfig.Spec.Profile[0].Ptp4lConf
+					modifiedConf := strings.Replace(ptp4lConf,
+						"sa_file /etc/ptp-secret-mount/ptp-security-conf/ptp-security.conf",
+						"sa_file /etc/ptp-secret-mount/ptp-security-mismatch/ptp-security.conf", 1)
+					modifiedConf = strings.Replace(modifiedConf, "spp 1", "spp 0", 1) // Change first spp 1 to spp 0
+					ptpConfig.Spec.Profile[0].Ptp4lConf = &modifiedConf
+
+					// Update the PtpConfig
+					_, err = client.Client.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Update(
+						context.Background(),
+						ptpConfig,
+						metav1.UpdateOptions{},
+					)
+					Expect(err).NotTo(HaveOccurred())
+
+					fmt.Fprintf(GinkgoWriter, "GM now uses spp 0 (slaves use spp 1 - mismatch!)\n")
+					// Wait for controller to reconcile and pods to restart
+					time.Sleep(60 * time.Second)
+				})
+
+				By("Verifying slave FAILS to sync due to SPP mismatch (2 minute check)", func() {
+					// For negative test: expect sync to FAIL
+					// Check that slave does NOT reach LOCKED state for 2 minutes
+
+					// Wait 2 minutes and continuously verify slave is NOT in LOCKED state
+					slavePod := fullConfig.DiscoveredClockUnderTestPod
+					Expect(slavePod).NotTo(BeNil())
+
+					// Use a simple metric check in a loop
+					failedToSync := false
+					for i := 0; i < 12; i++ { // 12 iterations × 10 seconds = 2 minutes
+						// Try to check if it's in LOCKED state (this will return error if not LOCKED)
+						if len(fullConfig.DiscoveredFollowerInterfaces) > 0 {
+							slaveInterface := fullConfig.DiscoveredFollowerInterfaces[0]
+							nodeNameStr := slavePod.Spec.NodeName
+
+							err := metrics.CheckClockState(metrics.MetricClockStateLocked, slaveInterface, &nodeNameStr)
+							if err != nil {
+								// Error means NOT in LOCKED state - good for negative test
+								failedToSync = true
+							} else {
+								// No error means it IS in LOCKED state - bad for negative test!
+								Fail("Slave unexpectedly reached LOCKED state despite SPP mismatch")
+								return
+							}
+						}
+						time.Sleep(10 * time.Second)
+					}
+
+					Expect(failedToSync).To(BeTrue(), "Slave should fail to sync for 2 minutes due to authentication mismatch")
+					fmt.Fprintf(GinkgoWriter, "✓ PASS: Authentication mismatch prevented sync (slave did not lock for 2 minutes)\n")
+				})
+
+				By("Restoring authentication to test-grandmaster (cleanup)", func() {
+					// Restore the original config with auth settings intact
+					Expect(originalGMConfig).NotTo(BeNil(), "Original GM config should have been saved")
+
+					// Clear resource version for update
+					originalGMConfig.SetResourceVersion("")
+
+					// Delete the current config with spp 0
+					err := client.Client.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Delete(
+						context.Background(),
+						pkg.PtpGrandMasterPolicyName,
+						metav1.DeleteOptions{},
+					)
+					Expect(err).NotTo(HaveOccurred())
+
+					// Wait for deletion
+					time.Sleep(10 * time.Second)
+
+					// Recreate with the original config (spp 1)
+					_, err = client.Client.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Create(
+						context.Background(),
+						originalGMConfig,
+						metav1.CreateOptions{},
+					)
+					Expect(err).NotTo(HaveOccurred())
+
+					// Delete mismatch secret
+					client.Client.Secrets(pkg.PtpLinuxDaemonNamespace).Delete(
+						context.Background(),
+						"ptp-security-mismatch",
+						metav1.DeleteOptions{},
+					)
+
+					fmt.Fprintf(GinkgoWriter, "Restored test-grandmaster with original authentication settings\n")
+
+					// Wait for pods to restart and stabilize
+					time.Sleep(60 * time.Second)
+					ptphelper.WaitForPtpDaemonToExist()
+					fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
+					podsRunningPTP4l, err := testconfig.GetPodsRunningPTP4l(&fullConfig)
+					Expect(err).NotTo(HaveOccurred())
+					ptphelper.WaitForPtpDaemonToBeReady(podsRunningPTP4l)
+
+					// Additional wait for clock sync to complete in multi-hop topologies (GM → BC → Slave)
+					time.Sleep(30 * time.Second)
+				})
 			})
 
 			// Test That clock can sync in dual follower scenario when one port is down
@@ -1103,6 +1368,25 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 							MountPath: "/host",
 						},
 					}
+					// If authentication enabled, mount the Secret resource for sa_file access
+					authEnabled := os.Getenv("PTP_AUTH_ENABLED")
+					if authEnabled == "true" {
+						// Mount the same secret that linuxptp-daemon uses
+						podDefinition.Spec.Volumes = append(podDefinition.Spec.Volumes, v1core.Volume{
+							Name: "ptp-security-conf-tlv-auth",
+							VolumeSource: v1core.VolumeSource{
+								Secret: &v1core.SecretVolumeSource{
+									SecretName: "ptp-security-conf", // Same secret as linuxptp-daemon
+								},
+							},
+						})
+						podDefinition.Spec.Containers[0].VolumeMounts = append(podDefinition.Spec.Containers[0].VolumeMounts, v1core.VolumeMount{
+							Name:      "ptp-security-conf-tlv-auth",
+							MountPath: "/etc/ptp-secret-mount/ptp-security-conf",
+							ReadOnly:  true,
+						})
+						logrus.Infof("[PMC UDS Test] Auth enabled: mounting secret 'ptp-security-conf' to /etc/ptp-secret-mount/ptp-security-conf/ptp-security.conf in test pod")
+					}
 					pod, err := client.Client.Pods(pkg.PtpLinuxDaemonNamespace).Create(context.Background(), podDefinition, metav1.CreateOptions{})
 					Expect(err).ToNot(HaveOccurred())
 					err = pods.WaitForCondition(client.Client, pod, v1core.ContainersReady, v1core.ConditionTrue, 3*time.Minute)
@@ -1145,6 +1429,25 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 							Name:      "socket-dir",
 							MountPath: "/host",
 						},
+					}
+					// If authentication enabled, mount the Secret resource for sa_file access
+					authEnabled := os.Getenv("PTP_AUTH_ENABLED")
+					if authEnabled == "true" {
+						// Mount the same secret that linuxptp-daemon uses
+						podDefinition.Spec.Volumes = append(podDefinition.Spec.Volumes, v1core.Volume{
+							Name: "ptp-security-conf-tlv-auth",
+							VolumeSource: v1core.VolumeSource{
+								Secret: &v1core.SecretVolumeSource{
+									SecretName: "ptp-security-conf", // Same secret as linuxptp-daemon
+								},
+							},
+						})
+						podDefinition.Spec.Containers[0].VolumeMounts = append(podDefinition.Spec.Containers[0].VolumeMounts, v1core.VolumeMount{
+							Name:      "ptp-security-conf-tlv-auth",
+							MountPath: "/etc/ptp-secret-mount/ptp-security-conf",
+							ReadOnly:  true,
+						})
+						logrus.Infof("[PMC UDS Test] Auth enabled: mounting secret 'ptp-security-conf' to /etc/ptp-secret-mount/ptp-security-conf/ptp-security.conf in test pod")
 					}
 					pod, err := client.Client.Pods(pkg.PtpLinuxDaemonNamespace).Create(context.Background(), podDefinition, metav1.CreateOptions{})
 					Expect(err).ToNot(HaveOccurred())

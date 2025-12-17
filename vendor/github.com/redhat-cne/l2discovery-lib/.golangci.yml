@@ -19,10 +19,12 @@ linters-settings:
   gocyclo:
     min-complexity: 20
   mnd:
-    settings:
-      mnd:
-        # do not include the "operation" and "assign"
-        checks: argument,case,condition,return
+    # do not include the "operation" and "assign"
+    checks:
+      - argument
+      - case
+      - condition
+      - return
   govet:
     settings:
       printf:
@@ -33,10 +35,7 @@ linters-settings:
           - (github.com/golangci/golangci-lint/pkg/logutils.Log).Fatalf
   lll:
     line-length: 250
-  maligned:
-    suggest-new: true
   nolintlint:
-    allow-leading-space: false # disallow leading spaces. A space means the //nolint comment shows in `godoc` output.
     allow-unused: false # report any unused nolint directives
     require-explanation: false # do not require an explanation for nolint directives
     require-specific: true # require nolint directives to be specific about which linter is being skipped
@@ -69,10 +68,8 @@ linters:
     - rowserrcheck
     - staticcheck
     - stylecheck
-    - typecheck
     - unconvert
     - unparam
-    - unused
     - whitespace
   # do not enable:
   # - asciicheck
@@ -95,6 +92,8 @@ linters:
   # - testpackage
   # - wsl
 issues:
+  exclude-dirs:
+    - cmd/l2discovery
   # Excluding configuration per-path, per-linter, per-text and per-source
   exclude-rules:
     # Ignore magic numbers, inline strings and function length in tests.
@@ -128,7 +127,3 @@ issues:
 
 # golangci.com configuration
 # https://github.com/golangci/golangci/wiki/Configuration
-service:
-  golangci-lint-version: 1.59.x # use the fixed version to not introduce new linters unexpectedly
-  prepare:
-    - echo "here I can run custom commands, but no preparation needed for this repo"

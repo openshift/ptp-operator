@@ -21,9 +21,7 @@ require (
 	github.com/prometheus-operator/prometheus-operator/pkg/client v0.57.0
 	github.com/prometheus/common v0.44.0
 	github.com/redhat-cne/channel-pubsub v0.0.8
-	github.com/redhat-cne/graphsolver-lib v0.0.5
-	github.com/redhat-cne/l2discovery-exports v0.0.6
-	github.com/redhat-cne/l2discovery-lib v0.0.15
+	github.com/redhat-cne/l2discovery-lib v0.0.16
 	github.com/redhat-cne/privileged-daemonset v1.0.34
 	github.com/redhat-cne/ptp-listener-exports v0.0.7
 	github.com/redhat-cne/sdk-go v1.22.4
@@ -79,13 +77,12 @@ require (
 	github.com/prometheus/client_golang v1.16.0 // indirect
 	github.com/prometheus/client_model v0.4.0 // indirect
 	github.com/prometheus/procfs v0.10.1 // indirect
-	github.com/redhat-cne/graphsolver-exports v0.0.2 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/yourbasic/graph v0.0.0-20210606180040-8ecfec1c2869 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.25.0 // indirect
 	golang.org/x/crypto v0.36.0 // indirect
-	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e // indirect
+	golang.org/x/exp v0.0.0-20220827204233-334a2380cb91 // indirect
 	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/oauth2 v0.27.0 // indirect
 	golang.org/x/sys v0.31.0 // indirect

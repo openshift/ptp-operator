@@ -16,6 +16,7 @@ const (
 	PtpOperatorDeploymentName      = "ptp-operator"
 	PtPOperatorPodsLabel           = "name=ptp-operator"
 	PtpDaemonsetName               = "linuxptp-daemon"
+	PtpOperatorLeaseID             = "ptp.openshift.io"
 
 	PtpResourcesGroupVersionPrefix  = "ptp.openshift.io/v"
 	PtpResourcesNameOperatorConfigs = "ptpoperatorconfigs"
@@ -46,6 +47,7 @@ const (
 	Timeout10Seconds           = 10 * time.Second
 	Timeout1Seconds            = 1 * time.Second
 	TimeoutInterval2Seconds    = 2 * time.Second
+	TimeoutInterval5Seconds    = 5 * time.Second
 
 	MasterOffsetLowerBound  = -100
 	MasterOffsetHigherBound = 100
