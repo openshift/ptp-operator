@@ -16,8 +16,8 @@ import (
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/nodes"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/ptphelper"
-	solver "github.com/redhat-cne/graphsolver-lib"
 	l2lib "github.com/redhat-cne/l2discovery-lib"
+	solver "github.com/redhat-cne/l2discovery-lib/pkg/graphsolver"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	v1core "k8s.io/api/core/v1"
@@ -67,7 +67,7 @@ const (
 	phc2sysDualNicBCHA          = "-a -r -m -l 7 -n 24 "
 	SCHED_OTHER                 = "SCHED_OTHER"
 	SCHED_FIFO                  = "SCHED_FIFO"
-	L2_DISCOVERY_IMAGE          = "quay.io/redhat-cne/l2discovery:v13"
+	L2_DISCOVERY_IMAGE          = "quay.io/redhat-cne/l2discovery:v14"
 )
 
 type ConfigStatus int64
@@ -571,7 +571,8 @@ func initAndSolveProblems() {
 		{{int(solver.StepSameLan2), 2, 0, 1}}, // step2
 		{{int(solver.StepSameNic), 2, 1, 2}},  // step3
 		{{int(solver.StepSameLan2), 2, 2, 3}, // step4
-			{int(solver.StepDifferentNic), 2, 0, 3}}, // step4 - downstream slaves and grandmaster must be on different nics
+			{int(solver.StepSameNic), 2, 0, 3, solver.Negative},
+			{int(solver.StepSameLan2), 2, 0, 3, solver.Negative}}, // step4 - downstream slaves and grandmaster must be on different nics
 	}
 	data.problems[AlgoDualNicBCString] = &[][][]int{
 		{{int(solver.StepNil), 0, 0}},         // step1
@@ -580,7 +581,7 @@ func initAndSolveProblems() {
 		{{int(solver.StepSameNode), 2, 1, 3}, // step4
 			{int(solver.StepSameLan2), 2, 2, 3}}, // step4
 		{{int(solver.StepSameNic), 2, 3, 4},
-			{int(solver.StepDifferentNic), 2, 1, 3}}, // step5
+			{int(solver.StepSameNic), 2, 1, 3, solver.Negative}}, // step5
 	}
 	data.problems[AlgoTelcoGMString] = &[][][]int{
 		{{int(solver.StepIsWPCNic), 1, 0}}, // step1
@@ -595,10 +596,11 @@ func initAndSolveProblems() {
 			{int(solver.StepSameLan2), 2, 3, 4}}, // step5
 		{{int(solver.StepSameNic), 2, 4, 5}}, // step6
 		{{int(solver.StepSameLan2), 2, 5, 6}, // step7
-			{int(solver.StepDifferentNic), 2, 0, 3},  // downstream slaves and grandmaster must be on different nics
-			{int(solver.StepDifferentNic), 2, 6, 3},  // downstream slaves and grandmaster must be on different nics
-			{int(solver.StepDifferentNic), 2, 2, 4},  // dual nic BC uses 2 different NICs
-			{int(solver.StepDifferentNic), 2, 0, 6}}, // Downstream slaves use different nics to not share same clock
+			{int(solver.StepSameNic), 2, 0, 3, solver.Negative}, // downstream slaves and grandmaster must be on different nics
+			{int(solver.StepSameNic), 2, 6, 3, solver.Negative}, // downstream slaves and grandmaster must be on different nics
+			{int(solver.StepSameNic), 2, 2, 4, solver.Negative}, // dual nic BC uses 2 different NICs
+			{int(solver.StepSameLan2), 2, 4, 6, solver.Negative},
+			{int(solver.StepSameLan2), 2, 0, 6, solver.Negative}}, // Downstream slaves use different nics to not share same clock
 
 	}
 	data.problems[AlgoOCExtGMString] = &[][][]int{
@@ -625,7 +627,7 @@ func initAndSolveProblems() {
 		{{int(solver.StepIsPTP), 1, 2}, // step3
 			{int(solver.StepSameNode), 2, 0, 2}}, // step3
 		{{int(solver.StepSameNic), 2, 2, 3},
-			{int(solver.StepDifferentNic), 2, 0, 2}}, // step4
+			{int(solver.StepSameNic), 2, 0, 2, solver.Negative}}, // step4
 	}
 	data.problems[AlgoDualNicBCWithSlavesExtGMString] = &[][][]int{
 		{{int(solver.StepNil), 0, 0}},         // step1
@@ -636,9 +638,9 @@ func initAndSolveProblems() {
 			{int(solver.StepIsPTP), 1, 4}},
 		{{int(solver.StepSameNic), 2, 4, 5}}, // step5
 		{{int(solver.StepSameLan2), 2, 5, 6}, // step6
-			{int(solver.StepDifferentNic), 2, 0, 3},  // downstream slaves and grandmaster must be on different nics
-			{int(solver.StepDifferentNic), 2, 6, 3}}, // downstream slaves and grandmaster must be on different nics
-		{{int(solver.StepDifferentNic), 2, 2, 4}}, // step 7 dual nic BC uses 2 different NICs
+			{int(solver.StepSameNic), 2, 0, 3, solver.Negative},  // downstream slaves and grandmaster must be on different nics
+			{int(solver.StepSameNic), 2, 6, 3, solver.Negative}}, // downstream slaves and grandmaster must be on different nics
+		{{int(solver.StepSameNic), 2, 2, 4, solver.Negative}}, // step 7 dual nic BC uses 2 different NICs
 	}
 	// Initializing Solution decoding and mapping
 	// allocating all slices
