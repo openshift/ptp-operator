@@ -1298,6 +1298,55 @@ func createPtpConfigPhc2SysHA(policyName string, nodeName string, haProfiles []s
 	return err
 }
 
+// CreatePtpConfigWithUnderscoreProfileNames creates a PtpConfig with profile names containing underscores
+// to verify that the webhook accepts underscores in profile names, especially for HA profiles.
+// The metadata.name uses hyphens (Kubernetes requirement), but spec.profile[].name uses underscores.
+func CreatePtpConfigWithUnderscoreProfileNames() error {
+	policyName := pkg.PtpUnderscoreTestPolicyName
+	// Profile names with underscores (this is what we're testing)
+	profileName1 := "test_profile_bc1"
+	profileName2 := "test_profile_bc2"
+	haProfileName := "test_ha_profile"
+
+	ptpSchedulingPolicy := SCHED_OTHER
+	phc2sysOpts := "-a -r -n 24"
+	ptp4lOpts := ""
+
+	// Create HA profile with underscore names in haProfiles setting
+	haProfile := ptpv1.PtpProfile{
+		Name:                  &haProfileName,
+		Phc2sysOpts:           &phc2sysOpts,
+		Ptp4lOpts:             &ptp4lOpts,
+		PtpSchedulingPolicy:   &ptpSchedulingPolicy,
+		PtpSchedulingPriority: ptr.To(int64(65)),
+		// haProfiles contains profile names with underscores
+		PtpSettings: map[string]string{"haProfiles": profileName1 + "," + profileName2},
+	}
+
+	ptpRecommend := ptpv1.PtpRecommend{
+		Profile:  &haProfileName,
+		Priority: ptr.To(int64(5)),
+	}
+
+	policy := ptpv1.PtpConfig{
+		ObjectMeta: metav1.ObjectMeta{Name: policyName, Namespace: PtpLinuxDaemonNamespace},
+		Spec: ptpv1.PtpConfigSpec{
+			Profile:   []ptpv1.PtpProfile{haProfile},
+			Recommend: []ptpv1.PtpRecommend{ptpRecommend},
+		},
+	}
+
+	_, err := client.Client.PtpConfigs(PtpLinuxDaemonNamespace).Create(context.Background(), &policy, metav1.CreateOptions{})
+	return err
+}
+
+// DeletePtpConfigWithUnderscoreProfileNames deletes the test PtpConfig created for underscore profile name testing
+func DeletePtpConfigWithUnderscoreProfileNames() error {
+	policyName := pkg.PtpUnderscoreTestPolicyName
+	err := client.Client.PtpConfigs(PtpLinuxDaemonNamespace).Delete(context.Background(), policyName, metav1.DeleteOptions{})
+	return err
+}
+
 func PtpConfigDualNicBC(isExtGM bool, phc2SysHaEnabled bool) error {
 	var grandmaster, bc1Master, bc1Slave, slave1, bc2Master, bc2Slave, slave2 int
 
