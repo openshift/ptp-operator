@@ -232,20 +232,6 @@ func IsPTPWrapper(config exports.L2Info, if1 int) bool {
 	return IsPTP(config, config.GetPtpIfList()[if1])
 }
 
-// IsWPCNicFunc is a configurable function to check if an interface is a WPC NIC
-// This should be set by the test code since it requires cluster access
-var IsWPCNicFunc func(config exports.L2Info, ifIndex int) bool
-
-// IsWPCNicWrapper checks if an interface belongs to a WPC-enabled NIC
-// Returns false if IsWPCNicFunc is not set
-func IsWPCNicWrapper(config exports.L2Info, if1 int) bool {
-	if IsWPCNicFunc == nil {
-		logrus.Warn("IsWPCNicFunc not set, returning false")
-		return false
-	}
-	return IsWPCNicFunc(config, if1)
-}
-
 // Checks if 2 interfaces are on the same node
 func SameNode(if1, if2 *exports.PtpIf) bool {
 	return if1.NodeName == if2.NodeName
@@ -333,7 +319,7 @@ func IsWpcNic(ifaceName1 *exports.PtpIf) bool {
 }
 
 // IsWpcNicWrapper is the wrapper for IsWpcNic
-func IsWpcNicWrapper(config exports.L2Info, if1 int) bool {
+func IsWPCNicWrapper(config exports.L2Info, if1 int) bool {
 	return IsWpcNic(config.GetPtpIfList()[if1])
 }
 
