@@ -38,7 +38,12 @@ type Mac struct {
 }
 
 func (mac Mac) String() string {
-	return mac.Data
+	return strings.ToUpper(string([]byte(mac.Data)[0:2]) + ":" +
+		string([]byte(mac.Data)[2:4]) + ":" +
+		string([]byte(mac.Data)[4:6]) + ":" +
+		string([]byte(mac.Data)[6:8]) + ":" +
+		string([]byte(mac.Data)[8:10]) + ":" +
+		string([]byte(mac.Data)[10:12]))
 }
 
 type PCIAddress struct {

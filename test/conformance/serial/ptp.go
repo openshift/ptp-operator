@@ -1793,6 +1793,9 @@ spp 0
 					// Meanwhile, wait for ClockClass 7 (GNSS loss - Holdover In Spec)
 					waitForClockClass(fullConfig, strconv.Itoa(int(fbprotocol.ClockClass7)))
 
+					// Give DPLL/GM time update
+					time.Sleep(pkg.Timeout10Seconds)
+
 					// Also verify ClockState 2 (Holdover)
 					checkClockStateForProcess(fullConfig, "GM", "2")
 
@@ -1807,7 +1810,7 @@ spp 0
 
 					// Now wait for system to go back to LOCKED (ClockClass 6)
 					waitForClockClass(fullConfig, strconv.Itoa(int(fbprotocol.ClockClass6)))
-					// Give DPLL time update
+					// Give DPLL/GM time update
 					time.Sleep(pkg.Timeout10Seconds)
 					// Also verify ClockState (Holdover) for DPLL
 					checkClockStateForProcess(fullConfig, "dpll", "1")

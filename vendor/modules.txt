@@ -244,7 +244,7 @@ github.com/prometheus/procfs/internal/util
 # github.com/redhat-cne/channel-pubsub v0.0.8
 ## explicit; go 1.19
 github.com/redhat-cne/channel-pubsub
-# github.com/redhat-cne/l2discovery-lib v0.0.16
+# github.com/redhat-cne/l2discovery-lib v0.0.17
 ## explicit; go 1.22
 github.com/redhat-cne/l2discovery-lib
 github.com/redhat-cne/l2discovery-lib/exports
