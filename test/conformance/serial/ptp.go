@@ -246,6 +246,76 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 			logrus.Infof("successfully acquired lease %s/%s", pkg.PtpLinuxDaemonNamespace, pkg.PtpOperatorLeaseID)
 		})
 
+		// Webhook validation test for underscore profile names
+		It("Should accept underscores in ptp-config profile names for HA profiles", func() {
+			By("Creating a PtpConfig with underscore profile names in haProfiles")
+			err := testconfig.CreatePtpConfigWithUnderscoreProfileNames()
+			Expect(err).ToNot(HaveOccurred(), "webhook should accept underscores in profile names")
+			logrus.Infof("Successfully created PtpConfig with underscore profile names: test_profile_bc1, test_profile_bc2")
+
+			By("Verifying the PtpConfig was created with correct haProfiles")
+			ptpConfig, err := client.Client.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), pkg.PtpUnderscoreTestPolicyName, metav1.GetOptions{})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(ptpConfig.Spec.Profile)).To(BeNumerically(">", 0), "no profiles found in PtpConfig")
+
+			haProfiles, exists := ptpConfig.Spec.Profile[0].PtpSettings["haProfiles"]
+			Expect(exists).To(BeTrue(), "haProfiles setting should exist")
+			Expect(haProfiles).To(ContainSubstring("test_profile_bc1"), "haProfiles should contain underscore profile name")
+			Expect(haProfiles).To(ContainSubstring("test_profile_bc2"), "haProfiles should contain underscore profile name")
+			logrus.Infof("Verified haProfiles contains underscore names: %s", haProfiles)
+
+			// cleaning up the test PtpConfig
+			err = testconfig.DeletePtpConfigWithUnderscoreProfileNames()
+			Expect(err).ToNot(HaveOccurred(), "failed to delete test PtpConfig")
+			logrus.Infof("Successfully deleted test PtpConfig")
+		})
+
+		// PtpOperatorConfig eventConfig test
+		It("Should be able to update and read ptpoperatorconfig eventConfig.EnableEventPublisher", func() {
+			By("Getting the current PtpOperatorConfig")
+			ptpOperatorConfig, err := client.Client.PtpV1Interface.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), pkg.PtpConfigOperatorName, metav1.GetOptions{})
+			Expect(err).ToNot(HaveOccurred())
+
+			// Store original value to restore later
+			var originalEnableEventPublisher bool
+			if ptpOperatorConfig.Spec.EventConfig != nil {
+				originalEnableEventPublisher = ptpOperatorConfig.Spec.EventConfig.EnableEventPublisher
+			}
+			logrus.Infof("Original EnableEventPublisher value: %v", originalEnableEventPublisher)
+
+			By("Setting EnableEventPublisher to true")
+			if ptpOperatorConfig.Spec.EventConfig == nil {
+				ptpOperatorConfig.Spec.EventConfig = &ptpv1.PtpEventConfig{}
+			}
+			ptpOperatorConfig.Spec.EventConfig.EnableEventPublisher = true
+			_, err = client.Client.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Update(context.Background(), ptpOperatorConfig, metav1.UpdateOptions{})
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Reading back and verifying EnableEventPublisher is true")
+			ptpOperatorConfig, err = client.Client.PtpV1Interface.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), pkg.PtpConfigOperatorName, metav1.GetOptions{})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(ptpOperatorConfig.Spec.EventConfig).ToNot(BeNil(), "EventConfig should not be nil")
+			Expect(ptpOperatorConfig.Spec.EventConfig.EnableEventPublisher).To(BeTrue(), "EnableEventPublisher should be true")
+			logrus.Infof("Verified EnableEventPublisher is set to true")
+
+			By("Setting EnableEventPublisher to false")
+			ptpOperatorConfig.Spec.EventConfig.EnableEventPublisher = false
+			_, err = client.Client.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Update(context.Background(), ptpOperatorConfig, metav1.UpdateOptions{})
+			Expect(err).ToNot(HaveOccurred())
+
+			By("Reading back and verifying EnableEventPublisher is false")
+			ptpOperatorConfig, err = client.Client.PtpV1Interface.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), pkg.PtpConfigOperatorName, metav1.GetOptions{})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(ptpOperatorConfig.Spec.EventConfig.EnableEventPublisher).To(BeFalse(), "EnableEventPublisher should be false")
+			logrus.Infof("Verified EnableEventPublisher is set to false")
+
+			By("Restoring original EnableEventPublisher value")
+			ptpOperatorConfig.Spec.EventConfig.EnableEventPublisher = originalEnableEventPublisher
+			_, err = client.Client.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Update(context.Background(), ptpOperatorConfig, metav1.UpdateOptions{})
+			Expect(err).ToNot(HaveOccurred())
+			logrus.Infof("Restored EnableEventPublisher to original value: %v", originalEnableEventPublisher)
+		})
+
 	})
 
 	Describe("PTP e2e tests", func() {
@@ -1793,6 +1863,9 @@ spp 0
 					// Meanwhile, wait for ClockClass 7 (GNSS loss - Holdover In Spec)
 					waitForClockClass(fullConfig, strconv.Itoa(int(fbprotocol.ClockClass7)))
 
+					// Give DPLL/GM time update
+					time.Sleep(pkg.Timeout10Seconds)
+
 					// Also verify ClockState 2 (Holdover)
 					checkClockStateForProcess(fullConfig, "GM", "2")
 
@@ -1807,7 +1880,7 @@ spp 0
 
 					// Now wait for system to go back to LOCKED (ClockClass 6)
 					waitForClockClass(fullConfig, strconv.Itoa(int(fbprotocol.ClockClass6)))
-					// Give DPLL time update
+					// Give DPLL/GM time update
 					time.Sleep(pkg.Timeout10Seconds)
 					// Also verify ClockState (Holdover) for DPLL
 					checkClockStateForProcess(fullConfig, "dpll", "1")

@@ -34,6 +34,7 @@ const (
 	PtpSlave2PolicyName         = "test-slave2"
 	PtpDualNicBCHAPolicyName    = "test-dual-nic-bc-ha"
 	PtpTempPolicyName           = "temp"
+	PtpUnderscoreTestPolicyName = "test-underscore-profile"
 
 	// node labels
 	PtpGrandmasterNodeLabel    = "ptp/test-grandmaster"
