@@ -22,6 +22,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -246,9 +247,9 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 			pluginList = append(pluginList, k)
 		}
 	} else {
-		pluginList = []string{"e810"} // Enable e810 by default if plugins not specified
+		pluginList = []string{"e810", "ntpfailover"} // Enable e810 by default if plugins not specified
 	}
-
+	sort.Strings(pluginList)
 	enabledPlugins := strings.Join(pluginList, ",")
 	data.Data["EnabledPlugins"] = enabledPlugins
 	if enabledPlugins != "" {
