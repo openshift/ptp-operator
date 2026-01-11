@@ -505,6 +505,11 @@ func (in *PtpProfile) DeepCopyInto(out *PtpProfile) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.ChronydOpts != nil {
+		in, out := &in.ChronydOpts, &out.ChronydOpts
+		*out = new(string)
+		**out = **in
+	}
 	if in.Ptp4lConf != nil {
 		in, out := &in.Ptp4lConf, &out.Ptp4lConf
 		*out = new(string)
@@ -522,6 +527,11 @@ func (in *PtpProfile) DeepCopyInto(out *PtpProfile) {
 	}
 	if in.Synce4lConf != nil {
 		in, out := &in.Synce4lConf, &out.Synce4lConf
+		*out = new(string)
+		**out = **in
+	}
+	if in.ChronydConf != nil {
+		in, out := &in.ChronydConf, &out.ChronydConf
 		*out = new(string)
 		**out = **in
 	}
