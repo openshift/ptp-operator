@@ -18,7 +18,7 @@ require (
 	github.com/redhat-cne/channel-pubsub v0.0.8
 	github.com/redhat-cne/ptp-listener-exports v0.0.7
 	github.com/redhat-cne/sdk-go v0.1.1-0.20221202175356-6d25e1b3c0be
-	github.com/sirupsen/logrus v1.9.0
+	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.8.2
 	github.com/test-network-function/graphsolver-lib v0.0.3
 	github.com/test-network-function/l2discovery-exports v0.0.3
