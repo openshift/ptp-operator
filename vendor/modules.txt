@@ -266,7 +266,7 @@ github.com/redhat-cne/sdk-go/pkg/pubsub
 github.com/redhat-cne/sdk-go/pkg/store
 github.com/redhat-cne/sdk-go/pkg/types
 github.com/redhat-cne/sdk-go/v1/pubsub
-# github.com/sirupsen/logrus v1.9.0
+# github.com/sirupsen/logrus v1.9.3
 ## explicit; go 1.13
 github.com/sirupsen/logrus
 # github.com/spf13/cobra v1.6.0
