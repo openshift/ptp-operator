@@ -70,6 +70,27 @@ var DesiredMode = testconfig.GetDesiredConfig(true).PtpModeDesired
 var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, func() {
 	BeforeEach(func() {
 		Expect(client.Client).NotTo(BeNil())
+		if DesiredMode == testconfig.DualNICBoundaryClockHA || DesiredMode == testconfig.DualFollowerClock {
+			ptpOperatorVersion, err := ptphelper.GetPtpOperatorVersion()
+			Expect(err).ToNot(HaveOccurred())
+			operatorVersion, err := semver.NewVersion(ptpOperatorVersion)
+			Expect(err).ToNot(HaveOccurred())
+			var minVersion *semver.Version
+			var skipMsg string
+			switch DesiredMode {
+			case testconfig.DualNICBoundaryClockHA:
+				minVersion, err = semver.NewVersion("4.16")
+				Expect(err).ToNot(HaveOccurred())
+				skipMsg = "Skipping DualNICBoundaryClockHA tests - HA mode requires OCP 4.16+"
+			case testconfig.DualFollowerClock:
+				minVersion, err = semver.NewVersion("4.19")
+				Expect(err).ToNot(HaveOccurred())
+				skipMsg = "Skipping DualFollowerClock tests - Dual Follower mode requires OCP 4.19+"
+			}
+			if operatorVersion.LessThan(minVersion) {
+				Skip(skipMsg)
+			}
+		}
 	})
 
 	Context("PTP configuration verifications", func() {
@@ -879,6 +900,13 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					modifiedPtpConfig, err = client.Client.PtpV1Interface.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Create(context.Background(), ptpConfigTest, metav1.CreateOptions{})
 					Expect(err).NotTo(HaveOccurred())
 
+					DeferCleanup(func() {
+						err := client.Client.PtpV1Interface.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Delete(context.Background(), pkg.PtpTempPolicyName, metav1.DeleteOptions{})
+						if err != nil && !kerrors.IsNotFound(err) {
+							logrus.Errorf("failed to delete temp ptpconfig %s: %s", pkg.PtpTempPolicyName, err)
+						}
+					})
+
 					testPtpPod, err = ptphelper.GetPtpPodOnNode(nodes.Items[0].Name)
 					Expect(err).NotTo(HaveOccurred())
 
@@ -887,15 +915,36 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				})
 
 				By("Checking if Node has Profile and check sync", func() {
-					var grandmasterID *string
+					// Don't pass gmID upfront: creating the temp config triggers
+					// operator reconciliation which may restart the GM daemon
+					// asynchronously, changing its clock ID. First confirm the
+					// slave is synced (role + offset metrics), then verify the
+					// slave's master matches the GM's current clock.
+					err = ptptesthelper.BasicClockSyncCheck(fullConfig, modifiedPtpConfig, nil, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
+					Expect(err).To(BeNil())
+
 					if fullConfig.L2Config != nil && !isExternalMaster {
 						aLabel := pkg.PtpGrandmasterNodeLabel
-						aString, err := ptphelper.GetClockIDMaster(pkg.PtpGrandMasterPolicyName, &aLabel, nil, true)
-						grandmasterID = &aString
+						gmClockID, err := ptphelper.GetClockIDMaster(pkg.PtpGrandMasterPolicyName, &aLabel, nil, true)
 						Expect(err).To(BeNil())
+
+						profileName, err := ptphelper.GetProfileName(modifiedPtpConfig)
+						Expect(err).To(BeNil())
+						label, err := ptphelper.GetLabel(modifiedPtpConfig)
+						if err != nil {
+							logrus.Warnf("could not get label from ptpconfig: %v", err)
+						}
+						node, err := ptphelper.GetFirstNode(modifiedPtpConfig)
+						if err != nil {
+							logrus.Warnf("could not get first node from ptpconfig: %v", err)
+						}
+						if label != nil && node != nil {
+							slaveMaster, err := ptphelper.GetClockIDForeign(profileName, label, node)
+							Expect(err).To(BeNil())
+							Expect(slaveMaster).To(HavePrefix(gmClockID),
+								fmt.Sprintf("Slave master %s does not match GM clock %s", slaveMaster, gmClockID))
+						}
 					}
-					err = ptptesthelper.BasicClockSyncCheck(fullConfig, modifiedPtpConfig, grandmasterID, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
-					Expect(err).To(BeNil())
 				})
 
 				By("Deleting the test profile", func() {
