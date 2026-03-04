@@ -55,6 +55,8 @@ mkdir -p "$JUNIT_OUTPUT_DIR"
 
 export MAX_OFFSET_IN_NS="${MAX_OFFSET_IN_NS:-10000}"
 export MIN_OFFSET_IN_NS="${MIN_OFFSET_IN_NS:--10000}"
+export COLLECT_POD_LOGS="${COLLECT_POD_LOGS:-true}"
+export LOG_ARTIFACTS_DIR="${LOG_ARTIFACTS_DIR:-${JUNIT_OUTPUT_DIR}/pod-logs}"
 
 cat <<EOF >config.yaml
 global:
@@ -108,21 +110,21 @@ disable_switch_auth() {
 # Function to enable switch1 authentication
 enable_switch_auth() {
     echo "Configuring switch1 with PTP authentication..."
-    
+
     # 1. Copy auth-enabled ptp4l.conf to switch1
     podman cp test-config/ptpswitchconfig_auth.cfg switch1:/etc/ptp4l.conf
-    
+
     # 2. Create directory and copy security file
     podman exec switch1 mkdir -p /etc/ptp-secret-mount/ptp-security-conf
     podman cp test-config/ptp-security.conf switch1:/etc/ptp-secret-mount/ptp-security-conf/ptp-security.conf
-    
+
     # 3. Restart ptp4l with authentication enabled
     podman exec switch1 systemctl restart ptp4l || {
     echo "WARNING: systemctl restart failed, trying pkill..."
     podman exec switch1 pkill ptp4l 2>/dev/null || true
     sleep 2
 }
-    
+
     echo "✓ Switch1 configured with authentication"
 }
 

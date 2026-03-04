@@ -85,7 +85,7 @@ jobs:
             --query 'Reservations[0].Instances[0].PrivateIpAddress' \
             --output text)
           echo "private_ip=$PRIVATE_IP" >> $GITHUB_ENV
-          
+
       - name: Wait for instance to be online
         run: |
           ./ptp-operator/scripts/retry.sh 180 10 sh -c "aws ssm describe-instance-information --query \"InstanceInformationList[?InstanceId=='$instance_id'].PingStatus\" --output text | grep -q 'Online'"
@@ -98,9 +98,9 @@ jobs:
             aws ssm send-command --instance-ids $instance_id \
                 --document-name "AWS-RunShellScript" \
                 --parameters 'commands=["sudo bash -c '\''echo '"$(cat temp_key.pub)"' >> /home/fedora/.ssh/authorized_keys'\''"]'
-            
+
             ssh-add temp_key
-            
+
             ./ptp-operator/scripts/retry.sh 60 5 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null fedora@"$public_ip" uptime
             rsync -r -e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" ptp-operator fedora@"$public_ip":~/.
             ssh -o StrictHostKeyChecking=no \
@@ -118,6 +118,26 @@ jobs:
                 sudo journalctl --no-pager -n 100 --since '5 minutes ago'; \
                 echo '=== End of logs ==='; \
                 exit \$exit_code"
+      - name: Collect artifacts from VM
+        if: always() && env.public_ip != ''
+        run: |
+            mkdir -p artifacts
+            ssh -i temp_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+              -o ConnectTimeout=10 \
+              fedora@"$public_ip" "sudo chmod -R a+r /tmp/artifacts/ 2>/dev/null" || true
+            rsync -r \
+              -e "ssh -i temp_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10" \
+              fedora@"$public_ip":/tmp/artifacts/ artifacts/ || true
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-artifacts-pr${{ github.event.number }}-${{ github.run_id }}
+          path: artifacts/
+          retention-days: 7
+          if-no-files-found: warn
+
       - name: Cleanup - Delete EC2 instance
         if: always()  # Ensure cleanup runs even if previous steps fail
         run: |
