@@ -1891,6 +1891,91 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					}
 				})
 			})
+
+			It("BC clock class recovers to Locked after upstream link outage", func() {
+				if fullConfig.PtpModeDiscovered == testconfig.TelcoGrandMasterClock {
+					Skip("test not valid for WPC GM config")
+				}
+				if fullConfig.PtpModeDesired == testconfig.DualFollowerClock {
+					Skip("Test not valid for dual follower scenario")
+				}
+				if fullConfig.PtpModeDiscovered != testconfig.BoundaryClock &&
+					fullConfig.PtpModeDiscovered != testconfig.DualNICBoundaryClock &&
+					fullConfig.PtpModeDiscovered != testconfig.DualNICBoundaryClockHA {
+					Skip("test only valid for Boundary Clock configurations")
+				}
+
+				slaveIf := ptpv1.GetInterfaces((ptpv1.PtpConfig)(*fullConfig.DiscoveredClockUnderTestPtpConfig), ptpv1.Slave)
+				if fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock ||
+					fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClockHA {
+					secondarySlaveIf := ptpv1.GetInterfaces((ptpv1.PtpConfig)(*fullConfig.DiscoveredClockUnderTestSecondaryPtpConfig), ptpv1.Slave)
+					logrus.Infof("Secondary BC slave interfaces are %+q", secondarySlaveIf)
+					slaveIf = append(slaveIf, secondarySlaveIf...)
+				}
+				Expect(slaveIf).ToNot(BeEmpty(), "no slave interfaces found in the clock-under-test PtpConfig(s)")
+				logrus.Infof("All slave interfaces are %+q", slaveIf)
+				slavePodNodeName := fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName
+
+				portEngine.Initialize(fullConfig.DiscoveredClockUnderTestPod, slaveIf)
+				DeferCleanup(func() {
+					ptptesthelper.DeletePtpTestPrivilegedDaemonSet(
+						pkg.RecoveryNetworkOutageDaemonSetName,
+						pkg.RecoveryNetworkOutageDaemonSetNamespace,
+					)
+				})
+
+				By("Checking initial clock class is Locked (6)")
+				checkClockClassState(fullConfig, strconv.Itoa(int(fbprotocol.ClockClass6)))
+
+				By("Setting all slave interfaces down")
+				skippedInterfacesStr, isSet := os.LookupEnv("SKIP_INTERFACES")
+				if !isSet {
+					Skip("Mandatory to provide skipped interface to avoid making a node disconnected from the cluster")
+				}
+				skipInterfaces := make(map[string]bool)
+				for _, val := range strings.Split(skippedInterfacesStr, ",") {
+					skipInterfaces[val] = true
+				}
+				err := portEngine.TurnAllPortsDown(skipInterfaces)
+				Expect(err).To(BeNil())
+				DeferCleanup(func() {
+					portEngine.TurnAllPortsUp()
+				})
+
+				faultyRoles := make([]metrics.MetricRole, len(slaveIf))
+				for i := range faultyRoles {
+					faultyRoles[i] = metrics.MetricRoleFaulty
+				}
+				slaveRoles := make([]metrics.MetricRole, len(slaveIf))
+				for i := range slaveRoles {
+					slaveRoles[i] = metrics.MetricRoleSlave
+				}
+
+				By("Checking that all slave port roles are FAULTY after wait")
+				Eventually(func() error {
+					return metrics.CheckClockRole(faultyRoles, slaveIf, &slavePodNodeName)
+				}, 5*time.Minute, 10*time.Second).Should(BeNil())
+
+				By("Checking clock class has degraded away from Locked (6)")
+				Eventually(func() bool {
+					return !checkClockClassStateReturnBool(fullConfig, strconv.Itoa(int(fbprotocol.ClockClass6)))
+				}, 5*time.Minute, 10*time.Second).Should(BeTrue(),
+					"expected clock class to degrade from Locked (6) after upstream link loss")
+
+				By("Setting all slave interfaces up")
+				err = portEngine.TurnAllPortsUp()
+				Expect(err).To(BeNil())
+
+				By("Checking that all slave port roles are SLAVE after wait")
+				Eventually(func() error {
+					return metrics.CheckClockRole(slaveRoles, slaveIf, &slavePodNodeName)
+				}, 5*time.Minute, 10*time.Second).Should(BeNil())
+
+				By("Checking clock class recovers to Locked (6)")
+				waitForClockClass(fullConfig, strconv.Itoa(int(fbprotocol.ClockClass6)))
+
+				logrus.Info("Successfully verified T-BC clock class recovery after upstream link outage")
+			})
 		})
 
 		Context("WPC GM Verification Tests", func() {
