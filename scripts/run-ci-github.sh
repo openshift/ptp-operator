@@ -75,6 +75,9 @@ PTP_TEST_MODE=dualnicbcha ginkgo --skip=".*The interfaces supporting ptp can be 
 # Dual port
 PTP_TEST_MODE=dualfollower ginkgo --skip=".*The interfaces supporting ptp can be discovered correctly.*" --skip="Negative - run pmc in a new unprivileged pod on the slave node.*" -v --keep-going --output-dir=$JUNIT_OUTPUT_DIR --junit-report=$JUNIT_OUTPUT_FILE -v "$SUITE"/serial
 
+# Simulated T-GM (GNSS simulation) — runs both WPC GM and Simulated T-GM test blocks
+PTP_TEST_MODE=tgm-sim ginkgo --focus=".*Simulated T-GM.*" --skip=".*The interfaces supporting ptp can be discovered correctly.*" -v --keep-going --output-dir=$JUNIT_OUTPUT_DIR --junit-report=$JUNIT_OUTPUT_FILE -v "$SUITE"/serial
+
 # Configure switch1 for authentication testing
 # kubectl apply -f test-config/ptp-security.yaml
 # enable_switch_auth

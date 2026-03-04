@@ -81,5 +81,9 @@ kubectl rollout status deployment ptp-operator -n openshift-ptp
 
 kubectl get pods -n openshift-ptp -o wide
 
+
+# Start GNSS simulator for T-GM simulation tests
+./configGNSS.sh "$VM_IP"
+
 # run tests
 ./run-ci-github.sh "$VM_IP"

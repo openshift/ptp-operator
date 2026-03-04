@@ -28,6 +28,7 @@ const (
 	// policy name
 	PtpGrandMasterPolicyName      = "test-grandmaster"
 	PtpWPCGrandMasterPolicyName   = "test-wpc-grandmaster"
+	PtpSimGrandMasterPolicyName   = "test-sim-grandmaster"
 	PtpBcMaster1PolicyName        = "test-bc-master1"
 	PtpSlave1PolicyName           = "test-slave1"
 	PtpBcMaster2PolicyName        = "test-bc-master2"

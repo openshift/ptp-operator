@@ -60,14 +60,16 @@ const (
 	DualNICBoundaryClockHAString = "DualNICBCHA"
 	// TelcoGrandMasterClockString matches the T-GM clock mode in Environement
 	TelcoGrandMasterClockString = "TGM"
-	ptp4lEthernet               = "-2 --summary_interval -4"
-	ptp4lEthernetSlave          = "-2 -s --summary_interval -4"
-	phc2sysGM                   = "-a -r -r -n 24" // use phc2sys to sync phc to system clock
-	phc2sysSlave                = "-a -r -n 24 -m -N 8 -R 16"
-	phc2sysDualNicBCHA          = "-a -r -m -l 7 -n 24 "
-	SCHED_OTHER                 = "SCHED_OTHER"
-	SCHED_FIFO                  = "SCHED_FIFO"
-	L2_DISCOVERY_IMAGE          = "quay.io/redhat-cne/l2discovery:v14"
+	// TelcoGrandMasterSimClockString matches the simulated T-GM clock mode
+	TelcoGrandMasterSimClockString = "tgm-sim"
+	ptp4lEthernet                  = "-2 --summary_interval -4"
+	ptp4lEthernetSlave             = "-2 -s --summary_interval -4"
+	phc2sysGM                      = "-a -r -r -n 24" // use phc2sys to sync phc to system clock
+	phc2sysSlave                   = "-a -r -n 24 -m -N 8 -R 16"
+	phc2sysDualNicBCHA             = "-a -r -m -l 7 -n 24 "
+	SCHED_OTHER                    = "SCHED_OTHER"
+	SCHED_FIFO                     = "SCHED_FIFO"
+	L2_DISCOVERY_IMAGE             = "quay.io/redhat-cne/l2discovery:v14"
 )
 
 type ConfigStatus int64
@@ -104,6 +106,8 @@ const (
 	None
 	//Dual Follower mode
 	DualFollowerClock
+	// TelcoGrandMasterSimClock Simulated T-GM mode for CI without real GNSS/WPC hardware
+	TelcoGrandMasterSimClock
 )
 
 type TestConfig struct {
@@ -385,6 +389,8 @@ func (mode PTPMode) String() string {
 		return DualNICBoundaryClockHAString
 	case TelcoGrandMasterClock:
 		return TelcoGrandMasterClockString
+	case TelcoGrandMasterSimClock:
+		return TelcoGrandMasterSimClockString
 	case Discovery:
 		return DiscoveryString
 	case None:
@@ -408,6 +414,8 @@ func StringToMode(aString string) PTPMode {
 		return DualNICBoundaryClockHA
 	case strings.ToLower(TelcoGrandMasterClockString):
 		return TelcoGrandMasterClock
+	case strings.ToLower(TelcoGrandMasterSimClockString):
+		return TelcoGrandMasterSimClock
 	case strings.ToLower(DiscoveryString), strings.ToLower(legacyDiscoveryString):
 		return Discovery
 	case strings.ToLower(NoneString):
@@ -454,7 +462,7 @@ func GetDesiredConfig(forceUpdate bool) TestConfig {
 	}
 
 	switch mode {
-	case OrdinaryClock, BoundaryClock, DualNICBoundaryClock, DualNICBoundaryClockHA, TelcoGrandMasterClock, DualFollowerClock, Discovery:
+	case OrdinaryClock, BoundaryClock, DualNICBoundaryClock, DualNICBoundaryClockHA, TelcoGrandMasterClock, TelcoGrandMasterSimClock, DualFollowerClock, Discovery:
 		logrus.Infof("%s mode detected", mode)
 		GlobalConfig.PtpModeDesired = mode
 		GlobalConfig.Status = InitStatus
@@ -485,6 +493,13 @@ func CreatePtpConfigurations() error {
 	}
 	// Initialize desired ptp config for all configs
 	GetDesiredConfig(true)
+
+	// Simulated T-GM bypasses L2 discovery and solver entirely;
+	// interface names and GNSS device paths are pre-known from the CI setup.
+	if GlobalConfig.PtpModeDesired == TelcoGrandMasterSimClock {
+		return PtpConfigTelcoGMSim()
+	}
+
 	// in multi node configuration create ptp configs
 
 	// Initialize l2 library
@@ -1570,6 +1585,77 @@ func PtpConfigTelcoGM(isExtGM bool) error {
 		}
 	}
 	return nil
+}
+
+// PtpConfigTelcoGMSim creates a T-GM configuration for simulated CI environments.
+// It bypasses L2 discovery and WPC NIC detection, using pre-known netdevsim
+// interfaces and the GNSS simulator's virtual serial port.
+func PtpConfigTelcoGMSim() error {
+	nodeName, err := ptphelper.GetFirstWorkerNodeName()
+	if err != nil {
+		return fmt.Errorf("failed to find worker node for simulated T-GM: %v", err)
+	}
+
+	iface1 := envOrDefault("GNSS_SIM_IFACE1", "ens1f0")
+	iface2 := envOrDefault("GNSS_SIM_IFACE2", "ens1f1")
+	nmeaDevice := envOrDefault("GNSS_SIM_NMEA_DEVICE", "ttyGNSS_TS2PHC")
+
+	logrus.Infof("Creating simulated T-GM config on node=%s ifaces=[%s,%s] nmea=/dev/%s",
+		nodeName, iface1, iface2, nmeaDevice)
+
+	return CreatePtpConfigSimGrandMaster(
+		pkg.PtpSimGrandMasterPolicyName,
+		nodeName,
+		[]string{iface1, iface2},
+		nmeaDevice,
+	)
+}
+
+// CreatePtpConfigSimGrandMaster creates a PtpConfig for simulated T-GM testing.
+// Unlike CreatePtpConfigWPCGrandMaster, this omits Intel E810 plugin configuration
+// and ubxtool commands, since there is no real WPC hardware in the CI environment.
+func CreatePtpConfigSimGrandMaster(policyName string, nodeName string, ifList []string, nmeaDevice string) error {
+	ptpSchedulingPolicy := SCHED_OTHER
+	configureFifo, err := strconv.ParseBool(os.Getenv("CONFIGURE_FIFO"))
+	if err == nil && configureFifo {
+		ptpSchedulingPolicy = SCHED_FIFO
+	}
+
+	time.Sleep(time.Second)
+	_, err = nodes.LabelNode(nodeName, pkg.PtpClockUnderTestNodeLabel, "")
+	_, err = nodes.LabelNode(nodeName, pkg.PtpGrandmasterNodeLabel, "")
+	if err != nil {
+		logrus.Errorf("Error setting simulated GM node role label: %s", err)
+	}
+
+	ts2phcConfig := BaseTs2PhcConfig + fmt.Sprintf("\nts2phc.nmea_serialport  /dev/%s\n", nmeaDevice)
+	ts2phcConfig = fmt.Sprintf("%s\n[%s]\nts2phc.extts_polarity rising\nts2phc.extts_correction 0\n", ts2phcConfig, ifList[0])
+	ptp4lConfig := GetPtp4lConfigWithAuth(BasePtp4lConfig) + "boundary_clock_jbod 1\n"
+	ptp4lConfig = AddAuthSettings(AddInterface(ptp4lConfig, ifList[0], 1))
+	ptp4lConfig = AddAuthSettings(AddInterface(ptp4lConfig, ifList[1], 1))
+	ptp4lsysOpts := ptp4lEthernet
+	ts2phcOpts := " "
+	ph2sysOpts := fmt.Sprintf("-r -u 0 -m -N 8 -R 16 -s %s -n 24", ifList[0])
+
+	return createConfigWithTs2PhcAndPlugins(policyName,
+		nil,
+		&ptp4lsysOpts,
+		ptp4lConfig,
+		ts2phcConfig,
+		&ph2sysOpts,
+		pkg.PtpClockUnderTestNodeLabel,
+		pointer.Int64Ptr(int5),
+		ptpSchedulingPolicy,
+		pointer.Int64Ptr(int65),
+		&ts2phcOpts,
+		nil)
+}
+
+func envOrDefault(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }
 
 // helper function to add an interface to the ptp4l config

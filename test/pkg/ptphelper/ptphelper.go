@@ -4,8 +4,11 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"sort"
 	"strconv"
@@ -1006,4 +1009,135 @@ func IsOCPVersionAtLeast(minVersion string) bool {
 	}
 
 	return !ver.LessThan(minVer)
+}
+
+// GetFirstWorkerNodeName returns the name of the first Kubernetes worker node.
+// Used by the simulated T-GM mode to pick a node without L2 discovery.
+func GetFirstWorkerNodeName() (string, error) {
+	nodeList, err := client.Client.CoreV1().Nodes().List(
+		context.Background(),
+		metav1.ListOptions{LabelSelector: "node-role.kubernetes.io/worker"},
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to list worker nodes: %v", err)
+	}
+	if len(nodeList.Items) == 0 {
+		return "", fmt.Errorf("no worker nodes found in the cluster")
+	}
+	return nodeList.Items[0].Name, nil
+}
+
+// GNSSSimAPIBase returns the base URL for the gnss-sim HTTP API.
+// Reads GNSS_SIM_API_HOST (default "localhost") and GNSS_SIM_API_PORT (default "9200").
+func GNSSSimAPIBase() string {
+	host := os.Getenv("GNSS_SIM_API_HOST")
+	if host == "" {
+		host = "localhost"
+	}
+	port := os.Getenv("GNSS_SIM_API_PORT")
+	if port == "" {
+		port = "9200"
+	}
+	return fmt.Sprintf("http://%s:%s", host, port)
+}
+
+// GNSSSimSignalLoss calls POST /api/signal/loss on the gnss-sim, equivalent
+// to ubxtool CFG-NAVSPG-INFIL_NCNOTHRS,50,1 on real hardware.
+func GNSSSimSignalLoss() error {
+	resp, err := http.Post(GNSSSimAPIBase()+"/api/signal/loss", "application/json", nil)
+	if err != nil {
+		return fmt.Errorf("gnss-sim signal loss request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("gnss-sim signal loss returned %d: %s", resp.StatusCode, string(body))
+	}
+	logrus.Info("gnss-sim: signal loss triggered")
+	return nil
+}
+
+// GNSSSimSignalRestore calls POST /api/signal/restore on the gnss-sim, equivalent
+// to ubxtool CFG-NAVSPG-INFIL_NCNOTHRS,0,1 on real hardware.
+func GNSSSimSignalRestore() error {
+	resp, err := http.Post(GNSSSimAPIBase()+"/api/signal/restore", "application/json", nil)
+	if err != nil {
+		return fmt.Errorf("gnss-sim signal restore request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("gnss-sim signal restore returned %d: %s", resp.StatusCode, string(body))
+	}
+	logrus.Info("gnss-sim: signal restored")
+	return nil
+}
+
+// GNSSSimDPLLState represents the DPLL state returned by gnss-sim.
+type GNSSSimDPLLState struct {
+	State           string `json:"state"`
+	FrequencyStatus int    `json:"frequencyStatus"`
+	PhaseStatus     int    `json:"phaseStatus"`
+	ClockClass      int    `json:"clockClass"`
+	PPSStatus       int    `json:"ppsStatus"`
+}
+
+// GNSSSimGetDPLLState retrieves the current DPLL state from the gnss-sim API.
+func GNSSSimGetDPLLState() (*GNSSSimDPLLState, error) {
+	resp, err := http.Get(GNSSSimAPIBase() + "/api/dpll")
+	if err != nil {
+		return nil, fmt.Errorf("gnss-sim DPLL status request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("gnss-sim DPLL status returned %d: %s", resp.StatusCode, string(body))
+	}
+	var state GNSSSimDPLLState
+	if err := json.NewDecoder(resp.Body).Decode(&state); err != nil {
+		return nil, fmt.Errorf("gnss-sim DPLL status decode failed: %v", err)
+	}
+	return &state, nil
+}
+
+// GNSSSimStatus represents the simulator state returned by gnss-sim.
+type GNSSSimStatus struct {
+	SignalActive bool    `json:"signalActive"`
+	GPSFix       int     `json:"gpsFix"`
+	Satellites   int     `json:"satellites"`
+	HDOP         float64 `json:"hdop"`
+	OffsetNs     int64   `json:"offsetNs"`
+}
+
+// GNSSSimGetStatus retrieves the current simulator state from the gnss-sim API.
+func GNSSSimGetStatus() (*GNSSSimStatus, error) {
+	resp, err := http.Get(GNSSSimAPIBase() + "/api/status")
+	if err != nil {
+		return nil, fmt.Errorf("gnss-sim status request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("gnss-sim status returned %d: %s", resp.StatusCode, string(body))
+	}
+	var status GNSSSimStatus
+	if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
+		return nil, fmt.Errorf("gnss-sim status decode failed: %v", err)
+	}
+	return &status, nil
+}
+
+// GNSSSimIsHealthy returns true if the gnss-sim /health endpoint responds with 200 OK.
+func GNSSSimIsHealthy() bool {
+	resp, err := http.Get(GNSSSimAPIBase() + "/health")
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	return resp.StatusCode == http.StatusOK
+}
+
+// IsSimulatedTGM returns true when PTP_TEST_MODE is set to "tgm-sim".
+func IsSimulatedTGM() bool {
+	return strings.ToLower(os.Getenv("PTP_TEST_MODE")) == "tgm-sim"
 }
