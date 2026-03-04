@@ -1,0 +1,21 @@
+# Build stage: compile the gnss-sim Go binary
+FROM golang:1.22 AS builder
+
+WORKDIR /build
+COPY ptp-tools/gnss-sim/ .
+RUN CGO_ENABLED=0 GOOS=linux go build -o gnss-sim .
+
+# Runtime stage: minimal image with socat for PTY pair creation
+FROM quay.io/fedora/fedora:latest
+
+RUN dnf install -y socat && \
+    dnf clean all && \
+    rm -rf /var/cache/dnf
+
+COPY --from=builder /build/gnss-sim /usr/local/bin/gnss-sim
+COPY ptp-tools/gnss-sim/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/gnss-sim
+
+EXPOSE 9200
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
