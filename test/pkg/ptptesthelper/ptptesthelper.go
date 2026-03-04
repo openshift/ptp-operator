@@ -481,6 +481,23 @@ func (p *PortEngine) TurnPortUp(port string) error {
 	return err
 }
 
+func (p *PortEngine) TurnAllPortsDown(skippedInterfaces map[string]bool) error {
+	for _, port := range p.Ports {
+		if skippedInterfaces[port] {
+			logrus.Infof("Skipping interface: %s (in skip list)", port)
+			continue
+		}
+		stdout, stderr, err := pods.ExecCommand(client.Client, true, p.ClockPod, pkg.RecoveryNetworkOutageDaemonSetContainerName,
+			[]string{"ip", "link", "set", port, "down"})
+		if err != nil {
+			return err
+		}
+
+		logrus.Infof("Turning interface: %s in pod %s down, stdout: %s, stderr: %s", port, p.ClockPod.Name, stdout.String(), stderr.String())
+	}
+	return nil
+}
+
 func (p *PortEngine) TurnAllPortsUp() error {
 	for _, port := range p.Ports {
 		stdout, stderr, err := pods.ExecCommand(client.Client, true, p.ClockPod, pkg.RecoveryNetworkOutageDaemonSetContainerName,
