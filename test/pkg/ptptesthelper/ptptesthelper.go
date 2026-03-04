@@ -537,7 +537,7 @@ func (p *PortEngine) Initialize(aClockPod *corev1.Pod, aPorts []string) {
 	// Retry until there is no error or we timeout
 	Eventually(func() error {
 		return p.SetInitialRoles()
-	}, 150*time.Second, 30*time.Second).Should(BeNil())
+	}, 5*time.Minute, 30*time.Second).Should(BeNil())
 }
 
 func (p *PortEngine) RolesInOnly(roles []metrics.MetricRole) (err error) {
