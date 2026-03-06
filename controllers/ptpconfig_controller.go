@@ -279,33 +279,33 @@ type secretEventHandler struct {
 }
 
 // Create handles Secret creation events
-func (h *secretEventHandler) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (h *secretEventHandler) Create(ctx context.Context, evt event.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	secret := evt.Object.(*corev1.Secret)
 	glog.Infof("Secret created: %s", secret.Name)
 	h.enqueuePtpConfigReconcile(ctx, secret.Name, q)
 }
 
 // Update handles Secret update events (we don't need to reconcile on updates)
-func (h *secretEventHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (h *secretEventHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	// Secret content updates are handled by linuxptp-daemon fsnotify
 	// No need to trigger reconciliation here
 }
 
 // Delete handles Secret deletion events
-func (h *secretEventHandler) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (h *secretEventHandler) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	secret := evt.Object.(*corev1.Secret)
 	glog.Infof("Secret deleted: %s", secret.Name)
 	h.enqueuePtpConfigReconcile(ctx, secret.Name, q)
 }
 
 // Generic handles generic events
-func (h *secretEventHandler) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (h *secretEventHandler) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	// Not needed for our use case
 }
 
 // enqueuePtpConfigReconcile enqueues a single reconciliation request if the secret is referenced
 // Note: The Reconcile function processes ALL PtpConfigs, so we only need to trigger it once
-func (h *secretEventHandler) enqueuePtpConfigReconcile(ctx context.Context, secretName string, q workqueue.RateLimitingInterface) {
+func (h *secretEventHandler) enqueuePtpConfigReconcile(ctx context.Context, secretName string, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	ptpConfigs := &ptpv1.PtpConfigList{}
 	if err := h.client.List(ctx, ptpConfigs, &client.ListOptions{Namespace: names.Namespace}); err != nil {
 		glog.Errorf("Failed to list PtpConfigs for secret event: %v", err)
