@@ -33,6 +33,8 @@ import (
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/apply"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/names"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/render"
+	configv1 "github.com/openshift/api/config/v1"
+	libgocrypto "github.com/openshift/library-go/pkg/crypto"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -51,8 +53,9 @@ import (
 // PtpOperatorConfigReconciler reconciles a PtpOperatorConfig object
 type PtpOperatorConfigReconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	Log            logr.Logger
+	Scheme         *runtime.Scheme
+	TLSProfileSpec configv1.TLSProfileSpec
 }
 
 const (
@@ -66,6 +69,7 @@ const (
 // +kubebuilder:rbac:groups=ptp.openshift.io,resources=ptpoperatorconfigs/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=ptp.openshift.io,resources=ptpoperatorconfigs/finalizers,verbs=update
 // +kubebuilder:rbac:groups=config.openshift.io,resources=infrastructures,verbs=get;list;watch
+// +kubebuilder:rbac:groups=config.openshift.io,resources=apiservers,verbs=get;list;watch
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;update;patch;delete
 
 func (r *PtpOperatorConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (reconcile.Result, error) {
@@ -268,6 +272,11 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 	if enabledPlugins != "" {
 		glog.Infof("ptp operator enabled plugins: %s", enabledPlugins)
 	}
+
+	// Pass TLS profile settings for kube-rbac-proxy
+	ianaCiphers := libgocrypto.OpenSSLToIANACipherSuites(r.TLSProfileSpec.Ciphers)
+	data.Data["TLSMinVersion"] = string(r.TLSProfileSpec.MinTLSVersion)
+	data.Data["TLSCipherSuites"] = strings.Join(ianaCiphers, ",")
 
 	objs, err = render.RenderTemplate(filepath.Join(names.ManifestDir, "linuxptp/ptp-daemon.yaml"), &data)
 	if err != nil {
