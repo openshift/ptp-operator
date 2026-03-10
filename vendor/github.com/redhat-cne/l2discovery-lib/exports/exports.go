@@ -73,9 +73,31 @@ type Iface struct {
 	IfSlaveType string
 }
 
+// PtpAnnounceData contains decoded fields from a PTP Announce message (IEEE 1588).
+type PtpAnnounceData struct {
+	DomainNumber            uint8  `json:"domainNumber"`
+	GrandmasterPriority1    uint8  `json:"grandmasterPriority1"`
+	ClockClass              uint8  `json:"clockClass"`
+	ClockAccuracy           uint8  `json:"clockAccuracy"`
+	OffsetScaledLogVariance uint16 `json:"offsetScaledLogVariance"`
+	GrandmasterPriority2    uint8  `json:"grandmasterPriority2"`
+	GrandmasterIdentity     string `json:"grandmasterIdentity"`
+	StepsRemoved            uint16 `json:"stepsRemoved"`
+	TimeSource              uint8  `json:"timeSource"`
+}
+
+func (a PtpAnnounceData) String() string {
+	return fmt.Sprintf("Domain:%d ClockClass:%d Priority1:%d Priority2:%d ClockAccuracy:%d GMID:%s StepsRemoved:%d TimeSource:%d",
+		a.DomainNumber, a.ClockClass, a.GrandmasterPriority1, a.GrandmasterPriority2,
+		a.ClockAccuracy, a.GrandmasterIdentity, a.StepsRemoved, a.TimeSource)
+}
+
 type Neighbors struct {
 	Local  Iface
 	Remote map[string]bool
+	// PTP Announce data received on this interface, keyed by grandmaster identity.
+	// Multiple GMs may announce on the same LAN.
+	PtpAnnounces map[string]*PtpAnnounceData `json:"ptpAnnounces,omitempty"`
 }
 
 // Object representing a ptp interface within a cluster.
@@ -84,6 +106,9 @@ type PtpIf struct {
 	IfClusterIndex
 	// Interface
 	Iface
+	// PTP Announce data received on this interface, keyed by grandmaster identity.
+	// nil if no announce received.
+	Announces map[string]*PtpAnnounceData `json:"-"`
 }
 
 // Object used to index interfaces in a cluster
@@ -128,7 +153,17 @@ func (iface *PtpIf) StringFull(indent int) string {
 	result.WriteString(fmt.Sprintf(childIndentStr+"  IfPTPCaps: %s\n", iface.IfPTPCaps))
 	result.WriteString(fmt.Sprintf(childIndentStr+"  IfUp: %t\n", iface.IfUp))
 	result.WriteString(fmt.Sprintf(childIndentStr+"  IfMaster: %s\n", iface.IfMaster))
-	result.WriteString(fmt.Sprintf(childIndentStr+"  IfSlaveType: %s", iface.IfSlaveType))
+	result.WriteString(fmt.Sprintf(childIndentStr+"  IfSlaveType: %s\n", iface.IfSlaveType))
+
+	// Announce data
+	if len(iface.Announces) > 0 {
+		result.WriteString(indentStr + "Announces:\n")
+		for gmID, announce := range iface.Announces {
+			result.WriteString(fmt.Sprintf(childIndentStr+"  [%s]: %s\n", gmID, announce))
+		}
+	} else {
+		result.WriteString(indentStr + "Announces: none")
+	}
 
 	return result.String()
 }

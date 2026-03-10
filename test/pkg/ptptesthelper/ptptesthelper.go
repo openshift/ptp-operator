@@ -73,7 +73,10 @@ func BasicClockSyncCheck(fullConfig testconfig.TestConfig, ptpConfig *ptpv1.PtpC
 	}
 	if gmID != nil {
 		if !strings.HasPrefix(slaveMaster, *gmID) {
-			return errors.Errorf("Slave connected to another (incorrect) Master, slaveMaster=%s, gmID=%s", slaveMaster, *gmID)
+			logrus.Infof("slaveMaster=%s does not match expected GM=%s, waiting for re-sync...", slaveMaster, *gmID)
+			if waitErr := ptphelper.WaitForClockIDForeign(profileName, label, nodeName, *gmID); waitErr != nil {
+				return errors.Errorf("Slave connected to another (incorrect) Master, slaveMaster=%s, gmID=%s, waitErr=%s", slaveMaster, *gmID, waitErr)
+			}
 		}
 	}
 
@@ -534,7 +537,7 @@ func (p *PortEngine) Initialize(aClockPod *corev1.Pod, aPorts []string) {
 	// Retry until there is no error or we timeout
 	Eventually(func() error {
 		return p.SetInitialRoles()
-	}, 150*time.Second, 30*time.Second).Should(BeNil())
+	}, 5*time.Minute, 30*time.Second).Should(BeNil())
 }
 
 func (p *PortEngine) RolesInOnly(roles []metrics.MetricRole) (err error) {

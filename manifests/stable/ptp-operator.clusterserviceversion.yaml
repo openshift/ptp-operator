@@ -61,7 +61,7 @@ metadata:
     categories: Networking
     certified: "false"
     containerImage: quay.io/openshift/origin-ptp-operator:4.22
-    createdAt: "2026-01-20T12:52:18Z"
+    createdAt: "2026-03-04T16:57:01Z"
     description: This software enables configuration of Precision Time Protocol(PTP)
       on Kubernetes. It detects hardware capable PTP devices on each node, and configures
       linuxptp processes such as ptp4l, phc2sys and timemaster.
@@ -305,57 +305,7 @@ spec:
           - ptp.openshift.io
           resources:
           - hardwareconfigs
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - ptp.openshift.io
-          resources:
-          - hardwareconfigs/finalizers
-          verbs:
-          - update
-        - apiGroups:
-          - ptp.openshift.io
-          resources:
-          - hardwareconfigs/status
-          verbs:
-          - get
-          - patch
-          - update
-        - apiGroups:
-          - ptp.openshift.io
-          resources:
           - ptpconfigs
-          verbs:
-          - create
-          - delete
-          - get
-          - list
-          - patch
-          - update
-          - watch
-        - apiGroups:
-          - ptp.openshift.io
-          resources:
-          - ptpconfigs/finalizers
-          verbs:
-          - update
-        - apiGroups:
-          - ptp.openshift.io
-          resources:
-          - ptpconfigs/status
-          verbs:
-          - get
-          - patch
-          - update
-        - apiGroups:
-          - ptp.openshift.io
-          resources:
           - ptpoperatorconfigs
           verbs:
           - create
@@ -368,12 +318,16 @@ spec:
         - apiGroups:
           - ptp.openshift.io
           resources:
+          - hardwareconfigs/finalizers
+          - ptpconfigs/finalizers
           - ptpoperatorconfigs/finalizers
           verbs:
           - update
         - apiGroups:
           - ptp.openshift.io
           resources:
+          - hardwareconfigs/status
+          - ptpconfigs/status
           - ptpoperatorconfigs/status
           verbs:
           - get

@@ -113,6 +113,30 @@ const (
 	StepSameNode
 )
 
+// list of Algorithm function with 1 interface param and 1 literal value param
+type AlgoFunction1V int
+
+// See applyStep
+const (
+	StepClockClassLessThan AlgoFunction1V = iota
+	StepPTPDomainEquals
+)
+
+// OneIfaceOneValue is the param type identifier for steps with 1 interface param and 1 literal value param.
+// This is separate from the standard param count values (0-4) to distinguish mixed-parameter steps.
+const OneIfaceOneValue = 10
+
+// OneIfaceTwoValues is the param type identifier for steps with 1 interface param and 2 literal value params.
+const OneIfaceTwoValues = 11
+
+// list of Algorithm function with 1 interface param and 2 literal value params
+type AlgoFunction1V2 int
+
+// See applyStep
+const (
+	StepClockClassLessThanInDomain AlgoFunction1V2 = iota
+)
+
 // Negation constants for step functions
 // Use these as the last element in the step definition array
 const (
@@ -147,6 +171,22 @@ func Step3(fn AlgoFunction3, param1, param2, param3, negate int) []int {
 	return []int{int(fn), 3, param1, param2, param3, negate}
 }
 
+// Step1V creates a step with 1 interface parameter and 1 literal value parameter.
+// ifParam is an index into the problem variables (resolved to an interface index via permutations).
+// valueParam is a literal value passed directly to the function (e.g., domain number or clock class threshold).
+// negate: use Positive for normal test, Negative for inverted test
+func Step1V(fn AlgoFunction1V, ifParam, valueParam, negate int) []int {
+	return []int{int(fn), OneIfaceOneValue, ifParam, valueParam, negate}
+}
+
+// Step1V2 creates a step with 1 interface parameter and 2 literal value parameters.
+// ifParam is an index into the problem variables (resolved to an interface index via permutations).
+// valueParam1 and valueParam2 are literal values passed directly to the function.
+// negate: use Positive for normal test, Negative for inverted test
+func Step1V2(fn AlgoFunction1V2, ifParam, valueParam1, valueParam2, negate int) []int {
+	return []int{int(fn), OneIfaceTwoValues, ifParam, valueParam1, valueParam2, negate}
+}
+
 // WPCNICSubsystemID is the subsystem ID for Intel WPC NICs
 const WPCNICSubsystemID = "E810-XXV-4T"
 
@@ -169,6 +209,12 @@ type ConfigFunc2 func(exports.L2Info, int, int) bool
 
 // Signature for algorithm functions with 3 params
 type ConfigFunc3 func(exports.L2Info, int, int, int) bool
+
+// Signature for algorithm functions with 1 interface param and 1 literal value param
+type ConfigFunc1V func(exports.L2Info, int, int) bool
+
+// Signature for algorithm functions with 1 interface param and 2 literal value params
+type ConfigFunc1V2 func(exports.L2Info, int, int, int) bool
 
 type ConfigFunc func(exports.L2Info, []int) bool
 type Algorithm struct {
@@ -323,6 +369,55 @@ func IsWPCNicWrapper(config exports.L2Info, if1 int) bool {
 	return IsWpcNic(config.GetPtpIfList()[if1])
 }
 
+// ClockClassLessThan checks if any PTP Announce received on the interface
+// has a clock class less than the given threshold value.
+func ClockClassLessThan(ptpIf *exports.PtpIf, value int) bool {
+	for _, announce := range ptpIf.Announces {
+		if int(announce.ClockClass) < value {
+			return true
+		}
+	}
+	return false
+}
+
+// ClockClassLessThanWrapper is the solver wrapper for ClockClassLessThan
+func ClockClassLessThanWrapper(config exports.L2Info, ifIdx, value int) bool {
+	return ClockClassLessThan(config.GetPtpIfList()[ifIdx], value)
+}
+
+// PTPDomainEquals checks if any PTP Announce received on the interface
+// has a domain number equal to the given value.
+func PTPDomainEquals(ptpIf *exports.PtpIf, value int) bool {
+	for _, announce := range ptpIf.Announces {
+		if int(announce.DomainNumber) == value {
+			return true
+		}
+	}
+	return false
+}
+
+// PTPDomainEqualsWrapper is the solver wrapper for PTPDomainEquals
+func PTPDomainEqualsWrapper(config exports.L2Info, ifIdx, value int) bool {
+	return PTPDomainEquals(config.GetPtpIfList()[ifIdx], value)
+}
+
+// ClockClassLessThanInDomain checks if any PTP Announce received on the interface
+// has BOTH a domain number equal to the given domain AND a clock class less than the
+// given threshold. Both conditions must be satisfied by the same announce message.
+func ClockClassLessThanInDomain(ptpIf *exports.PtpIf, clockClassThreshold, domain int) bool {
+	for _, announce := range ptpIf.Announces {
+		if int(announce.DomainNumber) == domain && int(announce.ClockClass) < clockClassThreshold {
+			return true
+		}
+	}
+	return false
+}
+
+// ClockClassLessThanInDomainWrapper is the solver wrapper for ClockClassLessThanInDomain
+func ClockClassLessThanInDomainWrapper(config exports.L2Info, ifIdx, clockClassThreshold, domain int) bool {
+	return ClockClassLessThanInDomain(config.GetPtpIfList()[ifIdx], clockClassThreshold, domain)
+}
+
 // wrapper for nil algo function
 func NilWrapper() bool {
 	return true
@@ -332,6 +427,8 @@ func NilWrapper() bool {
 // Step format: [FunctionCode, ParamCount, Param1, Param2, ..., NegationFlag]
 // NegationFlag: 0 = Positive (normal), 1 = Negative (inverted result)
 // If NegationFlag is omitted, defaults to Positive (0)
+//
+//nolint:funlen // dispatch table setup makes this long but splitting would hurt readability
 func applyStep(config exports.L2Info, step [][]int, combinations []int) bool {
 	type paramNum int
 
@@ -360,6 +457,14 @@ func applyStep(config exports.L2Info, step [][]int, combinations []int) bool {
 
 	var AlgoCode3 [1]ConfigFunc3
 	AlgoCode3[StepSameLan3] = SameLan3Wrapper
+
+	var AlgoCode1V [2]ConfigFunc1V
+	AlgoCode1V[StepClockClassLessThan] = ClockClassLessThanWrapper
+	AlgoCode1V[StepPTPDomainEquals] = PTPDomainEqualsWrapper
+
+	var AlgoCode1V2 [1]ConfigFunc1V2
+	AlgoCode1V2[StepClockClassLessThanInDomain] = ClockClassLessThanInDomainWrapper
+
 	const negationIdxBase = 2 // base index for negation flag calculation
 
 	result := true
@@ -367,13 +472,23 @@ func applyStep(config exports.L2Info, step [][]int, combinations []int) bool {
 		var stepResult bool
 		// Get negation flag - it's the last element after all params
 		// Position depends on param count: NoParam=2, OneParam=3, TwoParams=4, ThreeParams=5
+		// For OneIfaceOneValue (10): negation is at index 4 (2 params after paramType)
+		// For OneIfaceTwoValues (11): negation is at index 5 (3 params after paramType)
 		negationIdx := negationIdxBase + test[1] // index of negation flag
+		switch test[1] {
+		case OneIfaceOneValue:
+			// For mixed param steps: [fn, paramType, ifParam, valueParam, negate]
+			negationIdx = 4
+		case OneIfaceTwoValues:
+			// For mixed param steps: [fn, paramType, ifParam, valueParam1, valueParam2, negate]
+			negationIdx = 5
+		}
 		negate := false
 		if len(test) > negationIdx {
 			negate = test[negationIdx] == Negative
 		}
 
-		//nolint:gosec // G602: slice indices are controlled by step definition and param count in test[1]
+		//nolint:gosec // G602: indices are bounded by step definition constants
 		switch test[1] {
 		case int(NoParam):
 			stepResult = AlgoCode0[test[0]]()
@@ -383,6 +498,12 @@ func applyStep(config exports.L2Info, step [][]int, combinations []int) bool {
 			stepResult = AlgoCode2[test[0]](config, combinations[test[2]], combinations[test[3]])
 		case int(ThreeParams):
 			stepResult = AlgoCode3[test[0]](config, combinations[test[2]], combinations[test[3]], combinations[test[4]])
+		case OneIfaceOneValue:
+			// 1 interface param (resolved from permutations) + 1 literal value param
+			stepResult = AlgoCode1V[test[0]](config, combinations[test[2]], test[3])
+		case OneIfaceTwoValues:
+			// 1 interface param (resolved from permutations) + 2 literal value params
+			stepResult = AlgoCode1V2[test[0]](config, combinations[test[2]], test[3], test[4])
 		}
 
 		// Apply negation if requested

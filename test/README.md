@@ -522,8 +522,9 @@ The following diagram shows an example of configuration that can be created in t
 - `kind-config.yaml`: reference kind cluster configuration
 - `reset-devices.sh`: loads netdevsim and openvswitch kernel drivers
 - `run-on-vm.sh`: top level script called by the github action to run CI tests.  Can also be used on local VM with netdevsim to run tests locally.
+- `run-tests.sh`: Configurable PTP conformance test runner. Supports serial, parallel, or both execution kinds, selectable test modes, and optional linuxptp-daemon image for pmc pod tests.
 ```
-run-ci-github.sh <EC2 private VM IP >
+./run-tests.sh --kind <serial|parallel|both> --mode <modes> [--loglevel <level>] [--linuxptp-daemon-image <url>]
 ```
 - `configSwitch2.sh`: configures virtual Ethernet switch (openvswitch) container
 - `fix-certs.sh`: Fix certificates for the linuxptp-daemon in Kind
@@ -536,7 +537,6 @@ run-ci-github.sh <EC2 private VM IP >
 - `create-local-registry.sh`: creare local docker registry
 - `k8s-start.sh`: starts the kind cluster
 - `ptpswitchconfig.cfg`: ptp4l configuration for the Openvswitch switch1
-- `run-ci-github.sh`: Runs all PTP tests (sync tests only for now)
 
 ## ptp-tools
 The ptp-tools list a set set a make targets to build all images required to run the ptp-operator

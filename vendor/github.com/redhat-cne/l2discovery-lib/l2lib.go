@@ -419,6 +419,8 @@ func (config *L2DiscoveryConfig) getInterfacesReceivingPTP(ptpInterfacesOnly boo
 			aPortGettingPTP.Iface = ifaceMap.Local
 			aPortGettingPTP.NodeName = config.L2DiscoveryPods[k].Spec.NodeName
 			aPortGettingPTP.InterfaceName = aPortGettingPTP.IfName
+			// Copy PTP Announce data if available
+			aPortGettingPTP.Announces = ifaceMap.PtpAnnounces
 
 			if ptpInterfacesOnly &&
 				(strings.Contains(aPortGettingPTP.IfPci.Description, "Virtual") ||
@@ -428,6 +430,19 @@ func (config *L2DiscoveryConfig) getInterfacesReceivingPTP(ptpInterfacesOnly boo
 				continue
 			}
 			config.PortsGettingPTP = append(config.PortsGettingPTP, aPortGettingPTP)
+
+			// Also propagate announce data to the corresponding PtpIfList entry
+			if len(ifaceMap.PtpAnnounces) > 0 {
+				clusterIdx := exports.IfClusterIndex{
+					InterfaceName: aPortGettingPTP.IfName,
+					NodeName:      aPortGettingPTP.NodeName,
+				}
+				if listIdx, ok := config.ClusterIndexToInt[clusterIdx]; ok {
+					if listIdx < len(config.PtpIfList) {
+						config.PtpIfList[listIdx].Announces = ifaceMap.PtpAnnounces
+					}
+				}
+			}
 		}
 	}
 	logrus.Debugf("interfaces receiving PTP frames: %v", config.PortsGettingPTP)

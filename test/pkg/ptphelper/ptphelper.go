@@ -146,6 +146,42 @@ func GetClockIDForeign(ptpConfigName string, label *string, nodeName *string) (i
 	return id, err
 }
 
+// WaitForClockIDForeign searches the slave's log stream for a specific expected
+// GM clock ID. Unlike GetClockIDForeign (which returns whatever master is in
+// the logs), this waits for the expected master to appear — handling the case
+// where the GM restarted and the slave hasn't re-synced yet.
+func WaitForClockIDForeign(ptpConfigName string, label *string, nodeName *string, expectedGMID string) error {
+	logID, err := GetProfileLogID(ptpConfigName, label, nodeName)
+	if err != nil {
+		return fmt.Errorf("could not get profile log ID: %w", err)
+	}
+	if strings.Contains(logID, "level") {
+		logID = strings.Replace(logID, "{level}", "\\d+", 1)
+	}
+	ptpPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
+	if err != nil {
+		return fmt.Errorf("could not list ptp pods: %w", err)
+	}
+	for _, pod := range ptpPods.Items {
+		isPodFound, err := pods.HasPodLabelOrNodeName(&pod, label, nodeName)
+		if err != nil {
+			return fmt.Errorf("could not check pod role: %w", err)
+		}
+		if !isPodFound {
+			continue
+		}
+		expectedMasterRegex := fmt.Sprintf(`(?m)\[%s\].* selected best master clock %s`, logID, expectedGMID)
+		_, err = pods.GetPodLogsRegex(pod.Namespace, pod.Name, pkg.PtpContainerName,
+			expectedMasterRegex, false, pkg.TimeoutIn10Minutes)
+		if err != nil {
+			return fmt.Errorf("expected master %s not found in logs: %w", expectedGMID, err)
+		}
+		logrus.Infof("slave's Master=%s (matched expected GM)", expectedGMID)
+		return nil
+	}
+	return fmt.Errorf("no matching pod found for profile %s", ptpConfigName)
+}
+
 // returns true if the pod is running a grandmaster
 func IsGrandMasterPod(aPod *v1core.Pod) (result bool, err error) {
 	result, err = pods.PodRole(aPod, pkg.PtpGrandmasterNodeLabel)
@@ -984,18 +1020,18 @@ func GetOCPVersion() (ocpVersion string, err error) {
 	return ocpVersion, err
 }
 
-// IsOCPVersionAtLeast checks if the OCP version is >= the specified minimum version
+// IsPTPOperatorVersionAtLeast checks if the PTP Operator version is >= the specified minimum version
 // Returns true if version cannot be determined (to allow tests to run)
-func IsOCPVersionAtLeast(minVersion string) bool {
-	ocpVersion, err := GetOCPVersion()
+func IsPTPOperatorVersionAtLeast(minVersion string) bool {
+	foundVersion, err := GetPtpOperatorVersionFromDeployment()
 	if err != nil {
-		logrus.Infof("Could not get OCP version, assuming version check passes: %v", err)
+		logrus.Infof("Could not get PTP Operator version, assuming version check passes: %v", err)
 		return true
 	}
-
-	ver, err := semver.NewVersion(ocpVersion)
+	logrus.Infof("Found version %s; checking %s <= %s", foundVersion, foundVersion, minVersion)
+	ver, err := semver.NewVersion(foundVersion)
 	if err != nil {
-		logrus.Infof("Could not parse OCP version %s, assuming version check passes: %v", ocpVersion, err)
+		logrus.Infof("Could not parse PTP Operator version %s, assuming version check passes: %v", foundVersion, err)
 		return true
 	}
 

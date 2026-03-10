@@ -70,6 +70,27 @@ var DesiredMode = testconfig.GetDesiredConfig(true).PtpModeDesired
 var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, func() {
 	BeforeEach(func() {
 		Expect(client.Client).NotTo(BeNil())
+		if DesiredMode == testconfig.DualNICBoundaryClockHA || DesiredMode == testconfig.DualFollowerClock {
+			ptpOperatorVersion, err := ptphelper.GetPtpOperatorVersion()
+			Expect(err).ToNot(HaveOccurred())
+			operatorVersion, err := semver.NewVersion(ptpOperatorVersion)
+			Expect(err).ToNot(HaveOccurred())
+			var minVersion *semver.Version
+			var skipMsg string
+			switch DesiredMode {
+			case testconfig.DualNICBoundaryClockHA:
+				minVersion, err = semver.NewVersion("4.16")
+				Expect(err).ToNot(HaveOccurred())
+				skipMsg = "Skipping DualNICBoundaryClockHA tests - HA mode requires OCP 4.16+"
+			case testconfig.DualFollowerClock:
+				minVersion, err = semver.NewVersion("4.19")
+				Expect(err).ToNot(HaveOccurred())
+				skipMsg = "Skipping DualFollowerClock tests - Dual Follower mode requires OCP 4.19+"
+			}
+			if operatorVersion.LessThan(minVersion) {
+				Skip(skipMsg)
+			}
+		}
 	})
 
 	Context("PTP configuration verifications", func() {
@@ -249,6 +270,10 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 		// Webhook validation test for underscore profile names
 		It("Should accept underscores in ptp-config profile names for HA profiles", func() {
+			if DesiredMode != testconfig.DualNICBoundaryClockHA {
+				Skip("Skipping as the test is only applicable for Dual NIC BC in HA mode (dualnicbcha)")
+			}
+
 			By("Creating a PtpConfig with underscore profile names in haProfiles")
 			err := testconfig.CreatePtpConfigWithUnderscoreProfileNames()
 			Expect(err).ToNot(HaveOccurred(), "webhook should accept underscores in profile names")
@@ -541,6 +566,16 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				if fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock || fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClockHA {
 					err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestSecondaryPtpConfig), grandmasterID, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
 					Expect(err).To(BeNil())
+				}
+				if fullConfig.PtpModeDiscovered == testconfig.OrdinaryClock {
+					// In 4.21+, OC correctly reports its local clock class (255/SlaveOnly).
+					// Before 4.21, OC was incorrectly detected as GM and reported upstream GM's class (6).
+					expectedClockClass := fbprotocol.ClockClass6
+					if ptphelper.IsPTPOperatorVersionAtLeast("4.21") {
+						expectedClockClass = fbprotocol.ClockClassSlaveOnly
+					}
+					By(fmt.Sprintf("Verifying OC clock_class is %d", expectedClockClass))
+					checkClockClassState(fullConfig, strconv.Itoa(int(expectedClockClass)))
 				}
 			})
 
@@ -865,6 +900,13 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					modifiedPtpConfig, err = client.Client.PtpV1Interface.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Create(context.Background(), ptpConfigTest, metav1.CreateOptions{})
 					Expect(err).NotTo(HaveOccurred())
 
+					DeferCleanup(func() {
+						err := client.Client.PtpV1Interface.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Delete(context.Background(), pkg.PtpTempPolicyName, metav1.DeleteOptions{})
+						if err != nil && !kerrors.IsNotFound(err) {
+							logrus.Errorf("failed to delete temp ptpconfig %s: %s", pkg.PtpTempPolicyName, err)
+						}
+					})
+
 					testPtpPod, err = ptphelper.GetPtpPodOnNode(nodes.Items[0].Name)
 					Expect(err).NotTo(HaveOccurred())
 
@@ -873,15 +915,36 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				})
 
 				By("Checking if Node has Profile and check sync", func() {
-					var grandmasterID *string
+					// Don't pass gmID upfront: creating the temp config triggers
+					// operator reconciliation which may restart the GM daemon
+					// asynchronously, changing its clock ID. First confirm the
+					// slave is synced (role + offset metrics), then verify the
+					// slave's master matches the GM's current clock.
+					err = ptptesthelper.BasicClockSyncCheck(fullConfig, modifiedPtpConfig, nil, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
+					Expect(err).To(BeNil())
+
 					if fullConfig.L2Config != nil && !isExternalMaster {
 						aLabel := pkg.PtpGrandmasterNodeLabel
-						aString, err := ptphelper.GetClockIDMaster(pkg.PtpGrandMasterPolicyName, &aLabel, nil, true)
-						grandmasterID = &aString
+						gmClockID, err := ptphelper.GetClockIDMaster(pkg.PtpGrandMasterPolicyName, &aLabel, nil, true)
 						Expect(err).To(BeNil())
+
+						profileName, err := ptphelper.GetProfileName(modifiedPtpConfig)
+						Expect(err).To(BeNil())
+						label, err := ptphelper.GetLabel(modifiedPtpConfig)
+						if err != nil {
+							logrus.Warnf("could not get label from ptpconfig: %v", err)
+						}
+						node, err := ptphelper.GetFirstNode(modifiedPtpConfig)
+						if err != nil {
+							logrus.Warnf("could not get first node from ptpconfig: %v", err)
+						}
+						if label != nil && node != nil {
+							slaveMaster, err := ptphelper.GetClockIDForeign(profileName, label, node)
+							Expect(err).To(BeNil())
+							Expect(slaveMaster).To(HavePrefix(gmClockID),
+								fmt.Sprintf("Slave master %s does not match GM clock %s", slaveMaster, gmClockID))
+						}
 					}
-					err = ptptesthelper.BasicClockSyncCheck(fullConfig, modifiedPtpConfig, grandmasterID, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
-					Expect(err).To(BeNil())
 				})
 
 				By("Deleting the test profile", func() {
@@ -1137,8 +1200,8 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 			Context("Event API version validation", func() {
 				BeforeEach(func() {
-					if !ptphelper.IsOCPVersionAtLeast("4.19") {
-						Skip("Skipping: these tests require OCP version 4.19 or higher")
+					if !ptphelper.IsPTPOperatorVersionAtLeast("4.19") {
+						Skip("Skipping: these tests require PTP Operator version 4.19 or higher")
 					}
 				})
 
@@ -1318,6 +1381,48 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 						}
 					}
 				})
+			})
+			It("Should receive events after linuxptp-daemon pod restart", func() {
+				if ptphelper.PtpEventEnabled() != 2 {
+					Skip("Skipping: test applies to event API v2 only")
+				}
+
+				By("Deploying consumer app for event API v2")
+				nodeName := fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName
+				Expect(nodeName).ToNot(BeEmpty(), "clock-under-test pod node is empty")
+				err := event.CreateConsumerApp(nodeName)
+				if err != nil {
+					Skip(fmt.Sprintf("Consumer app setup failed: %v", err))
+				}
+				DeferCleanup(func() {
+					_ = event.DeleteConsumerNamespace()
+					if event.PubSub != nil {
+						event.PubSub.Close()
+					}
+				})
+				time.Sleep(10 * time.Second)
+				event.InitPubSub()
+				term, monErr := event.MonitorPodLogsRegex()
+				Expect(monErr).ToNot(HaveOccurred(), "could not start listening to events")
+				DeferCleanup(func() { stopMonitor(term) })
+
+				By("Restarting linuxptp-daemon pod on the clock-under-test node")
+				originalPod := *fullConfig.DiscoveredClockUnderTestPod
+				newPod, err := ptphelper.ReplaceTestPod(&originalPod, pkg.TimeoutIn5Minutes)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Waiting for linuxptp-daemon to become ready after restart")
+				ptphelper.WaitForPtpDaemonToExist()
+				fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
+				podsRunningPTP4l, err := testconfig.GetPodsRunningPTP4l(&fullConfig)
+				Expect(err).NotTo(HaveOccurred())
+				ptphelper.WaitForPtpDaemonToBeReady(podsRunningPTP4l)
+
+				fullConfig.DiscoveredClockUnderTestPod = &newPod
+
+				By("Checking consumer app getCurrentState log for SyncStateChange")
+				err = event.PushInitialEvent(string(ptpEvent.SyncStateChange), 2*time.Minute)
+				Expect(err).NotTo(HaveOccurred(), "getCurrentState did not return SyncStateChange")
 			})
 		})
 

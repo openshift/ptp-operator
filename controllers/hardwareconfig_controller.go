@@ -144,27 +144,27 @@ type HardwareConfigPtpConfigHandler struct {
 }
 
 // Create handles PTP config creation events
-func (h *HardwareConfigPtpConfigHandler) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (h *HardwareConfigPtpConfigHandler) Create(ctx context.Context, evt event.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	h.enqueueHardwareConfigs(ctx, q, "create")
 }
 
 // Update handles PTP config update events
-func (h *HardwareConfigPtpConfigHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (h *HardwareConfigPtpConfigHandler) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	h.enqueueHardwareConfigs(ctx, q, "update")
 }
 
 // Delete handles PTP config deletion events
-func (h *HardwareConfigPtpConfigHandler) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (h *HardwareConfigPtpConfigHandler) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	h.enqueueHardwareConfigs(ctx, q, "delete")
 }
 
 // Generic handles generic PTP config events
-func (h *HardwareConfigPtpConfigHandler) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (h *HardwareConfigPtpConfigHandler) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	h.enqueueHardwareConfigs(ctx, q, "generic")
 }
 
 // enqueueHardwareConfigs enqueues reconcile requests for all HardwareConfig resources
-func (h *HardwareConfigPtpConfigHandler) enqueueHardwareConfigs(ctx context.Context, q workqueue.RateLimitingInterface, eventType string) {
+func (h *HardwareConfigPtpConfigHandler) enqueueHardwareConfigs(ctx context.Context, q workqueue.TypedRateLimitingInterface[reconcile.Request], eventType string) {
 	h.Log.Info("PTP config changed, triggering HardwareConfig reconciliation", "eventType", eventType)
 
 	// Get all HardwareConfig resources

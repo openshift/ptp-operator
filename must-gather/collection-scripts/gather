@@ -9,12 +9,131 @@ resources+=(ns/openshift-ptp)
 # other ptp operator related namespaces
 resources+=(ns/openshift-marketplace)
 
-# sriovnetwork.openshift.io
+# ptp.openshift.io
 resources+=(nodeptpdevices ptpconfigs ptpoperatorconfigs)
 
 # run the collection of resources using must-gather
 for resource in ${resources[@]}; do
-  /usr/bin/oc adm inspect --dest-dir must-gather --all-namespaces ${resource}
+  oc adm inspect --dest-dir must-gather --all-namespaces ${resource}
 done
+
+PTP_CAPTURE_DIR="must-gather/ptp-captures"
+CAPTURE_TIMEOUT=5
+
+mkdir -p "$PTP_CAPTURE_DIR/pcap"
+mkdir -p "$PTP_CAPTURE_DIR/announce"
+
+capture_ptp_pcap() {
+  local NODE_NAME="$1"
+  local INTERFACE="$2"
+  local PCAP_FILE="${PTP_CAPTURE_DIR}/pcap/${NODE_NAME}_${INTERFACE}.pcap"
+
+  timeout "${CAPTURE_TIMEOUT}s" oc debug node/"$NODE_NAME" -- \
+    bash -c "tcpdump -i '$INTERFACE' -n -w - 'ether proto 0x88f7' 2>/dev/null" \
+    > "$PCAP_FILE" 2>/dev/null
+
+  local FILE_SIZE
+  FILE_SIZE=$(stat -c%s "$PCAP_FILE" 2>/dev/null || echo 0)
+  if [ "$FILE_SIZE" -le 24 ]; then
+    rm -f "$PCAP_FILE"
+  fi
+}
+
+capture_ptp_announce_text() {
+  local NODE_NAME="$1"
+  local INTERFACE="$2"
+  local TEXT_FILE="${PTP_CAPTURE_DIR}/announce/${NODE_NAME}_${INTERFACE}_announce.txt"
+
+  timeout "${CAPTURE_TIMEOUT}s" oc debug node/"$NODE_NAME" -- \
+    tcpdump -i "$INTERFACE" -n \
+    'ether proto 0x88f7 and (ether[14] & 0x0f == 0x0b)' \
+    2>&1 | awk '
+      function print_fields(pattern, fields, n) {
+        for (i = 1; i <= n; i++) {
+          if (fields[i] ~ pattern) print "  " fields[i]
+        }
+      }
+
+      /^dropped privs|^tcpdump:|^listening on|packet.*captured|packet.*received|packet.*dropped/ { next }
+      /^Starting pod|^To use host|^Removing debug|^Pod IP:/ { next }
+
+      /^[0-9]+:[0-9]+:[0-9]+.*PTPv2/ {
+        gsub(/, /, "\n", $0)
+        gsub(/ : /, ": ", $0)
+        n = split($0, fields, "\n")
+
+        fp = ""
+        for (i = 1; i <= n; i++) {
+          if (fields[i] ~ /seq id/) continue
+          f = fields[i]
+          if (i == 1) sub(/^[0-9]+:[0-9]+:[0-9]+\.[0-9]+ /, "", f)
+          fp = fp f "|"
+        }
+        if (fp in seen) next
+        seen[fp] = 1
+
+        print "=== PTP Announce Packet ==="
+        print "Node: " node
+        print "Interface: " iface
+        print ""
+        match(fields[1], /^[0-9]+:[0-9]+:[0-9]+\.[0-9]+/)
+        print "Timestamp: " substr(fields[1], RSTART, RLENGTH)
+        print ""
+        print "--- Message Info ---"
+        print_fields("msg type|length|domain|Flags|control|log message", fields, n)
+        print ""
+        print "--- Clock Identity ---"
+        print_fields("clock identity|port id", fields, n)
+        print ""
+        print "--- Grandmaster Info ---"
+        print_fields("gm priority|gm clock|steps removed|time source", fields, n)
+        print ""
+        next
+      }
+    ' node="$NODE_NAME" iface="$INTERFACE" > "$TEXT_FILE"
+
+  [ ! -s "$TEXT_FILE" ] && rm -f "$TEXT_FILE"
+}
+
+capture_ptp() {
+  local NODE_NAME="$1"
+  local INTERFACE="$2"
+
+  echo "Capturing PTP: node=${NODE_NAME}, interface=${INTERFACE}"
+
+  capture_ptp_pcap "$NODE_NAME" "$INTERFACE" &
+  local pcap_pid=$!
+
+  capture_ptp_announce_text "$NODE_NAME" "$INTERFACE" &
+  local text_pid=$!
+
+  wait $pcap_pid
+  wait $text_pid
+
+  echo "Capture complete: node=${NODE_NAME}, interface=${INTERFACE}"
+}
+
+# Get all PTP-capable interfaces from nodeptpdevices and capture in parallel
+pids=()
+
+while read -r NODE_NAME INTERFACE; do
+  [ -z "$NODE_NAME" ] || [ -z "$INTERFACE" ] && continue
+
+  capture_ptp "$NODE_NAME" "$INTERFACE" &
+  pids+=($!)
+
+done < <(oc get nodeptpdevices -n openshift-ptp -o json 2>/dev/null | \
+  jq -r '.items[] | .metadata.name as $node | .status.devices[]?.name | "\($node) \(.)"' 2>/dev/null | \
+  sort -u)
+
+# Wait for all captures to complete
+if [ ${#pids[@]} -gt 0 ]; then
+  echo "Waiting for ${#pids[@]} PTP captures to complete..."
+  for pid in "${pids[@]}"; do
+    wait "$pid" 2>/dev/null
+  done
+fi
+
+echo "PTP capture complete. Results in $PTP_CAPTURE_DIR"
 
 exit 0

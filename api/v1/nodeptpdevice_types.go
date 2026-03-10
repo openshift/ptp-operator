@@ -58,11 +58,11 @@ type PtpDevice struct {
 type HardwareInfo struct {
 	// PCI Information - Device location and identification on the PCI bus
 
-	// PCIAddress is the PCI bus address (e.g., "0000:01:00.0")
+	// PCIAddress is the PCI bus address
 	// +optional
 	PCIAddress string `json:"pciAddress,omitempty"`
 
-	// VendorID is the PCI vendor identifier (e.g., "8086" for Intel)
+	// VendorID is the PCI vendor identifier
 	// +optional
 	VendorID string `json:"vendorID,omitempty"`
 
@@ -88,7 +88,25 @@ type HardwareInfo struct {
 	// +optional
 	DriverVersion string `json:"driverVersion,omitempty"`
 
+	// Link Status Information
+
+	// LinkStatus indicates whether the link is up ("up") or down ("down")
+	// +optional
+	LinkStatus string `json:"linkStatus,omitempty"`
+
+	// LinkSpeed is the negotiated link speed
+	// +optional
+	LinkSpeed string `json:"linkSpeed,omitempty"`
+
+	// FEC is the Forward Error Correction mode in use
+	// +optional
+	FEC string `json:"fec,omitempty"`
+
 	// VPD (Vital Product Data) - Manufacturing and product information
+
+	// VPDIdentifierString is the device identifier string from VPD
+	// +optional
+	VPDIdentifierString string `json:"vpdIdentifierString,omitempty"`
 
 	// VPDPartNumber is the manufacturer's part number from VPD
 	// +optional
@@ -102,9 +120,18 @@ type HardwareInfo struct {
 	// +optional
 	VPDManufacturerID string `json:"vpdManufacturerID,omitempty"`
 
-	// VPDProductName is the product name from VPD
+	// VPDProductName is the product name from VPD (V0 field)
 	// +optional
 	VPDProductName string `json:"vpdProductName,omitempty"`
+
+	// VPDVendorSpecific1 is vendor-specific data from VPD (V1 field).
+	// Often contains detailed product identification useful for hardware fingerprinting.
+	// +optional
+	VPDVendorSpecific1 string `json:"vpdVendorSpecific1,omitempty"`
+
+	// VPDVendorSpecific2 is vendor-specific data from VPD (V2 field)
+	// +optional
+	VPDVendorSpecific2 string `json:"vpdVendorSpecific2,omitempty"`
 }
 
 type HwConfig struct {

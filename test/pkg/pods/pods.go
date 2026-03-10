@@ -206,7 +206,11 @@ func GetPodLogsRegexSince(namespace string, podName string, containerName, regex
 	return matches, nil
 }
 
-// returns last Regex match in the logs for a given pod
+// returns last Regex match in the logs for a given pod.
+// It first reads all existing logs (without follow) to get the complete set of
+// matches, so that callers using matches[len-1] get the most recent entry.
+// If no match is found in the existing logs, it falls back to following the
+// stream and waiting for new content up to the given timeout.
 func GetPodLogsRegex(namespace string, podName string, containerName, regex string, isLiteralText bool, timeout time.Duration) (matches [][]string, err error) {
 	const matchOnlyFullLines = `\s*^`
 	if isLiteralText {
@@ -217,17 +221,40 @@ func GetPodLogsRegex(namespace string, podName string, containerName, regex stri
 
 	r := regexp.MustCompile(regex)
 
-	podLogOptions := corev1.PodLogOptions{
+	// Pass 1: read all existing log content without following.
+	// Use io.ReadAll to drain the entire log before matching, so that
+	// FindAllStringSubmatch returns ALL matches (not just the first chunk's).
+	noFollowOpts := corev1.PodLogOptions{
+		Container: containerName,
+		Follow:    false,
+	}
+	noFollowReq := testclient.Client.CoreV1().Pods(namespace).GetLogs(podName, &noFollowOpts)
+	snapCtx, snapCancel := context.WithTimeout(context.Background(), pkg.TimeoutIn1Minute)
+	defer snapCancel()
+	snapStream, err := noFollowReq.Stream(snapCtx)
+	if err != nil {
+		logrus.Warnf("failed to open log stream for initial snapshot for %s/%s container=%s: %s", namespace, podName, containerName, err)
+	} else {
+		logContent, readErr := io.ReadAll(snapStream)
+		snapStream.Close()
+		if readErr == nil && len(logContent) > 0 {
+			matches = r.FindAllStringSubmatch(string(logContent), -1)
+			if len(matches) > 0 {
+				return matches, nil
+			}
+		}
+	}
+
+	// Pass 2: no match in existing logs — follow the stream for new content.
+	followOpts := corev1.PodLogOptions{
 		Container: containerName,
 		Follow:    true,
 	}
-
-	podLogRequest := testclient.Client.CoreV1().Pods(namespace).GetLogs(podName, &podLogOptions)
-
+	followReq := testclient.Client.CoreV1().Pods(namespace).GetLogs(podName, &followOpts)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	stream, err := podLogRequest.Stream(ctx)
+	stream, err := followReq.Stream(ctx)
 	if err != nil {
 		return matches, fmt.Errorf("failed to open log streamn for %s/%s container=%s, err=%s", namespace, podName, containerName, err)
 	}

@@ -1,0 +1,15 @@
+FROM quay.io/centos/centos:stream9
+
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then \
+      OC_URL="https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz"; \
+    elif [ "$ARCH" = "aarch64" ]; then \
+      OC_URL="https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux-arm64.tar.gz"; \
+    fi && \
+    curl -L "$OC_URL" | tar -xz -C /usr/bin oc kubectl && \
+    yum install -y jq rsync && yum clean all
+
+COPY must-gather/collection-scripts/gather /usr/bin/gather
+RUN chmod +x /usr/bin/gather
+
+ENTRYPOINT ["/usr/bin/gather"]

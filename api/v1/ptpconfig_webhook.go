@@ -58,6 +58,7 @@ func (r *PtpConfig) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	webhookClient = mgr.GetClient()
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(r).
+		WithValidator(&ptpConfigValidator{}).
 		Complete()
 }
 
@@ -411,10 +412,12 @@ func validateInterfaceSppInSecret(conf *Ptp4lConf, secretName string, secretKey 
 	return nil
 }
 
-var _ webhook.Validator = &PtpConfig{}
+type ptpConfigValidator struct{}
 
-// ValidateCreate implements webhook.Validator so a webhook will be registered for the type
-func (r *PtpConfig) ValidateCreate() (admission.Warnings, error) {
+var _ webhook.CustomValidator = &ptpConfigValidator{}
+
+func (v *ptpConfigValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+	r := obj.(*PtpConfig)
 	ptpconfiglog.Info("validate create", "name", r.Name)
 	if err := r.validate(); err != nil {
 		return admission.Warnings{}, err
@@ -423,8 +426,8 @@ func (r *PtpConfig) ValidateCreate() (admission.Warnings, error) {
 	return admission.Warnings{}, nil
 }
 
-// ValidateUpdate implements webhook.Validator so a webhook will be registered for the type
-func (r *PtpConfig) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
+func (v *ptpConfigValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
+	r := newObj.(*PtpConfig)
 	ptpconfiglog.Info("validate update", "name", r.Name)
 	if err := r.validate(); err != nil {
 		return admission.Warnings{}, err
@@ -433,8 +436,8 @@ func (r *PtpConfig) ValidateUpdate(old runtime.Object) (admission.Warnings, erro
 	return admission.Warnings{}, nil
 }
 
-// ValidateDelete implements webhook.Validator so a webhook will be registered for the type
-func (r *PtpConfig) ValidateDelete() (admission.Warnings, error) {
+func (v *ptpConfigValidator) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+	r := obj.(*PtpConfig)
 	ptpconfiglog.Info("validate delete", "name", r.Name)
 	return admission.Warnings{}, nil
 }

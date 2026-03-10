@@ -3,12 +3,85 @@ package controllers
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/golang/glog"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
 )
+
+const ProfileNameSeperator = "_"
+
+// create a node-unique profile name by prepending the PtpConfig CR name
+func qualifyProfileName(crName, profileName string) string {
+	return crName + ProfileNameSeperator + profileName
+}
+
+// check if a profile with the given name exists in the specified CR
+func profileExistsInCR(crName, profileName string, ptpConfigList *ptpv1.PtpConfigList) bool {
+	for _, cfg := range ptpConfigList.Items {
+		if cfg.Name != crName || cfg.Spec.Profile == nil {
+			continue
+		}
+		for _, p := range cfg.Spec.Profile {
+			if p.Name != nil && *p.Name == profileName {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// check if the user has already added a valid prefix to the profile name, if not add a prefix
+func resolveProfileReference(value, settingName string, ptpConfig *ptpv1.PtpConfig, ptpConfigList *ptpv1.PtpConfigList) string {
+	// check if the user already added a valid prefix to the profile name
+	if parts := strings.SplitN(value, "_", 2); len(parts) == 2 {
+		if profileExistsInCR(parts[0], parts[1], ptpConfigList) {
+			return value
+		}
+	}
+
+	// search for the profile by its full name across all CRs if the user did not add a valid prefix
+	for _, cfg := range ptpConfigList.Items {
+		if cfg.Spec.Profile == nil {
+			continue
+		}
+		for _, p := range cfg.Spec.Profile {
+			if p.Name != nil && *p.Name == value {
+				return qualifyProfileName(cfg.Name, value)
+			}
+		}
+	}
+
+	// profile not found anywhere -- warn and set condition on the PtpConfig
+	msg := fmt.Sprintf("profile '%s' referenced in %s not found in any PtpConfig CR", value, settingName)
+	glog.Warningf("PtpConfig %s: %s", ptpConfig.Name, msg)
+	meta.SetStatusCondition(&ptpConfig.Status.Conditions, metav1.Condition{
+		Type:               "ProfileReferenceValid",
+		Status:             metav1.ConditionFalse,
+		Reason:             "UnresolvedProfileReference",
+		Message:            msg,
+		LastTransitionTime: metav1.Now(),
+	})
+	return value
+}
+
+// update controllingProfile and haProfiles settings with qualified names
+func qualifyCrossProfileReferences(settings map[string]string, ptpConfig *ptpv1.PtpConfig, ptpConfigList *ptpv1.PtpConfigList) {
+	if cp, ok := settings["controllingProfile"]; ok && cp != "" {
+		settings["controllingProfile"] = resolveProfileReference(cp, "controllingProfile", ptpConfig, ptpConfigList)
+	}
+	if ha, ok := settings["haProfiles"]; ok && ha != "" {
+		parts := strings.Split(ha, ",")
+		for i, p := range parts {
+			parts[i] = resolveProfileReference(strings.TrimSpace(p), "haProfiles", ptpConfig, ptpConfigList)
+		}
+		settings["haProfiles"] = strings.Join(parts, ",")
+	}
+}
 
 func printWhenNotNil(p interface{}, description string) {
 	switch v := p.(type) {
@@ -37,7 +110,13 @@ func getRecommendNodePtpProfiles(ptpConfigList *ptpv1.PtpConfigList, node corev1
 	glog.Infof("ptp profiles to be updated for node: %s", node.Name)
 	for _, profile := range profiles {
 		glog.Infof("------------------------------------")
-		printWhenNotNil(profile.Name, "Profile Name")
+		if profile.Name != nil {
+			if parts := strings.SplitN(*profile.Name, "_", 2); len(parts) == 2 {
+				glog.Infof("PtpConfig CR: %s, Profile: %s", parts[0], parts[1])
+			} else {
+				printWhenNotNil(profile.Name, "Profile Name")
+			}
+		}
 		printWhenNotNil(profile.Interface, "Interface")
 		printWhenNotNil(profile.Ptp4lOpts, "Ptp4lOpts")
 		printWhenNotNil(profile.Phc2sysOpts, "Phc2sysOpts")
@@ -55,19 +134,36 @@ func getRecommendProfiles(ptpConfigList *ptpv1.PtpConfigList, node corev1.Node) 
 
 	profilesNames := getRecommendProfilesNames(ptpConfigList, node)
 	glog.V(2).Infof("recommended ptp profiles names are %v for node: %s", returnMapKeys(profilesNames), node.Name)
+
 	profiles := []ptpv1.PtpProfile{}
-	for _, cfg := range ptpConfigList.Items {
-		if cfg.Spec.Profile != nil {
-			for _, profile := range cfg.Spec.Profile {
-				if _, exist := profilesNames[*profile.Name]; exist {
-					profiles = append(profiles, profile)
-				}
+	foundNames := make(map[string]bool)
+	for i := range ptpConfigList.Items {
+		cfg := &ptpConfigList.Items[i]
+		if cfg.Spec.Profile == nil {
+			continue
+		}
+		for _, profile := range cfg.Spec.Profile {
+			if profile.Name == nil {
+				continue
 			}
+			if _, exist := profilesNames[*profile.Name]; !exist {
+				continue
+			}
+			foundNames[*profile.Name] = true
+			profileCopy := profile.DeepCopy()
+			qualifiedName := qualifyProfileName(cfg.Name, *profile.Name)
+			profileCopy.Name = &qualifiedName
+
+			if profileCopy.PtpSettings != nil {
+				qualifyCrossProfileReferences(profileCopy.PtpSettings, cfg, ptpConfigList)
+			}
+
+			profiles = append(profiles, *profileCopy)
 		}
 	}
 
-	if len(profiles) != len(profilesNames) {
-		return nil, fmt.Errorf("failed to find all the profiles")
+	if len(foundNames) != len(profilesNames) {
+		return nil, fmt.Errorf("Failed to find all the recommended profiles")
 	}
 	// sort profiles by name
 	sort.SliceStable(profiles, func(i, j int) bool {
