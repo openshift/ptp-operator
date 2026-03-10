@@ -25,6 +25,16 @@ kubectl wait --for=condition=Ready pods -A --all --timeout=300s
 # Apply some prerequisite configuration, such as node labels, etc
 ./prepare-kind.sh
 
+# Create PriorityClass required by 'oc debug' (OpenShift-specific, missing on Kind)
+cat <<EOF | kubectl apply -f -
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: openshift-user-critical
+value: 1000000
+description: "Required by oc debug"
+EOF
+
 # Deploy cert-manager (required by ptp) and wait for all pods to be ready
 kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.17.0/cert-manager.yaml
 kubectl wait --for=condition=Ready pods -A --all --timeout=300s
