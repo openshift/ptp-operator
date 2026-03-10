@@ -10,12 +10,14 @@
 #   --loglevel <level>              PTP log level (default: info)
 #   --linuxptp-daemon-image <url>   Full image URL for the linuxptp-daemon test pod.
 #                                   When omitted, pmc pod tests are skipped.
+#   --must-gather-image <url>       Full image URL for the ptp must-gather image.
+#                                   When provided, must-gather runs for oc mode and on failure.
 #
 set -x
 set -euo pipefail
 
 usage() {
-  echo "Usage: $0 --kind <serial|parallel|both> --mode <modes> [--loglevel <level>] [--linuxptp-daemon-image <url>]"
+  echo "Usage: $0 --kind <serial|parallel|both> --mode <modes> [--loglevel <level>] [--linuxptp-daemon-image <url>] [--must-gather-image <url>]"
   exit 1
 }
 
@@ -23,6 +25,7 @@ RUN_KIND=""
 TEST_MODES_RAW=""
 PTP_LOG_LEVEL="info"
 LINUXPTP_DAEMON_IMAGE=""
+MUST_GATHER_IMAGE=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -34,6 +37,10 @@ while [[ $# -gt 0 ]]; do
       PTP_LOG_LEVEL="$2"; shift 2 ;;
     --linuxptp-daemon-image)
       LINUXPTP_DAEMON_IMAGE="$2"; shift 2 ;;
+    --must-gather-image)
+      MUST_GATHER_IMAGE="$2"; shift 2 ;;
+    --debug-image)
+      DEBUG_IMAGE="$2"; shift 2 ;;
     *)
       echo "Unknown flag: $1"
       usage ;;
@@ -99,6 +106,37 @@ case "${RUN_KIND}" in
     ;;
 esac
 
+MUST_GATHER_RAN=false
+
+run_must_gather() {
+  if [[ -z "${MUST_GATHER_IMAGE}" ]]; then
+    echo "No must-gather image provided, skipping must-gather collection."
+    return 0
+  fi
+  if [[ "${MUST_GATHER_RAN}" == "true" ]]; then
+    return 0
+  fi
+  MUST_GATHER_RAN=true
+
+  echo "Running must-gather with image: ${MUST_GATHER_IMAGE}"
+  oc adm must-gather \
+    --image="${MUST_GATHER_IMAGE}" \
+    --node-name=kind-netdevsim-worker \
+    --dest-dir="${JUNIT_OUTPUT_DIR}/must-gather" \
+    --volume-percentage=95 \
+    -- /usr/bin/gather --debug-image="${DEBUG_IMAGE}" || \
+    echo "WARNING: must-gather collection failed"
+}
+
+on_exit() {
+  local exit_code=$?
+  if [[ ${exit_code} -ne 0 ]]; then
+    echo "Script failed with exit code ${exit_code}, collecting must-gather..."
+    run_must_gather
+  fi
+}
+trap on_exit EXIT
+
 # Function to disable switch1 authentication
 disable_switch_auth() {
     echo "Disabling switch1 authentication..."
@@ -162,6 +200,15 @@ for mode in "${TEST_MODES[@]}"; do
   fi
   if [[ "${RUN_KIND}" == "parallel" || "${RUN_KIND}" == "both" ]]; then
     run_ginkgo_suite "${mode}" "parallel"
+  fi
+done
+
+# Run must-gather for oc mode
+for mode in "${TEST_MODES[@]}"; do
+  if [[ "${mode}" == "oc" ]]; then
+    echo "OC mode detected, collecting must-gather..."
+    run_must_gather
+    break
   fi
 done
 
