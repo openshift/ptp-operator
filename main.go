@@ -26,6 +26,9 @@ import (
 	"strings"
 	"time"
 
+	configv1 "github.com/openshift/api/config/v1"
+	openshifttls "github.com/openshift/controller-runtime-common/pkg/tls"
+
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/names"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -63,6 +66,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(ptpv1.AddToScheme(scheme))
 	utilruntime.Must(ptpv2alpha1.AddToScheme(scheme))
+	utilruntime.Must(configv1.Install(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -82,15 +86,27 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 	le := leaderelection.GetLeaderElectionConfig(restConfig, enableLeaderElection)
 
+	// Fetch the TLS security profile from the APIServer CR.
+	// Defaults to the Intermediate profile if the CR is not accessible.
+	tlsProfileSpec, err := fetchTLSProfile(restConfig)
+	isOpenShiftCluster := err == nil
+	if !isOpenShiftCluster {
+		setupLog.Info("unable to fetch TLS profile from APIServer CR, using Intermediate profile", "error", err)
+		tlsProfileSpec, _ = openshifttls.GetTLSProfileSpec(nil)
+	}
+	setupLog.Info("TLS security profile resolved", "minTLSVersion", tlsProfileSpec.MinTLSVersion, "ciphers", tlsProfileSpec.Ciphers)
+	tlsOption, unsupportedCiphers := openshifttls.NewTLSConfigFromProfile(tlsProfileSpec)
+	if len(unsupportedCiphers) > 0 {
+		setupLog.Info("some ciphers from the TLS profile are not supported", "unsupportedCiphers", unsupportedCiphers)
+	}
 	disableHTTP2 := func(c *tls.Config) {
-		if enableHTTP2 {
-			return
+		if !enableHTTP2 {
+			c.NextProtos = []string{"http/1.1"}
 		}
-		c.NextProtos = []string{"http/1.1"}
 	}
 
 	webhookServerOptions := webhook.Options{
-		TLSOpts: []func(config *tls.Config){disableHTTP2},
+		TLSOpts: []func(config *tls.Config){tlsOption, disableHTTP2},
 		Port:    9443,
 	}
 
@@ -107,6 +123,7 @@ func main() {
 		LeaderElectionReleaseOnCancel: true,
 		Metrics: server.Options{
 			BindAddress: metricsAddr,
+			TLSOpts:     []func(config *tls.Config){tlsOption, disableHTTP2},
 		},
 		WebhookServer: webhookServer,
 	}
@@ -154,9 +171,10 @@ func main() {
 	}
 
 	if err = (&controllers.PtpOperatorConfigReconciler{
-		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("PtpOperatorConfig"),
-		Scheme: mgr.GetScheme(),
+		Client:         mgr.GetClient(),
+		Log:            ctrl.Log.WithName("controllers").WithName("PtpOperatorConfig"),
+		Scheme:         mgr.GetScheme(),
+		TLSProfileSpec: tlsProfileSpec,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PtpOperatorConfig")
 		os.Exit(1)
@@ -178,6 +196,29 @@ func main() {
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "HardwareConfig")
 		os.Exit(1)
+	}
+
+	// Set up the TLS security profile watcher to detect profile changes at runtime.
+	// When the APIServer TLS profile changes, the watcher triggers a graceful shutdown
+	// so the operator restarts with the new TLS configuration.
+	ctx, cancel := context.WithCancel(ctrl.SetupSignalHandler())
+	defer cancel()
+
+	if isOpenShiftCluster {
+		if err = (&openshifttls.SecurityProfileWatcher{
+			Client:                mgr.GetClient(),
+			InitialTLSProfileSpec: tlsProfileSpec,
+			OnProfileChange: func(ctx context.Context, oldProfile, newProfile configv1.TLSProfileSpec) {
+				setupLog.Info("TLS security profile changed, initiating graceful shutdown",
+					"oldMinTLSVersion", oldProfile.MinTLSVersion,
+					"newMinTLSVersion", newProfile.MinTLSVersion)
+				cancel()
+			},
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Info("unable to set up TLS security profile watcher, continuing without it", "error", err)
+		}
+	} else {
+		setupLog.Info("TLS security profile watcher not started (non-OpenShift cluster)")
 	}
 
 	if err = (&ptpv1.PtpConfig{}).SetupWebhookWithManager(mgr); err != nil {
@@ -219,7 +260,7 @@ func main() {
 		}
 	}()
 	setupLog.Info("starting manager")
-	if err = mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err = mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
@@ -265,6 +306,20 @@ func setupChecks(mgr ctrl.Manager, checker healthz.Checker) {
 		setupLog.Error(err, "unable to create health check")
 		os.Exit(1)
 	}
+}
+
+// fetchTLSProfile creates a temporary client to read the APIServer TLS profile at startup,
+// before the manager's cache is available.
+func fetchTLSProfile(cfg *rest.Config) (configv1.TLSProfileSpec, error) {
+	s := runtime.NewScheme()
+	if err := configv1.Install(s); err != nil {
+		return configv1.TLSProfileSpec{}, fmt.Errorf("failed to add configv1 to scheme: %v", err)
+	}
+	c, err := client.New(cfg, client.Options{Scheme: s})
+	if err != nil {
+		return configv1.TLSProfileSpec{}, fmt.Errorf("failed to create client: %v", err)
+	}
+	return openshifttls.FetchAPIServerTLSProfile(context.TODO(), c)
 }
 
 // waitForWebhookServer waits until the webhook server is ready.

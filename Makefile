@@ -62,12 +62,11 @@ endif
 #ARCH defines the architecture to use for the docker-build target.
 ARCH ?= $(shell uname -m)
 ifeq ($(ARCH),x86_64)
-BUILDARCH ?= --arch=amd64
+BUILDARCH ?= --platform=linux/amd64
 endif
-ifeq ($(ARCH),aarch64)
-BUILDARCH := --arch=arm64
+ifneq ($(filter $(ARCH),aarch64 arm64),)
+BUILDARCH ?= --platform=linux/arm64
 endif
-
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
