@@ -195,20 +195,30 @@ func getMetric(nodeName, aIf, metricName string) (metric string, err error) {
 		}
 
 		metrics := buf.String()
-		var regex string
-		if metricName == OpenshiftPtpOffsetNs {
-			aIf = aIf[:len(aIf)-1] + "x"
-			regex = metricName + `{` + fromMaster + `iface="` + aIf + `",node="` + ptpPods.Items[index].Spec.NodeName + `",process="ptp4l"} (-*[0-9]*)`
-		} else if metricName == OpenshiftPtpClockState {
-			aIf = aIf[:len(aIf)-1] + "x"
-			regex = metricName + `{iface="` + aIf + `",node="` + ptpPods.Items[index].Spec.NodeName + `",process="ptp4l"} (-*[0-9]*)`
-		} else {
-			regex = metricName + `{iface="` + aIf + `",node="` + ptpPods.Items[index].Spec.NodeName + `",process="ptp4l"} (-*[0-9]*)`
+		node := ptpPods.Items[index].Spec.NodeName
+
+		// Build a list of interface names to try: first the original, then the aliased (masked) version.
+		// Cards with a PHC per port keep the original name; cards sharing a PHC use the masked alias.
+		ifCandidates := []string{aIf}
+		aliasedIf := aIf[:len(aIf)-1] + "x"
+		if aliasedIf != aIf {
+			ifCandidates = append(ifCandidates, aliasedIf)
 		}
-		r := regexp.MustCompile(regex)
-		for _, submatches := range r.FindAllStringSubmatchIndex(metrics, -1) {
-			metric = string(r.ExpandString([]byte{}, "$1", metrics, submatches))
-			return metric, nil
+
+		for _, candidate := range ifCandidates {
+			var regex string
+			if metricName == OpenshiftPtpOffsetNs {
+				regex = metricName + `{` + fromMaster + `iface="` + candidate + `",node="` + node + `",process="ptp4l"} (-*[0-9]*)`
+			} else if metricName == OpenshiftPtpClockState {
+				regex = metricName + `{iface="` + candidate + `",node="` + node + `",process="ptp4l"} (-*[0-9]*)`
+			} else {
+				regex = metricName + `{iface="` + candidate + `",node="` + node + `",process="ptp4l"} (-*[0-9]*)`
+			}
+			r := regexp.MustCompile(regex)
+			for _, submatches := range r.FindAllStringSubmatchIndex(metrics, -1) {
+				metric = string(r.ExpandString([]byte{}, "$1", metrics, submatches))
+				return metric, nil
+			}
 		}
 		break
 	}
