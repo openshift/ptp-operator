@@ -2,13 +2,13 @@ package ptptesthelper
 
 import (
 	"bufio"
+	"context"
 	"fmt"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
-
-	"context"
 
 	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg"
@@ -553,4 +553,212 @@ func (p *PortEngine) RolesInOnly(roles []metrics.MetricRole) (err error) {
 		return fmt.Errorf("sortedInitialRoles != sortedRoles")
 	}
 	return nil
+}
+
+var (
+	pmcClockClassRe       = regexp.MustCompile(`gm\.ClockClass\s+(\d+)`)
+	perConfigClockClassRe = regexp.MustCompile(`^openshift_ptp_clock_class\{config="([^"]+)",node="([^"]+)",process="ptp4l"\}\s+(\d+)`)
+)
+
+// NICInfo holds the discovered interface names and ptp4l config details for a NIC.
+type NICInfo struct {
+	PtpConfigName string
+	SlaveIf       string
+	MasterIf      string
+	ConfigFile    string
+	ConfigName    string
+}
+
+// GetClockClassViaPMC runs PMC GET PARENT_DATA_SET on the given config file
+// and returns the grandmaster clock class reported by that ptp4l instance.
+func GetClockClassViaPMC(fullConfig testconfig.TestConfig, configFile string) (int, error) {
+	buf, _, err := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod,
+		pkg.PtpContainerName, []string{"pmc", "-b", "0", "-u", "-f", configFile, "GET PARENT_DATA_SET"})
+	if err != nil {
+		return -1, fmt.Errorf("error running pmc on %s: %v", configFile, err)
+	}
+	matches := pmcClockClassRe.FindStringSubmatch(buf.String())
+	if len(matches) < 2 {
+		return -1, fmt.Errorf("gm.ClockClass not found in pmc output for %s: %s", configFile, buf.String())
+	}
+	return strconv.Atoi(matches[1])
+}
+
+// GetPerConfigClockClassesWithMetrics returns a map of ptp4l config name to clock class value
+// by parsing the openshift_ptp_clock_class metrics with per-config labels.
+func GetPerConfigClockClassesWithMetrics(fullConfig testconfig.TestConfig) (map[string]int, error) {
+	buf, _, err := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod,
+		pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
+	if err != nil {
+		return nil, fmt.Errorf("error getting metrics: %v", err)
+	}
+	result := make(map[string]int)
+	scanner := bufio.NewScanner(strings.NewReader(buf.String()))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.Contains(line, "openshift_ptp_clock_class") && !strings.HasPrefix(line, "#") {
+			matches := perConfigClockClassRe.FindStringSubmatch(line)
+			if len(matches) >= 4 {
+				configName := matches[1]
+				classStr := matches[3]
+				classInt, parseErr := strconv.Atoi(classStr)
+				if parseErr == nil {
+					result[configName] = classInt
+				}
+			} else {
+				fmt.Fprintf(GinkgoWriter, "clock_class metric line not matching per-config pattern: %s\n", line)
+			}
+		}
+	}
+	return result, nil
+}
+
+// EnableGMCapableInPlace reads the PtpConfig with the given name, replaces
+// "gmCapable 0" with "gmCapable 1\nclockClass 248" in its ptp4l config, and
+// updates it in the cluster. Returns the original config string for later restore.
+func EnableGMCapableInPlace(configName string) string {
+	ptpCfg, err := client.Client.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Get(
+		context.Background(), configName, metav1.GetOptions{})
+	Expect(err).NotTo(HaveOccurred(), "Failed to get PtpConfig %s", configName)
+	Expect(len(ptpCfg.Spec.Profile)).To(BeNumerically(">=", 1))
+	Expect(ptpCfg.Spec.Profile[0].Ptp4lConf).ToNot(BeNil())
+
+	original := *ptpCfg.Spec.Profile[0].Ptp4lConf
+	modified := strings.Replace(original, "gmCapable 0", "gmCapable 1\nclockClass 248", 1)
+	ptpCfg.Spec.Profile[0].Ptp4lConf = &modified
+
+	_, err = client.Client.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Update(
+		context.Background(), ptpCfg, metav1.UpdateOptions{})
+	Expect(err).NotTo(HaveOccurred(), "Failed to update PtpConfig %s with gmCapable=1", configName)
+	return original
+}
+
+// RestorePtp4lConf restores the ptp4l config string for the given PtpConfig name.
+func RestorePtp4lConf(configName, originalConf string) {
+	ptpCfg, err := client.Client.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Get(
+		context.Background(), configName, metav1.GetOptions{})
+	if err != nil {
+		logrus.Errorf("Failed to get PtpConfig %s for restore: %s", configName, err)
+		return
+	}
+	ptpCfg.Spec.Profile[0].Ptp4lConf = &originalConf
+	if _, err := client.Client.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Update(
+		context.Background(), ptpCfg, metav1.UpdateOptions{}); err != nil {
+		logrus.Errorf("Failed to restore PtpConfig %s: %s", configName, err)
+	}
+}
+
+// WaitForConfigContent polls a ptp4l config file in the pod until it contains the expected string.
+func WaitForConfigContent(fullConfig testconfig.TestConfig, configFile, expected string) {
+	Eventually(func() bool {
+		buf, _, err := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod,
+			pkg.PtpContainerName, []string{"cat", configFile})
+		return err == nil && strings.Contains(buf.String(), expected)
+	}, 2*time.Minute, 5*time.Second).Should(BeTrue(),
+		fmt.Sprintf("ptp4l config %s should contain %q", configFile, expected))
+}
+
+// DiscoverPtp4lConfigByProfile uses GetProfileLogID to find the config file
+// name (e.g. "ptp4l.0.config") for a PtpConfig, then returns the full path.
+func DiscoverPtp4lConfigByProfile(ptpConfigName string, nodeName string) (string, error) {
+	logID, err := ptphelper.GetProfileLogID(ptpConfigName, nil, &nodeName)
+	if err != nil {
+		return "", fmt.Errorf("failed to get profile log ID for %s: %v", ptpConfigName, err)
+	}
+	if logID == "" {
+		return "", fmt.Errorf("empty profile log ID for %s", ptpConfigName)
+	}
+	configNameStr := logID
+	if idx := strings.Index(configNameStr, ":"); idx != -1 {
+		configNameStr = configNameStr[:idx]
+	}
+	return "/var/run/" + configNameStr, nil
+}
+
+// DiscoverNICInfo extracts slave/master interfaces and ptp4l config path for a
+// given PtpConfig. nicLabel (e.g. "NIC-1") is used in log/assertion messages.
+func DiscoverNICInfo(ptpConfig ptpv1.PtpConfig, nodeName, nicLabel string) NICInfo {
+	slaveIfs := ptpv1.GetInterfaces(ptpConfig, ptpv1.Slave)
+	Expect(len(slaveIfs)).To(BeNumerically(">=", 1), "%s should have at least one slave interface", nicLabel)
+
+	masterIfs := ptpv1.GetInterfaces(ptpConfig, ptpv1.Master)
+	Expect(len(masterIfs)).To(BeNumerically(">=", 1), "%s should have at least one master interface", nicLabel)
+
+	configFile, err := DiscoverPtp4lConfigByProfile(ptpConfig.Name, nodeName)
+	Expect(err).NotTo(HaveOccurred(), "Could not find ptp4l config for %s profile %s", nicLabel, ptpConfig.Name)
+	configName := strings.TrimPrefix(configFile, "/var/run/")
+
+	logrus.Infof("%s: slave=%s master=%s config=%s", nicLabel, slaveIfs[0], masterIfs[0], configFile)
+
+	return NICInfo{
+		PtpConfigName: ptpConfig.Name,
+		SlaveIf:       slaveIfs[0],
+		MasterIf:      masterIfs[0],
+		ConfigFile:    configFile,
+		ConfigName:    configName,
+	}
+}
+
+// VerifyClockClassViaPMC polls PMC GET PARENT_DATA_SET until the expected clock class is seen.
+func VerifyClockClassViaPMC(fullConfig testconfig.TestConfig, configFile string, expectedClass int) {
+	Eventually(func() int {
+		cc, err := GetClockClassViaPMC(fullConfig, configFile)
+		if err != nil {
+			fmt.Fprintf(GinkgoWriter, "PMC clock class check for %s: %v\n", configFile, err)
+			return -1
+		}
+		fmt.Fprintf(GinkgoWriter, "PMC clock class for %s: %d (expected %d)\n", configFile, cc, expectedClass)
+		return cc
+	}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(Equal(expectedClass),
+		fmt.Sprintf("Expected PMC clock class %d for %s", expectedClass, configFile))
+}
+
+// VerifyPerConfigClockClassWithMetrics polls per-config clock class metrics until the expected value is seen.
+func VerifyPerConfigClockClassWithMetrics(fullConfig testconfig.TestConfig, configName string, expectedClass int) {
+	Eventually(func() int {
+		ccMap, err := GetPerConfigClockClassesWithMetrics(fullConfig)
+		if err != nil {
+			fmt.Fprintf(GinkgoWriter, "Metrics clock class error: %v\n", err)
+			return -1
+		}
+		cc, ok := ccMap[configName]
+		if !ok {
+			fmt.Fprintf(GinkgoWriter, "Config %s not found in clock class metrics, available: %v\n", configName, ccMap)
+			return -1
+		}
+		fmt.Fprintf(GinkgoWriter, "Metrics clock class for %s: %d (expected %d)\n", configName, cc, expectedClass)
+		return cc
+	}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(Equal(expectedClass),
+		fmt.Sprintf("Expected metrics clock class %d for config %s", expectedClass, configName))
+}
+
+// VerifyNICClockClass checks the expected clock class for a NIC via PMC
+// and per-config Prometheus metrics.
+func VerifyNICClockClass(fullConfig testconfig.TestConfig, nic NICInfo, expectedClass int) {
+	VerifyClockClassViaPMC(fullConfig, nic.ConfigFile, expectedClass)
+	VerifyPerConfigClockClassWithMetrics(fullConfig, nic.ConfigName, expectedClass)
+}
+
+// TurnOffAndWaitFaulty brings the interface down and polls until its clock role
+// becomes FAULTY, failing the test on timeout.
+func (p *PortEngine) TurnOffAndWaitFaulty(iface, nodeName string) {
+	err := p.TurnPortDown(iface)
+	Expect(err).NotTo(HaveOccurred())
+	Eventually(func() error {
+		return metrics.CheckClockRole([]metrics.MetricRole{metrics.MetricRoleFaulty},
+			[]string{iface}, &nodeName)
+	}, pkg.TimeoutIn3Minutes, 5*time.Second).Should(BeNil(),
+		iface+" should be FAULTY")
+}
+
+// TurnOnAndWaitSlave brings the interface up and polls until its clock role
+// recovers to SLAVE, failing the test on timeout.
+func (p *PortEngine) TurnOnAndWaitSlave(iface, nodeName string) {
+	err := p.TurnPortUp(iface)
+	Expect(err).NotTo(HaveOccurred())
+	Eventually(func() error {
+		return metrics.CheckClockRole([]metrics.MetricRole{metrics.MetricRoleSlave},
+			[]string{iface}, &nodeName)
+	}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(BeNil(),
+		iface+" should recover to SLAVE")
 }
