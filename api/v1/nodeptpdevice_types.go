@@ -158,6 +158,52 @@ type HwConfig struct {
 	Config *apiextensions.JSON `json:"config,omitempty"`
 }
 
+// SystemInfo contains system-level DMI/SMBIOS information (Type 1 - System Information)
+type SystemInfo struct {
+	// Manufacturer is the system manufacturer from SMBIOS
+	// +optional
+	Manufacturer string `json:"manufacturer,omitempty"`
+
+	// ProductName is the system product name from SMBIOS
+	// +optional
+	ProductName string `json:"productName,omitempty"`
+
+	// Version is the system version from SMBIOS
+	// +optional
+	Version string `json:"version,omitempty"`
+
+	// SerialNumber is the system serial number from SMBIOS
+	// +optional
+	SerialNumber string `json:"serialNumber,omitempty"`
+
+	// SKUNumber is the system SKU number from SMBIOS
+	// +optional
+	SKUNumber string `json:"skuNumber,omitempty"`
+
+	// Family is the system family from SMBIOS
+	// +optional
+	Family string `json:"family,omitempty"`
+}
+
+// BaseBoardInfo contains base board DMI/SMBIOS information (Type 2 - Baseboard Information)
+type BaseBoardInfo struct {
+	// Manufacturer is the base board manufacturer from SMBIOS
+	// +optional
+	Manufacturer string `json:"manufacturer,omitempty"`
+
+	// ProductName is the base board product name from SMBIOS
+	// +optional
+	ProductName string `json:"productName,omitempty"`
+
+	// Version is the base board version from SMBIOS
+	// +optional
+	Version string `json:"version,omitempty"`
+
+	// SerialNumber is the base board serial number from SMBIOS
+	// +optional
+	SerialNumber string `json:"serialNumber,omitempty"`
+}
+
 // NodePtpDeviceStatus defines the observed state of NodePtpDevice
 type NodePtpDeviceStatus struct {
 
@@ -171,6 +217,16 @@ type NodePtpDeviceStatus struct {
 	// as well as its specific configuration settings.
 	// +optional
 	Hwconfig []HwConfig `json:"hwconfig,omitempty"`
+
+	// SystemInfo contains the system-level DMI/SMBIOS information for the node.
+	// This includes the system manufacturer, product name, version, serial number, SKU, and family.
+	// +optional
+	SystemInfo *SystemInfo `json:"systemInfo,omitempty"`
+
+	// BaseBoardInfo contains the base board DMI/SMBIOS information for the node.
+	// This includes the base board manufacturer, product name, version, and serial number.
+	// +optional
+	BaseBoardInfo *BaseBoardInfo `json:"baseBoardInfo,omitempty"`
 }
 
 //+kubebuilder:object:root=true
