@@ -34,9 +34,11 @@ set -euo pipefail
 
 # --- Parse flags ---
 DRY_RUN=false
+KEEP_WORKTREE=false
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=true ;;
+    --keep-worktree) KEEP_WORKTREE=true ;;
     *) echo "Unknown argument: $arg" >&2; exit 1 ;;
   esac
 done
@@ -47,6 +49,8 @@ UPSTREAM_BRANCH="${UPSTREAM_BRANCH:-main}"
 DOWNSTREAM_REMOTE="${DOWNSTREAM_REMOTE:-origin}"
 DOWNSTREAM_BRANCH="${DOWNSTREAM_BRANCH:-main}"
 SYNC_BRANCH_PREFIX="${SYNC_BRANCH_PREFIX:-upstream-sync-}"
+FORK_REMOTE="${FORK_REMOTE:-}"
+WORKTREE_ROOT="${WORKTREE_ROOT:-/tmp}"
 BUG_PATTERN="${BUG_PATTERN:-(OCPBUGS|CNF)-[0-9]+}"
 REVIEWERS="${REVIEWERS:-}"
 
@@ -65,6 +69,15 @@ if [ -z "${UPSTREAM_REPO:-}" ]; then
 fi
 if [ -z "${DOWNSTREAM_REPO:-}" ]; then
   DOWNSTREAM_REPO=$(git remote get-url "$DOWNSTREAM_REMOTE" | sed -E 's#.*(github\.com[:/])##; s/\.git$//')
+fi
+
+# When FORK_REMOTE is set, push to the fork and create cross-repo PRs
+PUSH_REMOTE="$DOWNSTREAM_REMOTE"
+FORK_REPO=""
+if [ -n "$FORK_REMOTE" ]; then
+  PUSH_REMOTE="$FORK_REMOTE"
+  FORK_REPO=$(git remote get-url "$FORK_REMOTE" | sed -E 's#.*(github\.com[:/])##; s/\.git$//')
+  FORK_OWNER="${FORK_REPO%%/*}"
 fi
 
 # --- State (populated by functions) ---
@@ -287,22 +300,70 @@ check_existing_sync_pr() {
   fi
 }
 
-push_sync_branch() {
-  if [ -n "$EXISTING_PR_NUMBER" ]; then
-    log "Force-pushing ${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH} to existing branch ${EXISTING_BRANCH}..."
-    if [ "$DRY_RUN" = false ]; then
-      git push --force "$DOWNSTREAM_REMOTE" "${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH}:${EXISTING_BRANCH}"
-    fi
-    log "Force-pushed ${EXISTING_BRANCH} to ${UPSTREAM_HEAD}"
-  else
-    local sync_branch="${SYNC_BRANCH_PREFIX}$(date +%Y-%m-%d)"
-    log "Creating new branch ${sync_branch} from ${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH}..."
-    if [ "$DRY_RUN" = false ]; then
-      git push "$DOWNSTREAM_REMOTE" "${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH}:${sync_branch}"
-    fi
-    log "Pushed ${sync_branch}"
-    EXISTING_BRANCH="$sync_branch"
+cleanup_worktree() {
+  local dir="$1" branch="$2"
+  if [ -d "$dir" ]; then
+    git worktree remove --force "$dir" 2>/dev/null || true
   fi
+  git branch -D "$branch" 2>/dev/null || true
+}
+
+push_sync_branch() {
+  local branch_name
+  local worktree_dir
+  local force_flag=""
+
+  if [ -n "$EXISTING_PR_NUMBER" ]; then
+    branch_name="$EXISTING_BRANCH"
+    force_flag="--force"
+  else
+    branch_name="${SYNC_BRANCH_PREFIX}$(date +%Y-%m-%d)"
+    EXISTING_BRANCH="$branch_name"
+  fi
+
+  worktree_dir="${WORKTREE_ROOT}/${branch_name}"
+  log "Pushing ${branch_name} to ${PUSH_REMOTE} (upstream HEAD: ${UPSTREAM_HEAD})..."
+
+  if [ "$DRY_RUN" = true ]; then
+    log "Would create worktree at ${worktree_dir}, push ${branch_name} to ${PUSH_REMOTE}"
+    if [ "$KEEP_WORKTREE" = true ]; then
+      log "Worktree would be kept at ${worktree_dir}"
+    fi
+    return 0
+  fi
+
+  cleanup_worktree "$worktree_dir" "$branch_name"
+
+  git branch "$branch_name" "$UPSTREAM_HEAD"
+  git worktree add "$worktree_dir" "$branch_name"
+
+  local original_dir
+  original_dir=$(pwd)
+  cd "$worktree_dir"
+
+  if ! git push $force_flag "$PUSH_REMOTE" "$branch_name"; then
+    cd "$original_dir"
+    if [ "$KEEP_WORKTREE" = false ]; then
+      cleanup_worktree "$worktree_dir" "$branch_name"
+    fi
+    if [ -z "$FORK_REMOTE" ]; then
+      log "ERROR: Push to ${PUSH_REMOTE} failed. If you don't have push access, set FORK_REMOTE to push via a fork instead."
+      log "  Example: FORK_REMOTE=my_fork ./hack/upstream-sync.sh"
+    else
+      log "ERROR: Push to fork ${PUSH_REMOTE} failed."
+    fi
+    return 1
+  fi
+
+  cd "$original_dir"
+
+  if [ "$KEEP_WORKTREE" = true ]; then
+    log "Worktree kept at ${worktree_dir}"
+  else
+    cleanup_worktree "$worktree_dir" "$branch_name"
+  fi
+
+  log "Pushed ${branch_name} to ${PUSH_REMOTE}"
 }
 
 build_pr_title() {
@@ -357,6 +418,11 @@ create_or_update_pr() {
   log "PR body:"
   echo "$pr_body"
 
+  local head_ref="$EXISTING_BRANCH"
+  if [ -n "$FORK_REMOTE" ]; then
+    head_ref="${FORK_OWNER}:${EXISTING_BRANCH}"
+  fi
+
   if [ -n "$EXISTING_PR_NUMBER" ]; then
     log "Updating PR #${EXISTING_PR_NUMBER} title and body..."
     if [ "$DRY_RUN" = false ]; then
@@ -367,13 +433,13 @@ create_or_update_pr() {
     fi
     log "Updated PR #${EXISTING_PR_NUMBER}"
   else
-    log "Creating new sync PR..."
+    log "Creating new sync PR (head: ${head_ref} -> base: ${DOWNSTREAM_BRANCH})..."
     if [ "$DRY_RUN" = false ]; then
       local pr_url
       pr_url=$(gh pr create \
         --repo "$DOWNSTREAM_REPO" \
         --base "$DOWNSTREAM_BRANCH" \
-        --head "$EXISTING_BRANCH" \
+        --head "$head_ref" \
         --title "$pr_title" \
         --body "$pr_body")
       log "Created PR: ${pr_url}"
@@ -384,7 +450,11 @@ create_or_update_pr() {
 # --- Main ---
 
 main() {
-  log "Starting upstream sync: ${UPSTREAM_REPO} (${UPSTREAM_BRANCH}) -> ${DOWNSTREAM_REPO} (${DOWNSTREAM_BRANCH})"
+  if [ -n "$FORK_REMOTE" ]; then
+    log "Starting upstream sync: ${UPSTREAM_REPO} (${UPSTREAM_BRANCH}) -> ${DOWNSTREAM_REPO} (${DOWNSTREAM_BRANCH}) via fork ${FORK_REPO}"
+  else
+    log "Starting upstream sync: ${UPSTREAM_REPO} (${UPSTREAM_BRANCH}) -> ${DOWNSTREAM_REPO} (${DOWNSTREAM_BRANCH})"
+  fi
 
   fetch_remotes
   get_sync_range
