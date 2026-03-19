@@ -61,6 +61,19 @@ func FetchAPIServerTLSProfile(ctx context.Context, k8sClient client.Client) (con
 	return profile, nil
 }
 
+// FetchAPIServerTLSAdherencePolicy fetches the TLS adherence policy configured in APIServer.
+// If no policy is configured, the default policy is returned.
+func FetchAPIServerTLSAdherencePolicy(ctx context.Context, k8sClient client.Client) (configv1.TLSAdherencePolicy, error) {
+	apiServer := &configv1.APIServer{}
+	key := client.ObjectKey{Name: APIServerName}
+
+	if err := k8sClient.Get(ctx, key, apiServer); err != nil {
+		return configv1.TLSAdherencePolicyNoOpinion, fmt.Errorf("failed to get APIServer %q: %w", key.String(), err)
+	}
+
+	return apiServer.Spec.TLSAdherence, nil
+}
+
 // GetTLSProfileSpec returns TLSProfileSpec for the given profile.
 // If no profile is configured, the default profile is returned.
 func GetTLSProfileSpec(profile *configv1.TLSSecurityProfile) (configv1.TLSProfileSpec, error) {
