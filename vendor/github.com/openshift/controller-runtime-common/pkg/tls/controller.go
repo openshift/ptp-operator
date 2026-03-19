@@ -41,6 +41,9 @@ type SecurityProfileWatcher struct {
 	// InitialTLSProfileSpec is the TLS profile spec that was configured when the operator started.
 	InitialTLSProfileSpec configv1.TLSProfileSpec
 
+	// InitialTLSAdherencePolicy is the TLS adherence policy that was configured when the operator started.
+	InitialTLSAdherencePolicy configv1.TLSAdherencePolicy
+
 	// OnProfileChange is a function that will be called when the TLS profile changes.
 	// It receives the reconcile context, old and new TLS profile specs.
 	// This allows the caller to make decisions based on the actual profile changes.
@@ -66,6 +69,9 @@ type SecurityProfileWatcher struct {
 	//    },
 	//  }
 	OnProfileChange func(ctx context.Context, oldTLSProfileSpec, newTLSProfileSpec configv1.TLSProfileSpec)
+
+	// OnAdherencePolicyChange is a function that will be called when the TLS adherence policy changes.
+	OnAdherencePolicyChange func(ctx context.Context, oldTLSAdherencePolicy, newTLSAdherencePolicy configv1.TLSAdherencePolicy)
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -137,6 +143,17 @@ func (r *SecurityProfileWatcher) Reconcile(ctx context.Context, req ctrl.Request
 
 		// Persist the new profile for future change detection.
 		r.InitialTLSProfileSpec = currentTLSProfileSpec
+	}
+
+	// Compare the current TLS adherence policy with the initial one.
+	if tlsAdherencePolicyChanged := r.InitialTLSAdherencePolicy != apiServer.Spec.TLSAdherence; tlsAdherencePolicyChanged {
+		// TLS adherence policy has changed, invoke the callback if it is set.
+		if r.OnAdherencePolicyChange != nil {
+			r.OnAdherencePolicyChange(ctx, r.InitialTLSAdherencePolicy, apiServer.Spec.TLSAdherence)
+		}
+
+		// Persist the new adherence policy for future change detection.
+		r.InitialTLSAdherencePolicy = apiServer.Spec.TLSAdherence
 	}
 
 	// No need to requeue, as the callback will handle further actions.

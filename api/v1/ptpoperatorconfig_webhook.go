@@ -36,9 +36,8 @@ var k8sclient client.Client
 
 func (r *PtpOperatorConfig) SetupWebhookWithManager(mgr ctrl.Manager, client client.Client) error {
 	k8sclient = client
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
-		WithValidator(&ptpOperatorConfigValidator{}).
+	return ctrl.NewWebhookManagedBy(mgr, r).
+		WithCustomValidator(&ptpOperatorConfigValidator{}).
 		Complete()
 }
 
