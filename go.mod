@@ -1,8 +1,6 @@
 module github.com/k8snetworkplumbingwg/ptp-operator
 
-go 1.24.0
-
-toolchain go1.24.1
+go 1.25.0
 
 require (
 	github.com/Masterminds/semver v1.5.0
@@ -17,26 +15,26 @@ require (
 	github.com/onsi/gomega v1.39.1
 	github.com/openshift/api v0.0.1
 	github.com/openshift/client-go v0.0.1
-	github.com/openshift/controller-runtime-common v0.0.0-20260213175913-767fef058eca
-	github.com/openshift/library-go v0.0.0-20260213153706-03f1709971c5
+	github.com/openshift/controller-runtime-common v0.0.0-20260318085703-1812aed6dbd2
+	github.com/openshift/library-go v0.0.0-20260318142011-72bf34f474bc
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus-operator/prometheus-operator/pkg/client v0.57.0
 	github.com/prometheus/common v0.66.1
 	github.com/redhat-cne/channel-pubsub v0.0.8
-	github.com/redhat-cne/l2discovery-lib v0.0.21
+	github.com/redhat-cne/l2discovery-lib v0.1.0
 	github.com/redhat-cne/privileged-daemonset v1.0.34
 	github.com/redhat-cne/ptp-listener-exports v0.0.7
 	github.com/redhat-cne/sdk-go v1.22.4
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.11.1
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/api v0.34.3
-	k8s.io/apiextensions-apiserver v0.34.3
-	k8s.io/apimachinery v0.34.3
-	k8s.io/client-go v0.34.3
+	k8s.io/api v0.35.2
+	k8s.io/apiextensions-apiserver v0.35.2
+	k8s.io/apimachinery v0.35.2
+	k8s.io/client-go v0.35.2
 	k8s.io/klog v1.0.0
-	k8s.io/utils v0.0.0-20260108192941-914a6e750570
-	sigs.k8s.io/controller-runtime v0.22.5
+	k8s.io/utils v0.0.0-20260210185600-b8788abfbbc2
+	sigs.k8s.io/controller-runtime v0.23.3
 )
 
 require (
@@ -53,7 +51,6 @@ require (
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
 	github.com/go-openapi/swag v0.23.0 // indirect
 	github.com/go-task/slim-sprig/v3 v3.0.0 // indirect
-	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/gnostic-models v0.7.0 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
@@ -95,10 +92,10 @@ require (
 	golang.org/x/time v0.9.0 // indirect
 	golang.org/x/tools v0.41.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
-	google.golang.org/protobuf v1.36.8 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	k8s.io/apiserver v0.34.3 // indirect
+	k8s.io/apiserver v0.35.2 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250910181357-589584f1c912 // indirect
 	sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 // indirect
@@ -108,12 +105,10 @@ require (
 )
 
 // openshift/client-go v0.0.1 uses structured-merge-diff/v4 which is incompatible with
-// the v6 required by controller-runtime v0.22.5 and other k8s 0.34.x deps. Pin to a
-// newer commit that uses structured-merge-diff/v6 while remaining compatible with Go 1.24.
-// openshift/api is pinned to a matching Go 1.24-compatible version required by client-go.
-// These can be removed once openshift/client-go publishes a tagged release with v6 support
-// or when the project upgrades to Go 1.25+.
+// the v6 required by controller-runtime v0.22.5 and other k8s 0.34.x deps. Pin to newer
+// commits that use structured-merge-diff/v6.
+// These can be removed once openshift/client-go and openshift/api publish compatible tagged releases.
 replace (
-	github.com/openshift/api => github.com/openshift/api v0.0.0-20260107103503-6d35063ca179
+	github.com/openshift/api => github.com/openshift/api v0.0.0-20260318185450-1f2fa3f09f4e
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20260108185524-48f4ccfc4e13
 )
