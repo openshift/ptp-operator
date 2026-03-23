@@ -174,7 +174,7 @@ scan_bugs() {
     "${MERGE_BASE}..${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH}" | grep -oE "$BUG_PATTERN" || true)
 
   BUG_LIST=$(printf '%s\n' "$bugs_from_titles" "$bugs_from_bodies" "$bugs_from_commits" "$bugs_from_trailers" \
-    | grep -E "^${BUG_PATTERN}$" | sort -u | sed ':a;N;$!ba;s/\n/, /g' || true)
+    | grep -E "^${BUG_PATTERN}$" | sort -u | paste -sd ',' - | sed 's/,/, /g' || true)
 
   if [ -n "$BUG_LIST" ]; then
     log "Bugs found:"
@@ -201,7 +201,7 @@ scan_bugs_from_jira() {
   known_pr_numbers=$(echo "$FILTERED_PRS" | jq -r '.[].number' 2>/dev/null | sort -u)
   if [ -z "$known_pr_numbers" ]; then
     known_pr_numbers=$(git log --format=%s "${MERGE_BASE}..${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH}" \
-      | grep -oP '(?<=Merge pull request #)\d+' | sort -u || true)
+      | grep -oE 'Merge pull request #[0-9]+' | grep -oE '[0-9]+' | sort -u || true)
   fi
 
   if [ -z "$known_pr_numbers" ]; then
@@ -249,7 +249,7 @@ scan_bugs_from_jira() {
 
       for url in $pr_urls; do
         local pr_num
-        pr_num=$(echo "$url" | grep -oP '(?<=/pull/)\d+')
+        pr_num=$(echo "$url" | grep -oE '/pull/[0-9]+' | grep -oE '[0-9]+')
         if echo "$known_pr_numbers" | grep -qx "$pr_num"; then
           log "  ${key} linked to upstream PR #${pr_num}"
           jira_bugs+="${key}"$'\n'
@@ -280,7 +280,7 @@ scan_bugs_from_jira() {
     existing_bugs=$(echo "$BUG_LIST" | tr ',' '\n' | sed 's/^ //')
   fi
   BUG_LIST=$(printf '%s\n%s' "$existing_bugs" "$unique_jira_bugs" \
-    | grep -E "^${BUG_PATTERN}$" | sort -u | sed ':a;N;$!ba;s/\n/, /g' || true)
+    | grep -E "^${BUG_PATTERN}$" | sort -u | paste -sd ',' - | sed 's/,/, /g' || true)
 }
 
 check_existing_sync_pr() {
