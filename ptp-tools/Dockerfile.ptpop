@@ -1,4 +1,5 @@
-FROM docker.io/golang:1.24.3 AS builder
+FROM docker.io/golang:1.25.7 AS builder
+RUN apt-get update && apt-get install -y binutils-gold && rm -rf /var/lib/apt/lists/*
 WORKDIR /go/src/github.com/k8snetworkplumbingwg/ptp-operator
 COPY .. .
 ENV GO111MODULE=off
