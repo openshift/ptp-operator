@@ -10,6 +10,7 @@ import (
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg"
 	testclient "github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
 	corev1 "k8s.io/api/core/v1"
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -302,6 +303,19 @@ func mockPtpConfig(name, namespace string, role ptpv1.PtpRole, mode PTPMode) *pt
 			aString := generateBCConfig("eth0", "eth1", "eth2")
 			aProfile.Ptp4lConf = &aString
 			aProfile.Phc2sysOpts = nil
+		case TelcoBoundaryClock:
+			aStringPtp4l := "-2"
+			aProfile.Ptp4lOpts = &aStringPtp4l
+			aStringPhc2sys := "-a -r -n 24 -N 8 -R 16 -u 0"
+			aProfile.Phc2sysOpts = &aStringPhc2sys
+			aStringTs2phc := "-s generic"
+			aProfile.Ts2PhcOpts = &aStringTs2phc
+			aString := generateTelcoBCConfig("eth0", "eth1")
+			aProfile.Ptp4lConf = &aString
+			aStringTs2phcConf := generateTs2phcConfig("eth0")
+			aProfile.Ts2PhcConf = &aStringTs2phcConf
+			// Add mock plugins for TelcoBC
+			aProfile.Plugins = mockTelcoBCPlugins("eth0")
 		default:
 		}
 	}
@@ -311,6 +325,8 @@ func mockPtpConfig(name, namespace string, role ptpv1.PtpRole, mode PTPMode) *pt
 	return &aConfig
 }
 
+// Dynamic configuration generators for test mocks
+
 func generateBCConfig(slaveIf, masterIf1, masterIf2 string) string {
 	return fmt.Sprintf(`[%s]
 masterOnly 0
@@ -318,6 +334,44 @@ masterOnly 0
 masterOnly 1
 [%s]
 masterOnly 1`, slaveIf, masterIf1, masterIf2)
+}
+
+func generateTelcoBCConfig(slaveIf, masterIf string) string {
+	return fmt.Sprintf(`[%s]
+masterOnly 0
+[%s]
+masterOnly 1
+[global]
+clock_type BC
+boundary_clock_jbod 1
+twoStepFlag 1
+slaveOnly 0
+priority1 128
+priority2 128
+domainNumber 24
+clockClass 248`, slaveIf, masterIf)
+}
+
+func generateTs2phcConfig(interfaceName string) string {
+	return fmt.Sprintf(`[global]
+use_syslog  0
+verbose 1
+logging_level 7
+ts2phc.pulsewidth 100000000
+leapfile  /usr/share/zoneinfo/leap-seconds.list
+[%s]
+ts2phc.extts_polarity rising
+ts2phc.extts_correction 0
+ts2phc.master 0`, interfaceName)
+}
+
+func mockTelcoBCPlugins(interfaceName string) map[string]*apiextensions.JSON {
+	// Create a simple mock plugin configuration for TelcoBC with dynamic interface
+	pluginData := fmt.Sprintf(`{"enableDefaultConfig":false,"pins":{"%s":{"U.FL1":"0 1","U.FL2":"0 2"}}}`, interfaceName)
+	plugins := make(map[string]*apiextensions.JSON)
+	rawJSON := apiextensions.JSON{Raw: []byte(pluginData)}
+	plugins["e810"] = &rawJSON
+	return plugins
 }
 
 func mockNode(name string) *corev1.Node {
@@ -344,6 +398,11 @@ func GeneratePTPObjects(mode PTPMode) {
 		var mockClientObjects []runtime.Object
 		mockClientObjects = append(mockClientObjects, mockPtpConfig(config2, namespace1, ptpv1.Slave, BoundaryClock))
 		mockClientObjects = append(mockClientObjects, mockPtpConfig(config3, namespace1, ptpv1.Slave, DualNICBoundaryClock))
+		mockClientObjects = append(mockClientObjects, mockNode("node1"))
+		_ = testclient.GetTestClientSet(mockClientObjects)
+	case TelcoBoundaryClock:
+		var mockClientObjects []runtime.Object
+		mockClientObjects = append(mockClientObjects, mockPtpConfig(config1, namespace1, ptpv1.Slave, TelcoBoundaryClock))
 		mockClientObjects = append(mockClientObjects, mockNode("node1"))
 		_ = testclient.GetTestClientSet(mockClientObjects)
 	}
