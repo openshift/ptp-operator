@@ -1070,6 +1070,130 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					Fail(fmt.Sprintf("Selected interface %s is not the original primary interface %s", selectedInterface, primaryInterface))
 				}
 			})
+
+			// OCPBUGS-66407 / OCPBUGS-59883: Verify clockClass reported by Event API and
+			// Prometheus metrics matches PMC after locking PTP source.
+			//
+			// The test framework creates BC configs with gmCapable=0, but real partner
+			// deployments default to gmCapable=1 (ptp4l default). Without gmCapable=1,
+			// ptp4l won't promote itself to GM on sync loss and won't report clockClass 248.
+			// The test does an in-place edit to set gmCapable=1 + clockClass=248, then
+			// restores the original config via DeferCleanup.
+			It("Verify clockClass when locking PTP source on single NIC boundary clock", func() {
+				if fullConfig.PtpModeDiscovered != testconfig.BoundaryClock {
+					Skip("Test only valid for single NIC Boundary Clock")
+				}
+				if fullConfig.PtpModeDesired == testconfig.Discovery {
+					Skip("Test not valid in discovery mode")
+				}
+
+				freerun := ClockClassFreerun          // 248
+				locked := int(fbprotocol.ClockClass6) // 6
+
+				// Discover NIC interfaces and ptp4l config path
+				nodeName := fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName
+				nic1 := ptptesthelper.DiscoverNICInfo(*(*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), nodeName, "NIC-1")
+
+				// Enable gmCapable=1 so ptp4l reports clockClass 248 on sync loss
+				By("Updating BC config in-place: gmCapable 0 -> gmCapable 1 + clockClass 248")
+				originalConf := ptptesthelper.EnableGMCapableInPlace(nic1.PtpConfigName)
+				// Restore original config when test ends
+				DeferCleanup(func() {
+					ptptesthelper.RestorePtp4lConf(nic1.PtpConfigName, originalConf)
+				})
+
+				// Wait for ptp4l to pick up the new config
+				By("Waiting for PTP daemon to apply gmCapable=1 config")
+				ptptesthelper.WaitForConfigContent(fullConfig, nic1.ConfigFile, "gmCapable 1")
+
+				// Deploy consumer pod and subscribe to clock class events
+				evCtx := setupBCClockClassEvents(nodeName)
+
+				// Step 1: verify initial locked state via PMC, metrics, and events
+				By("Step 1: Verifying NIC reports clockClass 6 (initial locked state)")
+				ptptesthelper.VerifyNICClockClass(fullConfig, nic1, locked)
+				verifyClockClassViaEvent(evCtx, locked)
+
+				// Step 2: cut upstream sync by bringing slave interface down
+				By(fmt.Sprintf("Step 2: Locking NIC-1 PTP source (bringing down %s)", nic1.SlaveIf))
+				portEngine.TurnOffAndWaitFaulty(nic1.SlaveIf, nodeName)
+				// Clock should transition to freerun (248) without its time source
+				ptptesthelper.VerifyNICClockClass(fullConfig, nic1, freerun)
+				verifyClockClassViaEvent(evCtx, freerun)
+
+				// Step 3: restore upstream sync by bringing slave interface back up
+				By(fmt.Sprintf("Step 3: Unlocking NIC-1 PTP source (bringing up %s)", nic1.SlaveIf))
+				portEngine.TurnOnAndWaitSlave(nic1.SlaveIf, nodeName)
+				// Clock should recover to locked (6)
+				ptptesthelper.VerifyNICClockClass(fullConfig, nic1, locked)
+				verifyClockClassViaEvent(evCtx, locked)
+			})
+
+			It("Verify clockClass when locking PTP source on dual NIC boundary clock", func() {
+				if fullConfig.PtpModeDiscovered != testconfig.DualNICBoundaryClock &&
+					fullConfig.PtpModeDiscovered != testconfig.DualNICBoundaryClockHA {
+					Skip("Test only valid for dual NIC Boundary Clock configurations")
+				}
+				if fullConfig.PtpModeDesired == testconfig.Discovery {
+					Skip("Test not valid in discovery mode")
+				}
+
+				freerun := ClockClassFreerun          // 248
+				locked := int(fbprotocol.ClockClass6) // 6
+
+				// Discover both NIC interfaces and ptp4l config paths
+				nodeName := fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName
+				nic1 := ptptesthelper.DiscoverNICInfo(*(*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), nodeName, "NIC-1")
+				secondaryPtpConfig := (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestSecondaryPtpConfig)
+				Expect(secondaryPtpConfig).ToNot(BeNil(), "Secondary PtpConfig not found for dual NIC")
+				nic2 := ptptesthelper.DiscoverNICInfo(*secondaryPtpConfig, nodeName, "NIC-2")
+
+				// Enable gmCapable=1 on both NICs so ptp4l reports clockClass 248 on sync loss
+				By("Updating BC configs in-place: gmCapable 0 -> gmCapable 1 + clockClass 248")
+				originalNic1Conf := ptptesthelper.EnableGMCapableInPlace(nic1.PtpConfigName)
+				originalNic2Conf := ptptesthelper.EnableGMCapableInPlace(nic2.PtpConfigName)
+				// Restore original configs when test ends
+				DeferCleanup(func() {
+					logrus.Info("Restoring original BC configs")
+					ptptesthelper.RestorePtp4lConf(nic1.PtpConfigName, originalNic1Conf)
+					ptptesthelper.RestorePtp4lConf(nic2.PtpConfigName, originalNic2Conf)
+				})
+
+				// Wait for ptp4l to pick up the new config on both NICs
+				By("Waiting for PTP daemon to apply gmCapable=1 config")
+				ptptesthelper.WaitForConfigContent(fullConfig, nic1.ConfigFile, "gmCapable 1")
+				ptptesthelper.WaitForConfigContent(fullConfig, nic2.ConfigFile, "gmCapable 1")
+
+				// Deploy consumer pod and subscribe to clock class events
+				evCtx := setupBCClockClassEvents(nodeName)
+
+				// Step 1: all NICs should report clockClass 6 (locked)
+				By("Step 1: Verifying all NICs report clockClass 6 (initial locked state)")
+				ptptesthelper.VerifyNICClockClass(fullConfig, nic1, locked)
+				ptptesthelper.VerifyNICClockClass(fullConfig, nic2, locked)
+				verifyClockClassViaEvent(evCtx, locked)
+
+				// Step 2: lock NIC-2's PTP source
+				By(fmt.Sprintf("Step 2: Locking NIC-2 PTP source (bringing down %s)", nic2.SlaveIf))
+				portEngine.TurnOffAndWaitFaulty(nic2.SlaveIf, nodeName)
+
+				// Step 3: NIC-1 still locked, NIC-2 now freerun
+				By("Step 3: Verifying NIC-1=6, NIC-2=248")
+				ptptesthelper.VerifyNICClockClass(fullConfig, nic1, locked)
+				ptptesthelper.VerifyNICClockClass(fullConfig, nic2, freerun)
+				verifyClockClassViaEvent(evCtx, freerun)
+
+				// Step 4: swap — lock NIC-1, unlock NIC-2
+				By(fmt.Sprintf("Step 4: Locking NIC-1 (down %s), Unlocking NIC-2 (up %s)", nic1.SlaveIf, nic2.SlaveIf))
+				portEngine.TurnOffAndWaitFaulty(nic1.SlaveIf, nodeName)
+				portEngine.TurnOnAndWaitSlave(nic2.SlaveIf, nodeName)
+
+				// Step 5: NIC-1 now freerun, NIC-2 recovered to locked
+				By("Step 5: Verifying NIC-1=248, NIC-2=6")
+				ptptesthelper.VerifyNICClockClass(fullConfig, nic1, freerun)
+				ptptesthelper.VerifyNICClockClass(fullConfig, nic2, locked)
+				verifyClockClassViaEvent(evCtx, freerun)
+			})
 		})
 
 		Context("PTP metric is present", func() {
@@ -3434,4 +3558,58 @@ func waitForStateAndCC(subs event.Subscriptions, state ptpEvent.SyncState, cc in
 			}
 		}
 	}
+}
+
+// bcEventContext bundles event subscriptions with an availability flag so
+// callers can pass a single value to event-verification helpers.
+type bcEventContext struct {
+	subs      event.Subscriptions
+	available bool
+}
+
+// setupBCClockClassEvents creates the consumer app, initializes PubSub,
+// subscribes to GM change events, starts the log monitor, and registers
+// DeferCleanup for all resources. Returns a bcEventContext; if any setup
+// step fails the available flag is false and event checks become no-ops.
+func setupBCClockClassEvents(nodeName string) bcEventContext {
+	ctx := bcEventContext{}
+	if !event.Enable() {
+		return ctx
+	}
+	logrus.Info("Deploy consumer app for BC clock class event monitoring")
+	if createErr := event.CreateConsumerApp(nodeName); createErr != nil {
+		logrus.Warnf("PTP events not available: %s; skipping event checks", createErr)
+		return ctx
+	}
+	time.Sleep(10 * time.Second)
+	event.InitPubSub()
+	var eventCleanup func()
+	ctx.subs, eventCleanup = event.SubscribeToGMChangeEvents(100, true, 60*time.Second)
+	termMonitor, monErr := event.MonitorPodLogsRegex()
+	if monErr != nil {
+		logrus.Warnf("Could not start event monitoring: %s; skipping event checks", monErr)
+	} else {
+		ctx.available = true
+	}
+	DeferCleanup(func() {
+		if termMonitor != nil {
+			stopMonitor(termMonitor)
+		}
+		eventCleanup()
+		event.PubSub.Close()
+		if deleteErr := event.DeleteConsumerNamespace(); deleteErr != nil {
+			logrus.Debugf("Deleting consumer namespace failed: %s", deleteErr)
+		}
+	})
+	return ctx
+}
+
+// verifyClockClassViaEvent drains the clock-class event channel and asserts the
+// expected value. No-op when events are not available.
+func verifyClockClassViaEvent(evCtx bcEventContext, expectedClass int) {
+	if !evCtx.available {
+		return
+	}
+	events := getGMEvents(evCtx.subs.GNSS, evCtx.subs.CLOCKCLASS, evCtx.subs.LOCKSTATE, 10*time.Second)
+	verifyMetric(events[ptpEvent.PtpClockClassChange], float64(expectedClass))
 }
