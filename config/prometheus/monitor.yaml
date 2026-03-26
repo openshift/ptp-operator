@@ -16,6 +16,8 @@ spec:
       tlsConfig:
         caFile: /etc/prometheus/configmaps/serving-certs-ca-bundle/service-ca.crt
         serverName: ptp-operator-metrics-service.openshift-ptp.svc
+        certFile: /etc/prometheus/secrets/metrics-client-certs/tls.crt
+        keyFile: /etc/prometheus/secrets/metrics-client-certs/tls.key
   selector:
     matchLabels:
       control-plane: controller-manager

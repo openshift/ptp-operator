@@ -28,6 +28,7 @@ import (
 
 	configv1 "github.com/openshift/api/config/v1"
 	openshifttls "github.com/openshift/controller-runtime-common/pkg/tls"
+	libgocrypto "github.com/openshift/library-go/pkg/crypto"
 
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/names"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -86,18 +87,31 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 	le := leaderelection.GetLeaderElectionConfig(restConfig, enableLeaderElection)
 
-	// Fetch the TLS security profile from the APIServer CR.
+	// Fetch the TLS security profile and adherence policy from the APIServer CR.
 	// Defaults to the Intermediate profile if the CR is not accessible.
-	tlsProfileSpec, err := fetchTLSProfile(restConfig)
+	tlsProfileSpec, tlsAdherencePolicy, err := fetchTLSConfig(restConfig)
 	isOpenShiftCluster := err == nil
 	if !isOpenShiftCluster {
-		setupLog.Info("unable to fetch TLS profile from APIServer CR, using Intermediate profile", "error", err)
+		setupLog.Info("unable to fetch TLS config from APIServer CR, using Intermediate profile", "error", err)
 		tlsProfileSpec, _ = openshifttls.GetTLSProfileSpec(nil)
 	}
-	setupLog.Info("TLS security profile resolved", "minTLSVersion", tlsProfileSpec.MinTLSVersion, "ciphers", tlsProfileSpec.Ciphers)
-	tlsOption, unsupportedCiphers := openshifttls.NewTLSConfigFromProfile(tlsProfileSpec)
-	if len(unsupportedCiphers) > 0 {
-		setupLog.Info("some ciphers from the TLS profile are not supported", "unsupportedCiphers", unsupportedCiphers)
+	honorClusterTLS := libgocrypto.ShouldHonorClusterTLSProfile(tlsAdherencePolicy)
+	setupLog.Info("TLS security profile resolved",
+		"minTLSVersion", tlsProfileSpec.MinTLSVersion,
+		"ciphers", tlsProfileSpec.Ciphers,
+		"tlsAdherence", tlsAdherencePolicy,
+		"honorClusterTLSProfile", honorClusterTLS)
+
+	var tlsOption func(*tls.Config)
+	if honorClusterTLS {
+		var unsupportedCiphers []string
+		tlsOption, unsupportedCiphers = openshifttls.NewTLSConfigFromProfile(tlsProfileSpec)
+		if len(unsupportedCiphers) > 0 {
+			setupLog.Info("some ciphers from the TLS profile are not supported", "unsupportedCiphers", unsupportedCiphers)
+		}
+	} else {
+		setupLog.Info("TLS adherence is legacy, using default TLS configuration")
+		tlsOption = func(*tls.Config) {} // no-op: use Go defaults
 	}
 	disableHTTP2 := func(c *tls.Config) {
 		if !enableHTTP2 {
@@ -171,10 +185,11 @@ func main() {
 	}
 
 	if err = (&controllers.PtpOperatorConfigReconciler{
-		Client:         mgr.GetClient(),
-		Log:            ctrl.Log.WithName("controllers").WithName("PtpOperatorConfig"),
-		Scheme:         mgr.GetScheme(),
-		TLSProfileSpec: tlsProfileSpec,
+		Client:             mgr.GetClient(),
+		Log:                ctrl.Log.WithName("controllers").WithName("PtpOperatorConfig"),
+		Scheme:             mgr.GetScheme(),
+		TLSProfileSpec:     tlsProfileSpec,
+		TLSAdherencePolicy: tlsAdherencePolicy,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PtpOperatorConfig")
 		os.Exit(1)
@@ -206,12 +221,19 @@ func main() {
 
 	if isOpenShiftCluster {
 		if err = (&openshifttls.SecurityProfileWatcher{
-			Client:                mgr.GetClient(),
-			InitialTLSProfileSpec: tlsProfileSpec,
+			Client:                    mgr.GetClient(),
+			InitialTLSProfileSpec:     tlsProfileSpec,
+			InitialTLSAdherencePolicy: tlsAdherencePolicy,
 			OnProfileChange: func(ctx context.Context, oldProfile, newProfile configv1.TLSProfileSpec) {
 				setupLog.Info("TLS security profile changed, initiating graceful shutdown",
 					"oldMinTLSVersion", oldProfile.MinTLSVersion,
 					"newMinTLSVersion", newProfile.MinTLSVersion)
+				cancel()
+			},
+			OnAdherencePolicyChange: func(ctx context.Context, oldPolicy, newPolicy configv1.TLSAdherencePolicy) {
+				setupLog.Info("TLS adherence policy changed, initiating graceful shutdown",
+					"oldPolicy", oldPolicy,
+					"newPolicy", newPolicy)
 				cancel()
 			},
 		}).SetupWithManager(mgr); err != nil {
@@ -308,18 +330,29 @@ func setupChecks(mgr ctrl.Manager, checker healthz.Checker) {
 	}
 }
 
-// fetchTLSProfile creates a temporary client to read the APIServer TLS profile at startup,
-// before the manager's cache is available.
-func fetchTLSProfile(cfg *rest.Config) (configv1.TLSProfileSpec, error) {
+// fetchTLSConfig creates a temporary client to read the APIServer TLS profile
+// and adherence policy at startup, before the manager's cache is available.
+func fetchTLSConfig(cfg *rest.Config) (configv1.TLSProfileSpec, configv1.TLSAdherencePolicy, error) {
 	s := runtime.NewScheme()
 	if err := configv1.Install(s); err != nil {
-		return configv1.TLSProfileSpec{}, fmt.Errorf("failed to add configv1 to scheme: %v", err)
+		return configv1.TLSProfileSpec{}, "", fmt.Errorf("failed to add configv1 to scheme: %v", err)
 	}
 	c, err := client.New(cfg, client.Options{Scheme: s})
 	if err != nil {
-		return configv1.TLSProfileSpec{}, fmt.Errorf("failed to create client: %v", err)
+		return configv1.TLSProfileSpec{}, "", fmt.Errorf("failed to create client: %v", err)
 	}
-	return openshifttls.FetchAPIServerTLSProfile(context.TODO(), c)
+	profileSpec, err := openshifttls.FetchAPIServerTLSProfile(context.TODO(), c)
+	if err != nil {
+		return configv1.TLSProfileSpec{}, "", err
+	}
+	adherencePolicy, err := openshifttls.FetchAPIServerTLSAdherencePolicy(context.TODO(), c)
+	if err != nil {
+		// Adherence policy fetch may fail on older clusters without the field.
+		// Default to no opinion (legacy behavior).
+		setupLog.Info("unable to fetch TLS adherence policy, defaulting to legacy behavior", "error", err)
+		adherencePolicy = configv1.TLSAdherencePolicyNoOpinion
+	}
+	return profileSpec, adherencePolicy, nil
 }
 
 // waitForWebhookServer waits until the webhook server is ready.
