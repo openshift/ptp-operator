@@ -1,7 +1,7 @@
 FROM registry.ci.openshift.org/ocp/builder:rhel-8-golang-1.19-openshift-4.12 AS builder
 WORKDIR /go/src/github.com/openshift/ptp-operator
 COPY . .
-ENV GO111MODULE=off
+ENV GO111MODULE=auto
 RUN make
 
 FROM registry.ci.openshift.org/ocp/4.12:base
