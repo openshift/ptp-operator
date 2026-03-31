@@ -11,17 +11,10 @@ import (
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/render"
 )
 
-const legacyCipherSuites = "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256," +
-	"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256," +
-	"TLS_RSA_WITH_AES_128_CBC_SHA256," +
-	"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256," +
-	"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256"
-
-func TestSetTLSTemplateData_StrictMode(t *testing.T) {
+func TestSetTLSTemplateData_WithProfile(t *testing.T) {
 	profile := *configv1.TLSProfiles[configv1.TLSProfileIntermediateType]
 	r := &PtpOperatorConfigReconciler{
-		TLSProfileSpec:     profile,
-		TLSAdherencePolicy: configv1.TLSAdherencePolicyStrictAllComponents,
+		TLSProfileSpec: &profile,
 	}
 	data := render.MakeRenderData()
 	r.setTLSTemplateData(&data)
@@ -31,37 +24,23 @@ func TestSetTLSTemplateData_StrictMode(t *testing.T) {
 	assert.Equal(t, expectedCiphers, data.Data["TLSCipherSuites"])
 }
 
-func TestSetTLSTemplateData_LegacyMode(t *testing.T) {
+func TestSetTLSTemplateData_NilProfileUsesLegacy(t *testing.T) {
 	r := &PtpOperatorConfigReconciler{
-		TLSAdherencePolicy: configv1.TLSAdherencePolicyLegacyAdheringComponentsOnly,
+		TLSProfileSpec: nil,
 	}
 	data := render.MakeRenderData()
 	r.setTLSTemplateData(&data)
 
 	assert.Equal(t, "", data.Data["TLSMinVersion"],
-		"TLSMinVersion should be empty in legacy mode")
+		"TLSMinVersion should be empty when TLSProfileSpec is nil")
 	assert.Equal(t, legacyCipherSuites, data.Data["TLSCipherSuites"],
-		"TLSCipherSuites should use hardcoded legacy ciphers")
+		"TLSCipherSuites should use hardcoded legacy ciphers when TLSProfileSpec is nil")
 }
 
-func TestSetTLSTemplateData_NoOpinionDefaultsToLegacy(t *testing.T) {
-	r := &PtpOperatorConfigReconciler{
-		TLSAdherencePolicy: configv1.TLSAdherencePolicyNoOpinion,
-	}
-	data := render.MakeRenderData()
-	r.setTLSTemplateData(&data)
-
-	assert.Equal(t, "", data.Data["TLSMinVersion"],
-		"TLSMinVersion should be empty when adherence is unset")
-	assert.Equal(t, legacyCipherSuites, data.Data["TLSCipherSuites"],
-		"TLSCipherSuites should use hardcoded legacy ciphers when adherence is unset")
-}
-
-func TestSetTLSTemplateData_StrictModernProfile(t *testing.T) {
+func TestSetTLSTemplateData_ModernProfile(t *testing.T) {
 	profile := *configv1.TLSProfiles[configv1.TLSProfileModernType]
 	r := &PtpOperatorConfigReconciler{
-		TLSProfileSpec:     profile,
-		TLSAdherencePolicy: configv1.TLSAdherencePolicyStrictAllComponents,
+		TLSProfileSpec: &profile,
 	}
 	data := render.MakeRenderData()
 	r.setTLSTemplateData(&data)

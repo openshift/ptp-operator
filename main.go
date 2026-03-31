@@ -103,7 +103,9 @@ func main() {
 		"honorClusterTLSProfile", honorClusterTLS)
 
 	var tlsOption func(*tls.Config)
+	var tlsProfileSpecPtr *configv1.TLSProfileSpec
 	if honorClusterTLS {
+		tlsProfileSpecPtr = &tlsProfileSpec
 		var unsupportedCiphers []string
 		tlsOption, unsupportedCiphers = openshifttls.NewTLSConfigFromProfile(tlsProfileSpec)
 		if len(unsupportedCiphers) > 0 {
@@ -185,11 +187,10 @@ func main() {
 	}
 
 	if err = (&controllers.PtpOperatorConfigReconciler{
-		Client:             mgr.GetClient(),
-		Log:                ctrl.Log.WithName("controllers").WithName("PtpOperatorConfig"),
-		Scheme:             mgr.GetScheme(),
-		TLSProfileSpec:     tlsProfileSpec,
-		TLSAdherencePolicy: tlsAdherencePolicy,
+		Client:         mgr.GetClient(),
+		Log:            ctrl.Log.WithName("controllers").WithName("PtpOperatorConfig"),
+		Scheme:         mgr.GetScheme(),
+		TLSProfileSpec: tlsProfileSpecPtr,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PtpOperatorConfig")
 		os.Exit(1)
@@ -341,16 +342,21 @@ func fetchTLSConfig(cfg *rest.Config) (configv1.TLSProfileSpec, configv1.TLSAdhe
 	if err != nil {
 		return configv1.TLSProfileSpec{}, "", fmt.Errorf("failed to create client: %v", err)
 	}
-	profileSpec, err := openshifttls.FetchAPIServerTLSProfile(context.TODO(), c)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	profileSpec, err := openshifttls.FetchAPIServerTLSProfile(ctx, c)
 	if err != nil {
 		return configv1.TLSProfileSpec{}, "", err
 	}
-	adherencePolicy, err := openshifttls.FetchAPIServerTLSAdherencePolicy(context.TODO(), c)
+	adherencePolicy, err := openshifttls.FetchAPIServerTLSAdherencePolicy(ctx, c)
 	if err != nil {
-		// Adherence policy fetch may fail on older clusters without the field.
-		// Default to no opinion (legacy behavior).
-		setupLog.Info("unable to fetch TLS adherence policy, defaulting to legacy behavior", "error", err)
-		adherencePolicy = configv1.TLSAdherencePolicyNoOpinion
+		if errors.IsNotFound(err) {
+			// APIServer object not found — should not happen since we just
+			// fetched the TLS profile from it. Default to legacy behavior.
+			setupLog.Info("APIServer CR not found for adherence policy, defaulting to legacy behavior")
+			return profileSpec, configv1.TLSAdherencePolicyNoOpinion, nil
+		}
+		return configv1.TLSProfileSpec{}, "", fmt.Errorf("failed to fetch TLS adherence policy: %v", err)
 	}
 	return profileSpec, adherencePolicy, nil
 }
