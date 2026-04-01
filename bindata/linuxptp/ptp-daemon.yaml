@@ -72,8 +72,12 @@ spec:
           args:
             - --logtostderr
             - --secure-listen-address=:8443
+            {{- if .TLSCipherSuites}}
             - --tls-cipher-suites={{.TLSCipherSuites}}
+            {{- end}}
+            {{- if .TLSMinVersion}}
             - --tls-min-version={{.TLSMinVersion}}
+            {{- end}}
             - --upstream=http://127.0.0.1:9091/
             - --tls-private-key-file=/etc/metrics/tls.key
             - --tls-cert-file=/etc/metrics/tls.crt
@@ -168,6 +172,8 @@ spec:
       tlsConfig:
         caFile: "/etc/prometheus/configmaps/serving-certs-ca-bundle/service-ca.crt"
         serverName: "ptp-monitor-service.{{.Namespace}}.svc"
+        certFile: /etc/prometheus/secrets/metrics-client-certs/tls.crt
+        keyFile: /etc/prometheus/secrets/metrics-client-certs/tls.key
   jobLabel: app
   namespaceSelector:
     matchNames:
