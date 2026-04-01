@@ -1,16 +1,10 @@
-reviewers:
-  - aneeshkp
-  - josephdrichard
-  - jzding
-  - lack
-  - nocturnalastro
-  - vitus133
 approvers:
-  - aneeshkp
+  - edcdavid
   - josephdrichard
   - jzding
   - lack
   - nocturnalastro
+  - sebsoto
   - vitus133
 
 component: "Networking"
