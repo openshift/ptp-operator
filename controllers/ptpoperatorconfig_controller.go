@@ -53,9 +53,11 @@ import (
 // PtpOperatorConfigReconciler reconciles a PtpOperatorConfig object
 type PtpOperatorConfigReconciler struct {
 	client.Client
-	Log            logr.Logger
-	Scheme         *runtime.Scheme
-	TLSProfileSpec configv1.TLSProfileSpec
+	Log    logr.Logger
+	Scheme *runtime.Scheme
+	// TLSProfileSpec is the cluster-wide TLS profile to apply to kube-rbac-proxy.
+	// When nil, legacy hardcoded cipher suites are used (pre-TLS adherence behavior).
+	TLSProfileSpec *configv1.TLSProfileSpec
 }
 
 const (
@@ -273,10 +275,7 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 		glog.Infof("ptp operator enabled plugins: %s", enabledPlugins)
 	}
 
-	// Pass TLS profile settings for kube-rbac-proxy
-	ianaCiphers := libgocrypto.OpenSSLToIANACipherSuites(r.TLSProfileSpec.Ciphers)
-	data.Data["TLSMinVersion"] = string(r.TLSProfileSpec.MinTLSVersion)
-	data.Data["TLSCipherSuites"] = strings.Join(ianaCiphers, ",")
+	r.setTLSTemplateData(&data)
 
 	objs, err = render.RenderTemplate(filepath.Join(names.ManifestDir, "linuxptp/ptp-daemon.yaml"), &data)
 	if err != nil {
@@ -428,6 +427,29 @@ func (r *PtpOperatorConfigReconciler) syncNodePtpDevice(ctx context.Context, nod
 		}
 	}
 	return nil
+}
+
+// legacyCipherSuites are the hardcoded cipher suites used by kube-rbac-proxy
+// before cluster TLS profile support was added (PR #189).
+const legacyCipherSuites = "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256," +
+	"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256," +
+	"TLS_RSA_WITH_AES_128_CBC_SHA256," +
+	"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256," +
+	"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256"
+
+// setTLSTemplateData populates TLS settings for the kube-rbac-proxy container
+// in the daemon DaemonSet template. When TLSProfileSpec is set (strict adherence),
+// the cluster-wide TLS profile is used. When nil (legacy), the hardcoded cipher
+// suites from before cluster TLS profile support (PR #189) are used.
+func (r *PtpOperatorConfigReconciler) setTLSTemplateData(data *render.RenderData) {
+	if r.TLSProfileSpec != nil {
+		ianaCiphers := libgocrypto.OpenSSLToIANACipherSuites(r.TLSProfileSpec.Ciphers)
+		data.Data["TLSMinVersion"] = string(r.TLSProfileSpec.MinTLSVersion)
+		data.Data["TLSCipherSuites"] = strings.Join(ianaCiphers, ",")
+	} else {
+		data.Data["TLSMinVersion"] = ""
+		data.Data["TLSCipherSuites"] = legacyCipherSuites
+	}
 }
 
 func (r *PtpOperatorConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {

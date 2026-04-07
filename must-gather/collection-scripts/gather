@@ -17,8 +17,26 @@ for resource in ${resources[@]}; do
   oc adm inspect --dest-dir must-gather --all-namespaces ${resource}
 done
 
+DEBUG_IMAGE=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --debug-image=*)
+      DEBUG_IMAGE="${1#--debug-image=}"; shift ;;
+    --debug-image)
+      DEBUG_IMAGE="$2"; shift 2 ;;
+    *)
+      shift ;;
+  esac
+done
+
+OC_DEBUG=(oc debug)
+if [[ -n "${DEBUG_IMAGE}" ]]; then
+  OC_DEBUG+=(--image="${DEBUG_IMAGE}")
+fi
+
 PTP_CAPTURE_DIR="must-gather/ptp-captures"
-CAPTURE_TIMEOUT=5
+OC_DEBUG_TIMEOUT=120
+CAPTURE_TIMEOUT=10
 
 mkdir -p "$PTP_CAPTURE_DIR/pcap"
 mkdir -p "$PTP_CAPTURE_DIR/announce"
@@ -28,8 +46,8 @@ capture_ptp_pcap() {
   local INTERFACE="$2"
   local PCAP_FILE="${PTP_CAPTURE_DIR}/pcap/${NODE_NAME}_${INTERFACE}.pcap"
 
-  timeout "${CAPTURE_TIMEOUT}s" oc debug node/"$NODE_NAME" -- \
-    bash -c "tcpdump -i '$INTERFACE' -n -w - 'ether proto 0x88f7' 2>/dev/null" \
+  timeout "${OC_DEBUG_TIMEOUT}s" "${OC_DEBUG[@]}" node/"$NODE_NAME" -- \
+    bash -c "timeout ${CAPTURE_TIMEOUT}s tcpdump -i '$INTERFACE' -n -w - 'ether proto 0x88f7' 2>/dev/null" \
     > "$PCAP_FILE" 2>/dev/null
 
   local FILE_SIZE
@@ -44,10 +62,9 @@ capture_ptp_announce_text() {
   local INTERFACE="$2"
   local TEXT_FILE="${PTP_CAPTURE_DIR}/announce/${NODE_NAME}_${INTERFACE}_announce.txt"
 
-  timeout "${CAPTURE_TIMEOUT}s" oc debug node/"$NODE_NAME" -- \
-    tcpdump -i "$INTERFACE" -n \
-    'ether proto 0x88f7 and (ether[14] & 0x0f == 0x0b)' \
-    2>&1 | awk '
+  timeout "${OC_DEBUG_TIMEOUT}s" "${OC_DEBUG[@]}" node/"$NODE_NAME" -- \
+    bash -c "timeout ${CAPTURE_TIMEOUT}s tcpdump -i '$INTERFACE' -n 'ether proto 0x88f7 and (ether[14] & 0x0f == 0x0b)' 2>&1" \
+    | awk '
       function print_fields(pattern, fields, n) {
         for (i = 1; i <= n; i++) {
           if (fields[i] ~ pattern) print "  " fields[i]
