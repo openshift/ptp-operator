@@ -8,8 +8,11 @@
 # a downstream PR with those references in the title.
 #
 # When all PRs can be taken as-is, the sync branch points directly at
-# upstream HEAD (fast path). When some PRs are skipped, the script
-# cherry-picks only the selected merge commits onto the downstream branch.
+# upstream HEAD (fast path). When some PRs must be skipped, the full
+# upstream history is pushed and revert commits are added on top for
+# each skipped PR, preserving all original commit SHAs (required so
+# that git merge-base can find the correct sync point on the next run).
+#
 # Merge conflicts are detected and reported in the PR body without
 # attempting automatic resolution.
 #
@@ -36,10 +39,17 @@
 #      ./hack/upstream-sync.sh
 #
 # Flags:
-#   --dry-run        Run all read-only steps (fetch, analyze, log) but skip
-#                    pushing branches and creating/updating PRs.
-#   --keep-worktree  Do not remove the temporary git worktree after pushing.
-#                    Useful for inspecting or fixing conflicts locally.
+#   --dry-run              Run all read-only steps (fetch, analyze, log) but
+#                          skip pushing branches and creating/updating PRs.
+#   --keep-worktree        Do not remove the temporary git worktree after
+#                          pushing. Useful for inspecting or fixing conflicts.
+#   --new-pr               Skip existing PR detection and always create a new
+#                          PR/branch. Useful when you lack permission to update
+#                          an existing PR.
+#   --branch-suffix=TEXT   Append -TEXT to the generated branch name (e.g.
+#                          --branch-suffix=v2 → upstream-sync-2026-04-07-v2).
+#                          Handy with --new-pr when the date-based name already
+#                          exists on the remote.
 #
 # Environment variables:
 #   UPSTREAM_REMOTE      Git remote name for the upstream repo (default: upstream)
@@ -75,10 +85,14 @@ set -euo pipefail
 # --- Parse flags ---
 DRY_RUN=false
 KEEP_WORKTREE=false
+FORCE_NEW_PR=false
+BRANCH_SUFFIX=""
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=true ;;
     --keep-worktree) KEEP_WORKTREE=true ;;
+    --new-pr) FORCE_NEW_PR=true ;;
+    --branch-suffix=*) BRANCH_SUFFIX="${arg#*=}" ;;
     *) echo "Unknown argument: $arg" >&2; exit 1 ;;
   esac
 done
@@ -130,7 +144,7 @@ MERGE_BASE=""
 UPSTREAM_HEAD=""
 FILTERED_PRS=""
 BUG_LIST=""
-SYNC_COMMITS=""
+REVERT_COMMITS=""
 SKIPPED_PRS="[]"
 HAS_SKIPS=false
 CONFLICT_FILES=""
@@ -310,8 +324,8 @@ filter_skipped() {
     if [ -n "$skip_reason" ]; then
       log "  SKIP #${pr_number} - ${pr_title} (${skip_reason})"
       skipped_prs=$(echo "$skipped_prs" | jq \
-        --arg n "$pr_number" --arg t "$pr_title" --arg r "$skip_reason" \
-        '. + [{"number":($n|tonumber),"title":$t,"reason":$r}]')
+        --arg n "$pr_number" --arg t "$pr_title" --arg r "$skip_reason" --arg s "$pr_sha" \
+        '. + [{"number":($n|tonumber),"title":$t,"reason":$r,"sha":$s}]')
       HAS_SKIPS=true
     else
       kept_prs=$(echo "$kept_prs" | jq --argjson pr "$(echo "$FILTERED_PRS" | jq ".[$i]")" '. + [$pr]')
@@ -322,7 +336,7 @@ filter_skipped() {
   FILTERED_PRS="$kept_prs"
 
   if [ "$HAS_SKIPS" = true ]; then
-    SYNC_COMMITS=$(echo "$FILTERED_PRS" | jq -r '.[].mergeCommit.oid')
+    REVERT_COMMITS=$(echo "$SKIPPED_PRS" | jq -r '.[].sha')
     local kept_count skipped_count
     kept_count=$(echo "$FILTERED_PRS" | jq 'length')
     skipped_count=$(echo "$SKIPPED_PRS" | jq 'length')
@@ -345,7 +359,7 @@ scan_bugs() {
     "${MERGE_BASE}..${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH}" | grep -oE "$BUG_PATTERN" || true)
 
   BUG_LIST=$(printf '%s\n' "$bugs_from_titles" "$bugs_from_bodies" "$bugs_from_commits" "$bugs_from_trailers" \
-    | grep -E "^${BUG_PATTERN}$" | sort -u | sed ':a;N;$!ba;s/\n/, /g' || true)
+    | grep -E "^${BUG_PATTERN}$" | sort -u | paste -sd ',' - | sed 's/,/, /g' || true)
 
   if [ -n "$BUG_LIST" ]; then
     log "Bugs found:"
@@ -372,7 +386,7 @@ scan_bugs_from_jira() {
   known_pr_numbers=$(echo "$FILTERED_PRS" | jq -r '.[].number' 2>/dev/null | sort -u)
   if [ -z "$known_pr_numbers" ]; then
     known_pr_numbers=$(git log --format=%s "${MERGE_BASE}..${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH}" \
-      | grep -oP '(?<=Merge pull request #)\d+' | sort -u || true)
+      | sed -n 's/.*Merge pull request #\([0-9]*\).*/\1/p' | sort -u || true)
   fi
 
   if [ -z "$known_pr_numbers" ]; then
@@ -420,7 +434,7 @@ scan_bugs_from_jira() {
 
       for url in $pr_urls; do
         local pr_num
-        pr_num=$(echo "$url" | grep -oP '(?<=/pull/)\d+')
+        pr_num=$(echo "$url" | sed -n 's/.*\/pull\/\([0-9]*\).*/\1/p')
         if echo "$known_pr_numbers" | grep -qx "$pr_num"; then
           log "  ${key} linked to upstream PR #${pr_num}"
           jira_bugs+="${key}"$'\n'
@@ -451,10 +465,15 @@ scan_bugs_from_jira() {
     existing_bugs=$(echo "$BUG_LIST" | tr ',' '\n' | sed 's/^ //')
   fi
   BUG_LIST=$(printf '%s\n%s' "$existing_bugs" "$unique_jira_bugs" \
-    | grep -E "^${BUG_PATTERN}$" | sort -u | sed ':a;N;$!ba;s/\n/, /g' || true)
+    | grep -E "^${BUG_PATTERN}$" | sort -u | paste -sd ',' - | sed 's/,/, /g' || true)
 }
 
 check_existing_sync_pr() {
+  if [ "$FORCE_NEW_PR" = true ]; then
+    log "Skipping existing PR check (--new-pr)"
+    return 0
+  fi
+
   log "Checking for existing open sync PR (branch prefix: ${SYNC_BRANCH_PREFIX})..."
 
   local existing_pr
@@ -515,22 +534,28 @@ push_sync_branch() {
     force_flag="--force"
   else
     branch_name="${SYNC_BRANCH_PREFIX}$(date +%Y-%m-%d)"
+    if [ -n "$BRANCH_SUFFIX" ]; then
+      branch_name="${branch_name}-${BRANCH_SUFFIX}"
+    fi
     EXISTING_BRANCH="$branch_name"
   fi
 
   worktree_dir="${WORKTREE_ROOT}/${branch_name}"
 
+  local skip_count=0
   if [ "$HAS_SKIPS" = true ]; then
-    log "Skipped PRs detected: cherry-picking selected commits onto ${DOWNSTREAM_REMOTE}/${DOWNSTREAM_BRANCH}..."
-  else
-    log "Pushing ${branch_name} to ${PUSH_REMOTE} (upstream HEAD: ${UPSTREAM_HEAD})..."
+    skip_count=$(echo "$REVERT_COMMITS" | wc -w | tr -d ' ')
+  fi
+
+  log "Pushing ${branch_name} to ${PUSH_REMOTE} (upstream HEAD: ${UPSTREAM_HEAD})..."
+  if [ "$HAS_SKIPS" = true ]; then
+    log "Will revert ${skip_count} skipped merge commit(s)"
   fi
 
   if [ "$DRY_RUN" = true ]; then
+    log "Would create worktree at ${worktree_dir}, push ${branch_name} to ${PUSH_REMOTE}"
     if [ "$HAS_SKIPS" = true ]; then
-      log "Would cherry-pick $(echo "$SYNC_COMMITS" | wc -w | tr -d ' ') commits onto ${DOWNSTREAM_REMOTE}/${DOWNSTREAM_BRANCH}"
-    else
-      log "Would create worktree at ${worktree_dir}, push ${branch_name} to ${PUSH_REMOTE}"
+      log "Would revert: $(echo "$REVERT_COMMITS" | tr '\n' ' ')"
     fi
     if [ "$KEEP_WORKTREE" = true ]; then
       log "Worktree would be kept at ${worktree_dir}"
@@ -540,46 +565,30 @@ push_sync_branch() {
 
   cleanup_worktree "$worktree_dir" "$branch_name"
 
-  if [ "$HAS_SKIPS" = true ]; then
-    git branch "$branch_name" "${DOWNSTREAM_REMOTE}/${DOWNSTREAM_BRANCH}"
-    git worktree add "$worktree_dir" "$branch_name"
+  git branch "$branch_name" "$UPSTREAM_HEAD"
+  git worktree add "$worktree_dir" "$branch_name"
 
+  if [ "$HAS_SKIPS" = true ]; then
     local original_dir
     original_dir=$(pwd)
     cd "$worktree_dir"
 
-    local cherry_ok=true
-    for sha in $SYNC_COMMITS; do
-      local cp_flags=""
-      local parent_count
-      parent_count=$(git cat-file -p "$sha" | grep -c '^parent' || echo 1)
-      if [ "$parent_count" -gt 1 ]; then
-        cp_flags="-m 1"
+    for sha in $REVERT_COMMITS; do
+      log "Reverting skipped merge commit ${sha:0:9}..."
+      if git revert -m 1 --no-commit "$sha" 2>/dev/null; then
+        local orig_subject
+        orig_subject=$(git log -1 --format=%s "$sha")
+        git commit -m "downstream-only: Revert \"${orig_subject}\"" 2>/dev/null
+      else
+        log "WARNING: Revert of ${sha:0:9} had conflicts, aborting revert"
+        git revert --abort 2>/dev/null || true
       fi
-
-      if ! git cherry-pick $cp_flags --no-commit "$sha" 2>/dev/null; then
-        log "WARNING: Cherry-pick of ${sha} had conflicts"
-        local conflicting
-        conflicting=$(git diff --name-only --diff-filter=U 2>/dev/null || true)
-        if [ -n "$conflicting" ]; then
-          CONFLICT_FILES=$(printf '%s\n%s' "$CONFLICT_FILES" "$conflicting" | sort -u | sed '/^$/d')
-          echo "$conflicting" | while IFS= read -r f; do
-            log "  conflict: $f"
-          done
-        fi
-        git cherry-pick --abort 2>/dev/null || git reset --hard HEAD
-        cherry_ok=false
-        continue
-      fi
-      git commit --no-edit -m "cherry-pick upstream $(git log -1 --format=%s "$sha")" 2>/dev/null || true
     done
 
     cd "$original_dir"
-  else
-    git branch "$branch_name" "$UPSTREAM_HEAD"
-    git worktree add "$worktree_dir" "$branch_name"
-    detect_conflicts "$worktree_dir"
   fi
+
+  detect_conflicts "$worktree_dir"
 
   local original_dir
   original_dir=$(pwd)
