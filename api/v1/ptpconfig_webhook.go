@@ -56,9 +56,8 @@ var webhookClient client.Client
 func (r *PtpConfig) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	// Store the client for use in validation
 	webhookClient = mgr.GetClient()
-	return ctrl.NewWebhookManagedBy(mgr).
-		For(r).
-		WithValidator(&ptpConfigValidator{}).
+	return ctrl.NewWebhookManagedBy(mgr, r).
+		WithCustomValidator(&ptpConfigValidator{}).
 		Complete()
 }
 
