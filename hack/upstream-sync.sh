@@ -3,8 +3,25 @@
 # upstream-sync.sh - Sync upstream PRs into the downstream repo
 #
 # Finds merged PRs from the upstream repo that aren't yet in the downstream
-# repo, extracts OCPBUGS references from PR titles/bodies/commit messages,
-# and creates (or updates) a downstream PR with those references in the title.
+# repo, extracts bug references (OCPBUGS-*, CNF-*) from PR titles, bodies,
+# commit messages, trailers, and linked Jira issues, then creates (or updates)
+# a downstream PR with those references in the title.
+#
+# When all PRs can be taken as-is, the sync branch points directly at
+# upstream HEAD (fast path). When some PRs must be skipped, the full
+# upstream history is pushed and revert commits are added on top for
+# each skipped PR, preserving all original commit SHAs (required so
+# that git merge-base can find the correct sync point on the next run).
+#
+# Merge conflicts are detected and reported in the PR body without
+# attempting automatic resolution.
+#
+# PR skip detection (evaluated in order):
+#   1. Manual skip list    - SKIP_PRS / SKIP_COMMITS env vars
+#   2. Automatic detection - PRs whose changed files do not exist in the
+#                            downstream branch are skipped (zero config).
+#   3. Ignore patterns     - If .upstream-sync-ignore exists, PRs that
+#                            exclusively modify matching paths are skipped.
 #
 # In CI, this script is run by the upstream-sync GitHub Actions workflow
 # which provides GH_TOKEN automatically via GITHUB_TOKEN.
@@ -21,24 +38,61 @@
 #   3. Run the script:
 #      ./hack/upstream-sync.sh
 #
-# Options:
-#   --dry-run   Run all read-only steps (fetch, analyze, log) but skip
-#               pushing branches and creating/updating PRs.
+# Flags:
+#   --dry-run              Run all read-only steps (fetch, analyze, log) but
+#                          skip pushing branches and creating/updating PRs.
+#   --keep-worktree        Do not remove the temporary git worktree after
+#                          pushing. Useful for inspecting or fixing conflicts.
+#   --new-pr               Skip existing PR detection and always create a new
+#                          PR/branch. Useful when you lack permission to update
+#                          an existing PR.
+#   --branch-suffix=TEXT   Append -TEXT to the generated branch name (e.g.
+#                          --branch-suffix=v2 → upstream-sync-2026-04-07-v2).
+#                          Handy with --new-pr when the date-based name already
+#                          exists on the remote.
 #
-# Environment variables for testing:
-#   MERGE_BASE_OVERRIDE  Set to a commit SHA to fake the merge base
-#                        (useful with --dry-run to test a larger range).
-#                        Example: MERGE_BASE_OVERRIDE=abc1234 ./hack/upstream-sync.sh --dry-run
+# Environment variables:
+#   UPSTREAM_REMOTE      Git remote name for the upstream repo (default: upstream)
+#   UPSTREAM_BRANCH      Branch to sync from upstream (default: main)
+#   DOWNSTREAM_REMOTE    Git remote name for the downstream repo (default: origin)
+#   DOWNSTREAM_BRANCH    Branch to target downstream (default: main)
+#   SYNC_BRANCH_PREFIX   Prefix for the sync branch name (default: upstream-sync-)
+#   FORK_REMOTE          Git remote name for a personal fork; when set, pushes
+#                        go to the fork and cross-repo PRs are created.
+#   WORKTREE_ROOT        Parent directory for temporary worktrees (default: /tmp)
+#   BUG_PATTERN          Regex for bug references (default: (OCPBUGS|CNF)-[0-9]+)
+#   REVIEWERS            Space-separated list of GitHub usernames to cc on PRs
+#   MERGE_BASE_OVERRIDE  Commit SHA to use as merge base (testing/dry-run)
+#   SKIP_PRS             Comma-separated PR numbers to skip (e.g. "42,99")
+#   SKIP_COMMITS         Comma-separated commit SHAs to skip (prefix match)
+#   SYNC_IGNORE_FILE     Path to the ignore-pattern file (default: .upstream-sync-ignore)
+#   JIRA_BASE_URL        Jira instance URL (default: https://redhat.atlassian.net;
+#                        set empty to disable Jira scanning)
+#   JIRA_PROJECTS        Comma-separated Jira project keys (default: OCPBUGS)
+#   JIRA_COMPONENTS      Comma-separated Jira component names to filter on
+#
+# .upstream-sync-ignore file format:
+#   One pattern per line. Lines starting with # are comments.
+#   Patterns ending with / match directory prefixes.
+#   Other patterns are matched literally against the full file path.
+#   Example:
+#     # Skip CI-only upstream changes
+#     .github/
+#     Makefile.upstream
 #
 set -euo pipefail
 
 # --- Parse flags ---
 DRY_RUN=false
 KEEP_WORKTREE=false
+FORCE_NEW_PR=false
+BRANCH_SUFFIX=""
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=true ;;
     --keep-worktree) KEEP_WORKTREE=true ;;
+    --new-pr) FORCE_NEW_PR=true ;;
+    --branch-suffix=*) BRANCH_SUFFIX="${arg#*=}" ;;
     *) echo "Unknown argument: $arg" >&2; exit 1 ;;
   esac
 done
@@ -53,6 +107,9 @@ FORK_REMOTE="${FORK_REMOTE:-}"
 WORKTREE_ROOT="${WORKTREE_ROOT:-/tmp}"
 BUG_PATTERN="${BUG_PATTERN:-(OCPBUGS|CNF)-[0-9]+}"
 REVIEWERS="${REVIEWERS:-}"
+SKIP_PRS="${SKIP_PRS:-}"
+SKIP_COMMITS="${SKIP_COMMITS:-}"
+SYNC_IGNORE_FILE="${SYNC_IGNORE_FILE:-.upstream-sync-ignore}"
 
 # Jira configuration (set JIRA_BASE_URL="" to disable Jira scanning)
 JIRA_BASE_URL="${JIRA_BASE_URL:-https://redhat.atlassian.net}"
@@ -87,6 +144,10 @@ MERGE_BASE=""
 UPSTREAM_HEAD=""
 FILTERED_PRS=""
 BUG_LIST=""
+REVERT_COMMITS=""
+SKIPPED_PRS="[]"
+HAS_SKIPS=false
+CONFLICT_FILES=""
 
 # --- Helpers ---
 
@@ -161,6 +222,130 @@ collect_upstream_prs() {
   done
 }
 
+should_skip_pr() {
+  local pr_number="$1"
+  local changed_files
+  changed_files=$(gh api "repos/${UPSTREAM_REPO}/pulls/${pr_number}/files" \
+    --jq '.[].filename' 2>/dev/null) || return 1
+
+  if [ -z "$changed_files" ]; then
+    return 1
+  fi
+
+  local any_exists_downstream=false
+  while IFS= read -r file; do
+    [ -z "$file" ] && continue
+    if git cat-file -e "${DOWNSTREAM_REMOTE}/${DOWNSTREAM_BRANCH}:${file}" 2>/dev/null; then
+      any_exists_downstream=true
+      break
+    fi
+  done <<< "$changed_files"
+
+  if [ "$any_exists_downstream" = false ]; then
+    echo "all changed files are upstream-only (not present downstream)"
+    return 0
+  fi
+
+  local ignore_file="$SYNC_IGNORE_FILE"
+  if [ -f "$ignore_file" ]; then
+    local all_ignored=true
+    while IFS= read -r file; do
+      [ -z "$file" ] && continue
+      local matched=false
+      while IFS= read -r pattern; do
+        [ -z "$pattern" ] && continue
+        [[ "$pattern" == \#* ]] && continue
+        if [[ "$pattern" == */ ]]; then
+          [[ "$file" == ${pattern}* ]] && matched=true
+        else
+          [[ "$file" == $pattern ]] && matched=true
+        fi
+      done < "$ignore_file"
+      if [ "$matched" = false ]; then
+        all_ignored=false
+        break
+      fi
+    done <<< "$changed_files"
+    if [ "$all_ignored" = true ]; then
+      echo "all changed files match ignore patterns"
+      return 0
+    fi
+  fi
+
+  return 1
+}
+
+filter_skipped() {
+  log "Filtering PRs for skip conditions..."
+
+  local skip_pr_list skip_commit_list
+  IFS=',' read -ra skip_pr_list <<< "${SKIP_PRS:-}"
+  IFS=',' read -ra skip_commit_list <<< "${SKIP_COMMITS:-}"
+
+  local kept_prs="[]"
+  local skipped_prs="[]"
+  local pr_count
+  pr_count=$(echo "$FILTERED_PRS" | jq 'length')
+
+  for (( i=0; i<pr_count; i++ )); do
+    local pr_number pr_title pr_sha
+    pr_number=$(echo "$FILTERED_PRS" | jq -r ".[$i].number")
+    pr_title=$(echo "$FILTERED_PRS" | jq -r ".[$i].title")
+    pr_sha=$(echo "$FILTERED_PRS" | jq -r ".[$i].mergeCommit.oid")
+
+    local skip_reason=""
+
+    for skip_num in "${skip_pr_list[@]}"; do
+      skip_num="${skip_num// /}"
+      if [ -n "$skip_num" ] && [ "$skip_num" = "$pr_number" ]; then
+        skip_reason="manually skipped (SKIP_PRS)"
+        break
+      fi
+    done
+
+    if [ -z "$skip_reason" ]; then
+      for skip_sha in "${skip_commit_list[@]}"; do
+        skip_sha="${skip_sha// /}"
+        if [ -n "$skip_sha" ] && [[ "$pr_sha" == ${skip_sha}* ]]; then
+          skip_reason="manually skipped (SKIP_COMMITS)"
+          break
+        fi
+      done
+    fi
+
+    if [ -z "$skip_reason" ]; then
+      if skip_reason=$(should_skip_pr "$pr_number" 2>/dev/null); then
+        : # PR should be skipped, reason is in skip_reason
+      else
+        skip_reason=""
+      fi
+    fi
+
+    if [ -n "$skip_reason" ]; then
+      log "  SKIP #${pr_number} - ${pr_title} (${skip_reason})"
+      skipped_prs=$(echo "$skipped_prs" | jq \
+        --arg n "$pr_number" --arg t "$pr_title" --arg r "$skip_reason" --arg s "$pr_sha" \
+        '. + [{"number":($n|tonumber),"title":$t,"reason":$r,"sha":$s}]')
+      HAS_SKIPS=true
+    else
+      kept_prs=$(echo "$kept_prs" | jq --argjson pr "$(echo "$FILTERED_PRS" | jq ".[$i]")" '. + [$pr]')
+    fi
+  done
+
+  SKIPPED_PRS="$skipped_prs"
+  FILTERED_PRS="$kept_prs"
+
+  if [ "$HAS_SKIPS" = true ]; then
+    REVERT_COMMITS=$(echo "$SKIPPED_PRS" | jq -r '.[].sha')
+    local kept_count skipped_count
+    kept_count=$(echo "$FILTERED_PRS" | jq 'length')
+    skipped_count=$(echo "$SKIPPED_PRS" | jq 'length')
+    log "Keeping ${kept_count} PRs, skipping ${skipped_count}"
+  else
+    log "No PRs skipped"
+  fi
+}
+
 scan_bugs() {
   local bugs_from_titles bugs_from_bodies bugs_from_commits bugs_from_trailers
 
@@ -201,7 +386,7 @@ scan_bugs_from_jira() {
   known_pr_numbers=$(echo "$FILTERED_PRS" | jq -r '.[].number' 2>/dev/null | sort -u)
   if [ -z "$known_pr_numbers" ]; then
     known_pr_numbers=$(git log --format=%s "${MERGE_BASE}..${UPSTREAM_REMOTE}/${UPSTREAM_BRANCH}" \
-      | grep -oE 'Merge pull request #[0-9]+' | grep -oE '[0-9]+' | sort -u || true)
+      | sed -n 's/.*Merge pull request #\([0-9]*\).*/\1/p' | sort -u || true)
   fi
 
   if [ -z "$known_pr_numbers" ]; then
@@ -249,7 +434,7 @@ scan_bugs_from_jira() {
 
       for url in $pr_urls; do
         local pr_num
-        pr_num=$(echo "$url" | grep -oE '/pull/[0-9]+' | grep -oE '[0-9]+')
+        pr_num=$(echo "$url" | sed -n 's/.*\/pull\/\([0-9]*\).*/\1/p')
         if echo "$known_pr_numbers" | grep -qx "$pr_num"; then
           log "  ${key} linked to upstream PR #${pr_num}"
           jira_bugs+="${key}"$'\n'
@@ -284,6 +469,11 @@ scan_bugs_from_jira() {
 }
 
 check_existing_sync_pr() {
+  if [ "$FORCE_NEW_PR" = true ]; then
+    log "Skipping existing PR check (--new-pr)"
+    return 0
+  fi
+
   log "Checking for existing open sync PR (branch prefix: ${SYNC_BRANCH_PREFIX})..."
 
   local existing_pr
@@ -308,6 +498,32 @@ cleanup_worktree() {
   git branch -D "$branch" 2>/dev/null || true
 }
 
+detect_conflicts() {
+  local worktree_dir="$1"
+  local original_dir
+  original_dir=$(pwd)
+  cd "$worktree_dir"
+
+  log "Testing for merge conflicts against ${DOWNSTREAM_REMOTE}/${DOWNSTREAM_BRANCH}..."
+  if git merge --no-commit --no-ff "${DOWNSTREAM_REMOTE}/${DOWNSTREAM_BRANCH}" 2>/dev/null; then
+    git merge --abort 2>/dev/null || true
+    cd "$original_dir"
+    log "No merge conflicts detected"
+    return 0
+  fi
+
+  CONFLICT_FILES=$(git diff --name-only --diff-filter=U 2>/dev/null || true)
+  git merge --abort 2>/dev/null || true
+  cd "$original_dir"
+
+  if [ -n "$CONFLICT_FILES" ]; then
+    log "WARNING: Merge conflicts detected in the following files:"
+    echo "$CONFLICT_FILES" | while IFS= read -r f; do
+      log "  - $f"
+    done
+  fi
+}
+
 push_sync_branch() {
   local branch_name
   local worktree_dir
@@ -318,14 +534,29 @@ push_sync_branch() {
     force_flag="--force"
   else
     branch_name="${SYNC_BRANCH_PREFIX}$(date +%Y-%m-%d)"
+    if [ -n "$BRANCH_SUFFIX" ]; then
+      branch_name="${branch_name}-${BRANCH_SUFFIX}"
+    fi
     EXISTING_BRANCH="$branch_name"
   fi
 
   worktree_dir="${WORKTREE_ROOT}/${branch_name}"
+
+  local skip_count=0
+  if [ "$HAS_SKIPS" = true ]; then
+    skip_count=$(echo "$REVERT_COMMITS" | wc -w | tr -d ' ')
+  fi
+
   log "Pushing ${branch_name} to ${PUSH_REMOTE} (upstream HEAD: ${UPSTREAM_HEAD})..."
+  if [ "$HAS_SKIPS" = true ]; then
+    log "Will revert ${skip_count} skipped merge commit(s)"
+  fi
 
   if [ "$DRY_RUN" = true ]; then
     log "Would create worktree at ${worktree_dir}, push ${branch_name} to ${PUSH_REMOTE}"
+    if [ "$HAS_SKIPS" = true ]; then
+      log "Would revert: $(echo "$REVERT_COMMITS" | tr '\n' ' ')"
+    fi
     if [ "$KEEP_WORKTREE" = true ]; then
       log "Worktree would be kept at ${worktree_dir}"
     fi
@@ -336,6 +567,28 @@ push_sync_branch() {
 
   git branch "$branch_name" "$UPSTREAM_HEAD"
   git worktree add "$worktree_dir" "$branch_name"
+
+  if [ "$HAS_SKIPS" = true ]; then
+    local original_dir
+    original_dir=$(pwd)
+    cd "$worktree_dir"
+
+    for sha in $REVERT_COMMITS; do
+      log "Reverting skipped merge commit ${sha:0:9}..."
+      if git revert -m 1 --no-commit "$sha" 2>/dev/null; then
+        local orig_subject
+        orig_subject=$(git log -1 --format=%s "$sha")
+        git commit -m "downstream-only: Revert \"${orig_subject}\"" 2>/dev/null
+      else
+        log "WARNING: Revert of ${sha:0:9} had conflicts, aborting revert"
+        git revert --abort 2>/dev/null || true
+      fi
+    done
+
+    cd "$original_dir"
+  fi
+
+  detect_conflicts "$worktree_dir"
 
   local original_dir
   original_dir=$(pwd)
@@ -398,6 +651,39 @@ build_pr_body() {
     body+="${line}"$'\n'
   done
 
+  local skipped_count
+  skipped_count=$(echo "$SKIPPED_PRS" | jq 'length')
+  if [ "$skipped_count" -gt 0 ]; then
+    body+=$'\n'"## Skipped PRs"$'\n\n'
+    for (( i=0; i<skipped_count; i++ )); do
+      local skip_number skip_title skip_reason
+      skip_number=$(echo "$SKIPPED_PRS" | jq -r ".[$i].number")
+      skip_title=$(echo "$SKIPPED_PRS" | jq -r ".[$i].title")
+      skip_reason=$(echo "$SKIPPED_PRS" | jq -r ".[$i].reason")
+      body+="- ~~[#${skip_number}](https://github.com/${UPSTREAM_REPO}/pull/${skip_number}) ${skip_title}~~ — ${skip_reason}"$'\n'
+    done
+  fi
+
+  if [ -n "$CONFLICT_FILES" ]; then
+    body+=$'\n'"## Merge conflicts"$'\n\n'
+    body+="The following files have merge conflicts that need manual resolution:"$'\n\n'
+    while IFS= read -r f; do
+      [ -z "$f" ] && continue
+      body+="- \`${f}\`"$'\n'
+    done <<< "$CONFLICT_FILES"
+    if [ -n "$FORK_REMOTE" ]; then
+      body+=$'\n'"To resolve, clone the fork and fix conflicts locally:"$'\n'
+      body+="\`\`\`bash"$'\n'
+      body+="git clone https://github.com/${FORK_REPO}.git"$'\n'
+      body+="cd ${FORK_REPO##*/}"$'\n'
+      body+="git checkout ${EXISTING_BRANCH}"$'\n'
+      body+="git merge ${DOWNSTREAM_REMOTE}/${DOWNSTREAM_BRANCH}"$'\n'
+      body+="# resolve conflicts, then:"$'\n'
+      body+="git push"$'\n'
+      body+="\`\`\`"$'\n'
+    fi
+  fi
+
   if [ -n "$REVIEWERS" ]; then
     body+=$'\n'"cc"
     for user in $REVIEWERS; do
@@ -459,6 +745,7 @@ main() {
   fetch_remotes
   get_sync_range
   collect_upstream_prs
+  filter_skipped
   scan_bugs
   scan_bugs_from_jira
   check_existing_sync_pr
