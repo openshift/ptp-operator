@@ -161,9 +161,10 @@ var data solverData
 // indicates the clock roles in the algotithms
 type TestIfClockRoles int
 
-const NumTestClockRoles = 7
+const NumTestClockRoles = 8
 const (
 	Grandmaster TestIfClockRoles = iota
+	GrandmasterSibling
 	Slave1
 	Slave2
 	BC1Master
@@ -659,7 +660,9 @@ func initAndSolveProblems() {
 			{int(solver.StepSameNic), 2, 1, 3, solver.Negative}}, // step5
 	}
 	data.problems[AlgoTelcoGMString] = &[][][]int{
-		{{int(solver.StepIsWPCNic), 1, 0}}, // step1
+		{{int(solver.StepIsWPCNic), 1, 0}},       // step1: first iface is WPC
+		{{int(solver.StepIsWPCNic), 1, 1},         // step2: second iface is WPC
+			{int(solver.StepSameNic), 2, 0, 1}},  //        and on the same NIC
 	}
 
 	data.problems[AlgoDualNicBCWithSlavesString] = &[][][]int{
@@ -767,6 +770,7 @@ func initAndSolveProblems() {
 
 	// GM
 	(*data.testClockRolesAlgoMapping[AlgoTelcoGMString])[Grandmaster] = 0
+	(*data.testClockRolesAlgoMapping[AlgoTelcoGMString])[GrandmasterSibling] = 1
 
 	// OC, External GM
 	(*data.testClockRolesAlgoMapping[AlgoOCExtGMString])[Slave1] = 0
@@ -1620,32 +1624,27 @@ func PtpConfigDualNicBC(isExtGM bool, phc2SysHaEnabled bool) error {
 }
 
 func PtpConfigTelcoGM(isExtGM bool) error {
-	var grandmaster int
 	BestSolution := ""
 	if len(*data.solutions[AlgoTelcoGMString]) != 0 {
 		BestSolution = AlgoTelcoGMString
 	}
 	switch BestSolution {
 	case AlgoTelcoGMString:
+		solution := (*data.solutions[BestSolution])[FirstSolution]
+		gm0 := (*data.testClockRolesAlgoMapping[BestSolution])[Grandmaster]
+		gm1 := (*data.testClockRolesAlgoMapping[BestSolution])[GrandmasterSibling]
 
-		// Check GM interface available
-		grandmaster = (*data.testClockRolesAlgoMapping[BestSolution])[Grandmaster]
-		gmIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][grandmaster]]
+		gmIf0 := GlobalConfig.L2Config.GetPtpIfList()[solution[gm0]]
+		gmIf1 := GlobalConfig.L2Config.GetPtpIfList()[solution[gm1]]
 
-		// Check the Iface has a WPC NIC associated to it
-		IfList, err := ptphelper.GetWPCEnabledInterfaces(gmIf.NodeName)
-		if err != nil {
-			return fmt.Errorf("checking WPC interfaces on %s: %w", gmIf.NodeName, err)
+		ifList := []string{gmIf0.IfName, gmIf1.IfName}
+
+		deviceID := gmIf0.IfPTPCaps.GnssDevice
+		if deviceID == "" {
+			deviceID = gmIf1.IfPTPCaps.GnssDevice
 		}
-		if len(IfList) == 0 {
-			logrus.Error("WPC NIC not found in list of interfaces on the cluster")
-			return fmt.Errorf("WPC NIC not found in list of interfaces on the cluster %d", len(IfList))
-		}
-		deviceID, err := ptphelper.CheckGNSSForInterface(gmIf.NodeName, IfList[0])
-		if err != nil {
-			return fmt.Errorf("GNSS check on %s: %w", gmIf.NodeName, err)
-		}
-		err = CreatePtpConfigWPCGrandMaster(pkg.PtpWPCGrandMasterPolicyName, gmIf.NodeName, IfList, deviceID)
+
+		err := CreatePtpConfigWPCGrandMaster(pkg.PtpWPCGrandMasterPolicyName, gmIf0.NodeName, ifList, deviceID)
 		if err != nil {
 			logrus.Errorf("Error creating Grandmaster ptpconfig: %s", err)
 		}
