@@ -21,7 +21,7 @@ require (
 	github.com/prometheus-operator/prometheus-operator/pkg/client v0.57.0
 	github.com/prometheus/common v0.66.1
 	github.com/redhat-cne/channel-pubsub v0.0.8
-	github.com/redhat-cne/l2discovery-lib v0.1.0
+	github.com/redhat-cne/l2discovery-lib v0.1.1
 	github.com/redhat-cne/privileged-daemonset v1.0.34
 	github.com/redhat-cne/ptp-listener-exports v0.0.7
 	github.com/redhat-cne/sdk-go v1.22.4
