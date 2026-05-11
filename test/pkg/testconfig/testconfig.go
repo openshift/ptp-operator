@@ -660,9 +660,9 @@ func initAndSolveProblems() {
 			{int(solver.StepSameNic), 2, 1, 3, solver.Negative}}, // step5
 	}
 	data.problems[AlgoTelcoGMString] = &[][][]int{
-		{{int(solver.StepIsWPCNic), 1, 0}},       // step1: first iface is WPC
-		{{int(solver.StepIsWPCNic), 1, 1},         // step2: second iface is WPC
-			{int(solver.StepSameNic), 2, 0, 1}},  //        and on the same NIC
+		{{int(solver.StepIsWPCNic), 1, 0}}, // step1: first iface is WPC
+		{{int(solver.StepIsWPCNic), 1, 1}, // step2: second iface is WPC
+			{int(solver.StepSameNic), 2, 0, 1}}, //        and on the same NIC
 	}
 
 	data.problems[AlgoDualNicBCWithSlavesString] = &[][][]int{

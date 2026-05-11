@@ -948,7 +948,6 @@ func IsExternalGM() (out bool) {
 	return out
 }
 
-
 func execPodCommand(nodeName string, cmd []string) (stdoutBuf, stderrBuf bytes.Buffer, err error) {
 
 	WaitForPtpDaemonToExist()
