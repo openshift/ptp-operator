@@ -35,8 +35,8 @@ setup_ns() {
     NSIM_DEV_2_NAME=$(find $NSIM_DEV_2_SYS/net -maxdepth 1 -type d ! \
         -path $NSIM_DEV_2_SYS/net -exec basename {} \;)
 
-    PODMAN_NODE1_NS=$(get_podman_netns_id $CONTAINER1)
-    PODMAN_NODE2_NS=$(get_podman_netns_id $CONTAINER2)
+    PODMAN_NODE1_NS=$(get_container_netns_id $CONTAINER1)
+    PODMAN_NODE2_NS=$(get_container_netns_id $CONTAINER2)
 
     ip link set dev $NSIM_DEV_1_NAME name $NSIM_DEV_COMMON_NAME
     ip link set $NSIM_DEV_COMMON_NAME netns $PODMAN_NODE1_NS
@@ -52,23 +52,37 @@ setup_ns() {
     ip netns exec $PODMAN_NODE2_NS ip link set dev $NSIM_DEV_COMMON_NAME up
 }
 
-get_podman_netns_id() {
+get_container_netns_id() {
     if [ -z "$1" ]; then
-        echo "Usage: get_podman_netns_id <container_name_or_id>"
+        echo "Usage: get_container_netns_id <container_name_or_id>"
         return 1
     fi
 
-    # Get the full SandboxKey path
-    local NETNS_PATH
-    NETNS_PATH=$(podman inspect --format '{{ .NetworkSettings.SandboxKey }}' "$1" 2>/dev/null)
+    local NETNS_ID=""
 
-    # Extract only the namespace ID
-    local NETNS_ID
-    NETNS_ID=$(basename "$NETNS_PATH")
+    # Try podman first (SandboxKey), then docker
+    for runtime in podman docker; do
+        command -v "$runtime" >/dev/null 2>&1 || continue
 
-    # Check if we got a valid namespace ID
+        local NETNS_PATH
+        NETNS_PATH=$($runtime inspect --format '{{ .NetworkSettings.SandboxKey }}' "$1" 2>/dev/null) || continue
+        NETNS_ID=$(basename "$NETNS_PATH")
+
+        if [ -z "$NETNS_ID" ]; then
+            local PID
+            PID=$($runtime inspect --format '{{ .State.Pid }}' "$1" 2>/dev/null) || continue
+            if [ -n "$PID" ] && [ "$PID" != "0" ]; then
+                mkdir -p /var/run/netns
+                NETNS_ID="ctr-$1"
+                ln -sf "/proc/$PID/ns/net" "/var/run/netns/$NETNS_ID"
+            fi
+        fi
+
+        [ -n "$NETNS_ID" ] && break
+    done
+
     if [ -z "$NETNS_ID" ]; then
-        echo "Error: Could not retrieve network namespace ID for container '$1'."
+        echo "Error: Could not retrieve network namespace for container '$1' (tried podman, docker)." >&2
         return 1
     fi
 

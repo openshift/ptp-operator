@@ -36,11 +36,11 @@ podman-build-%:
 podman-pushall: $(foreach v, $(VALUES), podman-push-$(v))
 
 podman-push-%:
-	podman manifest push ${IMG_PREFIX}:$*
+	podman manifest push ${IMG_PREFIX}:$* docker://${IMG_PREFIX}:$*
 
 build-image:
 	podman manifest create ${IMG_PREFIX}:$(VAR)
-	podman build --no-cache --platform $(PLATFORM) -f Dockerfile.$(VAR)  --manifest ${IMG_PREFIX}:$(VAR)  ..
+	podman build --no-cache --network host --platform $(PLATFORM) -f Dockerfile.$(VAR)  --manifest ${IMG_PREFIX}:$(VAR)  ..
 
 clean-image:
 	podman image rm ${IMG_PREFIX}:$(VAR) || true
