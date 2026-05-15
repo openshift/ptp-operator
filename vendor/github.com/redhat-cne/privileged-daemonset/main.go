@@ -3,6 +3,7 @@ package privilegeddaemonset
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -262,10 +263,41 @@ func WaitDaemonsetReady(namespace, name string, timeout time.Duration) error {
 	}
 
 	if !isReady {
+		logStuckPods(namespace, name)
 		return fmt.Errorf("daemonset %q (ns %q) could not be deployed (timed out)", name, namespace)
 	}
 
 	return nil
+}
+
+// logStuckPods logs pod states when a daemonset wait times out to aid debugging.
+func logStuckPods(namespace, dsName string) {
+	podList, err := daemonsetClient.K8sClient.CoreV1().Pods(namespace).List(
+		context.Background(), metav1.ListOptions{LabelSelector: "name=" + dsName})
+	if err != nil {
+		log.Printf("failed to list pods for stuck daemonset %s/%s: %v", namespace, dsName, err)
+		return
+	}
+	for i := range podList.Items {
+		pod := &podList.Items[i]
+		phase := pod.Status.Phase
+		var containerState string
+		if len(pod.Status.ContainerStatuses) > 0 {
+			cs := pod.Status.ContainerStatuses[0]
+			switch {
+			case cs.State.Waiting != nil:
+				containerState = "Waiting/" + cs.State.Waiting.Reason
+			case cs.State.Running != nil:
+				containerState = "Running"
+			case cs.State.Terminated != nil:
+				containerState = "Terminated/" + cs.State.Terminated.Reason
+			}
+		} else {
+			containerState = "no-container-status"
+		}
+		log.Printf("stuck daemonset %s/%s: pod %s on node %s: phase=%s container=%s",
+			namespace, dsName, pod.Name, pod.Spec.NodeName, phase, containerState)
+	}
 }
 
 func isDaemonSetReady(status *appsv1.DaemonSetStatus) bool {
@@ -403,7 +435,6 @@ func namespaceCreate(namespace string) error {
 }
 
 func DeleteNamespaceIfPresent(namespace string) (err error) {
-	// delete namespace if present
 	if !namespaceIsPresent(namespace) {
 		return nil
 	}
@@ -411,11 +442,49 @@ func DeleteNamespaceIfPresent(namespace string) (err error) {
 	if err != nil {
 		return fmt.Errorf("could not delete namespace %q, err: %v", namespace, err)
 	}
-	// wait for the namespace to be deleted
 	err = namespaceWaitForDeletion(namespace, namespaceDeleteTimeout)
-	if err != nil {
-		return fmt.Errorf("failed waiting for namespace %q to be deleted, err: %v", namespace, err)
+	if err == nil {
+		return nil
 	}
 
+	// Namespace is stuck — likely due to pods that never started (e.g. CRI-O
+	// image-pull hang) which stay Terminating indefinitely.  Force-delete
+	// every remaining pod and wait again.
+	log.Printf("namespace %q still terminating after %v, force-deleting stuck pods", namespace, namespaceDeleteTimeout)
+	forceErr := forceDeletePodsInNamespace(namespace)
+	if forceErr != nil {
+		log.Printf("error force-deleting pods in namespace %q: %v", namespace, forceErr)
+	}
+
+	err = namespaceWaitForDeletion(namespace, namespaceDeleteTimeout)
+	if err != nil {
+		return fmt.Errorf("namespace %q still not deleted after force-deleting pods: %v", namespace, err)
+	}
 	return nil
+}
+
+// forceDeletePodsInNamespace force-deletes all pods in the given namespace
+// using a zero grace period. This unblocks namespace deletion when pods are
+// stuck in Terminating/ContainerCreating due to runtime issues (e.g. CRI-O
+// image pull hang).
+func forceDeletePodsInNamespace(namespace string) error {
+	podList, err := daemonsetClient.K8sClient.CoreV1().Pods(namespace).List(
+		context.Background(), metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("listing pods in %q: %w", namespace, err)
+	}
+	gracePeriod := int64(0)
+	deleteOpts := metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod}
+	var lastErr error
+	for i := range podList.Items {
+		pod := &podList.Items[i]
+		log.Printf("force-deleting pod %s/%s (phase=%s, node=%s)",
+			namespace, pod.Name, pod.Status.Phase, pod.Spec.NodeName)
+		if err := daemonsetClient.K8sClient.CoreV1().Pods(namespace).Delete(
+			context.Background(), pod.Name, deleteOpts); err != nil && !k8serrors.IsNotFound(err) {
+			log.Printf("failed to force-delete pod %s/%s: %v", namespace, pod.Name, err)
+			lastErr = err
+		}
+	}
+	return lastErr
 }
