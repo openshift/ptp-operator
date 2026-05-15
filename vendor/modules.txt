@@ -251,7 +251,7 @@ github.com/redhat-cne/l2discovery-lib/exports
 github.com/redhat-cne/l2discovery-lib/pkg/graphsolver
 github.com/redhat-cne/l2discovery-lib/pkg/l2client
 github.com/redhat-cne/l2discovery-lib/pkg/pods
-# github.com/redhat-cne/privileged-daemonset v1.0.34
+# github.com/redhat-cne/privileged-daemonset v1.0.35
 ## explicit; go 1.22
 github.com/redhat-cne/privileged-daemonset
 # github.com/redhat-cne/ptp-listener-exports v0.0.7
