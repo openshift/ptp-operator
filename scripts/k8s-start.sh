@@ -10,7 +10,8 @@ kind delete cluster --name kind-netdevsim
 # Delete and re-create netdevsim and openvswitch devices
 ./reset-devices.sh
 
-# configure registry IP
+# restore template and substitute registry IP
+git checkout -- kind-config.yaml 2>/dev/null || true
 sed -i "s/IP/$VM_IP/g" kind-config.yaml
 
 # Create new cluster

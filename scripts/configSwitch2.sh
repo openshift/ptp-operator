@@ -99,3 +99,16 @@ $(podman exec switch1 systemctl enable --now ptp4l) || {
     podman exec switch1 journalctl -u ptp4l
     exit $status
 }
+
+if [[ "${DKMS_MODE:-}" == "true" ]]; then
+    podman exec switch1 bash -c '
+    mkdir -p /etc/systemd/system/ptp4l.service.d
+    cat > /etc/systemd/system/ptp4l.service.d/nsim-ptp.conf <<UNIT
+[Service]
+DeviceAllow=char-* rw
+DevicePolicy=auto
+UNIT
+    systemctl daemon-reload
+    '
+    podman exec switch1 systemctl restart ptp4l || true
+fi

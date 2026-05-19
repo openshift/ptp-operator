@@ -10,8 +10,14 @@ mkdir -p ~/registry
 openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes  -keyout ~/registry/registry.key -out ~/registry/registry.crt -subj "/CN=registry"  -addext "subjectAltName=DNS:registry,DNS:localhost,IP:$VM_IP"
 
 openssl x509 -in ~/registry/registry.crt -out ~/registry/registry.pem -outform PEM
-sudo mv ~/registry/registry.pem /etc/pki/ca-trust/source/anchors/
-update-ca-trust
+
+if [[ "${DKMS_MODE:-}" == "true" ]]; then
+    cp ~/registry/registry.pem /usr/local/share/ca-certificates/registry.crt
+    update-ca-certificates
+else
+    sudo mv ~/registry/registry.pem /etc/pki/ca-trust/source/anchors/
+    update-ca-trust
+fi
 
 podman run -d \
   --restart=always \

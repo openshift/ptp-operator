@@ -168,7 +168,7 @@ enable_switch_auth() {
 
 disable_switch_auth
 
-systemctl stop chronyd
+systemctl stop chronyd 2>/dev/null || systemctl stop chrony 2>/dev/null || true
 
 set -e
 
