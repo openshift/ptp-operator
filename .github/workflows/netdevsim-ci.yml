@@ -1,0 +1,291 @@
+# CI for ptp-operator with netdevsim DKMS modules.
+# Builds DKMS modules from netdevsim-dkms, then runs ptp-operator e2e
+# tests using the checked-out ptp-operator source.
+
+name: netdevsim CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+env:
+  DKMS_PKG: netdevsim
+  DKMS_VER: "6.9.5"
+  DKMS_REPO: https://github.com/redhat-cne/netdevsim-dkms.git
+  DKMS_BRANCH: main
+
+jobs:
+  # ------------------------------------------------------------------
+  # DKMS build + smoke tests (every PR and workflow_dispatch)
+  # ------------------------------------------------------------------
+  dkms-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Runner info
+        run: |
+          echo "CPUs: $(nproc)"
+          echo "RAM: $(free -h | awk '/Mem:/{print $2}')"
+          echo "Kernel: $(uname -r)"
+
+      - name: Clone netdevsim-dkms
+        run: git clone --depth 1 --branch "${DKMS_BRANCH}" "${DKMS_REPO}" /tmp/netdevsim-dkms
+
+      - name: Install DKMS dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dkms gcc make ethtool linuxptp \
+            linux-headers-$(uname -r) \
+            linux-modules-extra-$(uname -r) || {
+            echo "::error::Could not install kernel headers/modules for $(uname -r)"
+            exit 1
+          }
+
+      - name: Install DKMS source tree
+        run: |
+          sudo mkdir -p /usr/src/${DKMS_PKG}-${DKMS_VER}
+          sudo cp -a /tmp/netdevsim-dkms/Makefile /tmp/netdevsim-dkms/dkms.conf \
+            /tmp/netdevsim-dkms/install-udev-rule.sh /tmp/netdevsim-dkms/99-nsim-ptp.rules \
+            /tmp/netdevsim-dkms/include /tmp/netdevsim-dkms/ptp \
+            /tmp/netdevsim-dkms/dpll /tmp/netdevsim-dkms/netdevsim \
+            /usr/src/${DKMS_PKG}-${DKMS_VER}/
+
+      - name: DKMS add + build + install
+        id: build
+        run: |
+          sudo dkms add ${DKMS_PKG}/${DKMS_VER}
+          if sudo dkms build ${DKMS_PKG}/${DKMS_VER} 2>&1; then
+            echo "status=ok" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=fail" >> "$GITHUB_OUTPUT"
+            echo "::warning::DKMS build failed — dumping make.log"
+            sudo cat /var/lib/dkms/${DKMS_PKG}/${DKMS_VER}/build/make.log || true
+            exit 1
+          fi
+          sudo dkms install --force ${DKMS_PKG}/${DKMS_VER}
+          sudo cp /tmp/netdevsim-dkms/99-nsim-ptp.rules /etc/udev/rules.d/
+          sudo udevadm control --reload-rules
+
+      - name: Load modules
+        id: load
+        run: |
+          set -e
+          sudo modprobe gnss           && echo "gnss loaded"           || echo "gnss skipped"
+          sudo modprobe nsim_ptp       && echo "nsim_ptp loaded"
+          sudo modprobe nsim_ptp_mock  && echo "nsim_ptp_mock loaded"
+          sudo modprobe nsim_dpll      && echo "nsim_dpll loaded"
+          sudo modprobe netdevsim pci_bus_nr=0x1f && echo "netdevsim loaded"
+          lsmod | grep -E 'nsim_ptp|nsim_dpll|netdevsim|gnss' || true
+          sudo chmod 666 /dev/nsim_ptp* 2>/dev/null || true
+          echo "load_ok=true" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test — create netdevsim device
+        if: steps.load.outputs.load_ok == 'true'
+        run: |
+          set -euo pipefail
+          BUS_NR=$(cat /sys/module/netdevsim/parameters/pci_bus_nr 2>/dev/null || echo 31)
+          BUS=$(printf "%02x" "$BUS_NR")
+          FAKE_ROOT=$(ls /sys/bus/pci/devices/ 2>/dev/null | grep ":${BUS}:00\.0" | head -1)
+          DOMAIN="${FAKE_ROOT:+$(echo "$FAKE_ROOT" | cut -d: -f1)}"
+          : "${DOMAIN:=0000}"
+          PCI_ADDR="${DOMAIN}:${BUS}:02.0"
+          echo "Using PCI address: ${PCI_ADDR}"
+          echo "1 ${PCI_ADDR} 1" | sudo tee /sys/bus/netdevsim/new_device
+          sleep 1
+          ls /sys/bus/netdevsim/devices/netdevsim1/
+
+      - name: Smoke test — verify PTP clock
+        if: steps.load.outputs.load_ok == 'true'
+        run: |
+          set -euo pipefail
+          ls /sys/class/nsim_ptp/
+          ls -la /dev/nsim_ptp* /dev/ptp* 2>/dev/null || echo "No PTP devices found"
+          readlink /dev/ptp0 2>/dev/null | grep -q nsim_ptp \
+            && echo "OK: /dev/ptp0 -> $(readlink /dev/ptp0)" \
+            || echo "WARN: /dev/ptp0 symlink not found"
+
+      - name: Smoke test — verify ethtool PHC
+        if: steps.load.outputs.load_ok == 'true'
+        run: |
+          BUS_NR=$(cat /sys/module/netdevsim/parameters/pci_bus_nr 2>/dev/null || echo 31)
+          BUS=$(printf "%02x" "$BUS_NR")
+          FAKE_ROOT=$(ls /sys/bus/pci/devices/ 2>/dev/null | grep ":${BUS}:00\.0" | head -1)
+          DOMAIN="${FAKE_ROOT:+$(echo "$FAKE_ROOT" | cut -d: -f1)}"
+          : "${DOMAIN:=0000}"
+          IFACE=$(ls /sys/bus/pci/devices/${DOMAIN}:${BUS}:02.0/net/ 2>/dev/null | head -1)
+          [ -n "$IFACE" ] && ethtool -T "$IFACE" || echo "WARN: No interface found"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          echo "1" | sudo tee /sys/bus/netdevsim/del_device 2>/dev/null || true
+          sudo rmmod netdevsim nsim_dpll nsim_ptp_mock nsim_ptp 2>/dev/null || true
+          sudo dkms remove ${DKMS_PKG}/${DKMS_VER} --all 2>/dev/null || true
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## DKMS Smoke Tests (ubuntu-24.04)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- OS: ubuntu-24.04" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Kernel: $(uname -r)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Build: ${{ steps.build.outputs.status || 'unknown' }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Load: ${{ steps.load.outputs.load_ok || 'false' }}" >> "$GITHUB_STEP_SUMMARY"
+
+  # ------------------------------------------------------------------
+  # ptp-operator: build images once and upload as artifact
+  # ------------------------------------------------------------------
+  ptp-images:
+    needs: dkms-test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Runner info
+        run: |
+          echo "CPUs: $(nproc)"
+          echo "RAM: $(free -h | awk '/Mem:/{print $2}')"
+          echo "Kernel: $(uname -r)"
+
+      - uses: actions/checkout@v4
+
+      - name: Install podman
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman
+          podman --version
+
+      - name: Copy checkout to /root/ptp-operator
+        run: sudo cp -a "$GITHUB_WORKSPACE" /root/ptp-operator
+
+      - name: "Build images and export tarball"
+        run: |
+          sudo bash -l <<'BUILD'
+          set -euo pipefail
+          set -x
+          export PATH=/usr/local/go/bin:/root/go/bin:$PATH
+          export KIND_EXPERIMENTAL_PROVIDER=podman
+
+          VM_IP=$(hostname -I | awk '{print $1}')
+          cd /root/ptp-operator/scripts
+          ./run-on-vm.sh --dkms --images "${VM_IP}"
+          BUILD
+
+      - name: Upload image tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: ptp-images
+          path: /tmp/ptp-images.tar
+          retention-days: 1
+
+  # ------------------------------------------------------------------
+  # ptp-operator: one parallel runner per scenario
+  # ------------------------------------------------------------------
+  ptp-test:
+    needs: ptp-images
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [oc, bc, dualnicbc, dualnicbcha, dualfollower]
+    steps:
+      - name: "Runner info (${{ matrix.mode }})"
+        run: |
+          echo "CPUs: $(nproc)"
+          echo "RAM: $(free -h | awk '/Mem:/{print $2}')"
+          echo "Kernel: $(uname -r)"
+
+      - uses: actions/checkout@v4
+
+      - name: Install podman
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman
+          podman --version
+
+      - name: Install OpenShift CLI (oc)
+        run: |
+          if ! command -v oc &>/dev/null; then
+            curl -sLO https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz
+            sudo tar xzf openshift-client-linux.tar.gz -C /usr/local/bin oc kubectl
+            rm -f openshift-client-linux.tar.gz
+          fi
+          oc version --client
+
+      - name: Install DKMS dependencies
+        run: |
+          sudo apt-get install -y dkms gcc make ethtool linuxptp \
+            linux-headers-$(uname -r) \
+            linux-modules-extra-$(uname -r)
+
+      - name: Clone and install DKMS modules
+        run: |
+          git clone --depth 1 --branch "${DKMS_BRANCH}" "${DKMS_REPO}" /tmp/netdevsim-dkms
+          sudo mkdir -p /usr/src/${DKMS_PKG}-${DKMS_VER}
+          sudo cp -a /tmp/netdevsim-dkms/Makefile /tmp/netdevsim-dkms/dkms.conf \
+            /tmp/netdevsim-dkms/install-udev-rule.sh /tmp/netdevsim-dkms/99-nsim-ptp.rules \
+            /tmp/netdevsim-dkms/include /tmp/netdevsim-dkms/ptp \
+            /tmp/netdevsim-dkms/dpll /tmp/netdevsim-dkms/netdevsim \
+            /usr/src/${DKMS_PKG}-${DKMS_VER}/
+          sudo dkms add ${DKMS_PKG}/${DKMS_VER}
+          sudo dkms build ${DKMS_PKG}/${DKMS_VER}
+          sudo dkms install --force ${DKMS_PKG}/${DKMS_VER}
+          sudo cp /tmp/netdevsim-dkms/99-nsim-ptp.rules /etc/udev/rules.d/
+          sudo udevadm control --reload-rules
+
+      - name: Copy checkout to /root/ptp-operator
+        run: sudo cp -a "$GITHUB_WORKSPACE" /root/ptp-operator
+
+      - name: Download image tarball
+        uses: actions/download-artifact@v4
+        with:
+          name: ptp-images
+          path: /tmp
+
+      - name: "Load images into local registry"
+        run: |
+          sudo bash -l <<'LOAD'
+          set -euo pipefail
+          set -x
+          export PATH=/usr/local/go/bin:/root/go/bin:$PATH
+          export KIND_EXPERIMENTAL_PROVIDER=podman
+
+          VM_IP=$(hostname -I | awk '{print $1}')
+          cd /root/ptp-operator/scripts
+          ./run-on-vm.sh --dkms --load /tmp/ptp-images.tar "${VM_IP}"
+          LOAD
+
+      - name: "Run scenario: ${{ matrix.mode }}"
+        run: |
+          sudo bash -l <<'DEPLOY'
+          set -euo pipefail
+          set -x
+          export PATH=/usr/local/go/bin:/root/go/bin:$PATH
+          export KIND_EXPERIMENTAL_PROVIDER=podman
+
+          VM_IP=$(hostname -I | awk '{print $1}')
+          cd /root/ptp-operator/scripts
+          ./run-on-vm.sh --dkms --deploy "${VM_IP}" --mode "${{ matrix.mode }}" "${VM_IP}"
+          DEPLOY
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ptp-artifacts-${{ matrix.mode }}
+          path: /tmp/artifacts/
+          if-no-files-found: ignore
+
+      - name: Cleanup
+        if: always()
+        run: |
+          for id in $(ls /sys/bus/netdevsim/devices/ 2>/dev/null | sed 's/netdevsim//'); do
+            echo "$id" | sudo tee /sys/bus/netdevsim/del_device 2>/dev/null || true
+          done
+          sudo rmmod netdevsim nsim_dpll nsim_ptp_mock nsim_ptp 2>/dev/null || true
+          sudo dkms remove ${DKMS_PKG}/${DKMS_VER} --all 2>/dev/null || true
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## ptp-operator: ${{ matrix.mode }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- OS: ubuntu-24.04" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Kernel: $(uname -r)" >> "$GITHUB_STEP_SUMMARY"
