@@ -27,6 +27,10 @@ SAVE_DIR ?= /tmp/ptp-images
 
 VALUES = lptpd cep ptpop krp openvswitch prometheus ptpmg debug
 
+.PHONY: print-values
+print-values:
+	@printf '%s\n' $(VALUES)
+
 podman-buildall: $(foreach v, $(VALUES), podman-build-$(v))
 
 podman-build-%:
@@ -80,4 +84,6 @@ deploy-all:
 	cd ../config/manager && $(KUSTOMIZE) edit set image controller=${IMG_PREFIX}:ptpop
 	$(KUSTOMIZE) build ../config/default | kubectl apply -f -
 	$(KUSTOMIZE) build ../config/custom | kubectl apply -f -
+	# Operator creates default asynchronously; ensure it exists before patch.
+	kubectl apply -n openshift-ptp -f ../config/samples/ptp_v1_ptpoperatorconfig.yaml
 	kubectl patch ptpoperatorconfig default -nopenshift-ptp --type=merge --patch '{"spec": {"ptpEventConfig": {"enableEventPublisher": true, "transportHost": "http://ptp-event-publisher-service-NODE_NAME.openshift-ptp.svc.cluster.local:9043", "storageType": "local-sc"}, "daemonNodeSelector": {"node-role.kubernetes.io/worker": ""}}}'
