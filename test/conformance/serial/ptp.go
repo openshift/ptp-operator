@@ -937,15 +937,12 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					})
 
 					// Wait for operator to reconcile the config map with the
-					// temp profile before restarting the daemon pod, so the new
-					// pod starts with the correct config on first boot.
+					// temp profile. The daemon watches the configmap and will
+					// hot-reload ptp4l internally — no pod restart needed.
 					err = ptphelper.WaitForConfigMapProfile(nodes.Items[0].Name, pkg.PtpTempPolicyName, 2*time.Minute)
 					Expect(err).NotTo(HaveOccurred(), "operator did not reconcile temp profile into configmap in time")
 
 					testPtpPod, err = ptphelper.GetPtpPodOnNode(nodes.Items[0].Name)
-					Expect(err).NotTo(HaveOccurred())
-
-					testPtpPod, err = ptphelper.ReplaceTestPod(&testPtpPod, time.Minute)
 					Expect(err).NotTo(HaveOccurred())
 				})
 
