@@ -178,6 +178,7 @@ run_ginkgo_suite() {
   local junit_base="${JUNIT_OUTPUT_FILE%.xml}"
   local ginkgo_args=(
     --keep-going
+    --flake-attempts="${FLAKE_ATTEMPTS:-2}"
     --output-dir="${JUNIT_OUTPUT_DIR}"
     --junit-report="${junit_base}_${mode}_${suite_kind}.xml"
     -v
