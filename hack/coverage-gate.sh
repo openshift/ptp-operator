@@ -35,11 +35,8 @@ resolve_base_ref() {
     git branch --set-upstream-to="${UPSTREAM_REF}" "${LOCAL_BRANCH}" --quiet >/dev/null
   fi
 
-  # Update tracking branch to latest (skip if currently checked out)
-  CURRENT=$(git symbolic-ref --short HEAD 2>/dev/null || true)
-  if [ "${LOCAL_BRANCH}" != "${CURRENT}" ]; then
-    git branch -f "${LOCAL_BRANCH}" "${UPSTREAM_REF}" --quiet 2>/dev/null || true
-  fi
+  # Update tracking branch to latest without checkout
+  git branch -f "${LOCAL_BRANCH}" "${UPSTREAM_REF}" --quiet
 
   echo "${LOCAL_BRANCH}"
 }
