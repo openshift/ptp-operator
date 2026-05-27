@@ -21,6 +21,7 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -269,17 +270,14 @@ func main() {
 	}
 
 	go func() {
-		// Wait until the webhook server is ready.
 		setupLog.Info("waiting for validating webhook to be ready")
-		err = waitForWebhookServer(checker)
-		if err != nil {
+		if err := waitForWebhookServer(ctx, checker); err != nil {
 			setupLog.Error(err, "unable to create default PtpOperatorConfig due to webhook not ready")
-		} else {
-			// create default before the webhook are setup
-			err = createDefaultOperatorConfig(ctrl.GetConfigOrDie())
-			if err != nil {
-				setupLog.Error(err, "unable to create default PtpOperatorConfig")
-			}
+			return
+		}
+
+		if err := createDefaultOperatorConfig(ctx, restConfig); err != nil {
+			setupLog.Error(err, "unable to create default PtpOperatorConfig")
 		}
 	}()
 	setupLog.Info("starting manager")
@@ -290,7 +288,7 @@ func main() {
 
 }
 
-func createDefaultOperatorConfig(cfg *rest.Config) error {
+func createDefaultOperatorConfig(ctx context.Context, cfg *rest.Config) error {
 	logger := setupLog.WithName("createDefaultOperatorConfig")
 	c, err := client.New(cfg, client.Options{Scheme: scheme})
 	if err != nil {
@@ -301,7 +299,7 @@ func createDefaultOperatorConfig(cfg *rest.Config) error {
 			DaemonNodeSelector: map[string]string{},
 		},
 	}
-	err = c.Get(context.TODO(), types.NamespacedName{
+	err = c.Get(ctx, types.NamespacedName{
 		Name: names.DefaultOperatorConfigName, Namespace: names.Namespace}, config)
 
 	if err != nil {
@@ -309,7 +307,7 @@ func createDefaultOperatorConfig(cfg *rest.Config) error {
 			logger.Info("Create default OperatorConfig")
 			config.Namespace = names.Namespace
 			config.Name = names.DefaultOperatorConfigName
-			err = c.Create(context.TODO(), config)
+			err = c.Create(ctx, config)
 			if err != nil {
 				return err
 			}
@@ -361,28 +359,55 @@ func fetchTLSConfig(cfg *rest.Config) (configv1.TLSProfileSpec, configv1.TLSAdhe
 	return profileSpec, adherencePolicy, nil
 }
 
-// waitForWebhookServer waits until the webhook server is ready.
-func waitForWebhookServer(checker func(req *http.Request) error) error {
+// waitForWebhookServer waits until the local webhook server is listening and
+// the webhook-service is reachable via the cluster DNS. The latter is necessary
+// because the Kubernetes endpoint controller populates the Service endpoints
+// asynchronously; without this check, the API server may reject webhook calls
+// with "no endpoints available".
+func waitForWebhookServer(ctx context.Context, checker func(req *http.Request) error) error {
 	const (
-		timeout     = 30 * time.Second // Adjust timeout as needed
-		pollingFreq = 1 * time.Second  // Polling frequency
+		timeout     = 60 * time.Second
+		pollingFreq = 1 * time.Second
+		dialTimeout = 2 * time.Second
 	)
 	start := time.Now()
+	webhookServiceAddr := fmt.Sprintf("webhook-service.%s.svc:%d", names.Namespace, 443)
 
-	// Create an HTTP request to check the readiness of the webhook server.
-	req, err := http.NewRequest("GET", "https://localhost:9443/healthz", nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://localhost:9443/healthz", nil)
 	if err != nil {
 		return err
 	}
 
-	// Poll the checker function until it returns nil (indicating success)
-	// or until the timeout is reached.
 	for {
 		if err = checker(req); err == nil {
-			return nil
-		} else if time.Since(start) > timeout {
+			break
+		}
+		if time.Since(start) > timeout {
 			return fmt.Errorf("timeout waiting for webhook server to start")
 		}
-		time.Sleep(pollingFreq) // Poll every second
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(pollingFreq):
+		}
+	}
+
+	setupLog.Info("webhook server started, waiting for service endpoints")
+
+	for {
+		conn, err := (&net.Dialer{Timeout: dialTimeout}).DialContext(ctx, "tcp", webhookServiceAddr)
+		if err == nil {
+			conn.Close()
+			setupLog.Info("webhook service endpoints are ready")
+			return nil
+		}
+		if time.Since(start) > timeout {
+			return fmt.Errorf("timeout waiting for webhook service endpoints to be ready")
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(pollingFreq):
+		}
 	}
 }

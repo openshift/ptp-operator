@@ -50,7 +50,11 @@ var _ = BeforeSuite(func() {
 	event.InitPubSub()
 
 	// Start log collection if enabled
-	err := logging.StartLogCollection("serial")
+	suiteName := "serial"
+	if mode := os.Getenv("PTP_TEST_MODE"); mode != "" {
+		suiteName = suiteName + "_" + strings.ToLower(mode)
+	}
+	err := logging.StartLogCollection(suiteName)
 	if err != nil {
 		logrus.Errorf("Failed to start log collection: %v", err)
 	}

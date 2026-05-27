@@ -57,6 +57,8 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-parallel]", func() 
 			if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 				Skip("Failed to find a valid ptp slave configuration")
 			}
+			Expect(fullConfig.DiscoveredClockUnderTestPod).NotTo(BeNil(),
+				"clock-under-test pod missing; label node with "+pkg.PtpClockUnderTestNodeLabel)
 		})
 		It("PTP CPU Utilization", func() {
 			testPtpCpuUtilization(fullConfig, testParameters)
@@ -72,6 +74,8 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-parallel]", func() 
 			if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 				Skip("Failed to find a valid ptp slave configuration")
 			}
+			Expect(fullConfig.DiscoveredClockUnderTestPod).NotTo(BeNil(),
+				"clock-under-test pod missing; label node with "+pkg.PtpClockUnderTestNodeLabel)
 		})
 
 		It("PTP Slave Clock Sync", func() {
@@ -118,6 +122,8 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-parallel]", func() 
 			if fullConfig.Status == testconfig.DiscoveryFailureStatus {
 				Skip("Failed to find a valid ptp slave configuration")
 			}
+			Expect(fullConfig.DiscoveredClockUnderTestPod).NotTo(BeNil(),
+				"clock-under-test pod missing after refresh; label node with "+pkg.PtpClockUnderTestNodeLabel)
 		})
 
 		It("PTP Slave Clock Sync", func() {

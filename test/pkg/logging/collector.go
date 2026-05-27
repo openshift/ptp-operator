@@ -98,6 +98,12 @@ func ShouldWriteTestMarkers() bool {
 	return value == "true" || value == "1"
 }
 
+func WriteStep(step string) {
+	if collector != nil && ShouldWriteTestMarkers() {
+		collector.writers.writeToAll(createStepMarker(step))
+	}
+}
+
 func GetLogArtifactsDir() string {
 	if dir := os.Getenv("LOG_ARTIFACTS_DIR"); dir != "" {
 		return dir
@@ -715,6 +721,11 @@ func createTestStartMarker(report ginkgo.SpecReport) string {
 		lineNumber,
 		testMarkerLine,
 	)
+}
+
+func createStepMarker(step string) string {
+	return fmt.Sprintf(">>>>>>>>>> STEP [%s]: %s <<<<<<<<<<",
+		time.Now().Format(time.RFC3339), step)
 }
 
 func createTestEndMarker(report ginkgo.SpecReport) string {

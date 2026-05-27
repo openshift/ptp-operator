@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,6 +19,7 @@ import (
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	v1core "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
@@ -35,115 +35,120 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-func GetProfileLogID(ptpConfigName string, label *string, nodeName *string) (id string, err error) {
-	const logIDRegex = `(?m).*?Ptp4lConf: #profile: %s(.|\n)*?message_tag \[(.*)\]`
-	const logIDIndex = 2
+func GetPodWithLabel(label *string, nodeName *string) ([]*corev1.Pod, error) {
+	res := make([]*corev1.Pod, 0)
 	ptpPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
 	if err != nil {
-		return id, err
+		return res, err
 	}
-	for _, pod := range ptpPods.Items {
-		isPodFound, err := pods.HasPodLabelOrNodeName(&pod, label, nodeName)
+	for i := range ptpPods.Items {
+		pod := &ptpPods.Items[i]
+		isPodFound, err := pods.HasPodLabelOrNodeName(pod, label, nodeName)
 		if err != nil {
-			return id, fmt.Errorf("could not check %s pod role, err: %s", *label, err)
+			return res, fmt.Errorf("could not check pod role (label=%v, node=%v): %w", label, nodeName, err)
 		}
-
 		if !isPodFound {
 			continue
 		}
+		res = append(res, pod)
+	}
+	return res, nil
+}
 
-		renderedRegex := fmt.Sprintf(logIDRegex, ptpConfigName)
-		matches, err := pods.GetPodLogsRegex(pod.Namespace,
-			pod.Name, pkg.PtpContainerName,
-			renderedRegex, false, pkg.TimeoutIn3Minutes)
-		if err != nil {
-			return id, fmt.Errorf("could not get any profile line, err=%s", err)
-		}
-		return matches[len(matches)-1][logIDIndex], nil
+func findMatchingPod(label *string, nodeName *string) (*corev1.Pod, error) {
+	foundPods, err := GetPodWithLabel(label, nodeName)
+	if err != nil {
+		return nil, err
+	}
+	if len(foundPods) == 0 {
+		return nil, fmt.Errorf("no PTP pods found for label=%v node=%v", label, nodeName)
+	}
+	return foundPods[0], nil
+}
 
+func GetProfileLogID(ptpConfigName string, label *string, nodeName *string) (string, error) {
+	const logIDRegex = `(?m).*?Ptp4lConf: #profile: %s(.|\n)*?message_tag \[(.*)\]`
+	const logIDIndex = 2
+
+	pod, err := findMatchingPod(label, nodeName)
+	if err != nil {
+		return "", fmt.Errorf("finding pod for %s: %w", ptpConfigName, err)
+	}
+
+	renderedRegex := fmt.Sprintf(logIDRegex, ptpConfigName)
+	matches, err := pods.GetPodLogsRegex(pod.Namespace,
+		pod.Name, pkg.PtpContainerName,
+		renderedRegex, false, pkg.TimeoutIn3Minutes)
+	if err != nil {
+		return "", fmt.Errorf("could not get any profile line, err=%s", err)
+	}
+	if len(matches) == 0 || len(matches[len(matches)-1]) <= logIDIndex {
+		return "", fmt.Errorf("profile log id not found for %s in pod %s/%s", ptpConfigName, pod.Namespace, pod.Name)
+	}
+	id := matches[len(matches)-1][logIDIndex]
+	if id == "" {
+		return "", fmt.Errorf("empty profile log id for %s in pod %s/%s", ptpConfigName, pod.Namespace, pod.Name)
 	}
 	return id, nil
 }
 
-func GetClockIDMaster(ptpConfigName string, label *string, nodeName *string, isGM bool) (id string, err error) {
+func GetClockIDMaster(ptpConfigName string, label *string, nodeName *string, isGM bool) (string, error) {
 	const clockIDGMRegex = `(?m)\[%s\] selected local clock (.*) as best master`
 	const clockIDBCRegex = `(?m)\[%s\] selected best master clock (.*)`
 	const clockIDIndex = 1
-	clockIDRegex := ""
+	clockIDRegex := clockIDBCRegex
 	if isGM {
 		clockIDRegex = clockIDGMRegex
-	} else {
-		clockIDRegex = clockIDBCRegex
 	}
 	logID, err := GetProfileLogID(ptpConfigName, label, nodeName)
 	if err != nil {
-		return id, err
+		return "", err
 	}
-	// 4.16+ has log levels in message_tag: [ptp4l.0.config:{level}]
 	if strings.Contains(logID, "level") {
 		logID = strings.Replace(logID, "{level}", "\\d+", 1)
 	}
-	ptpPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
+	pod, err := findMatchingPod(label, nodeName)
 	if err != nil {
-		return id, err
+		return "", err
 	}
-	for _, pod := range ptpPods.Items {
-		isPodFound, err := pods.HasPodLabelOrNodeName(&pod, label, nodeName)
-		if err != nil {
-			return id, fmt.Errorf("could not check %s pod role, err: %s", *label, err)
-		}
-
-		if !isPodFound {
-			continue
-		}
-		renderedRegex := fmt.Sprintf(clockIDRegex, logID)
-		matches, err := pods.GetPodLogsRegex(pod.Namespace,
-			pod.Name, pkg.PtpContainerName,
-			renderedRegex, false, pkg.TimeoutIn10Minutes)
-		if err != nil {
-			return id, fmt.Errorf("could not get any profile line, err=%s", err)
-		}
-		return matches[len(matches)-1][clockIDIndex], nil
+	renderedRegex := fmt.Sprintf(clockIDRegex, logID)
+	matches, err := pods.GetPodLogsRegex(pod.Namespace,
+		pod.Name, pkg.PtpContainerName,
+		renderedRegex, false, pkg.TimeoutIn10Minutes)
+	if err != nil {
+		return "", fmt.Errorf("could not get any profile line, err=%s", err)
 	}
-	return id, err
+	if len(matches) == 0 || len(matches[len(matches)-1]) <= clockIDIndex {
+		return "", fmt.Errorf("clock id not found in pod %s/%s", pod.Namespace, pod.Name)
+	}
+	return matches[len(matches)-1][clockIDIndex], nil
 }
 
-func GetClockIDForeign(ptpConfigName string, label *string, nodeName *string) (id string, err error) {
+func GetClockIDForeign(ptpConfigName string, label *string, nodeName *string) (string, error) {
 	const clockIDForeignRegex = `(?m)\[%s\].* selected best master clock (.*)`
 	const clockIDForeignIndex = 1
 	logID, err := GetProfileLogID(ptpConfigName, label, nodeName)
 	if err != nil {
-		return id, err
+		return "", err
 	}
-	// 4.16+ has log levels in message_tag: [ptp4l.0.config:{level}]
 	if strings.Contains(logID, "level") {
 		logID = strings.Replace(logID, "{level}", "\\d+", 1)
 	}
-	ptpPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
+	pod, err := findMatchingPod(label, nodeName)
 	if err != nil {
-		return id, err
+		return "", err
 	}
-	for _, pod := range ptpPods.Items {
-
-		isPodFound, err := pods.HasPodLabelOrNodeName(&pod, label, nodeName)
-		if err != nil {
-			return id, fmt.Errorf("could not check %s pod role, err: %s", *label, err)
-		}
-
-		if !isPodFound {
-			continue
-		}
-
-		renderedRegex := fmt.Sprintf(clockIDForeignRegex, logID)
-		matches, err := pods.GetPodLogsRegex(pod.Namespace,
-			pod.Name, pkg.PtpContainerName,
-			renderedRegex, false, pkg.TimeoutIn10Minutes)
-		if err != nil {
-			return id, fmt.Errorf("could not get any profile line, err=%s", err)
-		}
-		return matches[len(matches)-1][clockIDForeignIndex], nil
+	renderedRegex := fmt.Sprintf(clockIDForeignRegex, logID)
+	matches, err := pods.GetPodLogsRegex(pod.Namespace,
+		pod.Name, pkg.PtpContainerName,
+		renderedRegex, false, pkg.TimeoutIn10Minutes)
+	if err != nil {
+		return "", fmt.Errorf("could not get any profile line, err=%s", err)
 	}
-	return id, err
+	if len(matches) == 0 || len(matches[len(matches)-1]) <= clockIDForeignIndex {
+		return "", fmt.Errorf("foreign clock id not found in pod %s/%s", pod.Namespace, pod.Name)
+	}
+	return matches[len(matches)-1][clockIDForeignIndex], nil
 }
 
 // WaitForClockIDForeign searches the slave's log stream for a specific expected
@@ -158,28 +163,18 @@ func WaitForClockIDForeign(ptpConfigName string, label *string, nodeName *string
 	if strings.Contains(logID, "level") {
 		logID = strings.Replace(logID, "{level}", "\\d+", 1)
 	}
-	ptpPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
+	pod, err := findMatchingPod(label, nodeName)
 	if err != nil {
-		return fmt.Errorf("could not list ptp pods: %w", err)
+		return fmt.Errorf("no matching pod found for profile %s: %w", ptpConfigName, err)
 	}
-	for _, pod := range ptpPods.Items {
-		isPodFound, err := pods.HasPodLabelOrNodeName(&pod, label, nodeName)
-		if err != nil {
-			return fmt.Errorf("could not check pod role: %w", err)
-		}
-		if !isPodFound {
-			continue
-		}
-		expectedMasterRegex := fmt.Sprintf(`(?m)\[%s\].* selected best master clock %s`, logID, expectedGMID)
-		_, err = pods.GetPodLogsRegex(pod.Namespace, pod.Name, pkg.PtpContainerName,
-			expectedMasterRegex, false, pkg.TimeoutIn10Minutes)
-		if err != nil {
-			return fmt.Errorf("expected master %s not found in logs: %w", expectedGMID, err)
-		}
-		logrus.Infof("slave's Master=%s (matched expected GM)", expectedGMID)
-		return nil
+	expectedMasterRegex := fmt.Sprintf(`(?m)\[%s\].* selected best master clock %s`, logID, expectedGMID)
+	_, err = pods.GetPodLogsRegex(pod.Namespace, pod.Name, pkg.PtpContainerName,
+		expectedMasterRegex, false, pkg.TimeoutIn10Minutes)
+	if err != nil {
+		return fmt.Errorf("expected master %s not found in logs: %w", expectedGMID, err)
 	}
-	return fmt.Errorf("no matching pod found for profile %s", ptpConfigName)
+	logrus.Infof("slave's Master=%s (matched expected GM)", expectedGMID)
+	return nil
 }
 
 // returns true if the pod is running a grandmaster
@@ -384,6 +379,35 @@ func PtpDiscoveredInterfaceList(nodeName string) []string {
 	return ptpInterfaces
 }
 
+// WaitForConfigMapProfile polls the ptp-configmap until the given node's entry
+// contains the expected profile name (qualified or unqualified substring).
+// This ensures the operator has reconciled and the daemon will see the new
+// config when it starts or detects the change.
+func WaitForConfigMapProfile(nodeName, profileSubstring string, timeout time.Duration) error {
+	var lastErr error
+	Eventually(func() error {
+		cm, err := client.Client.CoreV1().ConfigMaps(pkg.PtpLinuxDaemonNamespace).Get(
+			context.Background(), "ptp-configmap", metav1.GetOptions{})
+		if err != nil {
+			lastErr = fmt.Errorf("could not get configmap: %v", err)
+			return lastErr
+		}
+		data, ok := cm.Data[nodeName]
+		if !ok {
+			lastErr = fmt.Errorf("node %s not found in configmap", nodeName)
+			return lastErr
+		}
+		if !strings.Contains(data, profileSubstring) {
+			lastErr = fmt.Errorf("profile %q not found in configmap for node %s", profileSubstring, nodeName)
+			return lastErr
+		}
+		return nil
+	}, timeout, 2*time.Second).Should(BeNil(),
+		fmt.Sprintf("timed out waiting for profile %q in configmap for node %s: %v",
+			profileSubstring, nodeName, lastErr))
+	return nil
+}
+
 func MutateProfile(profile *ptpv1.PtpConfig, profileName, nodeName string) *ptpv1.PtpConfig {
 	mutatedConfig := profile.DeepCopy()
 	priority := int64(0)
@@ -403,7 +427,12 @@ func ReplaceTestPod(pod *v1core.Pod, timeout time.Duration) (v1core.Pod, error) 
 
 	err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).Delete(context.Background(), pod.Name, metav1.DeleteOptions{
 		GracePeriodSeconds: pointer.Int64Ptr(0)})
-	Expect(err).NotTo(HaveOccurred())
+	if err != nil && !apierrors.IsNotFound(err) {
+		return newPod, fmt.Errorf("failed to delete pod %s: %w", pod.Name, err)
+	}
+	if apierrors.IsNotFound(err) {
+		logrus.Infof("Pod %s already gone (likely replaced by DaemonSet rolling update), waiting for new pod", pod.Name)
+	}
 
 	Eventually(func() error {
 		newPod, err = GetPtpPodOnNode(pod.Spec.NodeName)
@@ -446,22 +475,73 @@ func CheckLeaseDuration(namespace string, leaseDurationDefault int32, leaseDurat
 }
 
 func WaitForPtpDaemonToExist() int {
-	daemonset, err := client.Client.DaemonSets(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), pkg.PtpDaemonsetName, metav1.GetOptions{})
-	Expect(err).ToNot(HaveOccurred())
-	expectedNumber := daemonset.Status.DesiredNumberScheduled
-	Eventually(func() int32 {
-		daemonset, err = client.Client.DaemonSets(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), pkg.PtpDaemonsetName, metav1.GetOptions{})
-		Expect(err).ToNot(HaveOccurred())
-		return daemonset.Status.NumberReady
-	}, pkg.TimeoutIn5Minutes, 2*time.Second).Should(Equal(expectedNumber))
+	var expectedNumber int32
+	Eventually(func() error {
+		daemonset, err := client.Client.DaemonSets(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), pkg.PtpDaemonsetName, metav1.GetOptions{})
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return fmt.Errorf("linuxptp-daemon DaemonSet not created yet: %w", err)
+			}
+			return err
+		}
+		expectedNumber = daemonset.Status.DesiredNumberScheduled
+		return nil
+	}, pkg.TimeoutIn5Minutes, 2*time.Second).Should(Succeed(), "linuxptp-daemon DaemonSet must exist before readiness wait")
 
-	Eventually(func() int {
+	Eventually(func() (int32, error) {
+		daemonset, err := client.Client.DaemonSets(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), pkg.PtpDaemonsetName, metav1.GetOptions{})
+		if err != nil {
+			return 0, err
+		}
+		return daemonset.Status.NumberReady, nil
+	}, pkg.TimeoutIn5Minutes, 2*time.Second).Should(Equal(expectedNumber),
+		daemonsetNotReadyMessage(expectedNumber))
+
+	Eventually(func() (int, error) {
 		ptpPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
-		Expect(err).ToNot(HaveOccurred())
-		return len(ptpPods.Items)
-	}, pkg.TimeoutIn5Minutes, 2*time.Second).Should(Equal(int(expectedNumber)))
+		if err != nil {
+			return 0, err
+		}
+		return len(ptpPods.Items), nil
+	}, pkg.TimeoutIn5Minutes, 2*time.Second).Should(Equal(int(expectedNumber)),
+		fmt.Sprintf("expected %d linuxptp-daemon pods, check DaemonSet status", expectedNumber))
 
 	return 0
+}
+
+func daemonsetNotReadyMessage(expectedNumber int32) string {
+	pods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(
+		context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
+	if err != nil {
+		return fmt.Sprintf("linuxptp-daemon NumberReady != %d (failed to list pods: %v)", expectedNumber, err)
+	}
+
+	var lines []string
+	lines = append(lines, fmt.Sprintf("linuxptp-daemon DaemonSet: expected %d ready pods, found %d pods total", expectedNumber, len(pods.Items)))
+	for i := range pods.Items {
+		pod := &pods.Items[i]
+		phase := string(pod.Status.Phase)
+		var containerIssues []string
+		for _, cs := range pod.Status.ContainerStatuses {
+			if cs.Ready {
+				continue
+			}
+			issue := fmt.Sprintf("%s: ready=false", cs.Name)
+			if cs.State.Waiting != nil {
+				issue += fmt.Sprintf(" (%s: %s)", cs.State.Waiting.Reason, cs.State.Waiting.Message)
+			}
+			if cs.State.Terminated != nil {
+				issue += fmt.Sprintf(" (terminated: %s exit=%d)", cs.State.Terminated.Reason, cs.State.Terminated.ExitCode)
+			}
+			containerIssues = append(containerIssues, issue)
+		}
+		detail := fmt.Sprintf("  pod %s on %s: phase=%s", pod.Name, pod.Spec.NodeName, phase)
+		if len(containerIssues) > 0 {
+			detail += " | " + strings.Join(containerIssues, "; ")
+		}
+		lines = append(lines, detail)
+	}
+	return strings.Join(lines, "\n")
 }
 
 func WaitForPtpDaemonToBeReady(podList []*v1core.Pod) int {
@@ -518,8 +598,13 @@ func DiscoveryPTPConfiguration(namespace string) (masters, slaves []*ptpv1.PtpCo
 
 // EnablePTPEvent: if configMapName is passed, clean up the configMap when version changed
 func EnablePTPEvent(apiVersion, configMapName string) error {
-	ptpConfig, err := client.Client.PtpV1Interface.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), pkg.PtpConfigOperatorName, metav1.GetOptions{})
-	Expect(err).NotTo(HaveOccurred())
+	var ptpConfig *ptpv1.PtpOperatorConfig
+	Eventually(func() error {
+		var e error
+		ptpConfig, e = client.Client.PtpV1Interface.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Get(
+			context.Background(), pkg.PtpConfigOperatorName, metav1.GetOptions{})
+		return e
+	}, pkg.TimeoutIn5Minutes, 3*time.Second).Should(Succeed(), "PtpOperatorConfig must exist to enable events")
 
 	var currentApiVersion string
 	if ptpConfig.Spec.EventConfig == nil {
@@ -534,18 +619,19 @@ func EnablePTPEvent(apiVersion, configMapName string) error {
 	ptpConfig.Spec.EventConfig.ApiVersion = apiVersion
 
 	// clean up configMap for subscription if update to a different version
+	var err error
 	if currentApiVersion != "" && currentApiVersion != apiVersion && configMapName != "" {
 		// Check if the ConfigMap exists
-		configMap, err := client.Client.CoreV1().ConfigMaps(pkg.PtpLinuxDaemonNamespace).Get(context.TODO(), configMapName, metav1.GetOptions{})
-		if err != nil {
-			logrus.Infof("ConfigMap %s does not exist: %v", configMapName, err)
+		configMap, getErr := client.Client.CoreV1().ConfigMaps(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), configMapName, metav1.GetOptions{})
+		if getErr != nil {
+			logrus.Infof("ConfigMap %s does not exist: %v", configMapName, getErr)
 		} else {
 			// Empty the ConfigMap
 			configMap.Data = map[string]string{}
 			configMap.BinaryData = map[string][]byte{}
 
 			// Update the ConfigMap
-			_, err = client.Client.CoreV1().ConfigMaps(pkg.PtpLinuxDaemonNamespace).Update(context.TODO(), configMap, metav1.UpdateOptions{})
+			_, err = client.Client.CoreV1().ConfigMaps(pkg.PtpLinuxDaemonNamespace).Update(context.Background(), configMap, metav1.UpdateOptions{})
 			if err != nil {
 				logrus.Errorf("Error updating ConfigMap: %v", err)
 			}
@@ -553,7 +639,7 @@ func EnablePTPEvent(apiVersion, configMapName string) error {
 			logrus.Infof("ConfigMap %s emptied successfully\n", configMapName)
 		}
 	}
-	_, err = client.Client.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Update(context.Background(), ptpConfig, metav1.UpdateOptions{})
+	_, err = client.Client.PtpV1Interface.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Update(context.Background(), ptpConfig, metav1.UpdateOptions{})
 	return err
 }
 
@@ -574,8 +660,13 @@ func PtpEventEnabled() int {
 		}
 	}
 
-	ptpConfig, err := client.Client.PtpV1Interface.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), pkg.PtpConfigOperatorName, metav1.GetOptions{})
-	Expect(err).NotTo(HaveOccurred())
+	var ptpConfig *ptpv1.PtpOperatorConfig
+	Eventually(func() error {
+		var e error
+		ptpConfig, e = client.Client.PtpV1Interface.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Get(
+			context.Background(), pkg.PtpConfigOperatorName, metav1.GetOptions{})
+		return e
+	}, pkg.TimeoutIn5Minutes, 3*time.Second).Should(Succeed(), "PtpOperatorConfig must exist for PtpEventEnabled check")
 	if ptpConfig.Spec.EventConfig == nil {
 		return 0
 	}
@@ -603,7 +694,7 @@ func EnablePTPReferencePlugin() error {
 		(*ptpOperatorConfig.Spec.EnabledPlugins)["reference"] = &plugindata
 	}
 
-	_, err = client.Client.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Update(context.Background(), ptpOperatorConfig, metav1.UpdateOptions{})
+	_, err = client.Client.PtpV1Interface.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Update(context.Background(), ptpOperatorConfig, metav1.UpdateOptions{})
 	return err
 }
 
@@ -613,7 +704,7 @@ func DisablePTPReferencePlugin() error {
 
 	(*ptpOperatorConfig.Spec.EnabledPlugins)["reference"] = nil
 
-	_, err = client.Client.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Update(context.Background(), ptpOperatorConfig, metav1.UpdateOptions{})
+	_, err = client.Client.PtpV1Interface.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Update(context.Background(), ptpOperatorConfig, metav1.UpdateOptions{})
 	return err
 }
 
@@ -718,13 +809,20 @@ func IsPtpMaster(ptp4lOpts, phc2sysOpts *string) bool {
 
 // Checks for DualNIC BC
 func GetProfileName(config *ptpv1.PtpConfig) (string, error) {
+	if config == nil {
+		return "", fmt.Errorf("ptp config is nil")
+	}
 	for _, profile := range config.Spec.Profile {
-		if profile.Name != nil && *profile.Name == pkg.PtpGrandMasterPolicyName ||
-			*profile.Name == pkg.PtpBcMaster1PolicyName ||
-			*profile.Name == pkg.PtpBcMaster2PolicyName ||
-			*profile.Name == pkg.PtpSlave1PolicyName ||
-			*profile.Name == pkg.PtpSlave2PolicyName ||
-			*profile.Name == pkg.PtpTempPolicyName {
+		if profile.Name == nil {
+			continue
+		}
+		switch *profile.Name {
+		case pkg.PtpGrandMasterPolicyName,
+			pkg.PtpBcMaster1PolicyName,
+			pkg.PtpBcMaster2PolicyName,
+			pkg.PtpSlave1PolicyName,
+			pkg.PtpSlave2PolicyName,
+			pkg.PtpTempPolicyName:
 			return *profile.Name, nil
 		}
 	}
@@ -773,6 +871,9 @@ func GetPTPPodWithPTPConfig(ptpConfig *ptpv1.PtpConfig) (aPtpPod *v1core.Pod, er
 			aPtpPod = &pod
 			break
 		}
+	}
+	if aPtpPod == nil {
+		return nil, fmt.Errorf("no linuxptp-daemon pod found matching ptpconfig %s (label=%v, nodeName=%v)", ptpConfig.Name, label, nodeName)
 	}
 	return aPtpPod, nil
 }
@@ -845,98 +946,6 @@ func IsExternalGM() (out bool) {
 	out = isSet && !strings.Contains(value, "false")
 	logrus.Infof("EXTERNAL_GM=%t", out)
 	return out
-}
-
-func GetListOfWPCEnabledInterfaces(nodeName string) ([]string, string) {
-	var retList = make([]string, 0)
-	var deviceId = ""
-	WPCifaces := getWPCEnabledIfaces(nodeName)
-	for _, iFace := range WPCifaces {
-		if strings.HasSuffix(iFace, "0") {
-			deviceId, ret := checkGNSSAvailabilityForIface(nodeName, iFace)
-			if ret {
-				retList = append(retList, addAllInterfacesForNic(WPCifaces, iFace)...)
-				return retList, deviceId
-			}
-		}
-	}
-	return retList, deviceId
-}
-func addAllInterfacesForNic(WPCifaces map[string]string, firstIface string) []string {
-	var ret = make([]string, 0)
-	for _, iFace := range WPCifaces {
-		if strings.HasPrefix(iFace, strings.TrimSuffix(firstIface, "0")) {
-			ret = append(ret, iFace)
-		}
-	}
-	sort.Slice(ret, func(i, j int) bool {
-		return ret[i] < ret[j]
-	})
-	return ret
-}
-
-func getWPCEnabledIfaces(nodeName string) map[string]string {
-	resMap := make(map[string]string)
-	cmd := []string{"/bin/sh", "-c", "grep 000e /sys/class/net/*/device/subsystem_device | awk -F '/' '{print $5}'"}
-	so, se, err := execPodCommand(nodeName, cmd)
-	if err != nil {
-		logrus.Errorf("could not get WPC enabled interfaces, err: %s stderr: %s", err, se.String())
-		return resMap
-	}
-	ifaceArr := strings.Split(so.String(), "\n")
-	replacer := strings.NewReplacer("\r", "", "\n", "")
-	for _, iFace := range ifaceArr {
-		if iFace != "" {
-			iFace = replacer.Replace(iFace)
-			resMap[iFace] = iFace
-		}
-	}
-	return resMap
-}
-
-func checkGNSSAvailabilityForIface(nodeName string, IfaceName string) (string, bool) {
-	cmd := []string{"/bin/sh", "-c", fmt.Sprintf("ls /sys/class/net/%s/device/gnss", IfaceName)}
-	logrus.Infof("cmd = %s ", cmd)
-	so, se, err := execPodCommand(nodeName, cmd)
-	if err != nil {
-		logrus.Errorf("could not gnss device, err: %s \n stderr: %s interfaceName: %s, nodeName: %s", err, se.String(), IfaceName, nodeName)
-		return "", false
-	}
-	devs := strings.Split(so.String(), "\n")
-
-	for _, dev := range devs {
-		if dev != "" {
-			logrus.Infof("gnss device string: %s", dev)
-			if checkGNMRCString(dev, nodeName) {
-				return dev, true
-			}
-		}
-	}
-	return "", false
-}
-
-func checkGNMRCString(deviceName string, nodeName string) bool {
-	replacer := strings.NewReplacer("\r", "", "\n", "")
-	deviceName = replacer.Replace(deviceName)
-	cmd := []string{"/bin/sh", "-c", fmt.Sprintf("head -n 1 /dev/%s", deviceName)}
-	so, se, err := execPodCommand(nodeName, cmd)
-	if err != nil {
-		logrus.Errorf("could not cat gnss device log, err: %s, stderr %s, device name: %s", err, se.String(), deviceName)
-		return false
-	}
-	logs := strings.Split(so.String(), "\n")
-	for _, log := range logs {
-		if strings.Contains(log, "GNRMC") {
-			timeVal := strings.Split(log, ",")[1]
-			logrus.Infof("log value: %s", timeVal)
-			formattedTime := time.Now().UTC().Format("150405") + ".00"
-			logrus.Infof("time value: %s", formattedTime)
-			if strings.EqualFold(timeVal, formattedTime) {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 func execPodCommand(nodeName string, cmd []string) (stdoutBuf, stderrBuf bytes.Buffer, err error) {

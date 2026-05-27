@@ -14,6 +14,8 @@ import (
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/clean"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/k8sutil"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/metrics"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/nodes"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/ptphelper"
 	l2lib "github.com/redhat-cne/l2discovery-lib"
@@ -23,7 +25,6 @@ import (
 	v1core "k8s.io/api/core/v1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
 	"k8s.io/utils/ptr"
 )
 
@@ -46,8 +47,8 @@ const (
 	// DiscoveryFailureStatusString Stringer value for the Discovery failure status
 	DiscoveryFailureStatusString = "discoveryFailure"
 	PtpLinuxDaemonNamespace      = "openshift-ptp"
-	int65                        = 65
-	int5                         = 5
+	defaultSchedulingPriority    = 65
+	defaultPriority              = 5
 	// OrdinaryClockString matches the OC clock mode in Environement
 	OrdinaryClockString = "OC"
 	// DualFollowerClocktring matches the DualFollower clock mode in Environement
@@ -67,8 +68,15 @@ const (
 	phc2sysDualNicBCHA          = "-a -r -m -l 7 -n 24 "
 	SCHED_OTHER                 = "SCHED_OTHER"
 	SCHED_FIFO                  = "SCHED_FIFO"
-	L2_DISCOVERY_IMAGE          = "quay.io/redhat-cne/l2discovery:v15"
+	L2_DISCOVERY_IMAGE          = "quay.io/redhat-cne/l2discovery:v17"
 )
+
+func getL2DiscoveryImage() string {
+	if img := os.Getenv("L2_DISCOVERY_IMAGE"); img != "" {
+		return img
+	}
+	return L2_DISCOVERY_IMAGE
+}
 
 type ConfigStatus int64
 
@@ -153,9 +161,10 @@ var data solverData
 // indicates the clock roles in the algotithms
 type TestIfClockRoles int
 
-const NumTestClockRoles = 7
+const NumTestClockRoles = 8
 const (
 	Grandmaster TestIfClockRoles = iota
+	GrandmasterSibling
 	Slave1
 	Slave2
 	BC1Master
@@ -472,8 +481,19 @@ func GetDesiredConfig(forceUpdate bool) TestConfig {
 	}
 }
 
-// Create ptpconfigs
-func CreatePtpConfigurations() error {
+// createPtpConfigurations sets up PTP configs using the given context for cancellation-aware waits.
+func createPtpConfigurations(ctx context.Context) error {
+	err := metrics.InitEnvIntParamConfig("MAX_OFFSET_IN_NS", metrics.MaxOffsetDefaultNs, &metrics.MaxOffsetNs)
+	if err != nil {
+		logrus.Errorf("Error initializing MAX_OFFSET_IN_NS: %v", err)
+		return err
+	}
+	err = metrics.InitEnvIntParamConfig("MIN_OFFSET_IN_NS", metrics.MinOffsetDefaultNs, &metrics.MinOffsetNs)
+	if err != nil {
+		logrus.Errorf("Error initializing MIN_OFFSET_IN_NS: %v", err)
+		return err
+	}
+
 	if GlobalConfig.PtpModeDesired != Discovery {
 		// for external grand master, clean previous configuration so that it is not detected as a external grandmaster
 		err := clean.All()
@@ -493,8 +513,15 @@ func CreatePtpConfigurations() error {
 	// if USE_CONTAINER_CMDS environment variable is present, use container commands (lspci, ethtool, ...)
 	_, useContainerCmds := os.LookupEnv("USE_CONTAINER_CMDS")
 
+	// Wait for stuck Terminating namespace before L2 init (vendor privileged-daemonset only waits 2m).
+	if err := k8sutil.PreWaitPrivilegedDSNamespaceIfTerminating(
+		ctx, pkg.L2DiscoveryNamespace, k8sutil.PrivilegedDaemonsetNamespaceStuckDeleteWait,
+	); err != nil {
+		return fmt.Errorf("waiting for %s namespace: %w", pkg.L2DiscoveryNamespace, err)
+	}
+
 	// Collect L2 info
-	config, err := l2lib.GlobalL2DiscoveryConfig.GetL2DiscoveryConfig(true, false, useContainerCmds, L2_DISCOVERY_IMAGE)
+	config, err := l2lib.GlobalL2DiscoveryConfig.GetL2DiscoveryConfig(true, false, useContainerCmds, getL2DiscoveryImage())
 	if err != nil {
 		return fmt.Errorf("getting L2 discovery info failed with err=%s", err)
 	}
@@ -506,6 +533,18 @@ func CreatePtpConfigurations() error {
 		// initialize L2 config in solver
 		solver.GlobalConfig.SetL2Config(config)
 		logrus.Infof("Ports getting PTP frames=%+v", config.GetPortsGettingPTP())
+		for _, ptpIf := range config.GetPortsGettingPTP() {
+			if len(ptpIf.Announces) == 0 {
+				logrus.Infof("PTP announce missing iface=%s node=%s", ptpIf.IfName, ptpIf.NodeName)
+				continue
+			}
+			for gmID, announce := range ptpIf.Announces {
+				logrus.Infof("PTP announce iface=%s node=%s domain=%d clockClass=%d gmId=%s priority1=%d priority2=%d stepsRemoved=%d timeSource=%d",
+					ptpIf.IfName, ptpIf.NodeName, announce.DomainNumber, announce.ClockClass,
+					gmID, announce.GrandmasterPriority1, announce.GrandmasterPriority2,
+					announce.StepsRemoved, announce.TimeSource)
+			}
+		}
 		initAndSolveProblems()
 
 		if len(data.solutions) == 0 {
@@ -534,6 +573,43 @@ func CreatePtpConfigurations() error {
 		}
 	}
 	return nil
+}
+
+const retryDelay = 45 * time.Second
+
+// CreatePtpConfigurationsWithRetry runs createPtpConfigurations up to maxAttempts when the error
+// is likely transient (namespace stuck in Terminating during privileged-daemonset / L2 init).
+func CreatePtpConfigurationsWithRetry(maxAttempts int) error {
+	return CreatePtpConfigurationsWithRetryContext(context.Background(), maxAttempts)
+}
+
+// CreatePtpConfigurationsWithRetryContext is like CreatePtpConfigurationsWithRetry but allows
+// the caller to pass a context for cancellation-aware retry delays.
+func CreatePtpConfigurationsWithRetryContext(ctx context.Context, maxAttempts int) error {
+	if maxAttempts < 1 {
+		maxAttempts = 1
+	}
+	var last error
+	for i := 0; i < maxAttempts; i++ {
+		last = createPtpConfigurations(ctx)
+		if last == nil {
+			return nil
+		}
+		if i < maxAttempts-1 && k8sutil.IsTransientL2OrPrivilegedNamespaceError(last) {
+			logrus.Warnf("CreatePtpConfigurations attempt %d/%d failed (transient): %v; retrying after %v", i+1, maxAttempts, last, retryDelay)
+			timer := time.NewTimer(retryDelay)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return ctx.Err()
+			case <-timer.C:
+				timer.Stop()
+			}
+			continue
+		}
+		break
+	}
+	return last
 }
 
 func initAndSolveProblems() {
@@ -584,7 +660,9 @@ func initAndSolveProblems() {
 			{int(solver.StepSameNic), 2, 1, 3, solver.Negative}}, // step5
 	}
 	data.problems[AlgoTelcoGMString] = &[][][]int{
-		{{int(solver.StepIsWPCNic), 1, 0}}, // step1
+		{{int(solver.StepIsWPCNic), 1, 0}}, // step1: first iface is WPC
+		{{int(solver.StepIsWPCNic), 1, 1}, // step2: second iface is WPC
+			{int(solver.StepSameNic), 2, 0, 1}}, //        and on the same NIC
 	}
 
 	data.problems[AlgoDualNicBCWithSlavesString] = &[][][]int{
@@ -692,6 +770,7 @@ func initAndSolveProblems() {
 
 	// GM
 	(*data.testClockRolesAlgoMapping[AlgoTelcoGMString])[Grandmaster] = 0
+	(*data.testClockRolesAlgoMapping[AlgoTelcoGMString])[GrandmasterSibling] = 1
 
 	// OC, External GM
 	(*data.testClockRolesAlgoMapping[AlgoOCExtGMString])[Slave1] = 0
@@ -784,9 +863,9 @@ func CreatePtpConfigGrandMaster(nodeName, ifName string) error {
 		gmConfig,
 		&phc2sysOpts,
 		pkg.PtpGrandmasterNodeLabel,
-		pointer.Int64Ptr(int5),
+		ptr.To(int64(defaultPriority)),
 		ptpSchedulingPolicy,
-		pointer.Int64Ptr(int65))
+		ptr.To(int64(defaultSchedulingPriority)))
 }
 
 func CreatePtpConfigWPCGrandMaster(policyName string, nodeName string, ifList []string, deviceID string) error {
@@ -914,9 +993,9 @@ func CreatePtpConfigWPCGrandMaster(policyName string, nodeName string, ifList []
 		ts2phcConfig,
 		&ph2sysOpts,
 		pkg.PtpClockUnderTestNodeLabel,
-		pointer.Int64Ptr(int5),
+		ptr.To(int64(defaultPriority)),
 		ptpSchedulingPolicy,
-		pointer.Int64Ptr(int65),
+		ptr.To(int64(defaultSchedulingPriority)),
 		&ts2phcOpts,
 		plugins)
 }
@@ -952,9 +1031,9 @@ func CreatePtpConfigBC(policyName, nodeName, ifMasterName, ifSlaveName string, p
 		bcConfig,
 		phc2sysOpts,
 		pkg.PtpClockUnderTestNodeLabel,
-		pointer.Int64Ptr(int5),
+		ptr.To(int64(defaultPriority)),
 		ptpSchedulingPolicy,
-		pointer.Int64Ptr(int65))
+		ptr.To(int64(defaultSchedulingPriority)))
 }
 
 func CreatePtpConfigOC(profileName, nodeName, ifSlaveName string, phc2sys bool, label string) (err error) {
@@ -987,9 +1066,9 @@ func CreatePtpConfigOC(profileName, nodeName, ifSlaveName string, phc2sys bool, 
 		slaveConfig,
 		phc2sysOpts,
 		label,
-		pointer.Int64Ptr(int5),
+		ptr.To(int64(defaultPriority)),
 		ptpSchedulingPolicy,
-		pointer.Int64Ptr(int65))
+		ptr.To(int64(defaultSchedulingPriority)))
 }
 
 func CreatePtpConfigDualFollower(profileName, nodeName, ifSlave1Name, ifSlave2Name string, phc2sys bool, label string) (err error) {
@@ -1023,9 +1102,9 @@ func CreatePtpConfigDualFollower(profileName, nodeName, ifSlave1Name, ifSlave2Na
 		ptp4lDualFollowerConfig,
 		phc2sysOpts,
 		label,
-		pointer.Int64Ptr(int5),
+		ptr.To(int64(defaultPriority)),
 		ptpSchedulingPolicy,
-		pointer.Int64Ptr(int65))
+		ptr.To(int64(defaultSchedulingPriority)))
 }
 
 func PtpConfigOC(isExtGM bool) error {
@@ -1545,26 +1624,27 @@ func PtpConfigDualNicBC(isExtGM bool, phc2SysHaEnabled bool) error {
 }
 
 func PtpConfigTelcoGM(isExtGM bool) error {
-	var grandmaster int
 	BestSolution := ""
 	if len(*data.solutions[AlgoTelcoGMString]) != 0 {
 		BestSolution = AlgoTelcoGMString
 	}
 	switch BestSolution {
 	case AlgoTelcoGMString:
+		solution := (*data.solutions[BestSolution])[FirstSolution]
+		gm0 := (*data.testClockRolesAlgoMapping[BestSolution])[Grandmaster]
+		gm1 := (*data.testClockRolesAlgoMapping[BestSolution])[GrandmasterSibling]
 
-		// Check GM interface available
-		grandmaster = (*data.testClockRolesAlgoMapping[BestSolution])[Grandmaster]
-		gmIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[FirstSolution][grandmaster]]
+		gmIf0 := GlobalConfig.L2Config.GetPtpIfList()[solution[gm0]]
+		gmIf1 := GlobalConfig.L2Config.GetPtpIfList()[solution[gm1]]
 
-		// Check the Iface has a WPC NIC associated to it
-		IfList, deviceID := ptphelper.GetListOfWPCEnabledInterfaces(gmIf.NodeName)
+		ifList := []string{gmIf0.IfName, gmIf1.IfName}
 
-		if len(IfList) == 0 {
-			logrus.Error("WPC NIC not found in list of interfaces on the cluster")
-			return fmt.Errorf("WPC NIC not found in list of interfaces on the cluster %d", len(IfList))
+		deviceID := gmIf0.IfPTPCaps.GnssDevice
+		if deviceID == "" {
+			deviceID = gmIf1.IfPTPCaps.GnssDevice
 		}
-		err := CreatePtpConfigWPCGrandMaster(pkg.PtpWPCGrandMasterPolicyName, gmIf.NodeName, IfList, deviceID)
+
+		err := CreatePtpConfigWPCGrandMaster(pkg.PtpWPCGrandMasterPolicyName, gmIf0.NodeName, ifList, deviceID)
 		if err != nil {
 			logrus.Errorf("Error creating Grandmaster ptpconfig: %s", err)
 		}
@@ -1779,7 +1859,8 @@ func discoverMode(ptpConfigClockUnderTest []*ptpv1.PtpConfig) {
 
 	pod, err := ptphelper.GetPTPPodWithPTPConfig((*ptpv1.PtpConfig)(GlobalConfig.DiscoveredClockUnderTestPtpConfig))
 	if err != nil {
-		logrus.Error("Could not determine ptp daemon pod selected by ptpconfig")
+		logrus.Errorf("Could not determine ptp daemon pod selected by ptpconfig: %s", err)
+		GlobalConfig.Status = DiscoveryFailureStatus
 	}
 	GlobalConfig.DiscoveredClockUnderTestPod = pod
 	GlobalConfig.DiscoveredFollowerInterfaces = allFollowerIfs
@@ -1806,6 +1887,9 @@ func GetPodsRunningPTP4l(fullConfig *TestConfig) (podList []*v1core.Pod, err err
 		aPod, err = ptphelper.GetPTPPodWithPTPConfig(aPTPConfig)
 		if err != nil {
 			return podList, fmt.Errorf("could not determine pod managing this ptpconfig, err: %v", err)
+		}
+		if aPod == nil {
+			return podList, fmt.Errorf("could not determine pod managing this ptpconfig, err: pod not found")
 		}
 		podList = append(podList, aPod)
 		podNames = append(podNames, aPod.Name)

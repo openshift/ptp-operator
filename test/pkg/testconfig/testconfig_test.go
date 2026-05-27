@@ -1,6 +1,7 @@
 package testconfig
 
 import (
+	"fmt"
 	"os"
 	"reflect"
 	"testing"
@@ -291,14 +292,14 @@ func mockPtpConfig(name, namespace string, role ptpv1.PtpRole, mode PTPMode) *pt
 			aProfile.Phc2sysOpts = &aStringPhc2sys
 			aStringInterface := "eth0"
 			aProfile.Interface = &aStringInterface
-			aString := ptp4lconfBc
+			aString := generateBCConfig("eth0", "eth1", "eth2")
 			aProfile.Ptp4lConf = &aString
 		case DualNICBoundaryClock:
 			aStringPtp4l := "-2"
 			aProfile.Ptp4lOpts = &aStringPtp4l
 			aStringInterface := "eth0"
 			aProfile.Interface = &aStringInterface
-			aString := ptp4lconfBc
+			aString := generateBCConfig("eth0", "eth1", "eth2")
 			aProfile.Ptp4lConf = &aString
 			aProfile.Phc2sysOpts = nil
 		default:
@@ -310,12 +311,14 @@ func mockPtpConfig(name, namespace string, role ptpv1.PtpRole, mode PTPMode) *pt
 	return &aConfig
 }
 
-const ptp4lconfBc = `[ens7f0]
+func generateBCConfig(slaveIf, masterIf1, masterIf2 string) string {
+	return fmt.Sprintf(`[%s]
 masterOnly 0
-[ens7f1]
+[%s]
 masterOnly 1
-[ens7f2]
-masterOnly 1`
+[%s]
+masterOnly 1`, slaveIf, masterIf1, masterIf2)
+}
 
 func mockNode(name string) *corev1.Node {
 	aNode := corev1.Node{}

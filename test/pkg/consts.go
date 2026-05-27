@@ -68,6 +68,9 @@ const (
 	RecoveryNetworkOutageDaemonSetNamespace     = "ptp-network-outage-recovery"
 	RecoveryNetworkOutageDaemonSetName          = "ptp-network-outage-recovery"
 	RecoveryNetworkOutageDaemonSetContainerName = "container-00"
+
+	// L2DiscoveryNamespace is the namespace used by l2discovery-lib / privileged-daemonset (must match l2discovery-lib).
+	L2DiscoveryNamespace = "l2discovery"
 )
 
 const (

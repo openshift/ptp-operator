@@ -56,10 +56,14 @@ func (pci PCIAddress) String() string {
 
 type PTPCaps struct {
 	HwRx, HwTx, HwRawClock bool
+	PhcIndex               int
+	HasPtpPins             bool
+	GnssDevice             string
 }
 
 func (caps PTPCaps) String() string {
-	return fmt.Sprintf("HwRx:%t HwTx:%t HwRawClock:%t", caps.HwRx, caps.HwTx, caps.HwRawClock)
+	return fmt.Sprintf("HwRx:%t HwTx:%t HwRawClock:%t PhcIndex:%d HasPtpPins:%t GnssDevice:%s",
+		caps.HwRx, caps.HwTx, caps.HwRawClock, caps.PhcIndex, caps.HasPtpPins, caps.GnssDevice)
 }
 
 type Iface struct {

@@ -70,6 +70,8 @@ func New(kubeconfig string) *ClientSet {
 		os.Exit(1)
 	}
 
+	config.Wrap(wrapWithRetry)
+
 	clientSet := &ClientSet{}
 	// Save the kubeconfig for later use
 	clientSet.KubeConfigPath = kubeconfig

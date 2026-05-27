@@ -21,8 +21,8 @@ require (
 	github.com/prometheus-operator/prometheus-operator/pkg/client v0.57.0
 	github.com/prometheus/common v0.66.1
 	github.com/redhat-cne/channel-pubsub v0.0.8
-	github.com/redhat-cne/l2discovery-lib v0.1.0
-	github.com/redhat-cne/privileged-daemonset v1.0.34
+	github.com/redhat-cne/l2discovery-lib v0.1.1
+	github.com/redhat-cne/privileged-daemonset v1.0.35
 	github.com/redhat-cne/ptp-listener-exports v0.0.7
 	github.com/redhat-cne/sdk-go v1.22.4
 	github.com/sirupsen/logrus v1.9.3
@@ -64,7 +64,7 @@ require (
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
-	github.com/moby/spdystream v0.5.0 // indirect
+	github.com/moby/spdystream v0.5.1 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.3-0.20250322232337-35a7c28c31ee // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect

@@ -13,6 +13,7 @@ import (
 	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
+	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/k8sutil"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/metrics"
 	nodeshelper "github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/nodes"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/pods"
@@ -30,6 +31,9 @@ import (
 // waits for the foreign master to appear in the logs and checks the clock accuracy
 func BasicClockSyncCheck(fullConfig testconfig.TestConfig, ptpConfig *ptpv1.PtpConfig, gmID *string,
 	expectedClockState metrics.MetricClockState, expectedClockRole metrics.MetricRole, isCheckOffset bool) error {
+	if ptpConfig == nil {
+		return errors.Errorf("ptpConfig is nil")
+	}
 	if gmID != nil {
 		logrus.Infof("expected master=%s", *gmID)
 	}
@@ -96,7 +100,7 @@ func VerifyAfterRebootState(rebootedNodes []string, fullConfig testconfig.TestCo
 	ptpConfig, err := client.Client.PtpV1Interface.PtpOperatorConfigs(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), pkg.PtpConfigOperatorName, metav1.GetOptions{})
 	Expect(err).NotTo(HaveOccurred())
 	listOptions := metav1.ListOptions{}
-	if ptpConfig.Spec.DaemonNodeSelector != nil && len(ptpConfig.Spec.DaemonNodeSelector) != 0 {
+	if len(ptpConfig.Spec.DaemonNodeSelector) != 0 {
 		listOptions = metav1.ListOptions{LabelSelector: metav1.FormatLabelSelector(&metav1.LabelSelector{MatchLabels: ptpConfig.Spec.DaemonNodeSelector})}
 	}
 
@@ -209,107 +213,37 @@ func CreatePtpTestPrivilegedDaemonSet(daemonsetName, daemonsetNamespace, daemons
 	const (
 		imageWithVersion = "quay.io/testnetworkfunction/debug-partner:latest"
 	)
-	// Create the client of Priviledged Daemonset
 	k8sPriviledgedDs.SetDaemonSetClient(client.Client.Interface)
-	// 1. create a daemon set for the node reboot
+	Expect(k8sutil.PreWaitPrivilegedDSNamespaceIfTerminating(
+		context.Background(), daemonsetNamespace, k8sutil.PrivilegedDaemonsetNamespaceStuckDeleteWait,
+	)).To(Succeed(), "namespace stuck in Terminating should clear before privileged-daemonset create for "+daemonsetNamespace)
 	dummyLabels := map[string]string{}
 	cpuLim := "100m"
 	cpuReq := "100m"
 	memLim := "100M"
 	memReq := "100M"
 	var env []corev1.EnvVar
-	daemonSetRunningPods, err := k8sPriviledgedDs.CreateDaemonSet(daemonsetName, daemonsetNamespace, daemonsetContainerName, imageWithVersion, dummyLabels, env, pkg.TimeoutIn5Minutes, cpuReq, cpuLim, memReq, memLim)
 
-	if err != nil {
-		logrus.Errorf("error : +%v\n", err.Error())
-	}
-	return daemonSetRunningPods
-}
-
-func RecoverySlaveNetworkOutage(fullConfig testconfig.TestConfig, skippedInterfaces map[string]bool) {
-	logrus.Info("Recovery PTP outage begins ...........")
-
-	// Get a slave pod
-	slavePod, err := ptphelper.GetPTPPodWithPTPConfig((*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig))
-	if err != nil {
-		logrus.Error("Could not determine ptp daemon pod selected by ptpconfig")
-	}
-	// Get the slave pod's node name
-	slavePodNodeName := slavePod.Spec.NodeName
-	logrus.Info("slave node name is ", slavePodNodeName)
-
-	// Get the pod from ptp test daemonset set on the slave node
-	outageRecoveryDaemonSetRunningPods := CreatePtpTestPrivilegedDaemonSet(pkg.RecoveryNetworkOutageDaemonSetName, pkg.RecoveryNetworkOutageDaemonSetNamespace, pkg.RecoveryNetworkOutageDaemonSetContainerName)
-	Expect(len(outageRecoveryDaemonSetRunningPods.Items)).To(BeNumerically(">", 0), "no damonset pods found in the namespace "+pkg.RecoveryNetworkOutageDaemonSetNamespace)
-
-	var outageRecoveryDaemonsetPod corev1.Pod
-	var isOutageRecoveryPodFound bool
-	for _, dsPod := range outageRecoveryDaemonSetRunningPods.Items {
-		if dsPod.Spec.NodeName == slavePodNodeName {
-			outageRecoveryDaemonsetPod = dsPod
-			isOutageRecoveryPodFound = true
-			break
-		}
-	}
-	Expect(isOutageRecoveryPodFound).To(BeTrue())
-	logrus.Infof("outage recovery pod name is %s", outageRecoveryDaemonsetPod.Name)
-
-	// Get the list of network interfaces on the slave node
-	slaveIf := ptpv1.GetInterfaces((ptpv1.PtpConfig)(*fullConfig.DiscoveredClockUnderTestPtpConfig), ptpv1.Slave)
-	logrus.Infof("Slave interfaces are %+q\n", slaveIf)
-	// Toggle the interfaces
-	for _, ptpNodeInterface := range slaveIf {
-		_, skip := skippedInterfaces[ptpNodeInterface]
-		if skip {
-			logrus.Infof("Skipping the interface %s", ptpNodeInterface)
-		} else {
-			logrus.Infof("Simulating PTP outage using interface %s", ptpNodeInterface)
-			toggleNetworkInterface(outageRecoveryDaemonsetPod, ptpNodeInterface, slavePodNodeName, fullConfig)
-		}
-	}
-	k8sPriviledgedDs.DeleteNamespaceIfPresent(pkg.RecoveryNetworkOutageDaemonSetNamespace)
-	logrus.Info("Recovery PTP outage ends ...........")
-}
-
-func toggleNetworkInterface(pod corev1.Pod, interfaceName string, slavePodNodeName string, fullConfig testconfig.TestConfig) {
-
-	const (
-		waitingPeriod      = 5 * time.Minute
-		offsetRetryCounter = 5
-	)
-	By("Setting interface down then wait")
-	downInterfaceCommand := fmt.Sprintf("ip link set dev %s down", interfaceName)
-	logrus.Infof("Setting the interface %s down", interfaceName)
-	pods.ExecutePtpInterfaceCommand(pod, interfaceName, downInterfaceCommand)
-	logrus.Infof("Interface %s is set down", interfaceName)
-
-	By("Checking that the port role is FAULTY after wait")
-
-	// Check if the port state has changed to faulty
+	var result *corev1.PodList
 	Eventually(func() error {
-		return metrics.CheckClockRole([]metrics.MetricRole{metrics.MetricRoleFaulty}, []string{interfaceName}, &slavePodNodeName)
-	}, waitingPeriod, 10*time.Second).Should(BeNil())
+		pods, err := k8sPriviledgedDs.CreateDaemonSet(daemonsetName, daemonsetNamespace, daemonsetContainerName, imageWithVersion, dummyLabels, env, pkg.TimeoutIn5Minutes, cpuReq, cpuLim, memReq, memLim)
+		if err != nil {
+			return fmt.Errorf("create privileged daemonset %s/%s: %w", daemonsetNamespace, daemonsetName, err)
+		}
+		if pods == nil {
+			return fmt.Errorf("create privileged daemonset %s/%s: nil pod list", daemonsetNamespace, daemonsetName)
+		}
+		if len(pods.Items) == 0 {
+			return fmt.Errorf("create privileged daemonset %s/%s: no daemonset pods", daemonsetNamespace, daemonsetName)
+		}
+		result = pods
+		return nil
+	}, 3*pkg.TimeoutIn5Minutes, 30*time.Second).Should(Succeed(),
+		fmt.Sprintf("privileged daemonset %q in namespace %q", daemonsetName, daemonsetNamespace))
 
-	By("Set the interface UP again and wait")
-	upInterfaceCommand := fmt.Sprintf("ip link set dev %s up", interfaceName)
-	pods.ExecutePtpInterfaceCommand(pod, interfaceName, upInterfaceCommand)
-	logrus.Infof("Interface %s is up", interfaceName)
-
-	By("Checking that the port role is SLAVE after wait and clock is in sync")
-	// Check if the port has changed back to slave
-	Eventually(func() error {
-		return metrics.CheckClockRole([]metrics.MetricRole{metrics.MetricRoleSlave}, []string{interfaceName}, &slavePodNodeName)
-	}, waitingPeriod, 10*time.Second).Should(BeNil())
-
-	var offsetWithinBound bool
-	for i := 0; i < offsetRetryCounter && !offsetWithinBound; i++ {
-		offsetVal, err := metrics.GetPtpOffeset(interfaceName, &slavePodNodeName)
-		Expect(err).NotTo(HaveOccurred())
-		offsetWithinBound = offsetVal >= metrics.MinOffsetNs && offsetVal < metrics.MaxOffsetNs
-	}
-	Expect(offsetWithinBound).To(BeTrue())
-
-	logrus.Info("Successfully ended Slave clock sync with master")
+	Expect(result).NotTo(BeNil())
+	Expect(result.Items).NotTo(BeEmpty())
+	return result
 }
 
 func RebootSlaveNode(fullConfig testconfig.TestConfig) {
@@ -325,10 +259,24 @@ func RebootSlaveNode(fullConfig testconfig.TestConfig) {
 	}
 
 	// 2. Get a slave pod
-	slavePod, err := ptphelper.GetPTPPodWithPTPConfig((*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig))
-	if err != nil {
-		logrus.Error("Could not determine ptp daemon pod selected by ptpconfig")
-	}
+	var slavePod *corev1.Pod
+	Eventually(func() error {
+		var err error
+		slavePod, err = ptphelper.GetPTPPodWithPTPConfig((*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig))
+		if err != nil {
+			return fmt.Errorf("get PTP pod for clock-under-test config: %w", err)
+		}
+		if slavePod == nil {
+			return fmt.Errorf("get PTP pod for clock-under-test config: nil pod")
+		}
+		if slavePod.Spec.NodeName == "" {
+			return fmt.Errorf("get PTP pod for clock-under-test config: empty NodeName")
+		}
+		return nil
+	}, pkg.TimeoutIn10Minutes, 30*time.Second).Should(Succeed(), "locating linuxptp daemon pod for discovered clock-under-test")
+
+	Expect(slavePod).NotTo(BeNil())
+	Expect(slavePod.Spec.NodeName).NotTo(BeEmpty())
 	slavePodNodeName := slavePod.Spec.NodeName
 	logrus.Info("slave node name is ", slavePodNodeName)
 
@@ -482,6 +430,10 @@ func (p *PortEngine) TurnPortUp(port string) error {
 }
 
 func (p *PortEngine) TurnAllPortsDown(skippedInterfaces map[string]bool) error {
+	if p.ClockPod == nil {
+		logrus.Warnf("TurnAllPortsDown: ClockPod is nil, skipping (PortEngine was not initialized)")
+		return nil
+	}
 	for _, port := range p.Ports {
 		if skippedInterfaces[port] {
 			logrus.Infof("Skipping interface: %s (in skip list)", port)
@@ -499,6 +451,10 @@ func (p *PortEngine) TurnAllPortsDown(skippedInterfaces map[string]bool) error {
 }
 
 func (p *PortEngine) TurnAllPortsUp() error {
+	if p.ClockPod == nil {
+		logrus.Warnf("TurnAllPortsUp: ClockPod is nil, skipping (PortEngine was not initialized)")
+		return nil
+	}
 	for _, port := range p.Ports {
 		stdout, stderr, err := pods.ExecCommand(client.Client, true, p.ClockPod, pkg.RecoveryNetworkOutageDaemonSetContainerName,
 			[]string{"ip", "link", "set", port, "up"})
@@ -534,6 +490,7 @@ func (p *PortEngine) CheckClockRole(port0, port1 string, role0, role1 metrics.Me
 }
 
 func (p *PortEngine) Initialize(aClockPod *corev1.Pod, aPorts []string) {
+	Expect(aClockPod).NotTo(BeNil(), "PortEngine.Initialize requires a non-nil clock-under-test pod")
 	p.Ports = aPorts
 
 	// Get the pod from ptp test daemonset set on the slave node
@@ -589,6 +546,9 @@ type NICInfo struct {
 // GetClockClassViaPMC runs PMC GET PARENT_DATA_SET on the given config file
 // and returns the grandmaster clock class reported by that ptp4l instance.
 func GetClockClassViaPMC(fullConfig testconfig.TestConfig, configFile string) (int, error) {
+	if fullConfig.DiscoveredClockUnderTestPod == nil {
+		return -1, fmt.Errorf("DiscoveredClockUnderTestPod is nil")
+	}
 	buf, _, err := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod,
 		pkg.PtpContainerName, []string{"pmc", "-b", "0", "-u", "-f", configFile, "GET PARENT_DATA_SET"})
 	if err != nil {
@@ -604,6 +564,9 @@ func GetClockClassViaPMC(fullConfig testconfig.TestConfig, configFile string) (i
 // GetPerConfigClockClassesWithMetrics returns a map of ptp4l config name to clock class value
 // by parsing the openshift_ptp_clock_class metrics with per-config labels.
 func GetPerConfigClockClassesWithMetrics(fullConfig testconfig.TestConfig) (map[string]int, error) {
+	if fullConfig.DiscoveredClockUnderTestPod == nil {
+		return nil, fmt.Errorf("DiscoveredClockUnderTestPod is nil")
+	}
 	buf, _, err := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod,
 		pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
 	if err != nil {
@@ -658,6 +621,8 @@ func RestorePtp4lConf(configName, originalConf string) {
 		logrus.Errorf("Failed to get PtpConfig %s for restore: %s", configName, err)
 		return
 	}
+	Expect(len(ptpCfg.Spec.Profile)).To(BeNumerically(">=", 1),
+		"PtpConfig %s must have at least one profile to restore ptp4l config", configName)
 	ptpCfg.Spec.Profile[0].Ptp4lConf = &originalConf
 	if _, err := client.Client.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Update(
 		context.Background(), ptpCfg, metav1.UpdateOptions{}); err != nil {
@@ -667,6 +632,8 @@ func RestorePtp4lConf(configName, originalConf string) {
 
 // WaitForConfigContent polls a ptp4l config file in the pod until it contains the expected string.
 func WaitForConfigContent(fullConfig testconfig.TestConfig, configFile, expected string) {
+	Expect(fullConfig.DiscoveredClockUnderTestPod).NotTo(BeNil(),
+		"WaitForConfigContent requires DiscoveredClockUnderTestPod")
 	Eventually(func() bool {
 		buf, _, err := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod,
 			pkg.PtpContainerName, []string{"cat", configFile})
@@ -749,16 +716,65 @@ func VerifyPerConfigClockClassWithMetrics(fullConfig testconfig.TestConfig, conf
 		fmt.Sprintf("Expected metrics clock class %d for config %s", expectedClass, configName))
 }
 
-// VerifyNICClockClass checks the expected clock class for a NIC via PMC
-// and per-config Prometheus metrics.
-func VerifyNICClockClass(fullConfig testconfig.TestConfig, nic NICInfo, expectedClass int) {
-	VerifyClockClassViaPMC(fullConfig, nic.ConfigFile, expectedClass)
-	VerifyPerConfigClockClassWithMetrics(fullConfig, nic.ConfigName, expectedClass)
+// nodeClockClassRe matches openshift_ptp_clock_class without the config label (4.16/4.17).
+var nodeClockClassRe = regexp.MustCompile(`^openshift_ptp_clock_class\{node="([^"]+)",process="ptp4l"\}\s+(\d+)`)
+
+// getNodeClockClassFromMetrics returns the clock class from the node-level metric
+// (without config label, used on OCP < 4.18).
+func getNodeClockClassFromMetrics(fullConfig testconfig.TestConfig) (int, error) {
+	if fullConfig.DiscoveredClockUnderTestPod == nil {
+		return -1, fmt.Errorf("DiscoveredClockUnderTestPod is nil")
+	}
+	buf, _, err := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod,
+		pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
+	if err != nil {
+		return -1, fmt.Errorf("error getting metrics: %v", err)
+	}
+	scanner := bufio.NewScanner(strings.NewReader(buf.String()))
+	for scanner.Scan() {
+		matches := nodeClockClassRe.FindStringSubmatch(scanner.Text())
+		if len(matches) >= 3 {
+			return strconv.Atoi(matches[2])
+		}
+	}
+	return -1, fmt.Errorf("openshift_ptp_clock_class metric not found")
 }
 
-// TurnOffAndWaitFaulty brings the interface down and polls until its clock role
-// becomes FAULTY, failing the test on timeout.
+// verifyNodeClockClassWithMetrics polls the node-level clock class metric (no config label)
+// until the expected value is seen. Used on OCP < 4.18 for single NIC.
+func verifyNodeClockClassWithMetrics(fullConfig testconfig.TestConfig, expectedClass int) {
+	Eventually(func() int {
+		cc, err := getNodeClockClassFromMetrics(fullConfig)
+		if err != nil {
+			fmt.Fprintf(GinkgoWriter, "Node-level clock class metric error: %v\n", err)
+			return -1
+		}
+		fmt.Fprintf(GinkgoWriter, "Node-level clock class metric: %d (expected %d)\n", cc, expectedClass)
+		return cc
+	}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(Equal(expectedClass),
+		fmt.Sprintf("Expected node-level clock class metric %d", expectedClass))
+}
+
+// VerifyNICClockClass checks the expected clock class for a NIC via PMC and metrics.
+// isDualNIC controls the metric check on OCP < 4.18:
+//   - On OCP >= 4.18: always verifies via per-config metric (config label available).
+//   - On OCP < 4.18, single NIC: verifies via node-level metric (no config label).
+//   - On OCP < 4.18, dual NIC: metrics skipped (single metric can't distinguish NICs).
+func VerifyNICClockClass(fullConfig testconfig.TestConfig, nic NICInfo, expectedClass int, isDualNIC bool) {
+	VerifyClockClassViaPMC(fullConfig, nic.ConfigFile, expectedClass)
+	if ptphelper.IsPTPOperatorVersionAtLeast("4.18") {
+		VerifyPerConfigClockClassWithMetrics(fullConfig, nic.ConfigName, expectedClass)
+	} else if !isDualNIC {
+		verifyNodeClockClassWithMetrics(fullConfig, expectedClass)
+	}
+}
+
+// TurnOffAndWaitFaulty disables NetworkManager management on the interface,
+// brings it down, and polls until its clock role becomes FAULTY. Disabling NM
+// prevents it from auto-recovering the link while the test expects it to stay down.
 func (p *PortEngine) TurnOffAndWaitFaulty(iface, nodeName string) {
+	p.nmSetManaged(iface, false)
+	DeferCleanup(p.nmSetManaged, iface, true)
 	err := p.TurnPortDown(iface)
 	Expect(err).NotTo(HaveOccurred())
 	Eventually(func() error {
@@ -768,14 +784,32 @@ func (p *PortEngine) TurnOffAndWaitFaulty(iface, nodeName string) {
 		iface+" should be FAULTY")
 }
 
-// TurnOnAndWaitSlave brings the interface up and polls until its clock role
-// recovers to SLAVE, failing the test on timeout.
+// TurnOnAndWaitSlave brings the interface up, re-enables NetworkManager
+// management, and polls until its clock role recovers to SLAVE.
 func (p *PortEngine) TurnOnAndWaitSlave(iface, nodeName string) {
 	err := p.TurnPortUp(iface)
 	Expect(err).NotTo(HaveOccurred())
+	p.nmSetManaged(iface, true)
 	Eventually(func() error {
 		return metrics.CheckClockRole([]metrics.MetricRole{metrics.MetricRoleSlave},
 			[]string{iface}, &nodeName)
 	}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(BeNil(),
 		iface+" should recover to SLAVE")
+}
+
+// nmSetManaged tells NetworkManager to start or stop managing an interface.
+// This prevents NM from auto-recovering a link that the test brought down.
+// Silently ignored when nmcli is not available (e.g. Kind clusters).
+func (p *PortEngine) nmSetManaged(port string, managed bool) {
+	val := "no"
+	if managed {
+		val = "yes"
+	}
+	stdout, _, err := pods.ExecCommand(client.Client, true, p.ClockPod, pkg.RecoveryNetworkOutageDaemonSetContainerName,
+		[]string{"chroot", "/host", "nmcli", "device", "set", port, "managed", val})
+	if err != nil {
+		logrus.Debugf("nmcli not available for %s (expected on Kind): %v", port, err)
+		return
+	}
+	logrus.Infof("NM set managed=%s for %s: output: %s", val, port, stdout.String())
 }

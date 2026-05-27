@@ -182,6 +182,7 @@ func getMetric(nodeName, aIf, metricName string) (metric string, err error) {
 	if err != nil {
 		return metric, err
 	}
+	var availableLines []string
 	for index := range ptpPods.Items {
 		if ptpPods.Items[index].Spec.NodeName != nodeName {
 			continue
@@ -220,9 +221,16 @@ func getMetric(nodeName, aIf, metricName string) (metric string, err error) {
 				return metric, nil
 			}
 		}
+
+		for _, line := range strings.Split(metrics, "\n") {
+			if strings.HasPrefix(line, metricName+"{") {
+				availableLines = append(availableLines, line)
+			}
+		}
 		break
 	}
-	return metric, fmt.Errorf("metric: %s, nodeName: %s, aIf: %s not found", metricName, nodeName, aIf)
+	return metric, fmt.Errorf("metric: %s, nodeName: %s, aIf: %s not found, available %s metrics: %v",
+		metricName, nodeName, aIf, metricName, availableLines)
 }
 
 // gets a node name based on a label

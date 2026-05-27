@@ -726,7 +726,7 @@ This same process is then used to run a single test.
 The L2 information is populated by calling the following code snippet. Node that this command is destructive and will create new ptpconfigs depending on the desired test mode:
 ```
 // discovers valid ptp configurations based on clock type
-	err := testconfig.CreatePtpConfigurations()
+	err := testconfig.CreatePtpConfigurationsWithRetry(3)
 	if err != nil {
 		Fail(fmt.Sprintf("Could not create a ptp config, err=%s", err))
 	}
