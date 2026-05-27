@@ -30,7 +30,7 @@ podman-buildall: $(foreach v, $(VALUES), podman-build-$(v))
 
 podman-build-%:
 	@echo "Platform: $(PLATFORM)"
-	$(MAKE) clean-image VAR=$*;
+	$(MAKE) clean-image VAR=$*
 	$(MAKE) build-image VAR=$*
 
 podman-pushall: $(foreach v, $(VALUES), podman-push-$(v))
@@ -43,7 +43,6 @@ build-image:
 	podman build --no-cache --network host --platform $(PLATFORM) -f Dockerfile.$(VAR)  --manifest ${IMG_PREFIX}:$(VAR)  ..
 
 clean-image:
-	podman image rm ${IMG_PREFIX}:$(VAR) || true
 	podman manifest rm ${IMG_PREFIX}:$(VAR) || true
 
 podman-clean-%:
