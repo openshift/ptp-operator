@@ -129,25 +129,6 @@ if [[ "$RUN_PHASE" == "all" || "$RUN_PHASE" == "deploy" ]]; then
 
     kubectl get pods -n openshift-ptp -o wide
 
-    SYMLINK_PID=""
-    if [[ "${DKMS_MODE}" == "true" ]]; then
-        bash -c '
-        while true; do
-          for pod in $(kubectl get pods -n openshift-ptp -l app=linuxptp-daemon \
-                       --field-selector=status.phase=Running -o name 2>/dev/null); do
-            kubectl exec -n openshift-ptp ${pod#pod/} -c linuxptp-daemon-container -- \
-              bash -c "for i in 0 1 2 3 4 5 6 7 8 9; do ln -sf nsim_ptp\$i /dev/ptp\$i 2>/dev/null; done" \
-              2>/dev/null || true
-          done
-          sleep 5
-        done
-        ' &
-        SYMLINK_PID=$!
-        echo "Symlink maintainer PID: $SYMLINK_PID"
-        cleanup_symlink() { [[ -n "$SYMLINK_PID" ]] && kill "$SYMLINK_PID" 2>/dev/null || true; }
-        trap cleanup_symlink EXIT
-    fi
-
     ./run-tests.sh --kind serial --mode "$TEST_MODES" \
       --linuxptp-daemon-image "$IMG_PREFIX:lptpd" \
       --must-gather-image "$IMG_PREFIX:ptpmg" \
