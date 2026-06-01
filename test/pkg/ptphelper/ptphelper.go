@@ -45,7 +45,7 @@ func GetPodWithLabel(label *string, nodeName *string) ([]*corev1.Pod, error) {
 		pod := &ptpPods.Items[i]
 		isPodFound, err := pods.HasPodLabelOrNodeName(pod, label, nodeName)
 		if err != nil {
-			return res, fmt.Errorf("could not check pod role (label=%v, node=%v): %w", label, nodeName, err)
+			return res, fmt.Errorf("could not check pod role (label=%q, node=%q): %w", pkg.PtrStringOrDefault(label, "<nil>"), pkg.PtrStringOrDefault(nodeName, "<nil>"), err)
 		}
 		if !isPodFound {
 			continue
@@ -61,7 +61,7 @@ func findMatchingPod(label *string, nodeName *string) (*corev1.Pod, error) {
 		return nil, err
 	}
 	if len(foundPods) == 0 {
-		return nil, fmt.Errorf("no PTP pods found for label=%v node=%v", label, nodeName)
+		return nil, fmt.Errorf("no PTP pods found for label=%q node=%q", pkg.PtrStringOrDefault(label, "<nil>"), pkg.PtrStringOrDefault(nodeName, "<nil>"))
 	}
 	return foundPods[0], nil
 }
