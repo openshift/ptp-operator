@@ -100,7 +100,7 @@ func HasPodLabelOrNodeName(pod *corev1.Pod, label *string, nodeName *string) (re
 	if label != nil {
 		result, err = PodRole(pod, *label)
 		if err != nil {
-			return result, fmt.Errorf("could not check %s pod role, err: %s", *label, err)
+			return result, fmt.Errorf("could not check %q pod role, err: %s", pkg.PtrStringOrDefault(label, "<nil>"), err)
 		}
 	}
 	if nodeName != nil {

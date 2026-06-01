@@ -292,12 +292,14 @@ Only this label should be used to identify the clock under test. err:%s`, *label
 		}
 	}
 	// Find the port in SLAVE state and verify metrics
+	var ifResults []string
 	for _, aIf := range slaveIfs {
 
 		// Check role
 		roleString, err := getMetric(*nodeName, aIf, OpenshiftPtpInterfaceRole)
 		if err != nil {
 			logrus.Errorf("error getting role err:%s", err)
+			ifResults = append(ifResults, fmt.Sprintf("  %s: role metric error: %s", aIf, err))
 			continue
 		}
 		roleInt, err := strconv.Atoi(roleString)
@@ -307,22 +309,27 @@ Only this label should be used to identify the clock under test. err:%s`, *label
 		logrus.Infof("nodeName=%s, aIf=%s, roleInt=%s", *nodeName, aIf, MetricRole(roleInt))
 		if MetricRole(roleInt) != expectedClockRole {
 			logrus.Errorf("incorrect role, continue looking for other interfaces")
+			ifResults = append(ifResults, fmt.Sprintf("  %s: role mismatch (expected=%s, got=%s)", aIf, expectedClockRole, MetricRole(roleInt)))
 			continue
 		}
 
 		// Check ptp clock state
 		clockStateString, err := getMetric(*nodeName, aIf, OpenshiftPtpClockState)
 		if err != nil {
-			logrus.Errorf("error getting role err:%s", err)
+			logrus.Errorf("error getting clock state err:%s", err)
+			ifResults = append(ifResults, fmt.Sprintf("  %s: clock state metric error: %s", aIf, err))
 			continue
 		}
 		clockStateInt, err := strconv.Atoi(clockStateString)
 		if err != nil {
-			return fmt.Errorf("error strconv for roleString=%s, err:%s", roleString, err)
+			ifResults = append(ifResults, fmt.Sprintf("  %s: clock state strconv error: %s", aIf, err))
+			return fmt.Errorf("error strconv for clockStateString=%s, err:%s. Per-interface results:\n%s", clockStateString, err, strings.Join(ifResults, "\n"))
 		}
 		logrus.Infof("nodeName=%s, aIf=%s, clockStateInt=%s expectedClockstate=%s", *nodeName, aIf, MetricClockState(clockStateInt), expectedClockState)
 		if MetricClockState(clockStateInt) != expectedClockState {
-			return fmt.Errorf("incorrect clock state")
+			ifResults = append(ifResults, fmt.Sprintf("  %s: clock state mismatch (expected=%s, got=%s)", aIf, expectedClockState, MetricClockState(clockStateInt)))
+			return fmt.Errorf("incorrect clock state on node %s iface %s: expected %s, got %s. Per-interface results:\n%s",
+				*nodeName, aIf, expectedClockState, MetricClockState(clockStateInt), strings.Join(ifResults, "\n"))
 		}
 
 		// Check offset
@@ -343,7 +350,8 @@ Only this label should be used to identify the clock under test. err:%s`, *label
 		logrus.Infof("Clock sync offset withing expected range min=%d ns < %d ns < max=%d ns", MinOffsetNs, offsetInt, MaxOffsetNs)
 		return nil
 	}
-	return fmt.Errorf("error finding a Follower port in the expected %s state", expectedClockState)
+	return fmt.Errorf("no Follower port in expected %s state for ptpconfig %s (node=%s, label=%q, slaveIfs=%v). Per-interface results:\n%s",
+		expectedClockState, ptpConfig.Name, *nodeName, pkg.PtrStringOrDefault(label, "<nil>"), slaveIfs, strings.Join(ifResults, "\n"))
 }
 
 // gets the user configured maximum offset in nanoseconds

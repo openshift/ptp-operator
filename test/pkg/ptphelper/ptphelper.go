@@ -45,7 +45,7 @@ func GetPodWithLabel(label *string, nodeName *string) ([]*corev1.Pod, error) {
 		pod := &ptpPods.Items[i]
 		isPodFound, err := pods.HasPodLabelOrNodeName(pod, label, nodeName)
 		if err != nil {
-			return res, fmt.Errorf("could not check pod role (label=%v, node=%v): %w", label, nodeName, err)
+			return res, fmt.Errorf("could not check pod role (label=%q, node=%q): %w", pkg.PtrStringOrDefault(label, "<nil>"), pkg.PtrStringOrDefault(nodeName, "<nil>"), err)
 		}
 		if !isPodFound {
 			continue
@@ -61,7 +61,7 @@ func findMatchingPod(label *string, nodeName *string) (*corev1.Pod, error) {
 		return nil, err
 	}
 	if len(foundPods) == 0 {
-		return nil, fmt.Errorf("no PTP pods found for label=%v node=%v", label, nodeName)
+		return nil, fmt.Errorf("no PTP pods found for label=%q node=%q", pkg.PtrStringOrDefault(label, "<nil>"), pkg.PtrStringOrDefault(nodeName, "<nil>"))
 	}
 	return foundPods[0], nil
 }
@@ -864,7 +864,7 @@ func GetPTPPodWithPTPConfig(ptpConfig *ptpv1.PtpConfig) (aPtpPod *v1core.Pod, er
 
 		isPodFound, err := pods.HasPodLabelOrNodeName(&pod, label, nodeName)
 		if err != nil {
-			logrus.Errorf("could not check %s pod role, err: %s", *label, err)
+			logrus.Errorf("could not check %q pod role, err: %s", pkg.PtrStringOrDefault(label, "<nil>"), err)
 		}
 
 		if isPodFound {
@@ -873,7 +873,8 @@ func GetPTPPodWithPTPConfig(ptpConfig *ptpv1.PtpConfig) (aPtpPod *v1core.Pod, er
 		}
 	}
 	if aPtpPod == nil {
-		return nil, fmt.Errorf("no linuxptp-daemon pod found matching ptpconfig %s (label=%v, nodeName=%v)", ptpConfig.Name, label, nodeName)
+		return nil, fmt.Errorf("no linuxptp-daemon pod found matching ptpconfig %s (label=%q, nodeName=%q)",
+			ptpConfig.Name, pkg.PtrStringOrDefault(label, "<nil>"), pkg.PtrStringOrDefault(nodeName, "<nil>"))
 	}
 	return aPtpPod, nil
 }
