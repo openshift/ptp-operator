@@ -12,15 +12,27 @@ else
     exit 1
 fi
 
+# Detect OS family
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    OS_ID="${ID:-unknown}"
+else
+    OS_ID="unknown"
+fi
+
+case "$OS_ID" in
+    ubuntu|debian|linuxmint|pop) OS_FAMILY="debian" ;;
+    fedora|rhel|centos|rocky|alma) OS_FAMILY="redhat" ;;
+    *) echo "WARNING: Unknown OS '$OS_ID', assuming redhat-like"; OS_FAMILY="redhat" ;;
+esac
+
 if [[ "${DKMS_MODE:-}" == "true" ]]; then
-    mkdir -p /etc/apt/keyrings
-    curl -fsSL "https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/unstable/xUbuntu_$(lsb_release -rs)/Release.key" \
-      | gpg --dearmor | tee /etc/apt/keyrings/devel_kubic_libcontainers_unstable.gpg > /dev/null
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/devel_kubic_libcontainers_unstable.gpg] \
-      https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/unstable/xUbuntu_$(lsb_release -rs)/ /" \
-      | tee /etc/apt/sources.list.d/devel:kubic:libcontainers:unstable.list > /dev/null
-    apt-get update
-    apt-get install -y podman pciutils openvswitch-switch git openssl
+    if [[ "$OS_FAMILY" == "debian" ]]; then
+        apt-get update -qq
+        apt-get install -y podman pciutils openvswitch-switch git openssl
+    else
+        dnf install -y podman pciutils openvswitch git openssl
+    fi
 
     # kubectl
     KUBECTL_VER=$(curl -fsSL https://dl.k8s.io/release/stable.txt)
