@@ -23,6 +23,7 @@ endif
 KUSTOMIZE ?= $(LOCALBIN)/kustomize
 
 IMG_PREFIX ?= quay.io/<your user id here>/<your image name>
+SAVE_DIR ?= /tmp/ptp-images
 
 VALUES = lptpd cep ptpop krp openvswitch prometheus ptpmg debug
 
@@ -38,6 +39,26 @@ podman-pushall: $(foreach v, $(VALUES), podman-push-$(v))
 podman-push-%:
 	podman manifest push ${IMG_PREFIX}:$* docker://${IMG_PREFIX}:$*
 
+podman-saveall: $(foreach v, $(VALUES), podman-save-$(v))
+
+podman-save-%:
+	mkdir -p $(SAVE_DIR)
+	podman save -m -o $(SAVE_DIR)/$*.tar ${IMG_PREFIX}:$*
+
+podman-build-and-pushall: $(foreach v, $(VALUES), podman-build-and-push-$(v))
+
+podman-build-and-push-%:
+	$(MAKE) podman-clean-$*
+	$(MAKE) podman-build-$*
+	$(MAKE) podman-push-$*
+
+podman-build-and-saveall: $(foreach v, $(VALUES), podman-build-and-save-$(v))
+
+podman-build-and-save-%:
+	$(MAKE) podman-clean-$*
+	$(MAKE) podman-build-$*
+	$(MAKE) podman-save-$*
+
 build-image:
 	podman manifest create ${IMG_PREFIX}:$(VAR)
 	podman build --no-cache --network host --platform $(PLATFORM) -f Dockerfile.$(VAR)  --manifest ${IMG_PREFIX}:$(VAR)  ..
@@ -49,6 +70,10 @@ podman-clean-%:
 	podman manifest rm ${IMG_PREFIX}:$* || true
 
 podman-cleanall: $(foreach v, $(VALUES), podman-clean-$(v))
+
+.PHONY: podman-buildall podman-pushall podman-saveall podman-cleanall
+.PHONY: podman-build-and-pushall podman-build-and-saveall
+.PHONY: build-image clean-image deploy-all
 
 deploy-all: 
 	./scripts/customize-env.sh ${IMG_PREFIX} ../config/manager
