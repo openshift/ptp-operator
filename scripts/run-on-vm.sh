@@ -34,18 +34,27 @@ PS1="${PS1:-}" source ~/.bashrc
 go mod tidy
 go mod vendor
 
-# ── Images phase (--images or default) ──────────────────────────────
-if [[ "$RUN_PHASE" == "all" || "$RUN_PHASE" == "images" ]]; then
+# ── Images phase (--images) ──────────────────────────────────────────
+if [[ "$RUN_PHASE" == "images" ]]; then
+
+    export IMG_PREFIX="$VM_IP/test"
+
+    cd ../ptp-tools
+    make -j8 podman-build-and-saveall
+    cd -
+
+    tar cf /tmp/ptp-images.tar -C /tmp/ptp-images .
+    echo "Images saved to /tmp/ptp-images.tar ($(du -h /tmp/ptp-images.tar | cut -f1))"
+
+fi
+
+# ── Images + deploy (default) ───────────────────────────────────────
+if [[ "$RUN_PHASE" == "all" ]]; then
 
     kind delete cluster --name kind-netdevsim || true
     podman rm -f switch1 || true
 
     export IMG_PREFIX="$VM_IP/test"
-
-    cd ../ptp-tools
-    make podman-cleanall
-    make podman-buildall
-    cd -
 
     cd ..
     make kustomize
@@ -54,16 +63,8 @@ if [[ "$RUN_PHASE" == "all" || "$RUN_PHASE" == "images" ]]; then
     ./create-local-registry.sh "$VM_IP"
 
     cd ../ptp-tools
-    make podman-pushall
+    make podman-build-and-pushall
     cd -
-
-    if [[ "$RUN_PHASE" == "images" ]]; then
-        TAGS=(lptpd cep ptpop krp openvswitch prometheus ptpmg debug)
-        SAVE_ARGS=()
-        for t in "${TAGS[@]}"; do SAVE_ARGS+=("$IMG_PREFIX:$t"); done
-        podman save -m -o /tmp/ptp-images.tar "${SAVE_ARGS[@]}"
-        echo "Images saved to /tmp/ptp-images.tar ($(du -h /tmp/ptp-images.tar | cut -f1))"
-    fi
 
 fi
 
@@ -72,9 +73,13 @@ if [[ "$RUN_PHASE" == "load" ]]; then
 
     export IMG_PREFIX="$VM_IP/test"
 
-    podman load -i "$TARBALL"
-
+    mkdir -p /tmp/ptp-images-load
+    tar xf "$TARBALL" -C /tmp/ptp-images-load
     TAGS=(lptpd cep ptpop krp openvswitch prometheus ptpmg debug)
+    for t in "${TAGS[@]}"; do
+        podman load -i "/tmp/ptp-images-load/$t.tar"
+    done
+
     OLD_PREFIX=$(podman images --format '{{.Repository}}:{{.Tag}}' | grep ":${TAGS[0]}$" | head -1 | sed "s/:${TAGS[0]}$//")
     if [[ "$OLD_PREFIX" != "$IMG_PREFIX" ]]; then
         for t in "${TAGS[@]}"; do
