@@ -57,7 +57,19 @@ func BasicClockSyncCheck(fullConfig testconfig.TestConfig, ptpConfig *ptpv1.PtpC
 	if err != nil {
 		logrus.Debugf("could not get nodeName because of err: %s", err)
 	}
-	slaveMaster, err := ptphelper.GetClockIDForeign(profileName, label, nodeName)
+	var slaveMaster string
+	if fullConfig.PtpModeDesired == testconfig.Discovery {
+		slaveMaster, err = ptphelper.GetClockIDForeign(profileName, label, nodeName)
+	} else {
+		Eventually(func() error {
+			slaveMaster, err = ptphelper.GetClockIDForeign(profileName, label, nodeName)
+			if err != nil {
+				logrus.Infof("GetClockIDForeign retry due to err: %s", err)
+			}
+			return err
+		}, pkg.TimeoutIn3Minutes, pkg.Timeout10Seconds).Should(BeNil(),
+			fmt.Sprintf("Timeout to get foreign clock ID for ptpconfig %s", ptpConfig.Name))
+	}
 	if errProfile == nil {
 		if fullConfig.PtpModeDesired == testconfig.Discovery {
 			if err != nil {

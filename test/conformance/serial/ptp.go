@@ -579,9 +579,14 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				var grandmasterID *string
 				if fullConfig.L2Config != nil && !isExternalMaster {
 					aLabel := pkg.PtpGrandmasterNodeLabel
-					aString, err := ptphelper.GetClockIDMaster(pkg.PtpGrandMasterPolicyName, &aLabel, nil, true)
+					var aString string
+					Eventually(func() error {
+						var getErr error
+						aString, getErr = ptphelper.GetClockIDMaster(pkg.PtpGrandMasterPolicyName, &aLabel, nil, true)
+						return getErr
+					}, pkg.TimeoutIn3Minutes, pkg.Timeout10Seconds).Should(BeNil(),
+						"Timeout to get grandmaster clock ID")
 					grandmasterID = &aString
-					Expect(err).To(BeNil())
 				}
 				err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), grandmasterID, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
 				Expect(err).To(BeNil())
@@ -762,9 +767,14 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				var grandmasterID *string
 				if fullConfig.L2Config != nil && !isExternalMaster {
 					aLabel := pkg.PtpGrandmasterNodeLabel
-					aString, err := ptphelper.GetClockIDMaster(pkg.PtpGrandMasterPolicyName, &aLabel, nil, true)
+					var aString string
+					Eventually(func() error {
+						var getErr error
+						aString, getErr = ptphelper.GetClockIDMaster(pkg.PtpGrandMasterPolicyName, &aLabel, nil, true)
+						return getErr
+					}, pkg.TimeoutIn3Minutes, pkg.Timeout10Seconds).Should(BeNil(),
+						"Timeout to get grandmaster clock ID")
 					grandmasterID = &aString
-					Expect(err).To(BeNil())
 				}
 				By("Check sync")
 				err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig),
@@ -872,16 +882,26 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					Skip("test only valid for Boundary clock in multi-node clusters with slaves")
 				}
 				aLabel := pkg.PtpClockUnderTestNodeLabel
-				masterIDBc1, err := ptphelper.GetClockIDMaster(pkg.PtpBcMaster1PolicyName, &aLabel, nil, false)
-				Expect(err).To(BeNil())
+				var masterIDBc1 string
+				Eventually(func() error {
+					var getErr error
+					masterIDBc1, getErr = ptphelper.GetClockIDMaster(pkg.PtpBcMaster1PolicyName, &aLabel, nil, false)
+					return getErr
+				}, pkg.TimeoutIn3Minutes, pkg.Timeout10Seconds).Should(BeNil(),
+					"Timeout to get BC master1 clock ID")
 				err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredSlave1PtpConfig), &masterIDBc1, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
 				Expect(err).To(BeNil())
 
 				if (fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock || fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClockHA) &&
 					(fullConfig.FoundSolutions[testconfig.AlgoDualNicBCWithSlavesExtGMString] || fullConfig.FoundSolutions[testconfig.AlgoDualNicBCWithSlavesString]) {
 					aLabel := pkg.PtpClockUnderTestNodeLabel
-					masterIDBc2, err := ptphelper.GetClockIDMaster(pkg.PtpBcMaster2PolicyName, &aLabel, nil, false)
-					Expect(err).To(BeNil())
+					var masterIDBc2 string
+					Eventually(func() error {
+						var getErr error
+						masterIDBc2, getErr = ptphelper.GetClockIDMaster(pkg.PtpBcMaster2PolicyName, &aLabel, nil, false)
+						return getErr
+					}, pkg.TimeoutIn3Minutes, pkg.Timeout10Seconds).Should(BeNil(),
+						"Timeout to get BC master2 clock ID")
 					err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredSlave2PtpConfig), &masterIDBc2, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
 					Expect(err).To(BeNil())
 				}
@@ -964,8 +984,13 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 					if fullConfig.L2Config != nil && !isExternalMaster {
 						aLabel := pkg.PtpGrandmasterNodeLabel
-						gmClockID, err := ptphelper.GetClockIDMaster(pkg.PtpGrandMasterPolicyName, &aLabel, nil, true)
-						Expect(err).To(BeNil())
+						var gmClockID string
+						Eventually(func() error {
+							var getErr error
+							gmClockID, getErr = ptphelper.GetClockIDMaster(pkg.PtpGrandMasterPolicyName, &aLabel, nil, true)
+							return getErr
+						}, pkg.TimeoutIn3Minutes, pkg.Timeout10Seconds).Should(BeNil(),
+							"Timeout to get grandmaster clock ID")
 
 						profileName, err := ptphelper.GetProfileName(modifiedPtpConfig)
 						Expect(err).To(BeNil())
@@ -978,10 +1003,19 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 							logrus.Warnf("could not get first node from ptpconfig: %v", err)
 						}
 						if label != nil && node != nil {
-							slaveMaster, err := ptphelper.GetClockIDForeign(profileName, label, node)
-							Expect(err).To(BeNil())
-							Expect(slaveMaster).To(HavePrefix(gmClockID),
-								fmt.Sprintf("Slave master %s does not match GM clock %s", slaveMaster, gmClockID))
+							var slaveMaster string
+							Eventually(func() error {
+								var getErr error
+								slaveMaster, getErr = ptphelper.GetClockIDForeign(profileName, label, node)
+								if getErr != nil {
+									return getErr
+								}
+								if !strings.HasPrefix(slaveMaster, gmClockID) {
+									return fmt.Errorf("Slave master %s does not match GM clock %s", slaveMaster, gmClockID)
+								}
+								return nil
+							}, pkg.TimeoutIn3Minutes, pkg.Timeout10Seconds).Should(BeNil(),
+								"Timeout waiting for slave to follow expected GM")
 						}
 					}
 				})
