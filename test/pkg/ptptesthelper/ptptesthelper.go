@@ -813,3 +813,31 @@ func (p *PortEngine) nmSetManaged(port string, managed bool) {
 	}
 	logrus.Infof("NM set managed=%s for %s: output: %s", val, port, stdout.String())
 }
+
+// Phc2sysMatchedInterfaces extracts the captured interface name (submatch index 1)
+// from each entry returned by GetPodLogsRegex / GetPodLogsRegexSince.
+func Phc2sysMatchedInterfaces(matches [][]string) []string {
+	ifaces := make([]string, len(matches))
+	for i, m := range matches {
+		ifaces[i] = m[1]
+	}
+	return ifaces
+}
+
+// CountPhc2sysTransitions counts interface changes in a sequence of phc2sys log
+// matches, starting from initialInterface. If the first log entry differs from
+// initialInterface that counts as a transition. Repeated selections of the same
+// interface do not increment the counter, so only genuine direction changes are
+// counted. This correctly detects flapping such as primary->secondary->primary
+// (2 transitions) while tolerating repeated same-interface log lines.
+func CountPhc2sysTransitions(matches [][]string, initialInterface string) int {
+	transitions := 0
+	prev := initialInterface
+	for _, m := range matches {
+		if m[1] != prev {
+			transitions++
+			prev = m[1]
+		}
+	}
+	return transitions
+}
