@@ -176,6 +176,8 @@ jobs:
           VM_IP=$(hostname -I | awk '{print $1}')
           cd /root/ptp-operator/scripts
           ./run-on-vm.sh --dkms --images "${VM_IP}"
+
+          rm -rf /tmp/go-build* /root/.cache/go-build
           BUILD
 
       - name: Upload image tarball
@@ -268,6 +270,15 @@ jobs:
           cd /root/ptp-operator/scripts
           ./run-on-vm.sh --dkms --load /tmp/ptp-images.tar "${VM_IP}"
           LOAD
+
+      - name: "Free disk space before tests"
+        run: |
+          sudo bash -l <<'CLEANUP'
+          set -euo pipefail
+          rm -rf /tmp/ptp-images.tar /tmp/ptp-images-load
+          rm -rf /tmp/go-build* /var/cache/apt /root/.cache
+          df -h
+          CLEANUP
 
       - name: "Run scenario: ${{ matrix.mode }}"
         run: |
