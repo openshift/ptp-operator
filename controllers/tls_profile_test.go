@@ -84,6 +84,7 @@ func TestTLSProfileTemplateRendering(t *testing.T) {
 	data := makeTestRenderData()
 	data.Data["TLSMinVersion"] = string(profile.MinTLSVersion)
 	data.Data["TLSCipherSuites"] = strings.Join(ianaCiphers, ",")
+	data.Data["TLSGroups"] = ""
 
 	objs, err := render.RenderTemplate("../bindata/linuxptp/ptp-daemon.yaml", data)
 	assert.NoError(t, err)
@@ -130,6 +131,7 @@ func TestTLSProfileTemplateRendering_LegacyAdherence(t *testing.T) {
 	// cipher suites that were in place before cluster TLS profile support.
 	data := makeTestRenderData()
 	data.Data["TLSMinVersion"] = ""
+	data.Data["TLSGroups"] = ""
 	data.Data["TLSCipherSuites"] = "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256," +
 		"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256," +
 		"TLS_RSA_WITH_AES_128_CBC_SHA256," +
@@ -170,6 +172,45 @@ func TestTLSProfileTemplateRendering_LegacyAdherence(t *testing.T) {
 				"TLS_RSA_WITH_AES_128_CBC_SHA256,"+
 				"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,"+
 				"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256")
+	}
+}
+
+func TestTLSProfileTemplateRendering_WithGroups(t *testing.T) {
+	profile := *configv1.TLSProfiles[configv1.TLSProfileIntermediateType]
+	ianaCiphers := libgocrypto.OpenSSLToIANACipherSuites(profile.Ciphers)
+
+	data := makeTestRenderData()
+	data.Data["TLSMinVersion"] = string(profile.MinTLSVersion)
+	data.Data["TLSCipherSuites"] = strings.Join(ianaCiphers, ",")
+	data.Data["TLSGroups"] = "X25519MLKEM768,X25519,secp256r1,secp384r1"
+
+	objs, err := render.RenderTemplate("../bindata/linuxptp/ptp-daemon.yaml", data)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, objs)
+
+	for _, obj := range objs {
+		if obj.GetKind() != "DaemonSet" {
+			continue
+		}
+		containers, found, err := unstructuredContainers(obj.Object)
+		assert.NoError(t, err)
+		assert.True(t, found)
+
+		var rbacProxyArgs []string
+		for _, c := range containers {
+			container := c.(map[string]interface{})
+			if container["name"] == "kube-rbac-proxy" {
+				args := container["args"].([]interface{})
+				for _, a := range args {
+					rbacProxyArgs = append(rbacProxyArgs, a.(string))
+				}
+				break
+			}
+		}
+
+		assert.Contains(t, rbacProxyArgs,
+			"--tls-groups=X25519MLKEM768,X25519,secp256r1,secp384r1",
+			"kube-rbac-proxy should have --tls-groups arg")
 	}
 }
 

@@ -78,6 +78,9 @@ spec:
             {{- if .TLSMinVersion}}
             - --tls-min-version={{.TLSMinVersion}}
             {{- end}}
+            {{- if .TLSGroups}}
+            - --tls-groups={{.TLSGroups}}
+            {{- end}}
             - --upstream=http://127.0.0.1:9091/
             - --tls-private-key-file=/etc/metrics/tls.key
             - --tls-cert-file=/etc/metrics/tls.crt

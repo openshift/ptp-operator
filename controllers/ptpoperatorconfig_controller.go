@@ -446,9 +446,19 @@ func (r *PtpOperatorConfigReconciler) setTLSTemplateData(data *render.RenderData
 		ianaCiphers := libgocrypto.OpenSSLToIANACipherSuites(r.TLSProfileSpec.Ciphers)
 		data.Data["TLSMinVersion"] = string(r.TLSProfileSpec.MinTLSVersion)
 		data.Data["TLSCipherSuites"] = strings.Join(ianaCiphers, ",")
+		if len(r.TLSProfileSpec.Groups) > 0 {
+			groups := make([]string, len(r.TLSProfileSpec.Groups))
+			for i, g := range r.TLSProfileSpec.Groups {
+				groups[i] = string(g)
+			}
+			data.Data["TLSGroups"] = strings.Join(groups, ",")
+		} else {
+			data.Data["TLSGroups"] = ""
+		}
 	} else {
 		data.Data["TLSMinVersion"] = ""
 		data.Data["TLSCipherSuites"] = legacyCipherSuites
+		data.Data["TLSGroups"] = ""
 	}
 }
 
