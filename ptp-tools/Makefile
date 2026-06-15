@@ -25,6 +25,12 @@ KUSTOMIZE ?= $(LOCALBIN)/kustomize
 IMG_PREFIX ?= quay.io/<your user id here>/<your image name>
 SAVE_DIR ?= /tmp/ptp-images
 
+ifdef GITHUB_ACTIONS
+CACHE_FLAG ?=
+else
+CACHE_FLAG ?= --no-cache
+endif
+
 VALUES = lptpd cep ptpop krp openvswitch prometheus ptpmg debug
 
 .PHONY: print-values
@@ -65,7 +71,7 @@ podman-build-and-save-%:
 
 build-image:
 	podman manifest create ${IMG_PREFIX}:$(VAR)
-	podman build --no-cache --network host --platform $(PLATFORM) -f Dockerfile.$(VAR)  --manifest ${IMG_PREFIX}:$(VAR)  ..
+	podman build $(CACHE_FLAG) --network host --platform $(PLATFORM) -f Dockerfile.$(VAR)  --manifest ${IMG_PREFIX}:$(VAR)  ..
 
 clean-image:
 	podman manifest rm ${IMG_PREFIX}:$(VAR) || true
