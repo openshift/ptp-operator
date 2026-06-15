@@ -13,8 +13,10 @@
 #   --must-gather-image <url>       Full image URL for the ptp must-gather image.
 #                                   When provided, must-gather runs for oc mode and on failure.
 #
-set -x
 set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GINKGO_HEADLINE_REWRITE="${SCRIPT_DIR}/ginkgo-headline-rewrite.sh"
 
 usage() {
   echo "Usage: $0 --kind <serial|parallel|both> --mode <modes> [--loglevel <level>] [--linuxptp-daemon-image <url>] [--must-gather-image <url>]"
@@ -188,11 +190,31 @@ run_ginkgo_suite() {
     ginkgo_args+=(--skip="${skip}")
   done
 
-  if [[ "${suite_kind}" == "parallel" ]]; then
-    PTP_TEST_MODE="${mode}" ginkgo -p "${ginkgo_args[@]}" "${SUITE}/parallel"
+  local ginkgo_rc
+  set +e
+  if [[ "${PTP_GINKGO_HEADLINE_REWRITE:-1}" != "0" ]] && [[ -f "${GINKGO_HEADLINE_REWRITE}" ]]; then
+    case "${suite_kind}" in
+      parallel)
+        PTP_TEST_MODE="${mode}" ginkgo -p "${ginkgo_args[@]}" "${SUITE}/parallel" 2>&1 | bash "${GINKGO_HEADLINE_REWRITE}"
+        ;;
+      *)
+        PTP_TEST_MODE="${mode}" ginkgo "${ginkgo_args[@]}" "${SUITE}/serial" 2>&1 | bash "${GINKGO_HEADLINE_REWRITE}"
+        ;;
+    esac
+    ginkgo_rc=${PIPESTATUS[0]}
   else
-    PTP_TEST_MODE="${mode}" ginkgo "${ginkgo_args[@]}" "${SUITE}/serial"
+    case "${suite_kind}" in
+      parallel)
+        PTP_TEST_MODE="${mode}" ginkgo -p "${ginkgo_args[@]}" "${SUITE}/parallel"
+        ;;
+      *)
+        PTP_TEST_MODE="${mode}" ginkgo "${ginkgo_args[@]}" "${SUITE}/serial"
+        ;;
+    esac
+    ginkgo_rc=$?
   fi
+  set -e
+  return "${ginkgo_rc}"
 }
 
 for mode in "${TEST_MODES[@]}"; do
