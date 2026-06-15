@@ -2239,6 +2239,21 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 				logrus.Info("Successfully verified T-BC clock class recovery after upstream link outage")
 			})
+
+			It("Should restart ptp4l with no socket errors after SIGTERM", func() {
+				verifyProcessRestartNoSocketErrors(fullConfig, "ptp4l")
+			})
+
+			It("Should restart phc2sys with no socket errors after SIGTERM", func() {
+				verifyProcessRestartNoSocketErrors(fullConfig, "phc2sys")
+			})
+
+			It("Should restart ts2phc with no socket errors after SIGTERM", func() {
+				if fullConfig.PtpModeDiscovered != testconfig.TelcoGrandMasterClock {
+					Skip("ts2phc only runs in GM configuration")
+				}
+				verifyProcessRestartNoSocketErrors(fullConfig, "ts2phc")
+			})
 		})
 
 		Context("WPC GM Verification Tests", func() {
@@ -3771,6 +3786,46 @@ func getProcessConfigAndRestartCount(metricsText, process string) (configName st
 		}
 	}
 	return configName, restartCount, found
+}
+
+// verifyProcessRestartNoSocketErrors sends SIGTERM to the given PTP process, waits for a
+// 1→0→1 metric restart cycle, and asserts no event-socket errors appear in the daemon logs.
+func verifyProcessRestartNoSocketErrors(fullConfig testconfig.TestConfig, process string) {
+	By(fmt.Sprintf("Verifying %s is running (process status == 1)", process))
+	checkStatusByProcess(fullConfig, process, "1")
+
+	beforeKill := time.Now()
+	time.Sleep(1 * time.Second)
+
+	By(fmt.Sprintf("Starting metric watcher and killing %s", process))
+	watchDone := make(chan bool, 1)
+	go func() {
+		watchDone <- watchProcessFlipOneZeroOne(fullConfig, process, 60*time.Second)
+	}()
+	time.Sleep(1 * time.Second)
+
+	_, _, err := pods.ExecCommand(client.Client, true,
+		fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName,
+		[]string{"sh", "-c", fmt.Sprintf("pkill -TERM %s || true", process)})
+	Expect(err).To(BeNil(), fmt.Sprintf("failed to kill %s", process))
+
+	By(fmt.Sprintf("Waiting for %s process_status 1→0→1 metric flip", process))
+	Eventually(watchDone, 60*time.Second, 1*time.Second).Should(Receive(BeTrue()),
+		fmt.Sprintf("%s did not complete 1→0→1 restart cycle", process))
+
+	By("Checking daemon logs for socket errors after the kill")
+	time.Sleep(5 * time.Second)
+	socketErrMatches, _ := pods.GetPodLogsRegexSince(
+		openshiftPtpNamespace,
+		fullConfig.DiscoveredClockUnderTestPod.Name,
+		pkg.PtpContainerName,
+		`error trying to connect to event socket|Failed to reconnect to event socket|Reconnect failed after write error|Write error for|Write failed again after reconnect`,
+		false,
+		2*time.Second,
+		beforeKill,
+	)
+	Expect(socketErrMatches).To(BeEmpty(),
+		fmt.Sprintf("unexpected socket errors in logs after %s kill: %v", process, socketErrMatches))
 }
 
 // checkStatusByProcess mirrors checkClockStateForProcess but for process status (1/0)
