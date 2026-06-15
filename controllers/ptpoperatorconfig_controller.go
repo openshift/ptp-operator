@@ -446,6 +446,8 @@ func (r *PtpOperatorConfigReconciler) setTLSTemplateData(data *render.RenderData
 		ianaCiphers := libgocrypto.OpenSSLToIANACipherSuites(r.TLSProfileSpec.Ciphers)
 		data.Data["TLSMinVersion"] = string(r.TLSProfileSpec.MinTLSVersion)
 		data.Data["TLSCipherSuites"] = strings.Join(ianaCiphers, ",")
+		// TODO: pass TLSGroups to kube-rbac-proxy once it supports --tls-curve-preferences
+		// (upstream: https://github.com/kube-rbac-proxy/kube-rbac-proxy/issues/414)
 	} else {
 		data.Data["TLSMinVersion"] = ""
 		data.Data["TLSCipherSuites"] = legacyCipherSuites
