@@ -66,7 +66,7 @@ func makeTestRenderData() *render.RenderData {
 	data.Data["Image"] = "test-image"
 	data.Data["ImagePullPolicy"] = "IfNotPresent"
 	data.Data["Namespace"] = "openshift-ptp"
-	data.Data["ReleaseVersion"] = "4.22.0"
+	data.Data["ReleaseVersion"] = "5.0.0"
 	data.Data["KubeRbacProxy"] = "test-rbac-proxy"
 	data.Data["SideCar"] = "test-sidecar"
 	data.Data["NodeName"] = "test-node"
