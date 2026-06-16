@@ -254,7 +254,6 @@ func GetPtpPodOnNode(nodeName string) (v1core.Pod, error) {
 	return v1core.Pod{}, errors.New("pod not found")
 }
 
-
 // This function parses ethtool command output and detect interfaces which supports ptp protocol
 func IsPTPEnabled(ethToolOutput *bytes.Buffer) bool {
 	var RxEnabled bool
@@ -848,8 +847,6 @@ func IsExternalGM() (out bool) {
 	return out
 }
 
-
-
 func execPodCommand(nodeName string, cmd []string) (stdoutBuf, stderrBuf bytes.Buffer, err error) {
 
 	WaitForPtpDaemonToExist()
@@ -954,5 +951,3 @@ func IsPTPOperatorVersionAtLeast(minVersion string) bool {
 
 	return !ver.LessThan(minVer)
 }
-
-

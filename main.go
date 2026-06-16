@@ -317,7 +317,6 @@ func createDefaultOperatorConfig(ctx context.Context, cfg *rest.Config) error {
 	return nil
 }
 
-
 // fetchTLSConfig creates a temporary client to read the APIServer TLS profile
 // and adherence policy at startup, before the manager's cache is available.
 func fetchTLSConfig(cfg *rest.Config) (configv1.TLSProfileSpec, configv1.TLSAdherencePolicy, error) {

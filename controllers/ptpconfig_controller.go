@@ -236,7 +236,6 @@ func getRecommendProfilesNamesForConfig(ptpConfig *ptpv1.PtpConfig, node corev1.
 	return profilesNames
 }
 
-
 func (r *PtpConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ptpv1.PtpConfig{}, builder.WithPredicates(predicate.NewPredicateFuncs(func(object client.Object) bool {

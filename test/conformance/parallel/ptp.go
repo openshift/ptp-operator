@@ -27,7 +27,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-
 var DesiredMode = testconfig.GetDesiredConfig(true).PtpModeDesired
 
 // this full config is one per thread

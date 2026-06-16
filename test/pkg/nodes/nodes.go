@@ -27,7 +27,6 @@ func init() {
 	NodesSelector = os.Getenv("NODES_SELECTOR")
 }
 
-
 func LabelNode(nodeName, key, value string) (*corev1.Node, error) {
 	NodeObject, err := client.Client.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
 	if err != nil {
@@ -75,7 +74,6 @@ func MatchingOptionalSelectorPTP(toFilter []ptpv1.NodePtpDevice) ([]ptpv1.NodePt
 	}
 	return res, nil
 }
-
 
 // expectedReachabilityStatus true means test if the node is reachable, false means test if the node is unreachable
 func WaitForNodeReachability(nodeName string, timeout time.Duration, expectedReachabilityStatus bool) {

@@ -590,7 +590,6 @@ func (cc *ClockChain) Validate() error {
 	return nil
 }
 
-
 // Plugin system types and functions
 
 // PluginInfo contains metadata about a hardware plugin

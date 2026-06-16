@@ -249,4 +249,3 @@ func TestClockChainValidation_EdgeCases(t *testing.T) {
 		})
 	}
 }
-

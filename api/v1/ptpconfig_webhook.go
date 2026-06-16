@@ -483,4 +483,3 @@ func GetInterfaces(config PtpConfig, mode PtpRole) (interfaces []string) {
 	}
 	return finalInterfaces
 }
-

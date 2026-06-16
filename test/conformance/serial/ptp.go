@@ -2822,9 +2822,6 @@ func checkStabilityOfWPCGMUsingMetrics(fullConfig testconfig.TestConfig) {
 	checkPTPNMEAStatus(fullConfig, "1")
 }
 
-
-
-
 func testCaseEnabled(testCase TestCase) bool {
 
 	enabledTests, isSet := os.LookupEnv("ENABLE_TEST_CASE")
@@ -3487,7 +3484,6 @@ func stopMonitor(term chan bool) {
 	default: // avoid blocking if it’s already been stopped
 	}
 }
-
 
 // waitForStateAndCC waits until the given state and clock class value (int) are both observed
 func waitForStateAndCC(subs event.Subscriptions, state ptpEvent.SyncState, cc int, timeout time.Duration, warnOnMissingCC bool) {

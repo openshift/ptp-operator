@@ -126,7 +126,6 @@ func WaitForCondition(cs *testclient.ClientSet, pod *corev1.Pod, conditionType c
 	})
 }
 
-
 func findRegexInStream(stream io.ReadCloser, r *regexp.Regexp, timeout time.Duration) (matches [][]string, err error) {
 	logContent := ""
 	buf := make([]byte, 2000)

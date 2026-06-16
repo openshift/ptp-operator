@@ -101,7 +101,6 @@ func Clean(namespace string, prefix string, cs *testclient.ClientSet) error {
 	return err
 }
 
-
 func Delete(aNamespace string, cs *testclient.ClientSet) error {
 	return cs.Namespaces().Delete(context.Background(), aNamespace, metav1.DeleteOptions{})
 }

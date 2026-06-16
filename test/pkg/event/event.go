@@ -426,7 +426,6 @@ func DeleteConsumerNamespace() error {
 	return nil
 }
 
-
 const DeleteBackground = "deleteBackground"
 const DeleteForeground = "deleteForeground"
 
