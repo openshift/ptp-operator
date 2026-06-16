@@ -27,10 +27,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const (
-	clockSyncStateLocalForwardPort = 8901
-	clockSyncStateLocalHttpPort    = 8902
-)
 
 var DesiredMode = testconfig.GetDesiredConfig(true).PtpModeDesired
 

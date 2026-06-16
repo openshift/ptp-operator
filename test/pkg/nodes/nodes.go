@@ -27,42 +27,6 @@ func init() {
 	NodesSelector = os.Getenv("NODES_SELECTOR")
 }
 
-type NodeTopology struct {
-	NodeName      string
-	InterfaceList []string
-	NodeObject    *corev1.Node
-}
-
-// PtpEnabled returns the topology of a given node, filtering using the given selector.
-func PtpEnabled(aclient *client.ClientSet) ([]*NodeTopology, error) {
-	nodeDevicesList, err := aclient.NodePtpDevices(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	if len(nodeDevicesList.Items) == 0 {
-		return nil, fmt.Errorf("Zero nodes found")
-	}
-
-	nodeTopologyList := []*NodeTopology{}
-
-	nodesList, err := MatchingOptionalSelectorPTP(nodeDevicesList.Items)
-	if err != nil {
-		return nodeTopologyList, fmt.Errorf("error getting node list, err= %s", err)
-	}
-	for _, node := range nodesList {
-		if len(node.Status.Devices) > 0 {
-			interfaceList := []string{}
-			for _, iface := range node.Status.Devices {
-				interfaceList = append(interfaceList, iface.Name)
-			}
-			nodeTopology := NodeTopology{NodeName: node.Name, InterfaceList: interfaceList}
-			nodeTopologyList = append(nodeTopologyList, &nodeTopology)
-		}
-	}
-
-	return nodeTopologyList, nil
-}
 
 func LabelNode(nodeName, key, value string) (*corev1.Node, error) {
 	NodeObject, err := client.Client.CoreV1().Nodes().Get(context.Background(), nodeName, metav1.GetOptions{})
@@ -112,13 +76,6 @@ func MatchingOptionalSelectorPTP(toFilter []ptpv1.NodePtpDevice) ([]ptpv1.NodePt
 	return res, nil
 }
 
-func IsSingleNodeCluster() (bool, error) {
-	nodes, err := client.Client.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		return false, err
-	}
-	return len(nodes.Items) == 1, nil
-}
 
 // expectedReachabilityStatus true means test if the node is reachable, false means test if the node is unreachable
 func WaitForNodeReachability(nodeName string, timeout time.Duration, expectedReachabilityStatus bool) {

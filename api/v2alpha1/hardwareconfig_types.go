@@ -590,33 +590,6 @@ func (cc *ClockChain) Validate() error {
 	return nil
 }
 
-// String methods for pretty printing
-
-func (cc *ClockChain) String() string {
-	var sb strings.Builder
-	sb.WriteString("Clock Chain Configuration:\n")
-	sb.WriteString(fmt.Sprintf("  Subsystems: %d\n", len(cc.Structure)))
-
-	if cc.CommonDefinitions != nil {
-		sb.WriteString(fmt.Sprintf("  eSync Definitions: %d\n", len(cc.CommonDefinitions.ESyncDefinitions)))
-	}
-
-	if cc.Behavior != nil {
-		sb.WriteString(fmt.Sprintf("  Sources: %d\n", len(cc.Behavior.Sources)))
-		sb.WriteString(fmt.Sprintf("  Conditions: %d\n", len(cc.Behavior.Conditions)))
-	}
-
-	return sb.String()
-}
-
-func (s *Subsystem) String() string {
-	key := s.HardwareSpecificDefinitions
-	if key == "" {
-		key = "default"
-	}
-	return fmt.Sprintf("Subsystem %s (Plugin: %s, Network Interface: %s, Ethernet Ports: %d)",
-		s.Name, key, s.DPLL.NetworkInterface, len(s.Ethernet))
-}
 
 // Plugin system types and functions
 

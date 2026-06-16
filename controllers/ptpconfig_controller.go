@@ -220,7 +220,7 @@ func getRecommendProfilesNamesForConfig(ptpConfig *ptpv1.PtpConfig, node corev1.
 
 		// Check if the policy matches the node
 		switch {
-		case !ptpNodeMatches(&node, r.Match):
+		case !nodeMatches(&node, r.Match):
 			continue
 		case !foundPolicy:
 			profilesNames[*r.Profile] = struct{}{}
@@ -236,26 +236,6 @@ func getRecommendProfilesNamesForConfig(ptpConfig *ptpv1.PtpConfig, node corev1.
 	return profilesNames
 }
 
-// ptpNodeMatches checks if a node matches the given match rules for PTP config
-func ptpNodeMatches(node *corev1.Node, matchRuleList []ptpv1.MatchRule) bool {
-	// Loop over Match list
-	for _, m := range matchRuleList {
-		// NodeName has higher priority than nodeLabel
-		// Return immediately if nodeName matches
-		if m.NodeName != nil && *m.NodeName == node.Name {
-			return true
-		}
-
-		// Return immediately when label matches
-		for k := range node.Labels {
-			if m.NodeLabel != nil && *m.NodeLabel == k {
-				return true
-			}
-		}
-	}
-
-	return false
-}
 
 func (r *PtpConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).

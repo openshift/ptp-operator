@@ -126,17 +126,6 @@ func WaitForCondition(cs *testclient.ClientSet, pod *corev1.Pod, conditionType c
 	})
 }
 
-// WaitForPhase waits until the pod will be in specified phase
-func WaitForPhase(cs *testclient.ClientSet, pod *corev1.Pod, phaseType corev1.PodPhase, timeout time.Duration) error {
-	return wait.PollImmediate(time.Second, timeout, func() (bool, error) {
-		updatePod, err := cs.Pods(pod.Namespace).Get(context.Background(), pod.Name, metav1.GetOptions{})
-		if err != nil {
-			return false, nil
-		}
-
-		return updatePod.Status.Phase == phaseType, nil
-	})
-}
 
 func findRegexInStream(stream io.ReadCloser, r *regexp.Regexp, timeout time.Duration) (matches [][]string, err error) {
 	logContent := ""

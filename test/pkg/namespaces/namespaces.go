@@ -101,18 +101,6 @@ func Clean(namespace string, prefix string, cs *testclient.ClientSet) error {
 	return err
 }
 
-func isPlatformService(namespace, serviceName string) bool {
-	switch {
-	case namespace != "default":
-		return false
-	case serviceName == "kubernetes":
-		return true
-	case serviceName == "openshift":
-		return true
-	default:
-		return false
-	}
-}
 
 func Delete(aNamespace string, cs *testclient.ClientSet) error {
 	return cs.Namespaces().Delete(context.Background(), aNamespace, metav1.DeleteOptions{})

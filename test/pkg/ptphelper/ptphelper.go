@@ -28,7 +28,6 @@ import (
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/client"
-	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/nodes"
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/pods"
 
 	configv1 "github.com/openshift/api/config/v1"
@@ -242,22 +241,6 @@ func IsClockUnderTestPod(aPod *v1core.Pod) (result bool, err error) {
 	return result, nil
 }
 
-// Returns the slave node label to be used in the test, empty string label cound not be found
-func GetPTPConfigs(namespace string) ([]ptpv1.PtpConfig, []ptpv1.PtpConfig) {
-	var masters []ptpv1.PtpConfig
-	var slaves []ptpv1.PtpConfig
-
-	configList, err := client.Client.PtpConfigs(namespace).List(context.Background(), metav1.ListOptions{})
-	Expect(err).ToNot(HaveOccurred())
-	for _, config := range configList.Items {
-		for _, profile := range config.Spec.Profile {
-			if IsPtpSlave(profile.Ptp4lOpts, profile.Phc2sysOpts) {
-				slaves = append(slaves, config)
-			}
-		}
-	}
-	return masters, slaves
-}
 func GetPtpPodOnNode(nodeName string) (v1core.Pod, error) {
 	WaitForPtpDaemonToExist()
 	runningPod, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
@@ -271,122 +254,6 @@ func GetPtpPodOnNode(nodeName string) (v1core.Pod, error) {
 	return v1core.Pod{}, errors.New("pod not found")
 }
 
-func GetMasterSlaveAttachedInterfaces(pod *v1core.Pod) []string {
-	var IntList []string
-	Eventually(func() error {
-		stdout, _, err := pods.ExecCommand(client.Client, true, pod, pkg.PtpContainerName, []string{"ls", "/sys/class/net/"})
-		if err != nil {
-			return err
-		}
-
-		if stdout.String() == "" {
-			return errors.New("empty response from pod retrying")
-		}
-
-		IntList = strings.Split(strings.Join(strings.Fields(stdout.String()), " "), " ")
-		if len(IntList) == 0 {
-			return errors.New("no interface detected")
-		}
-
-		return nil
-	}, pkg.TimeoutIn3Minutes, 5*time.Second).Should(BeNil())
-
-	return IntList
-}
-
-func GetPtpMasterSlaveAttachedInterfaces(pod *v1core.Pod) []string {
-	var ptpSupportedInterfaces []string
-	var stdout bytes.Buffer
-
-	intList := GetMasterSlaveAttachedInterfaces(pod)
-	for _, interf := range intList {
-		skipInterface := false
-		PCIAddr := ""
-		var err error
-
-		// Get readlink status
-		Eventually(func() error {
-			stdout, _, err = pods.ExecCommand(client.Client, true, pod, pkg.PtpContainerName, []string{"readlink", "-f", fmt.Sprintf("/sys/class/net/%s", interf)})
-			if err != nil {
-				return err
-			}
-
-			if stdout.String() == "" {
-				return errors.New("empty response from pod retrying")
-			}
-
-			// Skip virtual interface
-			if strings.Contains(stdout.String(), "devices/virtual/net") {
-				skipInterface = true
-				return nil
-			}
-
-			// sysfs address looks like: /sys/devices/pci0000:17/0000:17:02.0/0000:19:00.5/net/eno1
-			pathSegments := strings.Split(stdout.String(), "/")
-			if len(pathSegments) != 8 {
-				skipInterface = true
-				return nil
-			}
-
-			PCIAddr = pathSegments[5] // 0000:19:00.5
-			return nil
-		}, pkg.TimeoutIn3Minutes, 5*time.Second).Should(BeNil())
-
-		if skipInterface || PCIAddr == "" {
-			continue
-		}
-
-		// Check if this is a virtual function
-		Eventually(func() error {
-			// If the physfn doesn't exist this means the interface is not a virtual function so we ca add it to the list
-			stdout, _, err = pods.ExecCommand(client.Client, true, pod, pkg.PtpContainerName, []string{"ls", fmt.Sprintf("/sys/bus/pci/devices/%s/physfn", PCIAddr)})
-			if err != nil {
-				if strings.Contains(stdout.String(), "No such file or directory") {
-					return nil
-				}
-				return err
-			}
-
-			if stdout.String() == "" {
-				return errors.New("empty response from pod retrying")
-			}
-
-			// Virtual function
-			skipInterface = true
-			return nil
-		}, 2*time.Minute, 1*time.Second).Should(BeNil())
-
-		if skipInterface {
-			continue
-		}
-
-		Eventually(func() error {
-			stdout, _, err = pods.ExecCommand(client.Client, true, pod, pkg.PtpContainerName, []string{"ethtool", "-T", interf})
-			if stdout.String() == "" {
-				return errors.New("empty response from pod retrying")
-			}
-
-			if err != nil {
-				if strings.Contains(stdout.String(), "No such device") {
-					skipInterface = true
-					return nil
-				}
-				return err
-			}
-			return nil
-		}, 2*time.Minute, 1*time.Second).Should(BeNil())
-
-		if skipInterface {
-			continue
-		}
-
-		if IsPTPEnabled(&stdout) {
-			ptpSupportedInterfaces = append(ptpSupportedInterfaces, interf)
-			logrus.Debugf("Append ptp interface=%s from node=%s", interf, pod.Spec.NodeName)
-		}
-	}
-	return ptpSupportedInterfaces
-}
 
 // This function parses ethtool command output and detect interfaces which supports ptp protocol
 func IsPTPEnabled(ethToolOutput *bytes.Buffer) bool {
@@ -875,21 +742,6 @@ func GetProfileName(config *ptpv1.PtpConfig) (string, error) {
 	}
 	return "", fmt.Errorf("cannot find valid test profile name")
 }
-func RetrievePTPProfileLabels(configs []ptpv1.PtpConfig) string {
-	for _, config := range configs {
-		for _, recommend := range config.Spec.Recommend {
-			for _, match := range recommend.Match {
-				label := *match.NodeLabel
-				nodeCount, err := nodes.LabeledNodesCount(label)
-				Expect(err).ToNot(HaveOccurred())
-				if nodeCount > 0 {
-					return label
-				}
-			}
-		}
-	}
-	return ""
-}
 
 func GetPTPPodWithPTPConfig(ptpConfig *ptpv1.PtpConfig) (aPtpPod *v1core.Pod, err error) {
 	ptpPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
@@ -996,6 +848,8 @@ func IsExternalGM() (out bool) {
 	return out
 }
 
+
+
 func execPodCommand(nodeName string, cmd []string) (stdoutBuf, stderrBuf bytes.Buffer, err error) {
 
 	WaitForPtpDaemonToExist()
@@ -1100,3 +954,5 @@ func IsPTPOperatorVersionAtLeast(minVersion string) bool {
 
 	return !ver.LessThan(minVer)
 }
+
+

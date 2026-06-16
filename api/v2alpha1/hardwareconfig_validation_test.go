@@ -3,6 +3,7 @@ package v2alpha1
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"gopkg.in/yaml.v3"
@@ -237,7 +238,7 @@ func TestClockChainValidation_EdgeCases(t *testing.T) {
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("Expected error containing %q, got nil", tt.errMsg)
-				} else if tt.errMsg != "" && !contains(err.Error(), tt.errMsg) {
+				} else if tt.errMsg != "" && !strings.Contains(err.Error(), tt.errMsg) {
 					t.Errorf("Expected error containing %q, got %q", tt.errMsg, err.Error())
 				}
 			} else {
@@ -249,16 +250,3 @@ func TestClockChainValidation_EdgeCases(t *testing.T) {
 	}
 }
 
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
-		(len(s) > 0 && len(substr) > 0 && findSubstring(s, substr)))
-}
-
-func findSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}

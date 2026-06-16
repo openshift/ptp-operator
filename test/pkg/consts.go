@@ -3,14 +3,9 @@ package pkg
 import "time"
 
 const (
-	// NamespaceTesting contains the name of the testing namespace
-
 	ETHTOOL_HARDWARE_RECEIVE_CAP   = "hardware-receive"
 	ETHTOOL_HARDWARE_TRANSMIT_CAP  = "hardware-transmit"
 	ETHTOOL_HARDWARE_RAW_CLOCK_CAP = "hardware-raw-clock"
-	ETHTOOL_RX_HARDWARE_FLAG       = "(SOF_TIMESTAMPING_RX_HARDWARE)"
-	ETHTOOL_TX_HARDWARE_FLAG       = "(SOF_TIMESTAMPING_TX_HARDWARE)"
-	ETHTOOL_RAW_HARDWARE_FLAG      = "(SOF_TIMESTAMPING_RAW_HARDWARE)"
 	PtpLinuxDaemonNamespace        = "openshift-ptp"
 	PtpLinuxDaemonPodsLabel        = "app=linuxptp-daemon"
 	PtpOperatorDeploymentName      = "ptp-operator"
