@@ -181,7 +181,7 @@ jobs:
           BUILD
 
       - name: Upload image tarball
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: ptp-images
           path: /tmp/ptp-images.tar
@@ -253,7 +253,7 @@ jobs:
         run: sudo cp -a "$GITHUB_WORKSPACE" /root/ptp-operator
 
       - name: Download image tarball
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           name: ptp-images
           path: /tmp
@@ -295,7 +295,7 @@ jobs:
 
       - name: Upload test artifacts
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: ptp-artifacts-${{ matrix.mode }}
           path: /tmp/artifacts/
