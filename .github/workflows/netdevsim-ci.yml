@@ -148,7 +148,7 @@ jobs:
           echo "RAM: $(free -h | awk '/Mem:/{print $2}')"
           echo "Kernel: $(uname -r)"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install podman 5.x
         run: |
@@ -176,10 +176,12 @@ jobs:
           VM_IP=$(hostname -I | awk '{print $1}')
           cd /root/ptp-operator/scripts
           ./run-on-vm.sh --dkms --images "${VM_IP}"
+
+          rm -rf /tmp/go-build* /root/.cache/go-build
           BUILD
 
       - name: Upload image tarball
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ptp-images
           path: /tmp/ptp-images.tar
@@ -203,7 +205,7 @@ jobs:
           echo "RAM: $(free -h | awk '/Mem:/{print $2}')"
           echo "Kernel: $(uname -r)"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install podman 5.x
         run: |
@@ -251,7 +253,7 @@ jobs:
         run: sudo cp -a "$GITHUB_WORKSPACE" /root/ptp-operator
 
       - name: Download image tarball
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: ptp-images
           path: /tmp
@@ -269,6 +271,15 @@ jobs:
           ./run-on-vm.sh --dkms --load /tmp/ptp-images.tar "${VM_IP}"
           LOAD
 
+      - name: "Free disk space before tests"
+        run: |
+          sudo bash -l <<'CLEANUP'
+          set -euo pipefail
+          rm -rf /tmp/ptp-images.tar /tmp/ptp-images-load
+          rm -rf /tmp/go-build* /var/cache/apt /root/.cache
+          df -h
+          CLEANUP
+
       - name: "Run scenario: ${{ matrix.mode }}"
         run: |
           sudo bash -l <<'DEPLOY'
@@ -284,7 +295,7 @@ jobs:
 
       - name: Upload test artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ptp-artifacts-${{ matrix.mode }}
           path: /tmp/artifacts/
