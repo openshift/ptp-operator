@@ -148,7 +148,7 @@ jobs:
           echo "RAM: $(free -h | awk '/Mem:/{print $2}')"
           echo "Kernel: $(uname -r)"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install podman 5.x
         run: |
@@ -181,7 +181,7 @@ jobs:
           BUILD
 
       - name: Upload image tarball
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ptp-images
           path: /tmp/ptp-images.tar
@@ -205,7 +205,7 @@ jobs:
           echo "RAM: $(free -h | awk '/Mem:/{print $2}')"
           echo "Kernel: $(uname -r)"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install podman 5.x
         run: |
@@ -253,7 +253,7 @@ jobs:
         run: sudo cp -a "$GITHUB_WORKSPACE" /root/ptp-operator
 
       - name: Download image tarball
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: ptp-images
           path: /tmp
@@ -295,7 +295,7 @@ jobs:
 
       - name: Upload test artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ptp-artifacts-${{ matrix.mode }}
           path: /tmp/artifacts/
