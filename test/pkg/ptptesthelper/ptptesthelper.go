@@ -426,6 +426,8 @@ type PortEngine struct {
 }
 
 func (p *PortEngine) TurnPortDown(port string) error {
+	p.nmSetManaged(port, false)
+	DeferCleanup(p.nmSetManaged, port, true)
 	stdout, stderr, err := pods.ExecCommand(client.Client, true, p.ClockPod, pkg.RecoveryNetworkOutageDaemonSetContainerName,
 		[]string{"ip", "link", "set", port, "down"})
 
@@ -438,6 +440,9 @@ func (p *PortEngine) TurnPortUp(port string) error {
 		[]string{"ip", "link", "set", port, "up"})
 
 	logrus.Infof("Turning interface: %s in pod %s up, stdout: %s, stderr: %s", port, p.ClockPod.Name, stdout.String(), stderr.String())
+	if err == nil {
+		p.nmSetManaged(port, true)
+	}
 	return err
 }
 
@@ -451,13 +456,9 @@ func (p *PortEngine) TurnAllPortsDown(skippedInterfaces map[string]bool) error {
 			logrus.Infof("Skipping interface: %s (in skip list)", port)
 			continue
 		}
-		stdout, stderr, err := pods.ExecCommand(client.Client, true, p.ClockPod, pkg.RecoveryNetworkOutageDaemonSetContainerName,
-			[]string{"ip", "link", "set", port, "down"})
-		if err != nil {
+		if err := p.TurnPortDown(port); err != nil {
 			return err
 		}
-
-		logrus.Infof("Turning interface: %s in pod %s down, stdout: %s, stderr: %s", port, p.ClockPod.Name, stdout.String(), stderr.String())
 	}
 	return nil
 }
@@ -468,13 +469,9 @@ func (p *PortEngine) TurnAllPortsUp() error {
 		return nil
 	}
 	for _, port := range p.Ports {
-		stdout, stderr, err := pods.ExecCommand(client.Client, true, p.ClockPod, pkg.RecoveryNetworkOutageDaemonSetContainerName,
-			[]string{"ip", "link", "set", port, "up"})
-		if err != nil {
+		if err := p.TurnPortUp(port); err != nil {
 			return err
 		}
-
-		logrus.Infof("Turning interface: %s in pod %s up, stdout: %s, stderr: %s", port, p.ClockPod.Name, stdout.String(), stderr.String())
 	}
 	return nil
 }
@@ -781,12 +778,9 @@ func VerifyNICClockClass(fullConfig testconfig.TestConfig, nic NICInfo, expected
 	}
 }
 
-// TurnOffAndWaitFaulty disables NetworkManager management on the interface,
-// brings it down, and polls until its clock role becomes FAULTY. Disabling NM
-// prevents it from auto-recovering the link while the test expects it to stay down.
+// TurnOffAndWaitFaulty brings the interface down and polls until its clock
+// role becomes FAULTY. NM handling is done by TurnPortDown.
 func (p *PortEngine) TurnOffAndWaitFaulty(iface, nodeName string) {
-	p.nmSetManaged(iface, false)
-	DeferCleanup(p.nmSetManaged, iface, true)
 	err := p.TurnPortDown(iface)
 	Expect(err).NotTo(HaveOccurred())
 	Eventually(func() error {
@@ -796,12 +790,11 @@ func (p *PortEngine) TurnOffAndWaitFaulty(iface, nodeName string) {
 		iface+" should be FAULTY")
 }
 
-// TurnOnAndWaitSlave brings the interface up, re-enables NetworkManager
-// management, and polls until its clock role recovers to SLAVE.
+// TurnOnAndWaitSlave brings the interface up and polls until its clock
+// role recovers to SLAVE. NM handling is done by TurnPortUp.
 func (p *PortEngine) TurnOnAndWaitSlave(iface, nodeName string) {
 	err := p.TurnPortUp(iface)
 	Expect(err).NotTo(HaveOccurred())
-	p.nmSetManaged(iface, true)
 	Eventually(func() error {
 		return metrics.CheckClockRole([]metrics.MetricRole{metrics.MetricRoleSlave},
 			[]string{iface}, &nodeName)
