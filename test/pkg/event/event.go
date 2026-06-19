@@ -426,16 +426,6 @@ func DeleteConsumerNamespace() error {
 	return nil
 }
 
-// delete Service
-func DeleteService(namespace, name string) {
-	// Delete service
-	foregroundDelete := v1.DeletePropagationForeground
-	err := client.Client.CoreV1().Services(namespace).Delete(context.TODO(), name, v1.DeleteOptions{PropagationPolicy: &foregroundDelete})
-	if err != nil {
-		logrus.Warnf("error deleting ns=%s service=%s err: %v", namespace, name, err)
-	}
-}
-
 const DeleteBackground = "deleteBackground"
 const DeleteForeground = "deleteForeground"
 

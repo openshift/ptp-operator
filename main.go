@@ -34,7 +34,6 @@ import (
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/names"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -316,17 +315,6 @@ func createDefaultOperatorConfig(ctx context.Context, cfg *rest.Config) error {
 		return err
 	}
 	return nil
-}
-
-func setupChecks(mgr ctrl.Manager, checker healthz.Checker) {
-	if err := mgr.AddReadyzCheck("webhook", checker); err != nil {
-		setupLog.Error(err, "unable to create ready check")
-		os.Exit(1)
-	}
-	if err := mgr.AddHealthzCheck("webhook", checker); err != nil {
-		setupLog.Error(err, "unable to create health check")
-		os.Exit(1)
-	}
 }
 
 // fetchTLSConfig creates a temporary client to read the APIServer TLS profile

@@ -43,6 +43,7 @@ const (
 	Master PtpRole = 1
 	Slave  PtpRole = 0
 )
+
 const PTP_SEC_FOLDER = "/etc/ptp-secret-mount/"
 
 // log is for logging in this package.
@@ -442,7 +443,6 @@ func (v *ptpConfigValidator) ValidateDelete(ctx context.Context, obj runtime.Obj
 }
 
 func getInterfaces(input *Ptp4lConf, mode PtpRole) (interfaces []string) {
-
 	for index, section := range input.sections {
 		sectionName := strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(index, "[", ""), "]", ""))
 		if strings.TrimSpace(section.options["masterOnly"]) == strconv.Itoa(int(mode)) {
@@ -453,7 +453,6 @@ func getInterfaces(input *Ptp4lConf, mode PtpRole) (interfaces []string) {
 }
 
 func GetInterfaces(config PtpConfig, mode PtpRole) (interfaces []string) {
-
 	if len(config.Spec.Profile) > 1 {
 		logrus.Warnf("More than one profile detected for ptpconfig %s", config.ObjectMeta.Name)
 	}

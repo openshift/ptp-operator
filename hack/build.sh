@@ -19,7 +19,7 @@ if [ -z ${VERSION_OVERRIDE+a} ]; then
 	VERSION_OVERRIDE=$(git describe --abbrev=8 --dirty --always)
 fi
 
-GLDFLAGS+="-X ${REPO}/pkg/version.Raw=${VERSION_OVERRIDE}"
+GLDFLAGS+="-X ${REPO}/version.Version=${VERSION_OVERRIDE}"
 
 export BIN_PATH=build/_output/bin/
 export BIN_NAME=ptp-operator

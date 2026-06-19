@@ -54,9 +54,6 @@ const (
 
 const (
 	DPLL_LOCKED_HO_ACQ = 3
-	DPLL_HOLDOVER      = 4
-	DPLL_FREERUN       = 1
-	DPLL_LOCKED        = 2
 )
 const (
 	ClockClassFreerun = 248
@@ -2829,166 +2826,6 @@ func checkStabilityOfWPCGMUsingMetrics(fullConfig testconfig.TestConfig) {
 	checkPTPNMEAStatus(fullConfig, "1")
 }
 
-func verifyEventsV1(expectedState string) {
-	//TODO
-	switch expectedState {
-	case "LOCKED":
-		/*
-			7.2.3.1 Synchronization State (implemented)
-			event.sync.sync-status.synchronization-state-change
-			/sync/sync-status/sync-state LOCKED
-
-			7.2.3.3 PTP Synchronization State (implemented)
-			event.sync.ptp-status.ptp-state-change
-			/sync/ptp-status/lock-state LOCKED
-
-			7.2.3.6 GNSS-Sync-State (implemented)
-			event.sync.gnss-status.gnss-state-change
-			/sync/gnss-status/gnss-sync-status LOCKED
-
-			7.2.3.8 OS Clock Sync-State (implemented)
-			event.sync.sync-status.os-clock-sync-state-change
-			/sync/sync-status/os-clock-sync-state
-
-
-			7.2.3.10 PTP Clock Class Change (implemented)
-			event.sync.ptp-status.ptp-clock-class-change
-			/sync/ptp-status/clock-class LOCKED
-		*/
-	case "HOLDOVER":
-		/*
-			7.2.3.1 Synchronization State (implemented)
-			event.sync.sync-status.synchronization-state-change
-			/sync/sync-status/sync-state HOLDOVER
-
-			7.2.3.3 PTP Synchronization State (implemented)
-			event.sync.ptp-status.ptp-state-change
-			/sync/ptp-status/lock-state HOLDOVER
-
-			7.2.3.6 GNSS-Sync-State (implemented)
-			event.sync.gnss-status.gnss-state-change
-			/sync/gnss-status/gnss-sync-status HOLDOVER
-
-			7.2.3.8 OS Clock Sync-State (implemented)
-			event.sync.sync-status.os-clock-sync-state-change
-			/sync/sync-status/os-clock-sync-state
-
-
-			7.2.3.10 PTP Clock Class Change (implemented)
-			event.sync.ptp-status.ptp-clock-class-change
-			/sync/ptp-status/clock-class HOLDOVER
-
-		*/
-
-	case "FREERUN":
-		/*
-			7.2.3.1 Synchronization State (implemented)
-			event.sync.sync-status.synchronization-state-change
-			/sync/sync-status/sync-state FREERUN
-
-			7.2.3.3 PTP Synchronization State (implemented)
-			event.sync.ptp-status.ptp-state-change
-			/sync/ptp-status/lock-state FREERUN
-
-			7.2.3.6 GNSS-Sync-State (implemented)
-			event.sync.gnss-status.gnss-state-change
-			/sync/gnss-status/gnss-sync-status FREERUN
-
-			7.2.3.8 OS Clock Sync-State (implemented)
-			event.sync.sync-status.os-clock-sync-state-change
-			/sync/sync-status/os-clock-sync-state
-
-
-			7.2.3.10 PTP Clock Class Change (implemented)
-			event.sync.ptp-status.ptp-clock-class-change
-			/sync/ptp-status/clock-class FREERUN
-
-		*/
-
-	}
-
-}
-
-func verifyEventsV2(expectedState string) {
-	//TODO
-	switch expectedState {
-	case "LOCKED":
-		/*
-			7.2.3.1 Synchronization State (implemented)
-			event.sync.sync-status.synchronization-state-change
-			/sync/sync-status/sync-state LOCKED
-
-			7.2.3.3 PTP Synchronization State (implemented)
-			event.sync.ptp-status.ptp-state-change
-			/sync/ptp-status/lock-state LOCKED
-
-			7.2.3.6 GNSS-Sync-State (implemented)
-			event.sync.gnss-status.gnss-state-change
-			/sync/gnss-status/gnss-sync-status LOCKED
-
-			7.2.3.8 OS Clock Sync-State (implemented)
-			event.sync.sync-status.os-clock-sync-state-change
-			/sync/sync-status/os-clock-sync-state
-
-
-			7.2.3.10 PTP Clock Class Change (implemented)
-			event.sync.ptp-status.ptp-clock-class-change
-			/sync/ptp-status/clock-class LOCKED
-		*/
-	case "HOLDOVER":
-		/*
-			7.2.3.1 Synchronization State (implemented)
-			event.sync.sync-status.synchronization-state-change
-			/sync/sync-status/sync-state HOLDOVER
-
-			7.2.3.3 PTP Synchronization State (implemented)
-			event.sync.ptp-status.ptp-state-change
-			/sync/ptp-status/lock-state HOLDOVER
-
-			7.2.3.6 GNSS-Sync-State (implemented)
-			event.sync.gnss-status.gnss-state-change
-			/sync/gnss-status/gnss-sync-status HOLDOVER
-
-			7.2.3.8 OS Clock Sync-State (implemented)
-			event.sync.sync-status.os-clock-sync-state-change
-			/sync/sync-status/os-clock-sync-state
-
-
-			7.2.3.10 PTP Clock Class Change (implemented)
-			event.sync.ptp-status.ptp-clock-class-change
-			/sync/ptp-status/clock-class HOLDOVER
-
-		*/
-
-	case "FREERUN":
-		/*
-			7.2.3.1 Synchronization State (implemented)
-			event.sync.sync-status.synchronization-state-change
-			/sync/sync-status/sync-state FREERUN
-
-			7.2.3.3 PTP Synchronization State (implemented)
-			event.sync.ptp-status.ptp-state-change
-			/sync/ptp-status/lock-state FREERUN
-
-			7.2.3.6 GNSS-Sync-State (implemented)
-			event.sync.gnss-status.gnss-state-change
-			/sync/gnss-status/gnss-sync-status FREERUN
-
-			7.2.3.8 OS Clock Sync-State (implemented)
-			event.sync.sync-status.os-clock-sync-state-change
-			/sync/sync-status/os-clock-sync-state
-
-
-			7.2.3.10 PTP Clock Class Change (implemented)
-			event.sync.ptp-status.ptp-clock-class-change
-			/sync/ptp-status/clock-class FREERUN
-
-		*/
-
-	}
-
-}
-
 func testCaseEnabled(testCase TestCase) bool {
 
 	enabledTests, isSet := os.LookupEnv("ENABLE_TEST_CASE")
@@ -3649,25 +3486,6 @@ func stopMonitor(term chan bool) {
 	select {
 	case term <- true: // tell goroutine to exit
 	default: // avoid blocking if it’s already been stopped
-	}
-}
-
-// waitForPtpStateEvent waits until a PTP state event with given state appears on the channel
-func waitForPtpStateEvent(events <-chan exports.StoredEvent, expected ptpEvent.SyncState, timeout time.Duration) {
-	timer := time.NewTimer(timeout)
-	defer timer.Stop()
-	for {
-		select {
-		case <-timer.C:
-			Fail(fmt.Sprintf("Timed out waiting for PTP state event %s", expected))
-			return
-		case ev := <-events:
-			if res, ok := processEvent(ptpEvent.PtpStateChange, ev); ok {
-				if state, ok2 := res.Values["notification"].(string); ok2 && state == string(expected) {
-					return
-				}
-			}
-		}
 	}
 }
 

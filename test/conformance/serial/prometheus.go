@@ -28,14 +28,6 @@ const openshiftPtpMetricPrefix = "openshift_ptp_"
 //	     "metric" : {
 //	       "pod" : "mm-pod1",
 //	}}]}}
-type queryOutput struct {
-	Data data
-}
-
-type data struct {
-	Result []result
-}
-
 type result struct {
 	Metric metric
 }
