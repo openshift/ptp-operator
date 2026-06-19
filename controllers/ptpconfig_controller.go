@@ -204,7 +204,8 @@ func getRecommendProfilesNamesForConfig(ptpConfig *ptpv1.PtpConfig, node corev1.
 	// Find matching profiles
 	profilesNames := make(map[string]interface{})
 	foundPolicy := false
-	priority := int64(-1)
+	const nilPriority int64 = -1
+	priority := nilPriority
 
 	// Loop through recommendations from high priority (0) to low (*)
 	for _, r := range allRecommend {
@@ -218,15 +219,20 @@ func getRecommendProfilesNamesForConfig(ptpConfig *ptpv1.PtpConfig, node corev1.
 			continue
 		}
 
+		currentPriority := nilPriority
+		if r.Priority != nil {
+			currentPriority = *r.Priority
+		}
+
 		// Check if the policy matches the node
 		switch {
 		case !nodeMatches(&node, r.Match):
 			continue
 		case !foundPolicy:
 			profilesNames[*r.Profile] = struct{}{}
-			priority = *r.Priority
+			priority = currentPriority
 			foundPolicy = true
-		case *r.Priority == priority:
+		case currentPriority == priority:
 			profilesNames[*r.Profile] = struct{}{}
 		default:
 

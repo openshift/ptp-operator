@@ -263,6 +263,26 @@ func TestGetRecommendProfilesNamesForConfig_SamePriority(t *testing.T) {
 	assert.Contains(t, result, "profile-b")
 }
 
+func TestGetRecommendProfilesNamesForConfig_NilPriority(t *testing.T) {
+	label := "ptp/test"
+	cfg := ptpv1.PtpConfig{
+		Spec: ptpv1.PtpConfigSpec{
+			Recommend: []ptpv1.PtpRecommend{
+				{Profile: strPtr("nil-pri"), Priority: nil, Match: []ptpv1.MatchRule{{NodeLabel: &label}}},
+			},
+		},
+	}
+	node := corev1.Node{ObjectMeta: metav1.ObjectMeta{
+		Name: "worker-1", Labels: map[string]string{"ptp/test": ""},
+	}}
+
+	assert.NotPanics(t, func() {
+		result := getRecommendProfilesNamesForConfig(&cfg, node)
+		assert.Len(t, result, 1)
+		assert.Contains(t, result, "nil-pri")
+	})
+}
+
 func TestGetRecommendProfilesNamesForConfig_DifferentPriority(t *testing.T) {
 	label := "ptp/test"
 	cfg := ptpv1.PtpConfig{
