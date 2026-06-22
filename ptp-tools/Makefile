@@ -46,14 +46,25 @@ podman-build-%:
 
 podman-pushall: $(foreach v, $(VALUES), podman-push-$(v))
 
+ifdef GITHUB_ACTIONS
+podman-push-%:
+	podman push ${IMG_PREFIX}:$* docker://${IMG_PREFIX}:$*
+else
 podman-push-%:
 	podman manifest push ${IMG_PREFIX}:$* docker://${IMG_PREFIX}:$*
+endif
 
 podman-saveall: $(foreach v, $(VALUES), podman-save-$(v))
 
+ifdef GITHUB_ACTIONS
+podman-save-%:
+	mkdir -p $(SAVE_DIR)
+	podman save -o $(SAVE_DIR)/$*.tar ${IMG_PREFIX}:$*
+else
 podman-save-%:
 	mkdir -p $(SAVE_DIR)
 	podman save -m -o $(SAVE_DIR)/$*.tar ${IMG_PREFIX}:$*
+endif
 
 podman-build-and-pushall: $(foreach v, $(VALUES), podman-build-and-push-$(v))
 
@@ -69,15 +80,28 @@ podman-build-and-save-%:
 	$(MAKE) podman-build-$*
 	$(MAKE) podman-save-$*
 
+ifdef GITHUB_ACTIONS
+build-image:
+	podman build $(CACHE_FLAG) --network host --platform $(PLATFORM) -t ${IMG_PREFIX}:$(VAR) -f Dockerfile.$(VAR) ..
+else
 build-image:
 	podman manifest create ${IMG_PREFIX}:$(VAR)
-	podman build $(CACHE_FLAG) --network host --platform $(PLATFORM) -f Dockerfile.$(VAR)  --manifest ${IMG_PREFIX}:$(VAR)  ..
+	podman build $(CACHE_FLAG) --network host --platform $(PLATFORM) -f Dockerfile.$(VAR) --manifest ${IMG_PREFIX}:$(VAR) ..
+endif
 
+ifdef GITHUB_ACTIONS
+clean-image:
+	podman rmi ${IMG_PREFIX}:$(VAR) || true
+
+podman-clean-%:
+	podman rmi ${IMG_PREFIX}:$* || true
+else
 clean-image:
 	podman manifest rm ${IMG_PREFIX}:$(VAR) || true
 
 podman-clean-%:
 	podman manifest rm ${IMG_PREFIX}:$* || true
+endif
 
 podman-cleanall: $(foreach v, $(VALUES), podman-clean-$(v))
 
