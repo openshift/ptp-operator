@@ -786,9 +786,10 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					return portEngine.RolesInOnly([]metrics.MetricRole{metrics.MetricRoleSlave, metrics.MetricRoleListening})
 				}, 150*time.Second, 30*time.Second).Should(BeNil())
 
+				nodeName := fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName
+
 				By("Port0: down")
-				err = portEngine.TurnPortDown(portEngine.Ports[0])
-				Expect(err).To(BeNil())
+				portEngine.TurnOffAndWaitFaulty(portEngine.Ports[0], nodeName)
 				By("Check sync")
 				err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), grandmasterID, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
 				Expect(err).To(BeNil())
@@ -798,8 +799,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				}, 120*time.Second, 1*time.Second).Should(BeNil())
 
 				By("Port1: down")
-				err = portEngine.TurnPortDown(portEngine.Ports[1])
-				Expect(err).To(BeNil())
+				portEngine.TurnOffAndWaitFaulty(portEngine.Ports[1], nodeName)
 				By("Check holdover")
 				err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), grandmasterID, metrics.MetricClockStateHoldOver, metrics.MetricRoleFaulty, false)
 				Expect(err).To(BeNil())
@@ -812,8 +812,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				}, 120*time.Second, 1*time.Second).Should(BeNil())
 
 				By("Port1: up")
-				err = portEngine.TurnPortUp(portEngine.Ports[1])
-				Expect(err).To(BeNil())
+				portEngine.TurnOnAndWaitSlave(portEngine.Ports[1], nodeName)
 				By("Check sync")
 				err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), grandmasterID, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
 				Expect(err).To(BeNil())
@@ -823,8 +822,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				}, 120*time.Second, 1*time.Second).Should(BeNil())
 
 				By("Port0: up")
-				err = portEngine.TurnPortUp(portEngine.Ports[0])
-				Expect(err).To(BeNil())
+				portEngine.TurnOnAndWaitSlave(portEngine.Ports[0], nodeName)
 				By("Check sync")
 				err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), grandmasterID, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
 				Expect(err).To(BeNil())
@@ -1076,13 +1074,8 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				ifDownTime := time.Now()
 				By("Taking down the selected interface " + selectedInterface)
 
-				// Use the PortEngine to turn down the interface so phc2sys will switch to the slave interface in the secondary boundary clock
-				portEngine.TurnPortDown(selectedInterface)
-
-				// Wait for the interface to be down and ptp4l to report freerun
-				Eventually(func() error {
-					return metrics.CheckClockRole([]metrics.MetricRole{metrics.MetricRoleFaulty}, []string{selectedInterface}, &fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName)
-				}, 30*time.Second, 5*time.Second).Should(BeNil(), "Primary BC's slave interface "+selectedInterface+" should be in FAULTY state")
+				nodeName := fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName
+				portEngine.TurnOffAndWaitFaulty(selectedInterface, nodeName)
 
 				By("Waiting for 5 seconds for the new interface to be selected")
 				time.Sleep(5 * time.Second)
@@ -1111,13 +1104,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				time.Sleep(2 * time.Second)
 				ifUpTime := time.Now()
 				By("Restoring the primary BC's slave interface " + primaryInterface)
-				// Bring the interface back up
-				portEngine.TurnPortUp(primaryInterface)
-
-				// Wait for the interface to recover to SLAVE state
-				Eventually(func() error {
-					return metrics.CheckClockRole([]metrics.MetricRole{metrics.MetricRoleSlave}, []string{primaryInterface}, &fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName)
-				}, 30*time.Second, 5*time.Second).Should(BeNil(), "Primary BC's slave interface "+primaryInterface+" should recover to SLAVE state")
+				portEngine.TurnOnAndWaitSlave(primaryInterface, nodeName)
 
 				By("Waiting 5 seconds for the primary BC's slave interface to be selected again")
 				time.Sleep(5 * time.Second)
