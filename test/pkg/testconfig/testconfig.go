@@ -595,7 +595,7 @@ func CreatePtpConfigurationsWithRetryContext(ctx context.Context, maxAttempts in
 		if last == nil {
 			return nil
 		}
-		if i < maxAttempts-1 && k8sutil.IsTransientL2OrPrivilegedNamespaceError(last) {
+		if i < maxAttempts-1 && k8sutil.IsRetryableConfigError(last) {
 			logrus.Warnf("CreatePtpConfigurations attempt %d/%d failed (transient): %v; retrying after %v", i+1, maxAttempts, last, retryDelay)
 			timer := time.NewTimer(retryDelay)
 			select {
@@ -849,7 +849,7 @@ func CreatePtpConfigGrandMaster(nodeName, ifName string) error {
 	// Labeling the grandmaster node
 	_, err = nodes.LabelNode(nodeName, pkg.PtpGrandmasterNodeLabel, "")
 	if err != nil {
-		logrus.Errorf("Error setting Grandmaster node role label: %s", err)
+		return fmt.Errorf("error setting Grandmaster node role label: %w", err)
 	}
 
 	// Grandmaster - add interface section with auth settings
@@ -874,12 +874,13 @@ func CreatePtpConfigWPCGrandMaster(policyName string, nodeName string, ifList []
 	if err == nil && configureFifo {
 		ptpSchedulingPolicy = SCHED_FIFO
 	}
-	// Sleep for a second to allow previous label on the same node to complete
-	time.Sleep(time.Second)
 	_, err = nodes.LabelNode(nodeName, pkg.PtpClockUnderTestNodeLabel, "")
+	if err != nil {
+		return fmt.Errorf("error setting WPC GM clock-under-test node role label: %w", err)
+	}
 	_, err = nodes.LabelNode(nodeName, pkg.PtpGrandmasterNodeLabel, "")
 	if err != nil {
-		logrus.Errorf("Error setting WPC GM node role label: %s", err)
+		return fmt.Errorf("error setting WPC GM grandmaster node role label: %w", err)
 	}
 
 	ts2phcConfig := BaseTs2PhcConfig + fmt.Sprintf("\nts2phc.nmea_serialport  /dev/%s\n", deviceID)
@@ -1006,11 +1007,9 @@ func CreatePtpConfigBC(policyName, nodeName, ifMasterName, ifSlaveName string, p
 	if err == nil && configureFifo {
 		ptpSchedulingPolicy = SCHED_FIFO
 	}
-	// Sleep for a second to allow previous label on the same node to complete
-	time.Sleep(time.Second)
 	_, err = nodes.LabelNode(nodeName, pkg.PtpClockUnderTestNodeLabel, "")
 	if err != nil {
-		logrus.Errorf("Error setting BC node role label: %s", err)
+		return fmt.Errorf("error setting BC node role label: %w", err)
 	}
 
 	bcConfig := GetPtp4lConfigWithAuth(BasePtp4lConfig) + "\nboundary_clock_jbod 1\ngmCapable 0"
@@ -1042,11 +1041,9 @@ func CreatePtpConfigOC(profileName, nodeName, ifSlaveName string, phc2sys bool, 
 	if err == nil && configureFifo {
 		ptpSchedulingPolicy = SCHED_FIFO
 	}
-	// Sleep for a second to allow previous label on the same node to complete
-	time.Sleep(time.Second)
 	_, err = nodes.LabelNode(nodeName, label, "")
 	if err != nil {
-		logrus.Errorf("Error setting Slave node role label: %s", err)
+		return fmt.Errorf("error setting Slave node role label: %w", err)
 	}
 	ptp4lsysOpts := ptp4lEthernetSlave
 	var phc2sysOpts *string
@@ -1077,11 +1074,9 @@ func CreatePtpConfigDualFollower(profileName, nodeName, ifSlave1Name, ifSlave2Na
 	if err == nil && configureFifo {
 		ptpSchedulingPolicy = SCHED_FIFO
 	}
-	// Sleep for a second to allow previous label on the same node to complete
-	time.Sleep(time.Second)
 	_, err = nodes.LabelNode(nodeName, label, "")
 	if err != nil {
-		logrus.Errorf("Error setting Slave node role label: %s", err)
+		return fmt.Errorf("error setting Slave node role label: %w", err)
 	}
 	ptp4lsysOpts := ptp4lEthernetSlave
 	var phc2sysOpts *string
@@ -1344,7 +1339,7 @@ func createPtpConfigPhc2SysHA(policyName string, nodeName string, haProfiles []s
 	clockUnderTestNodeLabel := pkg.PtpClockUnderTestNodeLabel
 	_, err := nodes.LabelNode(nodeName, clockUnderTestNodeLabel, "")
 	if err != nil {
-		return fmt.Errorf("error setting HA node role label: %s", err)
+		return fmt.Errorf("error setting HA node role label: %w", err)
 	}
 
 	ptpSchedulingPolicy := SCHED_OTHER
