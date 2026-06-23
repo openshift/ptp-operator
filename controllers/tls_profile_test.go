@@ -140,10 +140,12 @@ func TestTLSProfileTemplateRendering_LegacyAdherence(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, objs)
 
+	var dsFound bool
 	for _, obj := range objs {
 		if obj.GetKind() != "DaemonSet" {
 			continue
 		}
+		dsFound = true
 		containers, found, err := unstructuredContainers(obj.Object)
 		assert.NoError(t, err)
 		assert.True(t, found)
@@ -171,6 +173,7 @@ func TestTLSProfileTemplateRendering_LegacyAdherence(t *testing.T) {
 				"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,"+
 				"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256")
 	}
+	assert.True(t, dsFound, "DaemonSet not found in rendered objects")
 }
 
 func unstructuredContainers(obj map[string]interface{}) ([]interface{}, bool, error) {
