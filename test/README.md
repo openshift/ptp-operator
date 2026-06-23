@@ -12,10 +12,11 @@ To run the conformance tests, first set the following environment variables:
 - **PTP_TEST_MODE**: this is the desired mode to run the tests. Choose between: Discovery, OC and BC. See below for an explanation for each mode.
 - **DISCOVERY_MODE**: This is a legacy option and is equivalent to setting "Discovery" option in the PTP_TEST_MODE environment variable
 - **ENABLE_TEST_CASE**: This is an option to run the long running tests separated by comma. For example, to run reboot test, `ENABLE_TEST_CASE=reboot` shall be used.
-- **SKIP_INTERFACES**: passes a list of interfaces to be skipped in the form "eno1,ens2f1" `SKIP_INTERFACES="eno1,ens2f1"`
+- **SKIP_INTERFACES**: passes a list of interfaces to be skipped in the form "eno1,ens2f1" `SKIP_INTERFACES="eno1,ens2f1"`. These interfaces are excluded from L2 discovery and any solver solutions containing them are also discarded.
 - **KEEP_PTPCONFIG**: if set to true, the test script will not delete the ptpconfig it automatically created. If set to false, it will delete them. The ptpconfigs are deleted by default. For instance `KEEP_PTPCONFIG=true`
-- **MAX_OFFSET_IN_NS**: maximum offset in nanoseconds between a master and a slave clock when testing clock accuracy. Default is 100
+- **MAX_OFFSET_IN_NS**: maximum offset in nanoseconds between a master and a slave clock when testing clock accuracy. Also used as LocalMaxHoldoverOffset for E810 plugin. Default is 100
 - **MIN_OFFSET_IN_NS**: minimum offset in nanoseconds between a master and a slave clock when testing clock accuracy. Default is -100
+- **MAX_IN_SPEC_OFFSET_NS**: maximum in-spec offset in nanoseconds for E810 plugin holdover specification threshold. Default is 100
 - **ENABLE_PTP_EVENT**: enable event based tests.
 - **EVENT_API_VERSION**: passes the default REST-API version for the event based tests. Set this to "2.0" for 4.16+ PUT, "1.0" for 4.15 and earlier. If this is not set, default value "2.0" is used.
 - **ENABLE_V1_REGRESSION**: enable V1 regression for event based tests. For 4.16 and 4.17, event based tests will be repeated the second time with v1 REST-API. These tests are marked with "v1 regression".

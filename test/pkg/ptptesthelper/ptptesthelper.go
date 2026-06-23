@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
@@ -37,7 +38,7 @@ func BasicClockSyncCheck(fullConfig testconfig.TestConfig, ptpConfig *ptpv1.PtpC
 	if gmID != nil {
 		logrus.Infof("expected master=%s", *gmID)
 	}
-	profileName, errProfile := ptphelper.GetProfileName(ptpConfig)
+	profileName, errProfile := ptphelper.GetProfileName(ptpConfig, true)
 
 	if fullConfig.PtpModeDesired == testconfig.Discovery {
 		// Only for ptp mode == discovery, if errProfile is not nil just log a info message
@@ -543,13 +544,38 @@ var (
 	perConfigClockClassRe = regexp.MustCompile(`^openshift_ptp_clock_class\{config="([^"]+)",node="([^"]+)",process="ptp4l"\}\s+(\d+)`)
 )
 
+const DefaultConfigDir = "/var/run/"
+
 // NICInfo holds the discovered interface names and ptp4l config details for a NIC.
 type NICInfo struct {
 	PtpConfigName string
 	SlaveIf       string
 	MasterIf      string
-	ConfigFile    string
-	ConfigName    string
+	ConfigDir     string // defaults to DefaultConfigDir
+	ConfigName    string // e.g. ptp4l.1.config — used for metrics
+	PMCConfigName string // when set, PMC uses this instead of ConfigName
+}
+
+// ConfigPath returns the full path for the config file used by metrics.
+func (n NICInfo) ConfigPath() string {
+	dir := n.ConfigDir
+	if dir == "" {
+		dir = DefaultConfigDir
+	}
+	return filepath.Join(dir, n.ConfigName)
+}
+
+// PMCConfigPath returns the full path for the config file used by PMC.
+// Falls back to ConfigPath when PMCConfigName is not set.
+func (n NICInfo) PMCConfigPath() string {
+	if n.PMCConfigName == "" {
+		return n.ConfigPath()
+	}
+	dir := n.ConfigDir
+	if dir == "" {
+		dir = DefaultConfigDir
+	}
+	return filepath.Join(dir, n.PMCConfigName)
 }
 
 // GetClockClassViaPMC runs PMC GET PARENT_DATA_SET on the given config file
@@ -679,7 +705,7 @@ func DiscoverNICInfo(ptpConfig ptpv1.PtpConfig, nodeName, nicLabel string) NICIn
 
 	configFile, err := DiscoverPtp4lConfigByProfile(ptpConfig.Name, nodeName)
 	Expect(err).NotTo(HaveOccurred(), "Could not find ptp4l config for %s profile %s", nicLabel, ptpConfig.Name)
-	configName := strings.TrimPrefix(configFile, "/var/run/")
+	configName := strings.TrimPrefix(configFile, DefaultConfigDir)
 
 	logrus.Infof("%s: slave=%s master=%s config=%s", nicLabel, slaveIfs[0], masterIfs[0], configFile)
 
@@ -687,7 +713,6 @@ func DiscoverNICInfo(ptpConfig ptpv1.PtpConfig, nodeName, nicLabel string) NICIn
 		PtpConfigName: ptpConfig.Name,
 		SlaveIf:       slaveIfs[0],
 		MasterIf:      masterIfs[0],
-		ConfigFile:    configFile,
 		ConfigName:    configName,
 	}
 }
@@ -770,7 +795,7 @@ func verifyNodeClockClassWithMetrics(fullConfig testconfig.TestConfig, expectedC
 //   - On OCP < 4.18, single NIC: verifies via node-level metric (no config label).
 //   - On OCP < 4.18, dual NIC: metrics skipped (single metric can't distinguish NICs).
 func VerifyNICClockClass(fullConfig testconfig.TestConfig, nic NICInfo, expectedClass int, isDualNIC bool) {
-	VerifyClockClassViaPMC(fullConfig, nic.ConfigFile, expectedClass)
+	VerifyClockClassViaPMC(fullConfig, nic.PMCConfigPath(), expectedClass)
 	if ptphelper.IsPTPOperatorVersionAtLeast("4.18") {
 		VerifyPerConfigClockClassWithMetrics(fullConfig, nic.ConfigName, expectedClass)
 	} else if !isDualNIC {

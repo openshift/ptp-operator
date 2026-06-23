@@ -227,6 +227,13 @@ update-env-yaml: ## Update config/manager/env.yaml with image variables if provi
 				sed -i '/- name: LINUXPTP_DAEMON_IMAGE$$/,/value:/s|value: ".*"|value: "$(LINUXPTP_DAEMON_IMAGE)"|' config/manager/env.yaml; \
 			fi; \
 		fi; \
+		if [ -n "$(KUBE_RBAC_PROXY_IMAGE)" ]; then \
+			if [ "$(OS)" = "Darwin" ]; then \
+				sed -i '' '/- name: KUBE_RBAC_PROXY_IMAGE$$/,/value:/s|value: ".*"|value: "$(KUBE_RBAC_PROXY_IMAGE)"|' config/manager/env.yaml; \
+			else \
+				sed -i '/- name: KUBE_RBAC_PROXY_IMAGE$$/,/value:/s|value: ".*"|value: "$(KUBE_RBAC_PROXY_IMAGE)"|' config/manager/env.yaml; \
+			fi; \
+		fi; \
 		if [ -n "$(SIDECAR_EVENT_IMAGE)" ]; then \
 			if [ "$(OS)" = "Darwin" ]; then \
 				sed -i '' '/- name: SIDECAR_EVENT_IMAGE$$/,/value:/s|value: ".*"|value: "$(SIDECAR_EVENT_IMAGE)"|' config/manager/env.yaml; \
