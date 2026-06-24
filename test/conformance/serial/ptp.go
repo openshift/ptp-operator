@@ -1078,7 +1078,20 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				logrus.Infof("Primary   BC slave interfaces: %v", primaryBCSlaveInterfaces)
 				logrus.Infof("Secondary BC slave interfaces: %v", secondaryBCSlaveInterfaces)
 
-				// Get phc2sys logs to identify which interface it's using
+				// phc2sys is delayed until ptp4l synchronizes, so first wait for
+				// the primary BC slave interface to reach SLAVE state, then give
+				// phc2sys a short window to emit its initial interface selection.
+				By("Waiting for ptp4l to synchronize on primary BC slave interface")
+				slaveRoles := make([]metrics.MetricRole, len(primaryBCSlaveInterfaces))
+				for i := range slaveRoles {
+					slaveRoles[i] = metrics.MetricRoleSlave
+				}
+				Eventually(func() error {
+					return metrics.CheckClockRole(slaveRoles, primaryBCSlaveInterfaces, &fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName)
+				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(BeNil(),
+					"Primary BC slave interface must reach SLAVE state before phc2sys starts")
+
+				// Get phc2sys logs to identify which interface it's using.
 				const phc2sysLogPattern = `phc2sys(?m).*?:.* selecting (\w+) as out-of-domain source clock`
 				var selectedInterface string
 
@@ -1444,14 +1457,17 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 						logrus.Infof("Checking cloud-event-proxy logs on pod %s (node: %s)", pod.Name, pod.Spec.NodeName)
 
-						// Search for "starting v2 rest api server at port" in pod logs (literal text search)
+						// Search for "starting v2 rest api server at port" in pod logs (literal text search).
+						// Use a longer timeout: phc2sys is now delayed until ptp4l synchronizes, so
+						// WaitForPtpDaemonToBeReady returns earlier, giving cloud-event-proxy less
+						// startup time before we search its logs.
 						matches, err := pods.GetPodLogsRegex(
 							pod.Namespace,
 							pod.Name,
 							pkg.EventProxyContainerName,
 							`starting v2 rest api server at port`,
 							true,
-							30*time.Second,
+							pkg.TimeoutIn3Minutes,
 						)
 						Expect(err).NotTo(HaveOccurred(),
 							fmt.Sprintf("Failed to get logs from pod %s", pod.Name))
@@ -1505,14 +1521,17 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 						logrus.Infof("Checking cloud-event-proxy logs on pod %s (node: %s)", pod.Name, pod.Spec.NodeName)
 
-						// Search for REST API config v2.0 in pod logs (literal text search)
+						// Search for REST API config v2.0 in pod logs (literal text search).
+						// Use a longer timeout: phc2sys is now delayed until ptp4l synchronizes, so
+						// WaitForPtpDaemonToBeReady returns earlier, giving cloud-event-proxy less
+						// startup time before we search its logs.
 						matches, err := pods.GetPodLogsRegex(
 							pod.Namespace,
 							pod.Name,
 							pkg.EventProxyContainerName,
 							`starting v2 rest api server at port`,
 							true,
-							30*time.Second,
+							pkg.TimeoutIn3Minutes,
 						)
 						Expect(err).NotTo(HaveOccurred(),
 							fmt.Sprintf("Failed to get logs from pod %s", pod.Name))
