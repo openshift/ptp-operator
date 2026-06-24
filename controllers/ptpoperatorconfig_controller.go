@@ -370,6 +370,7 @@ func (r *PtpOperatorConfigReconciler) applyNetworkPoliciesFromYaml(
 			glog.Errorf("Failed to convert to typed NetworkPolicy: %v", err)
 			return fmt.Errorf("failed to convert to typed NetworkPolicy: %v", err)
 		}
+		typedNP.Namespace = names.Namespace
 
 		// Check if the object already exists
 		found := &networkingv1.NetworkPolicy{}
