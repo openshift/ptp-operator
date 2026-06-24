@@ -176,15 +176,15 @@ func TestEventTransportHostAvailabilityCheck(t *testing.T) {
 
 	host, err := r.EventTransportHostAvailabilityCheck("")
 	assert.NoError(t, err)
-	assert.Equal(t, DefaultTransportHost, host, "empty host should return default")
+	assert.Equal(t, DefaultTransportHost(), host, "empty host should return default")
 
 	host, err = r.EventTransportHostAvailabilityCheck("http://my-host:9043")
 	assert.NoError(t, err)
 	assert.Equal(t, "http://my-host:9043", host, "valid host should be returned as-is")
 
-	host, err = r.EventTransportHostAvailabilityCheck(DefaultTransportHost)
+	host, err = r.EventTransportHostAvailabilityCheck(DefaultTransportHost())
 	assert.NoError(t, err)
-	assert.Equal(t, DefaultTransportHost, host)
+	assert.Equal(t, DefaultTransportHost(), host)
 }
 
 func TestGetRecommendProfilesNamesForConfig_NilRecommend(t *testing.T) {
