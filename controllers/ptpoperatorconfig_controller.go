@@ -65,9 +65,9 @@ func DefaultTransportHost() string {
 }
 
 const (
-	ResyncPeriod = 2 * time.Minute
-	DefaultStorageType   = "emptyDir"
-	DefaultApiVersion    = "2.0"
+	ResyncPeriod       = 2 * time.Minute
+	DefaultStorageType = "emptyDir"
+	DefaultApiVersion  = "2.0"
 )
 
 // +kubebuilder:rbac:groups=ptp.openshift.io,resources=ptpoperatorconfigs,verbs=get;list;watch;create;update;patch;delete

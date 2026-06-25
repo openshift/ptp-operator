@@ -8,9 +8,19 @@ import (
 )
 
 func TestNamespaceDefault(t *testing.T) {
-	// When OPERATOR_NAMESPACE is not set, Namespace should be "openshift-ptp"
+	originalNS := Namespace
+	originalEnv, envWasSet := os.LookupEnv("OPERATOR_NAMESPACE")
+	defer func() {
+		Namespace = originalNS
+		if envWasSet {
+			os.Setenv("OPERATOR_NAMESPACE", originalEnv)
+		} else {
+			os.Unsetenv("OPERATOR_NAMESPACE")
+		}
+	}()
+
 	os.Unsetenv("OPERATOR_NAMESPACE")
-	Namespace = "openshift-ptp" // reset to default (init() already ran)
+	Namespace = "openshift-ptp"
 	assert.Equal(t, "openshift-ptp", Namespace)
 }
 
