@@ -120,6 +120,8 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            - name: NAME_SPACE
+              value: {{.Namespace}}
             - name: LOGS_TO_SOCKET
               value: "{{ .EnableEventPublisher }}"
             - name: PLUGINS
