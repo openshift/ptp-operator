@@ -278,9 +278,13 @@ should_skip_pr() {
 filter_skipped() {
   log "Filtering PRs for skip conditions..."
 
-  local skip_pr_list skip_commit_list
-  IFS=',' read -ra skip_pr_list <<< "${SKIP_PRS:-}"
-  IFS=',' read -ra skip_commit_list <<< "${SKIP_COMMITS:-}"
+  local skip_pr_list=() skip_commit_list=()
+  if [[ -n "${SKIP_PRS:-}" ]]; then
+    IFS=',' read -ra skip_pr_list <<< "$SKIP_PRS"
+  fi
+  if [[ -n "${SKIP_COMMITS:-}" ]]; then
+    IFS=',' read -ra skip_commit_list <<< "$SKIP_COMMITS"
+  fi
 
   local kept_prs="[]"
   local skipped_prs="[]"
@@ -295,15 +299,17 @@ filter_skipped() {
 
     local skip_reason=""
 
-    for skip_num in "${skip_pr_list[@]}"; do
-      skip_num="${skip_num// /}"
-      if [ -n "$skip_num" ] && [ "$skip_num" = "$pr_number" ]; then
-        skip_reason="manually skipped (SKIP_PRS)"
-        break
-      fi
-    done
+    if [[ ${#skip_pr_list[@]} -gt 0 ]]; then
+      for skip_num in "${skip_pr_list[@]}"; do
+        skip_num="${skip_num// /}"
+        if [ -n "$skip_num" ] && [ "$skip_num" = "$pr_number" ]; then
+          skip_reason="manually skipped (SKIP_PRS)"
+          break
+        fi
+      done
+    fi
 
-    if [ -z "$skip_reason" ]; then
+    if [ -z "$skip_reason" ] && [[ ${#skip_commit_list[@]} -gt 0 ]]; then
       for skip_sha in "${skip_commit_list[@]}"; do
         skip_sha="${skip_sha// /}"
         if [ -n "$skip_sha" ] && [[ "$pr_sha" == ${skip_sha}* ]]; then
