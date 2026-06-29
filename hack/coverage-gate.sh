@@ -35,12 +35,8 @@ resolve_base_ref() {
     git branch --set-upstream-to="${UPSTREAM_REF}" "${LOCAL_BRANCH}" --quiet >/dev/null
   fi
 
-  # Update tracking branch to latest. If it's checked out (here or elsewhere),
-  # return the upstream ref directly to avoid checkout conflicts.
-  if ! git branch -f "${LOCAL_BRANCH}" "${UPSTREAM_REF}" --quiet 2>/dev/null; then
-    echo "${UPSTREAM_REF}"
-    return
-  fi
+  # Update tracking branch to latest without checkout
+  git branch -f "${LOCAL_BRANCH}" "${UPSTREAM_REF}" --quiet
 
   echo "${LOCAL_BRANCH}"
 }

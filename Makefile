@@ -35,7 +35,7 @@ BUNDLE_METADATA_OPTS ?= $(BUNDLE_CHANNELS) $(BUNDLE_DEFAULT_CHANNEL)
 #
 # For example, running 'make bundle-build bundle-push catalog-build catalog-push' will build and push both
 # openshift.io/ptp-operator-bundle:$VERSION and openshift.io/ptp-operator-catalog:$VERSION.
-IMAGE_TAG_BASE ?= ghcr.io/k8snetworkplumbingwg/ptp-operator
+IMAGE_TAG_BASE ?= quay.io/openshift/origin-ptp-operator
 
 # BUNDLE_IMG defines the image:tag used for the bundle.
 # You can use it as an arg. (E.g make bundle-build BUNDLE_IMG=<some-registry>/<project-name-bundle>:<tag>)
@@ -52,7 +52,7 @@ BUNDLE_GEN_FLAGS ?= -q --overwrite --version $(BUNDLE_VERSION) $(BUNDLE_METADATA
 OPERATOR_SDK_VERSION ?= v1.36.1-ocp
 
 # Image URL to use all building/pushing image targets
-IMG ?= ghcr.io/k8snetworkplumbingwg/ptp-operator:$(VERSION)
+IMG ?= quay.io/openshift/origin-ptp-operator:$(VERSION)
 
 # KUBECONFIG defines the kubeconfig file to use for the install, uninstall, deploy and undeploy targets.
 ifneq ($(origin KUBECONFIG), undefined)
