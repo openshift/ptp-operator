@@ -60,11 +60,14 @@ type PtpOperatorConfigReconciler struct {
 	TLSProfileSpec *configv1.TLSProfileSpec
 }
 
+func DefaultTransportHost() string {
+	return "http://ptp-event-publisher-service-NODE_NAME." + names.Namespace + ".svc.cluster.local:9043"
+}
+
 const (
-	ResyncPeriod         = 2 * time.Minute
-	DefaultTransportHost = "http://ptp-event-publisher-service-NODE_NAME.openshift-ptp.svc.cluster.local:9043"
-	DefaultStorageType   = "emptyDir"
-	DefaultApiVersion    = "2.0"
+	ResyncPeriod       = 2 * time.Minute
+	DefaultStorageType = "emptyDir"
+	DefaultApiVersion  = "2.0"
 )
 
 // +kubebuilder:rbac:groups=ptp.openshift.io,resources=ptpoperatorconfigs,verbs=get;list;watch;create;update;patch;delete
@@ -370,6 +373,7 @@ func (r *PtpOperatorConfigReconciler) applyNetworkPoliciesFromYaml(
 			glog.Errorf("Failed to convert to typed NetworkPolicy: %v", err)
 			return fmt.Errorf("failed to convert to typed NetworkPolicy: %v", err)
 		}
+		typedNP.Namespace = names.Namespace
 
 		// Check if the object already exists
 		found := &networkingv1.NetworkPolicy{}
@@ -465,15 +469,15 @@ func (r *PtpOperatorConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *PtpOperatorConfigReconciler) EventTransportHostAvailabilityCheck(transportHost string) (string, error) {
 	if transportHost == "" {
 		glog.Warningf("ptp operator config Spec, ptpEventConfig.transportHost=%v is not valid, proceed as %s",
-			transportHost, DefaultTransportHost)
-		return DefaultTransportHost, nil
+			transportHost, DefaultTransportHost())
+		return DefaultTransportHost(), nil
 	}
 
 	_, err := url.Parse(transportHost)
 	if err != nil {
 		glog.Warningf("ptp operator config Spec, ptpEventConfig.transportHost=%v is not valid, proceed as %s",
-			transportHost, DefaultTransportHost)
-		return DefaultTransportHost, nil
+			transportHost, DefaultTransportHost())
+		return DefaultTransportHost(), nil
 	}
 	return transportHost, nil
 }

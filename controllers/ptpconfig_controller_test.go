@@ -9,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/names"
 )
 
 func TestNodeMatches_ByName(t *testing.T) {
@@ -176,15 +177,43 @@ func TestEventTransportHostAvailabilityCheck(t *testing.T) {
 
 	host, err := r.EventTransportHostAvailabilityCheck("")
 	assert.NoError(t, err)
-	assert.Equal(t, DefaultTransportHost, host, "empty host should return default")
+	assert.Equal(t, DefaultTransportHost(), host, "empty host should return default")
 
 	host, err = r.EventTransportHostAvailabilityCheck("http://my-host:9043")
 	assert.NoError(t, err)
 	assert.Equal(t, "http://my-host:9043", host, "valid host should be returned as-is")
 
-	host, err = r.EventTransportHostAvailabilityCheck(DefaultTransportHost)
+	host, err = r.EventTransportHostAvailabilityCheck(DefaultTransportHost())
 	assert.NoError(t, err)
-	assert.Equal(t, DefaultTransportHost, host)
+	assert.Equal(t, DefaultTransportHost(), host)
+}
+
+func TestDefaultTransportHostUsesNamespace(t *testing.T) {
+	original := names.Namespace
+	defer func() { names.Namespace = original }()
+
+	names.Namespace = "openshift-ptp"
+	host := DefaultTransportHost()
+	assert.Contains(t, host, ".openshift-ptp.svc.cluster.local",
+		"default namespace should appear in transport host URL")
+
+	names.Namespace = "custom-ns"
+	host = DefaultTransportHost()
+	assert.Contains(t, host, ".custom-ns.svc.cluster.local",
+		"custom namespace should appear in transport host URL")
+	assert.NotContains(t, host, "openshift-ptp",
+		"old namespace should not appear when overridden")
+}
+
+func TestDefaultTransportHostFormat(t *testing.T) {
+	original := names.Namespace
+	defer func() { names.Namespace = original }()
+
+	names.Namespace = "test-ns"
+	host := DefaultTransportHost()
+	assert.Equal(t,
+		"http://ptp-event-publisher-service-NODE_NAME.test-ns.svc.cluster.local:9043",
+		host)
 }
 
 func TestGetRecommendProfilesNamesForConfig_NilRecommend(t *testing.T) {

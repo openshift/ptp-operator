@@ -7,7 +7,7 @@ metadata:
   labels:
     app: linuxptp-daemon
   name:  ptp-event-publisher-service-{{.NodeName}}
-  namespace: openshift-ptp
+  namespace: {{.Namespace}}
 spec:
   clusterIP: None
   selector:

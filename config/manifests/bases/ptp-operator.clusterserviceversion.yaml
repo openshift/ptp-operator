@@ -55,7 +55,7 @@ metadata:
     capabilities: Basic Install
     categories: Networking
     certified: "false"
-    containerImage: quay.io/openshift/origin-ptp-operator:4.22
+    containerImage: quay.io/openshift/origin-ptp-operator:5.0
     createdAt: "2025-09-10"
     description: This software enables configuration of Precision Time Protocol(PTP)
       on Kubernetes. It detects hardware capable PTP devices on each node, and configures
@@ -70,9 +70,10 @@ metadata:
     features.operators.openshift.io/token-auth-aws: "false"
     features.operators.openshift.io/token-auth-azure: "false"
     features.operators.openshift.io/token-auth-gcp: "false"
-    olm.skipRange: ">=4.3.0-0 <4.22.0"
+    olm.skipRange: ">=4.3.0-0 <5.0.0"
     operatorframework.io/suggested-namespace: openshift-ptp
     operators.openshift.io/infrastructure-features: '["disconnected"]'
+    operators.openshift.io/must-gather-image: quay.io/openshift/origin-ptp-operator-must-gather:5.0
     provider: Red Hat
     repository: https://github.com/k8snetworkplumbingwg/ptp-operator
     support: Red Hat
@@ -161,7 +162,7 @@ spec:
     type: SingleNamespace
   - supported: false
     type: MultiNamespace
-  - supported: false
+  - supported: true
     type: AllNamespaces
   keywords:
   - ptp
