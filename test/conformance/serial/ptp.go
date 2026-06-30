@@ -2455,6 +2455,112 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				}
 			})
 
+			It("Verify ts2phc clock state is not LOCKED after GM PtpConfig is deleted", func() {
+				By("Verifying ts2phc clock state is LOCKED")
+				checkClockStateForProcess(fullConfig, "ts2phc", "1")
+
+				Expect(testconfig.GlobalConfig.DiscoveredGrandMasterPtpConfig).NotTo(BeNil(),
+					"DiscoveredGrandMasterPtpConfig must not be nil")
+				gmConfigName := testconfig.GlobalConfig.DiscoveredGrandMasterPtpConfig.Name
+
+				By(fmt.Sprintf("Deleting GM PtpConfig %s", gmConfigName))
+				err := client.Client.PtpV1Interface.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Delete(
+					context.Background(), gmConfigName, metav1.DeleteOptions{})
+				Expect(err).NotTo(HaveOccurred())
+
+				DeferCleanup(func() {
+					By("Recreating GM PtpConfig after test")
+					ensureGMPtpConfigRestored()
+				})
+
+				By("Waiting for ts2phc clock state metric to be removed")
+				Eventually(func() bool {
+					buf, _, _ := pods.ExecCommand(client.Client, true,
+						fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName,
+						[]string{"curl", pkg.MetricsEndPoint})
+					metricsOutput := buf.String()
+					if !strings.Contains(metricsOutput, "# HELP") {
+						return false
+					}
+					_, found := getClockStateByProcess(metricsOutput, "ts2phc")
+					return !found
+				}, pkg.TimeoutIn5Minutes, pkg.Timeout10Seconds).Should(BeTrue(),
+					"Expected ts2phc clock state metric to be removed after GM PtpConfig deletion")
+			})
+
+			It("Verify ts2phc metrics are cleaned up after GM PtpConfig delete and re-apply", func() {
+				Expect(testconfig.GlobalConfig.DiscoveredGrandMasterPtpConfig).NotTo(BeNil(),
+					"DiscoveredGrandMasterPtpConfig must not be nil")
+				gmConfigName := testconfig.GlobalConfig.DiscoveredGrandMasterPtpConfig.Name
+
+				By("Ensuring ts2phc is running and recording its config file name and restart count")
+				var initialConfigName string
+				var initialRestartCount int
+				Eventually(func() bool {
+					buf, _, _ := pods.ExecCommand(client.Client, true,
+						fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName,
+						[]string{"curl", pkg.MetricsEndPoint})
+					initialConfigName, initialRestartCount, _ = getProcessConfigAndRestartCount(buf.String(), "ts2phc")
+					return initialConfigName != ""
+				}, pkg.TimeoutIn3Minutes, pkg.Timeout10Seconds).Should(BeTrue(),
+					"ts2phc process_status with config name not found in metrics")
+				fmt.Fprintf(GinkgoWriter, "Initial ts2phc config=%s, restart_count=%d\n",
+					initialConfigName, initialRestartCount)
+
+				By(fmt.Sprintf("Deleting GM PtpConfig %s", gmConfigName))
+				err := client.Client.PtpV1Interface.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Delete(
+					context.Background(), gmConfigName, metav1.DeleteOptions{})
+				Expect(err).NotTo(HaveOccurred())
+
+				DeferCleanup(func() {
+					By("Ensuring GM PtpConfig is restored after test")
+					ensureGMPtpConfigRestored()
+				})
+
+				By("Waiting for ts2phc process to stop after deletion")
+				Eventually(func() bool {
+					buf, _, _ := pods.ExecCommand(client.Client, true,
+						fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName,
+						[]string{"curl", pkg.MetricsEndPoint})
+					metricsOutput := buf.String()
+					if !strings.Contains(metricsOutput, "# HELP") {
+						return false
+					}
+					configName, _, _ := getProcessConfigAndRestartCount(metricsOutput, "ts2phc")
+					return configName == ""
+				}, pkg.TimeoutIn5Minutes, pkg.Timeout10Seconds).Should(BeTrue(),
+					"ts2phc process did not stop after GM PtpConfig deletion")
+
+				By("Re-applying the same GM PtpConfig")
+				tempPtpConfig := (*ptpv1.PtpConfig)(testconfig.GlobalConfig.DiscoveredGrandMasterPtpConfig)
+				tempPtpConfig.SetResourceVersion("")
+				_, err = client.Client.PtpV1Interface.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Create(
+					context.Background(), tempPtpConfig, metav1.CreateOptions{})
+				Expect(err).NotTo(HaveOccurred())
+
+				By("Waiting for ts2phc to come back up after re-apply")
+				var newConfigName string
+				var newRestartCount int
+				Eventually(func() bool {
+					buf, _, _ := pods.ExecCommand(client.Client, true,
+						fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName,
+						[]string{"curl", pkg.MetricsEndPoint})
+					newConfigName, newRestartCount, _ = getProcessConfigAndRestartCount(buf.String(), "ts2phc")
+					return newConfigName != ""
+				}, pkg.TimeoutIn5Minutes, pkg.Timeout10Seconds).Should(BeTrue(),
+					"ts2phc did not come back up after GM PtpConfig re-apply")
+				fmt.Fprintf(GinkgoWriter, "After re-apply: ts2phc config=%s, restart_count=%d\n",
+					newConfigName, newRestartCount)
+
+				By("Verifying config name is preserved and metrics are consistent after re-apply")
+				Expect(newConfigName).To(Equal(initialConfigName),
+					fmt.Sprintf("ts2phc config name should be preserved after re-apply, got %s (initial was %s)",
+						newConfigName, initialConfigName))
+				Expect(newRestartCount).To(BeNumerically(">=", initialRestartCount),
+					fmt.Sprintf("ts2phc restart count should continue after re-apply (not reset), got %d (initial was %d)",
+						newRestartCount, initialRestartCount))
+			})
+
 		})
 
 		Context("WPC GM GNSS signal loss tests", func() {
@@ -3621,6 +3727,50 @@ func getProcessStatusByProcess(metricsText, process string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// ensureGMPtpConfigRestored is a DeferCleanup helper that recreates the GM PtpConfig
+// if it was deleted during a test, ensuring subsequent tests have a valid configuration.
+func ensureGMPtpConfigRestored() {
+	tempPtpConfig := (*ptpv1.PtpConfig)(testconfig.GlobalConfig.DiscoveredGrandMasterPtpConfig)
+	tempPtpConfig.SetResourceVersion("")
+	_, err := client.Client.PtpV1Interface.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Create(
+		context.Background(), tempPtpConfig, metav1.CreateOptions{})
+	if err != nil && !kerrors.IsAlreadyExists(err) {
+		Expect(err).NotTo(HaveOccurred())
+	}
+}
+
+// getProcessConfigAndRestartCount parses the metrics output for a given process and returns
+// its config file name (from process_status with value 1) and restart count.
+func getProcessConfigAndRestartCount(metricsText, process string) (configName string, restartCount int, found bool) {
+	processFilter := fmt.Sprintf(`process="%s"`, process)
+	scanner := bufio.NewScanner(strings.NewReader(metricsText))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, metrics.OpenshiftPtpProcessStatus) && strings.Contains(line, processFilter) {
+			parts := strings.Fields(line)
+			if len(parts) == 2 && parts[1] == "1" {
+				start := strings.Index(line, `config="`) + len(`config="`)
+				end := strings.Index(line[start:], `"`)
+				if end > 0 {
+					configName = line[start : start+end]
+					found = true
+				}
+			}
+		}
+		if strings.HasPrefix(line, metrics.OpenshiftPtpProcessRestartCount) && strings.Contains(line, processFilter) {
+			parts := strings.Fields(line)
+			if len(parts) == 2 {
+				var parseErr error
+				restartCount, parseErr = strconv.Atoi(parts[1])
+				if parseErr != nil {
+					fmt.Fprintf(GinkgoWriter, "WARN: could not parse restart_count %q for process %s: %v\n", parts[1], process, parseErr)
+				}
+			}
+		}
+	}
+	return configName, restartCount, found
 }
 
 // checkStatusByProcess mirrors checkClockStateForProcess but for process status (1/0)
