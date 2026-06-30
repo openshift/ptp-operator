@@ -52,8 +52,8 @@ CURRENT_BRANCH=$(git symbolic-ref --short HEAD 2>/dev/null || git rev-parse HEAD
 TMPTEST=$(mktemp)
 cp "${SCRIPT_DIR}/unit-test.sh" "${TMPTEST}"
 STASHED=false
-if ! git diff --quiet || ! git diff --cached --quiet; then
-  git stash --quiet
+if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
+  git stash -u --quiet
   STASHED=true
 fi
 git checkout "${BASE_REF}" --quiet

@@ -109,6 +109,6 @@ require (
 // commits that use structured-merge-diff/v6.
 // These can be removed once openshift/client-go and openshift/api publish compatible tagged releases.
 replace (
-	github.com/openshift/api => github.com/openshift/api v0.0.0-20260318185450-1f2fa3f09f4e
+	github.com/openshift/api => github.com/openshift/api v0.0.0-20260615110019-261e3a0546f3
 	github.com/openshift/client-go => github.com/openshift/client-go v0.0.0-20260108185524-48f4ccfc4e13
 )

@@ -32,10 +32,7 @@ import (
 // log is for logging in this package.
 var ptpoperatorconfiglog = logf.Log.WithName("ptpoperatorconfig-resource")
 
-var k8sclient client.Client
-
-func (r *PtpOperatorConfig) SetupWebhookWithManager(mgr ctrl.Manager, client client.Client) error {
-	k8sclient = client
+func (r *PtpOperatorConfig) SetupWebhookWithManager(mgr ctrl.Manager, _ client.Client) error {
 	return ctrl.NewWebhookManagedBy(mgr, r).
 		WithCustomValidator(&ptpOperatorConfigValidator{}).
 		Complete()

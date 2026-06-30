@@ -140,10 +140,12 @@ func TestTLSProfileTemplateRendering_LegacyAdherence(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, objs)
 
+	var dsFound bool
 	for _, obj := range objs {
 		if obj.GetKind() != "DaemonSet" {
 			continue
 		}
+		dsFound = true
 		containers, found, err := unstructuredContainers(obj.Object)
 		assert.NoError(t, err)
 		assert.True(t, found)
@@ -171,6 +173,7 @@ func TestTLSProfileTemplateRendering_LegacyAdherence(t *testing.T) {
 				"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,"+
 				"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256")
 	}
+	assert.True(t, dsFound, "DaemonSet not found in rendered objects")
 }
 
 func unstructuredContainers(obj map[string]interface{}) ([]interface{}, bool, error) {
@@ -191,4 +194,37 @@ func unstructuredContainers(obj map[string]interface{}) ([]interface{}, bool, er
 		return nil, false, nil
 	}
 	return containers, true, nil
+}
+
+func TestTemplateNamespaceRendering(t *testing.T) {
+	data := makeTestRenderData()
+	data.Data["Namespace"] = "custom-test-ns"
+	data.Data["TLSMinVersion"] = "VersionTLS12"
+	data.Data["TLSCipherSuites"] = "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+
+	objs, err := render.RenderTemplate("../bindata/linuxptp/ptp-daemon.yaml", data)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, objs)
+
+	var dsFound bool
+	for _, obj := range objs {
+		if obj.GetKind() == "DaemonSet" {
+			dsFound = true
+			assert.Equal(t, "custom-test-ns", obj.GetNamespace(),
+				"DaemonSet namespace should match template variable")
+		}
+		if obj.GetKind() == "ServiceMonitor" {
+			assert.Equal(t, "custom-test-ns", obj.GetNamespace(),
+				"ServiceMonitor namespace should match template variable")
+		}
+		if obj.GetKind() == "PrometheusRule" {
+			assert.Equal(t, "custom-test-ns", obj.GetNamespace(),
+				"PrometheusRule namespace should match template variable")
+		}
+		if obj.GetKind() == "Service" {
+			assert.Equal(t, "custom-test-ns", obj.GetNamespace(),
+				"Service namespace should match template variable")
+		}
+	}
+	assert.True(t, dsFound, "DaemonSet should be rendered")
 }

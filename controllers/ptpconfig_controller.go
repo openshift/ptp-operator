@@ -204,7 +204,8 @@ func getRecommendProfilesNamesForConfig(ptpConfig *ptpv1.PtpConfig, node corev1.
 	// Find matching profiles
 	profilesNames := make(map[string]interface{})
 	foundPolicy := false
-	priority := int64(-1)
+	const nilPriority int64 = -1
+	priority := nilPriority
 
 	// Loop through recommendations from high priority (0) to low (*)
 	for _, r := range allRecommend {
@@ -218,15 +219,20 @@ func getRecommendProfilesNamesForConfig(ptpConfig *ptpv1.PtpConfig, node corev1.
 			continue
 		}
 
+		currentPriority := nilPriority
+		if r.Priority != nil {
+			currentPriority = *r.Priority
+		}
+
 		// Check if the policy matches the node
 		switch {
-		case !ptpNodeMatches(&node, r.Match):
+		case !nodeMatches(&node, r.Match):
 			continue
 		case !foundPolicy:
 			profilesNames[*r.Profile] = struct{}{}
-			priority = *r.Priority
+			priority = currentPriority
 			foundPolicy = true
-		case *r.Priority == priority:
+		case currentPriority == priority:
 			profilesNames[*r.Profile] = struct{}{}
 		default:
 
@@ -234,27 +240,6 @@ func getRecommendProfilesNamesForConfig(ptpConfig *ptpv1.PtpConfig, node corev1.
 	}
 
 	return profilesNames
-}
-
-// ptpNodeMatches checks if a node matches the given match rules for PTP config
-func ptpNodeMatches(node *corev1.Node, matchRuleList []ptpv1.MatchRule) bool {
-	// Loop over Match list
-	for _, m := range matchRuleList {
-		// NodeName has higher priority than nodeLabel
-		// Return immediately if nodeName matches
-		if m.NodeName != nil && *m.NodeName == node.Name {
-			return true
-		}
-
-		// Return immediately when label matches
-		for k := range node.Labels {
-			if m.NodeLabel != nil && *m.NodeLabel == k {
-				return true
-			}
-		}
-	}
-
-	return false
 }
 
 func (r *PtpConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {

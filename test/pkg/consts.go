@@ -3,14 +3,9 @@ package pkg
 import "time"
 
 const (
-	// NamespaceTesting contains the name of the testing namespace
-
 	ETHTOOL_HARDWARE_RECEIVE_CAP   = "hardware-receive"
 	ETHTOOL_HARDWARE_TRANSMIT_CAP  = "hardware-transmit"
 	ETHTOOL_HARDWARE_RAW_CLOCK_CAP = "hardware-raw-clock"
-	ETHTOOL_RX_HARDWARE_FLAG       = "(SOF_TIMESTAMPING_RX_HARDWARE)"
-	ETHTOOL_TX_HARDWARE_FLAG       = "(SOF_TIMESTAMPING_TX_HARDWARE)"
-	ETHTOOL_RAW_HARDWARE_FLAG      = "(SOF_TIMESTAMPING_RAW_HARDWARE)"
 	PtpLinuxDaemonNamespace        = "openshift-ptp"
 	PtpLinuxDaemonPodsLabel        = "app=linuxptp-daemon"
 	PtpOperatorDeploymentName      = "ptp-operator"
@@ -26,14 +21,16 @@ const (
 	EventProxyContainerName         = "cloud-event-proxy"
 
 	// policy name
-	PtpGrandMasterPolicyName      = "test-grandmaster"
-	PtpWPCGrandMasterPolicyName   = "test-wpc-grandmaster"
-	PtpBcMaster1PolicyName        = "test-bc-master1"
-	PtpSlave1PolicyName           = "test-slave1"
-	PtpBcMaster2PolicyName        = "test-bc-master2"
-	PtpSlave2PolicyName           = "test-slave2"
-	PtpDualNicBCHAPolicyName      = "test-dual-nic-bc-ha"
-	PtpTempPolicyName             = "temp"
+	PtpGrandMasterPolicyName    = "test-grandmaster"
+	PtpWPCGrandMasterPolicyName = "test-wpc-grandmaster"
+	PtpBcMaster1PolicyName      = "test-bc-master1"
+	PtpSlave1PolicyName         = "test-slave1"
+	PtpBcMaster2PolicyName      = "test-bc-master2"
+	PtpSlave2PolicyName         = "test-slave2"
+	PTPWPCTBCPolicyName         = "test-wpc-tbc"
+	PtpDualNicBCHAPolicyName    = "test-dual-nic-bc-ha"
+	PtpTempPolicyName           = "temp"
+
 	PtpUnderscoreTestPolicyName   = "test-underscore-profile"
 	PtpVolumeMountCleanPolicyName = "test-volume-mount-cleanup"
 

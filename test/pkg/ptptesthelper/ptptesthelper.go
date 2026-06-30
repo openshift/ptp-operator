@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
@@ -37,7 +38,7 @@ func BasicClockSyncCheck(fullConfig testconfig.TestConfig, ptpConfig *ptpv1.PtpC
 	if gmID != nil {
 		logrus.Infof("expected master=%s", *gmID)
 	}
-	profileName, errProfile := ptphelper.GetProfileName(ptpConfig)
+	profileName, errProfile := ptphelper.GetProfileName(ptpConfig, true)
 
 	if fullConfig.PtpModeDesired == testconfig.Discovery {
 		// Only for ptp mode == discovery, if errProfile is not nil just log a info message
@@ -57,7 +58,19 @@ func BasicClockSyncCheck(fullConfig testconfig.TestConfig, ptpConfig *ptpv1.PtpC
 	if err != nil {
 		logrus.Debugf("could not get nodeName because of err: %s", err)
 	}
-	slaveMaster, err := ptphelper.GetClockIDForeign(profileName, label, nodeName)
+	var slaveMaster string
+	if fullConfig.PtpModeDesired == testconfig.Discovery {
+		slaveMaster, err = ptphelper.GetClockIDForeign(profileName, label, nodeName)
+	} else {
+		Eventually(func() error {
+			slaveMaster, err = ptphelper.GetClockIDForeign(profileName, label, nodeName)
+			if err != nil {
+				logrus.Infof("GetClockIDForeign retry due to err: %s", err)
+			}
+			return err
+		}, pkg.TimeoutIn3Minutes, pkg.Timeout10Seconds).Should(BeNil(),
+			fmt.Sprintf("Timeout to get foreign clock ID for ptpconfig %s", ptpConfig.Name))
+	}
 	if errProfile == nil {
 		if fullConfig.PtpModeDesired == testconfig.Discovery {
 			if err != nil {
@@ -414,6 +427,8 @@ type PortEngine struct {
 }
 
 func (p *PortEngine) TurnPortDown(port string) error {
+	p.nmSetManaged(port, false)
+	DeferCleanup(p.nmSetManaged, port, true)
 	stdout, stderr, err := pods.ExecCommand(client.Client, true, p.ClockPod, pkg.RecoveryNetworkOutageDaemonSetContainerName,
 		[]string{"ip", "link", "set", port, "down"})
 
@@ -426,6 +441,9 @@ func (p *PortEngine) TurnPortUp(port string) error {
 		[]string{"ip", "link", "set", port, "up"})
 
 	logrus.Infof("Turning interface: %s in pod %s up, stdout: %s, stderr: %s", port, p.ClockPod.Name, stdout.String(), stderr.String())
+	if err == nil {
+		p.nmSetManaged(port, true)
+	}
 	return err
 }
 
@@ -439,13 +457,9 @@ func (p *PortEngine) TurnAllPortsDown(skippedInterfaces map[string]bool) error {
 			logrus.Infof("Skipping interface: %s (in skip list)", port)
 			continue
 		}
-		stdout, stderr, err := pods.ExecCommand(client.Client, true, p.ClockPod, pkg.RecoveryNetworkOutageDaemonSetContainerName,
-			[]string{"ip", "link", "set", port, "down"})
-		if err != nil {
+		if err := p.TurnPortDown(port); err != nil {
 			return err
 		}
-
-		logrus.Infof("Turning interface: %s in pod %s down, stdout: %s, stderr: %s", port, p.ClockPod.Name, stdout.String(), stderr.String())
 	}
 	return nil
 }
@@ -456,13 +470,9 @@ func (p *PortEngine) TurnAllPortsUp() error {
 		return nil
 	}
 	for _, port := range p.Ports {
-		stdout, stderr, err := pods.ExecCommand(client.Client, true, p.ClockPod, pkg.RecoveryNetworkOutageDaemonSetContainerName,
-			[]string{"ip", "link", "set", port, "up"})
-		if err != nil {
+		if err := p.TurnPortUp(port); err != nil {
 			return err
 		}
-
-		logrus.Infof("Turning interface: %s in pod %s up, stdout: %s, stderr: %s", port, p.ClockPod.Name, stdout.String(), stderr.String())
 	}
 	return nil
 }
@@ -534,13 +544,38 @@ var (
 	perConfigClockClassRe = regexp.MustCompile(`^openshift_ptp_clock_class\{config="([^"]+)",node="([^"]+)",process="ptp4l"\}\s+(\d+)`)
 )
 
+const DefaultConfigDir = "/var/run/"
+
 // NICInfo holds the discovered interface names and ptp4l config details for a NIC.
 type NICInfo struct {
 	PtpConfigName string
 	SlaveIf       string
 	MasterIf      string
-	ConfigFile    string
-	ConfigName    string
+	ConfigDir     string // defaults to DefaultConfigDir
+	ConfigName    string // e.g. ptp4l.1.config — used for metrics
+	PMCConfigName string // when set, PMC uses this instead of ConfigName
+}
+
+// ConfigPath returns the full path for the config file used by metrics.
+func (n NICInfo) ConfigPath() string {
+	dir := n.ConfigDir
+	if dir == "" {
+		dir = DefaultConfigDir
+	}
+	return filepath.Join(dir, n.ConfigName)
+}
+
+// PMCConfigPath returns the full path for the config file used by PMC.
+// Falls back to ConfigPath when PMCConfigName is not set.
+func (n NICInfo) PMCConfigPath() string {
+	if n.PMCConfigName == "" {
+		return n.ConfigPath()
+	}
+	dir := n.ConfigDir
+	if dir == "" {
+		dir = DefaultConfigDir
+	}
+	return filepath.Join(dir, n.PMCConfigName)
 }
 
 // GetClockClassViaPMC runs PMC GET PARENT_DATA_SET on the given config file
@@ -670,7 +705,7 @@ func DiscoverNICInfo(ptpConfig ptpv1.PtpConfig, nodeName, nicLabel string) NICIn
 
 	configFile, err := DiscoverPtp4lConfigByProfile(ptpConfig.Name, nodeName)
 	Expect(err).NotTo(HaveOccurred(), "Could not find ptp4l config for %s profile %s", nicLabel, ptpConfig.Name)
-	configName := strings.TrimPrefix(configFile, "/var/run/")
+	configName := strings.TrimPrefix(configFile, DefaultConfigDir)
 
 	logrus.Infof("%s: slave=%s master=%s config=%s", nicLabel, slaveIfs[0], masterIfs[0], configFile)
 
@@ -678,7 +713,6 @@ func DiscoverNICInfo(ptpConfig ptpv1.PtpConfig, nodeName, nicLabel string) NICIn
 		PtpConfigName: ptpConfig.Name,
 		SlaveIf:       slaveIfs[0],
 		MasterIf:      masterIfs[0],
-		ConfigFile:    configFile,
 		ConfigName:    configName,
 	}
 }
@@ -761,7 +795,7 @@ func verifyNodeClockClassWithMetrics(fullConfig testconfig.TestConfig, expectedC
 //   - On OCP < 4.18, single NIC: verifies via node-level metric (no config label).
 //   - On OCP < 4.18, dual NIC: metrics skipped (single metric can't distinguish NICs).
 func VerifyNICClockClass(fullConfig testconfig.TestConfig, nic NICInfo, expectedClass int, isDualNIC bool) {
-	VerifyClockClassViaPMC(fullConfig, nic.ConfigFile, expectedClass)
+	VerifyClockClassViaPMC(fullConfig, nic.PMCConfigPath(), expectedClass)
 	if ptphelper.IsPTPOperatorVersionAtLeast("4.18") {
 		VerifyPerConfigClockClassWithMetrics(fullConfig, nic.ConfigName, expectedClass)
 	} else if !isDualNIC {
@@ -769,12 +803,9 @@ func VerifyNICClockClass(fullConfig testconfig.TestConfig, nic NICInfo, expected
 	}
 }
 
-// TurnOffAndWaitFaulty disables NetworkManager management on the interface,
-// brings it down, and polls until its clock role becomes FAULTY. Disabling NM
-// prevents it from auto-recovering the link while the test expects it to stay down.
+// TurnOffAndWaitFaulty brings the interface down and polls until its clock
+// role becomes FAULTY. NM handling is done by TurnPortDown.
 func (p *PortEngine) TurnOffAndWaitFaulty(iface, nodeName string) {
-	p.nmSetManaged(iface, false)
-	DeferCleanup(p.nmSetManaged, iface, true)
 	err := p.TurnPortDown(iface)
 	Expect(err).NotTo(HaveOccurred())
 	Eventually(func() error {
@@ -784,12 +815,11 @@ func (p *PortEngine) TurnOffAndWaitFaulty(iface, nodeName string) {
 		iface+" should be FAULTY")
 }
 
-// TurnOnAndWaitSlave brings the interface up, re-enables NetworkManager
-// management, and polls until its clock role recovers to SLAVE.
+// TurnOnAndWaitSlave brings the interface up and polls until its clock
+// role recovers to SLAVE. NM handling is done by TurnPortUp.
 func (p *PortEngine) TurnOnAndWaitSlave(iface, nodeName string) {
 	err := p.TurnPortUp(iface)
 	Expect(err).NotTo(HaveOccurred())
-	p.nmSetManaged(iface, true)
 	Eventually(func() error {
 		return metrics.CheckClockRole([]metrics.MetricRole{metrics.MetricRoleSlave},
 			[]string{iface}, &nodeName)
@@ -812,4 +842,32 @@ func (p *PortEngine) nmSetManaged(port string, managed bool) {
 		return
 	}
 	logrus.Infof("NM set managed=%s for %s: output: %s", val, port, stdout.String())
+}
+
+// Phc2sysMatchedInterfaces extracts the captured interface name (submatch index 1)
+// from each entry returned by GetPodLogsRegex / GetPodLogsRegexSince.
+func Phc2sysMatchedInterfaces(matches [][]string) []string {
+	ifaces := make([]string, len(matches))
+	for i, m := range matches {
+		ifaces[i] = m[1]
+	}
+	return ifaces
+}
+
+// CountPhc2sysTransitions counts interface changes in a sequence of phc2sys log
+// matches, starting from initialInterface. If the first log entry differs from
+// initialInterface that counts as a transition. Repeated selections of the same
+// interface do not increment the counter, so only genuine direction changes are
+// counted. This correctly detects flapping such as primary->secondary->primary
+// (2 transitions) while tolerating repeated same-interface log lines.
+func CountPhc2sysTransitions(matches [][]string, initialInterface string) int {
+	transitions := 0
+	prev := initialInterface
+	for _, m := range matches {
+		if m[1] != prev {
+			transitions++
+			prev = m[1]
+		}
+	}
+	return transitions
 }

@@ -55,6 +55,10 @@ spec:
               cpu: 50m
               memory: 100Mi
           env:
+            - name: OPERATOR_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
             - name: WATCH_NAMESPACE
               value: ""
             - name: POD_NAME

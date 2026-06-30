@@ -22,3 +22,19 @@ func IsTransientL2OrPrivilegedNamespaceError(err error) bool {
 	}
 	return false
 }
+
+// IsRetryableConfigError returns true for transient errors that can be resolved
+// by retrying the entire configuration (includes namespace errors and Kubernetes
+// conflict errors from concurrent node modifications).
+func IsRetryableConfigError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if IsTransientL2OrPrivilegedNamespaceError(err) {
+		return true
+	}
+	if strings.Contains(err.Error(), "the object has been modified") {
+		return true
+	}
+	return false
+}

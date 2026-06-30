@@ -1,11 +1,19 @@
 package names
 
-// some names
+import "os"
 
 // Namespace is the namespace where resources are created,
 // such as linuxptp daemonset, ptp-configmap-<node-name>
-// and nodePtpDevice.
-const Namespace = "openshift-ptp"
+// and nodePtpDevice. It defaults to "openshift-ptp" but
+// can be overridden via the OPERATOR_NAMESPACE env var
+// to support OLMv1 AllNamespaces install mode.
+var Namespace = "openshift-ptp"
+
+func init() {
+	if ns := os.Getenv("OPERATOR_NAMESPACE"); ns != "" {
+		Namespace = ns
+	}
+}
 
 // DefaultPTPConfigMapName is the default ptp config map that created
 // by ptp-operator.
