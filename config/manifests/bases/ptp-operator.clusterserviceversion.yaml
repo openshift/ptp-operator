@@ -175,6 +175,7 @@ spec:
   - email: support@redhat.com
     name: Red Hat
   maturity: alpha
+  minKubeVersion: 1.35.0
   provider:
     name: Red Hat
   version: 0.0.0

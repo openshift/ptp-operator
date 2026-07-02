@@ -61,7 +61,7 @@ metadata:
     categories: Networking
     certified: "false"
     containerImage: quay.io/openshift/origin-ptp-operator:5.0
-    createdAt: "2026-06-25T00:57:11Z"
+    createdAt: "2026-07-02T18:03:02Z"
     description: This software enables configuration of Precision Time Protocol(PTP)
       on Kubernetes. It detects hardware capable PTP devices on each node, and configures
       linuxptp processes such as ptp4l, phc2sys and timemaster.
@@ -493,6 +493,7 @@ spec:
   - email: support@redhat.com
     name: Red Hat
   maturity: alpha
+  minKubeVersion: 1.35.0
   provider:
     name: Red Hat
   version: 5.0.0
