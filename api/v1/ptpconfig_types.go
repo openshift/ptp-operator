@@ -149,6 +149,7 @@ type PtpProfile struct {
 	Plugins     map[string]*apiextensions.JSON `json:"plugins,omitempty"`
 }
 
+// +kubebuilder:validation:XValidation:rule="!has(self.ptpSourceQualifiedThreshold) || !has(self.ptpSourceDisqualifiedThreshold) || self.ptpSourceDisqualifiedThreshold >= self.ptpSourceQualifiedThreshold",message="ptpSourceDisqualifiedThreshold must be greater than or equal to ptpSourceQualifiedThreshold when both are set"
 type PtpClockThreshold struct {
 	// +kubebuilder:default=5
 	// clock state to stay in holdover state in secs
@@ -173,6 +174,36 @@ type PtpClockThreshold struct {
 	SysOffsetSamples *int64 `json:"sysOffsetSamples,omitempty"`
 	// Acceptable process downtime in seconds for each process
 	ProcessDowntimeThresholds *ProcessDowntimeThresholds `json:"processDowntimeThresholds,omitempty"`
+	// ptpSourceQualifiedThreshold is the ptp4l master offset threshold, in nanoseconds, that the
+	// active TR port offset must stay at or below for ptpSourceQualifiedSamples consecutive samples
+	// to qualify the upstream PTP source (offset mode). When unset, the daemon uses the existing
+	// T-BC qualification-path default as the fallback.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	PtpSourceQualifiedThreshold *int64 `json:"ptpSourceQualifiedThreshold,omitempty"`
+	// ptpSourceDisqualifiedThreshold is the ptp4l master offset threshold, in nanoseconds, that
+	// when exceeded for ptpSourceDisqualifiedSamples consecutive samples disqualifies the upstream
+	// PTP source (offset mode). When unset, the daemon uses the existing T-BC qualification-path
+	// default as the fallback.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	PtpSourceDisqualifiedThreshold *int64 `json:"ptpSourceDisqualifiedThreshold,omitempty"`
+	// ptpSourceQualifiedSamples is the number of consecutive qualifying ptp4l master offset samples
+	// required to declare the upstream source qualified (offset mode). When unset, the daemon
+	// applies the default (5).
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	PtpSourceQualifiedSamples *int64 `json:"ptpSourceQualifiedSamples,omitempty"`
+	// ptpSourceDisqualifiedSamples is the number of consecutive disqualifying ptp4l master offset
+	// samples required to declare the upstream source disqualified (offset mode). When unset, the
+	// daemon applies the default (5).
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	PtpSourceDisqualifiedSamples *int64 `json:"ptpSourceDisqualifiedSamples,omitempty"`
+	// +kubebuilder:default=false
+	// +optional
+	// When true, use ptp4l servo S3 state for qualification instead of offset window.
+	PtpSourceUseS3 bool `json:"ptpSourceUseS3,omitempty"`
 }
 
 // ProcessDowntimeThresholds defines acceptable downtime thresholds for PTP processes
