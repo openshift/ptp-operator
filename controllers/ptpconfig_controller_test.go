@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
@@ -80,6 +81,44 @@ func TestReturnMapKeys_Empty(t *testing.T) {
 	m := map[string]interface{}{}
 	keys := returnMapKeys(m)
 	assert.Empty(t, keys)
+}
+
+func TestEnabledPluginNames(t *testing.T) {
+	explicitPlugins := map[string]*apiextensions.JSON{
+		"custom-plugin": {Raw: []byte(`{"enabled":true}`)},
+		"e825":          nil,
+	}
+	emptyPlugins := map[string]*apiextensions.JSON{}
+
+	tests := []struct {
+		name    string
+		plugins *map[string]*apiextensions.JSON
+		want    string
+	}{
+		{
+			name: "default plugins include phc-first-step",
+			want: "e810,e825,e830,ntpfailover,phc-first-step",
+		},
+		{
+			name:    "explicit plugin names replace defaults and pass through generically",
+			plugins: &explicitPlugins,
+			want:    "custom-plugin,e825",
+		},
+		{
+			name:    "explicit empty map disables defaults",
+			plugins: &emptyPlugins,
+			want:    "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &ptpv1.PtpOperatorConfig{
+				Spec: ptpv1.PtpOperatorConfigSpec{EnabledPlugins: tt.plugins},
+			}
+			assert.Equal(t, tt.want, enabledPluginNames(cfg))
+		})
+	}
 }
 
 func makeDaemonSet() *appsv1.DaemonSet {
