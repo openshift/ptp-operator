@@ -80,7 +80,7 @@ func BasicClockSyncCheck(fullConfig testconfig.TestConfig, ptpConfig *ptpv1.PtpC
 	Eventually(func() error {
 		err = metrics.CheckClockRoleAndOffset(ptpConfig, label, nodeName, expectedClockState, expectedClockRole, isCheckOffset)
 		if err != nil {
-			logrus.Infof(fmt.Sprintf("CheckClockRoleAndOffset Failed because of err: %s", err))
+			logrus.Infof("CheckClockRoleAndOffset Failed because of err: %s", err)
 		}
 		return err
 	}, pkg.TimeoutIn10Minutes, pkg.Timeout10Seconds).Should(BeNil(), fmt.Sprintf("Timeout to detect metrics for ptpconfig %s", ptpConfig.Name))
