@@ -495,8 +495,8 @@ github.com/prometheus/procfs v0.16.1/go.mod h1:teAbpZRB1iIAJYREa1LsoWUXykVXA1KlT
 github.com/prometheus/tsdb v0.7.1/go.mod h1:qhTCs0VvXwvX/y3TZrWD7rabWM+ijKTux40TwIPHuXU=
 github.com/redhat-cne/channel-pubsub v0.0.8 h1:5UzwMev+pjIIfzHDyCsx8HlG4a/ahHpRO+EXMFDa7YQ=
 github.com/redhat-cne/channel-pubsub v0.0.8/go.mod h1:mzF6XIdwFXrQ0JmvVA4UtflirDIM+q9Dj/1YGevGnOU=
-github.com/redhat-cne/l2discovery-lib v0.1.1 h1:wicVcqruOfVxU3wlIUQ1f2Ju2E6eAMG6wraZMg6hmng=
-github.com/redhat-cne/l2discovery-lib v0.1.1/go.mod h1:EjkRseUYnjUByFSzCSnMQ/DeQ8FkcRfHF1OIUxX/RCA=
+github.com/redhat-cne/l2discovery-lib v0.1.2 h1:k8mQqVFEZEff9k1xsAynLbEG/w9nARMGzybMdZsOy54=
+github.com/redhat-cne/l2discovery-lib v0.1.2/go.mod h1:EjkRseUYnjUByFSzCSnMQ/DeQ8FkcRfHF1OIUxX/RCA=
 github.com/redhat-cne/privileged-daemonset v1.0.35 h1:zfJyrK5bp7STIs1s9niKPTo36h69f4kSxfd6DnGq6oU=
 github.com/redhat-cne/privileged-daemonset v1.0.35/go.mod h1:poRO1Giq9rH4JD8/KLxRJobOARGxmPr8xAIwhSrZGRQ=
 github.com/redhat-cne/ptp-listener-exports v0.0.7 h1:OndW4kSKym5LK9bbEqJPE/LW/LGMDPw5IzXdmrGMRhI=
