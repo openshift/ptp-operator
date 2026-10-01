@@ -65,6 +65,18 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	Expect(fullConfig.Status).To(Equal(testconfig.DiscoverySuccessStatus), "parallel suite requires successful PTP discovery")
 	Expect(fullConfig.DiscoveredClockUnderTestPod).NotTo(BeNil(),
 		"clock-under-test pod missing; label node with "+pkg.PtpClockUnderTestNodeLabel)
+
+	// Write node under test information
+	nodeName := fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName
+	testMode := strings.ToLower(fullConfig.PtpModeDiscovered.String())
+	info := make(map[string]string)
+	info["Pod Name"] = fullConfig.DiscoveredClockUnderTestPod.Name
+	info["Namespace"] = fullConfig.DiscoveredClockUnderTestPod.Namespace
+	err = logging.WriteNodeUnderTest(nodeName, testMode, info)
+	if err != nil {
+		logrus.Warnf("Failed to write node under test file: %v", err)
+	}
+
 	ptphelper.RestartPTPDaemon()
 
 	isConsumerReady := true

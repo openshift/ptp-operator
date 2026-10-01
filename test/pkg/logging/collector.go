@@ -105,6 +105,14 @@ func GetLogArtifactsDir() string {
 	return "./test-logs"
 }
 
+// GetLogDirectory returns the current test run's log directory
+func GetLogDirectory() string {
+	if collector != nil {
+		return collector.logDir
+	}
+	return ""
+}
+
 // ============================================================================
 // Public API
 // ============================================================================
@@ -242,6 +250,57 @@ func WriteStep(step string) {
 	if collector != nil && ShouldWriteTestMarkers() {
 		collector.writers.writeToAll(createStepMarker(step))
 	}
+}
+
+// WriteNodeUnderTest writes a file indicating which node is under test
+func WriteNodeUnderTest(nodeName, mode string, info map[string]string) (err error) {
+	if collector == nil {
+		return fmt.Errorf("log collector not initialized")
+	}
+
+	filePath := filepath.Join(collector.logDir, "NODE_UNDER_TEST.txt")
+	file, err := os.Create(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to create NODE_UNDER_TEST.txt: %w", err)
+	}
+	defer func() {
+		if closeErr := file.Close(); err == nil {
+			err = closeErr
+		}
+	}()
+
+	write := func(format string, args ...interface{}) error {
+		_, err := fmt.Fprintf(file, format, args...)
+		return err
+	}
+	if err = write("Node Under Test\n"); err != nil {
+		return err
+	}
+	if err = write("================\n\n"); err != nil {
+		return err
+	}
+	if err = write("Node Name: %s\n", nodeName); err != nil {
+		return err
+	}
+	if err = write("Test Mode: %s\n", mode); err != nil {
+		return err
+	}
+	if err = write("Timestamp: %s\n\n", time.Now().Format(time.RFC3339)); err != nil {
+		return err
+	}
+
+	if len(info) > 0 {
+		if err = write("Additional Information:\n"); err != nil {
+			return err
+		}
+		for key, value := range info {
+			if err = write("  %s: %s\n", key, value); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 // ============================================================================
