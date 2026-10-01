@@ -4263,8 +4263,31 @@ func verifyProcessRestartNoSocketErrors(fullConfig testconfig.TestConfig, proces
 		fmt.Sprintf("unexpected socket errors in logs after %s kill: %v", process, socketErrMatches))
 }
 
+// isProcessDelayed checks if a process has delayed startup in the daemon logs
+func isProcessDelayed(fullConfig testconfig.TestConfig, process string) bool {
+	delayedMatches, err := pods.GetPodLogsRegex(
+		openshiftPtpNamespace,
+		fullConfig.DiscoveredClockUnderTestPod.Name,
+		pkg.PtpContainerName,
+		fmt.Sprintf(`Delaying %s startup`, process),
+		true, // fixed log text
+		2*time.Second,
+	)
+	if err != nil {
+		logrus.Warnf("Could not confirm delayed %s startup from pod logs; using 3-minute timeout: %v", process, err)
+	}
+	return len(delayedMatches) > 0
+}
+
 // checkStatusByProcess mirrors checkClockStateForProcess but for process status (1/0)
 func checkStatusByProcess(fullConfig testconfig.TestConfig, process string, state string) {
+	// Determine timeout based on whether process has delayed startup
+	timeout := pkg.TimeoutIn3Minutes
+	if isProcessDelayed(fullConfig, process) {
+		By(fmt.Sprintf("%s has delayed startup, using extended timeout of 10 minutes", process))
+		timeout = 10 * time.Minute
+	}
+
 	Eventually(func() string {
 		buf, _, _ := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
 		retState, found := getProcessStatusByProcess(buf.String(), process)
@@ -4272,8 +4295,8 @@ func checkStatusByProcess(fullConfig testconfig.TestConfig, process string, stat
 			return ""
 		}
 		return retState
-	}, pkg.TimeoutIn3Minutes, pkg.Timeout10Seconds).Should(Equal(state),
-		fmt.Sprintf("Expected %s process status to be %s for GM", process, state))
+	}, timeout, pkg.Timeout10Seconds).Should(Equal(state),
+		fmt.Sprintf("Expected %s process status to be %s", process, state))
 }
 
 // watchProcessFlipOneZeroOne aggressively samples metrics to detect a fast 1→0→1 flip for a process.

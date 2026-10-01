@@ -200,6 +200,8 @@ func GetPodLogsRegexSince(namespace string, podName string, containerName, regex
 // If no match is found in the existing logs, it falls back to following the
 // stream and waiting for new content up to the given timeout.
 func GetPodLogsRegex(namespace string, podName string, containerName, regex string, isLiteralText bool, timeout time.Duration) (matches [][]string, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
 	const matchOnlyFullLines = `\s*^`
 	if isLiteralText {
 		regex = regexp.QuoteMeta(regex)
@@ -217,9 +219,7 @@ func GetPodLogsRegex(namespace string, podName string, containerName, regex stri
 		Follow:    false,
 	}
 	noFollowReq := testclient.Client.CoreV1().Pods(namespace).GetLogs(podName, &noFollowOpts)
-	snapCtx, snapCancel := context.WithTimeout(context.Background(), pkg.TimeoutIn1Minute)
-	defer snapCancel()
-	snapStream, err := noFollowReq.Stream(snapCtx)
+	snapStream, err := noFollowReq.Stream(ctx)
 	if err != nil {
 		logrus.Warnf("failed to open log stream for initial snapshot for %s/%s container=%s: %s", namespace, podName, containerName, err)
 	} else {
@@ -239,9 +239,6 @@ func GetPodLogsRegex(namespace string, podName string, containerName, regex stri
 		Follow:    true,
 	}
 	followReq := testclient.Client.CoreV1().Pods(namespace).GetLogs(podName, &followOpts)
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
 	stream, err := followReq.Stream(ctx)
 	if err != nil {
 		return matches, fmt.Errorf("failed to open log streamn for %s/%s container=%s, err=%s", namespace, podName, containerName, err)
