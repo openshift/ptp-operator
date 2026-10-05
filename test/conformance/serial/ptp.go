@@ -1135,10 +1135,10 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				logrus.Infof("Primary   BC slave interfaces: %v", primaryBCSlaveInterfaces)
 				logrus.Infof("Secondary BC slave interfaces: %v", secondaryBCSlaveInterfaces)
 
-				// HA member profile names, used to assert openshift_ptp_ha_profile_status
-				// (ACTIVE for the phc2sys-selected member, INACTIVE for the other).
-				primaryProfile := *primaryPtpConfig.Spec.Profile[0].Name
-				secondaryProfile := *secondaryPtpConfig.Spec.Profile[0].Name
+				// HA member profile matchers for openshift_ptp_ha_profile_status (ACTIVE
+				// for the phc2sys-selected member, INACTIVE for the other).
+				primaryProfile := regexp.MustCompile(`profile="` + ptphelper.ProfileNameMatchPattern(primaryPtpConfig.Name, *primaryPtpConfig.Spec.Profile[0].Name) + `"`)
+				secondaryProfile := regexp.MustCompile(`profile="` + ptphelper.ProfileNameMatchPattern(secondaryPtpConfig.Name, *secondaryPtpConfig.Spec.Profile[0].Name) + `"`)
 				haNodeName := &fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName
 
 				// phc2sys is delayed until ptp4l synchronizes, so first wait for
