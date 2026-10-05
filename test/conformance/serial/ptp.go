@@ -1135,6 +1135,12 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				logrus.Infof("Primary   BC slave interfaces: %v", primaryBCSlaveInterfaces)
 				logrus.Infof("Secondary BC slave interfaces: %v", secondaryBCSlaveInterfaces)
 
+				// HA member profile names, used to assert openshift_ptp_ha_profile_status
+				// (ACTIVE for the phc2sys-selected member, INACTIVE for the other).
+				primaryProfile := *primaryPtpConfig.Spec.Profile[0].Name
+				secondaryProfile := *secondaryPtpConfig.Spec.Profile[0].Name
+				haNodeName := &fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName
+
 				// phc2sys is delayed until ptp4l synchronizes, so first wait for
 				// the primary BC slave interface to reach SLAVE state, then give
 				// phc2sys a short window to emit its initial interface selection.
@@ -1168,6 +1174,15 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					Fail(fmt.Sprintf("Selected interface %s does not belong to the primary boundary clock config. Primary interfaces: %v", selectedInterface, primaryBCSlaveInterfaces))
 				}
 
+				By("Verifying ha_profile_status reports the primary profile ACTIVE and the secondary INACTIVE")
+				Eventually(func() error {
+					if err := metrics.CheckHAProfileStatus(primaryProfile, true, haNodeName); err != nil {
+						return err
+					}
+					return metrics.CheckHAProfileStatus(secondaryProfile, false, haNodeName)
+				}, pkg.TimeoutIn3Minutes, 5*time.Second).Should(BeNil(),
+					"primary HA profile must be ACTIVE and secondary INACTIVE while phc2sys uses the primary")
+
 				// Wait for some time to ensure the regex won't match the previous log entry
 				time.Sleep(2 * time.Second)
 				ifDownTime := time.Now()
@@ -1200,6 +1215,15 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					Fail(fmt.Sprintf("Selected interface %s does not belong to the secondary boundary clock config. Secondary interfaces: %v", newSelectedInterface, secondaryBCSlaveInterfaces))
 				}
 
+				By("Verifying ha_profile_status flips to the secondary profile ACTIVE after failover")
+				Eventually(func() error {
+					if err := metrics.CheckHAProfileStatus(secondaryProfile, true, haNodeName); err != nil {
+						return err
+					}
+					return metrics.CheckHAProfileStatus(primaryProfile, false, haNodeName)
+				}, pkg.TimeoutIn3Minutes, 5*time.Second).Should(BeNil(),
+					"secondary HA profile must become ACTIVE and primary INACTIVE after failover")
+
 				time.Sleep(2 * time.Second)
 				ifUpTime := time.Now()
 				By("Restoring the primary BC's slave interface " + primaryInterface)
@@ -1229,6 +1253,15 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				if selectedInterface != primaryInterface {
 					Fail(fmt.Sprintf("Selected interface %s is not the original primary interface %s", selectedInterface, primaryInterface))
 				}
+
+				By("Verifying ha_profile_status returns to the primary profile ACTIVE after recovery")
+				Eventually(func() error {
+					if err := metrics.CheckHAProfileStatus(primaryProfile, true, haNodeName); err != nil {
+						return err
+					}
+					return metrics.CheckHAProfileStatus(secondaryProfile, false, haNodeName)
+				}, pkg.TimeoutIn3Minutes, 5*time.Second).Should(BeNil(),
+					"primary HA profile must be ACTIVE again and secondary INACTIVE after recovery")
 			})
 
 		})
