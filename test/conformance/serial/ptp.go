@@ -386,6 +386,11 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 			if fullConfig.DiscoveredClockUnderTestPod == nil {
 				Fail("DiscoveredClockUnderTestPod is nil - check that the node is labeled with " + pkg.PtpClockUnderTestNodeLabel)
 			}
+			pod := fullConfig.DiscoveredClockUnderTestPod
+			if err := logging.WriteNodeUnderTest(pod.Spec.NodeName, strings.ToLower(fullConfig.PtpModeDiscovered.String()),
+				map[string]string{"Pod Name": pod.Name, "Namespace": pod.Namespace}); err != nil {
+				logrus.Warnf("Failed to write node under test file: %v", err)
+			}
 			portEngine.Initialize(fullConfig.DiscoveredClockUnderTestPod, fullConfig.DiscoveredFollowerInterfaces)
 
 		})
@@ -1153,6 +1158,8 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					return metrics.CheckClockRole(slaveRoles, primaryBCSlaveInterfaces, &fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName)
 				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(BeNil(),
 					"Primary BC slave interface must reach SLAVE state before phc2sys starts")
+
+				checkStatusByProcess(fullConfig, "phc2sys", "1")
 
 				// Get phc2sys logs to identify which interface it's using.
 				const phc2sysLogPattern = `phc2sys(?m).*?:.* selecting (\w+) as out-of-domain source clock`
@@ -2706,6 +2713,7 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 			})
 			It("is verifying WPC GM state based on logs", func() {
+				checkStatusByProcess(fullConfig, "phc2sys", "1")
 
 				By("checking GM required processes status", func() {
 					processesArr := [...]string{"phc2sys", "gpspipe", "ts2phc", "gpsd", "ptp4l", "dpll"}
@@ -3936,35 +3944,28 @@ func checkProcessStatus(fullConfig testconfig.TestConfig, state string) {
 		openshift_ptp_process_status{config="ts2phc.0.config",node="cnfde22.ptp.lab.eng.bos.redhat.com",process="gpspipe"} 1
 		openshift_ptp_process_status{config="ts2phc.0.config",node="cnfde22.ptp.lab.eng.bos.redhat.com",process="ts2phc"} 1
 	*/
-	Eventually(func() string {
+	timeout := pkg.TimeoutIn5Minutes
+	if isProcessDelayed(fullConfig, "phc2sys") {
+		timeout = pkg.TimeoutIn10Minutes
+	}
+	Eventually(func() ([]string, error) {
 		buf, _, err := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
 		if err != nil {
 			refreshPodOnNotFound(fullConfig.DiscoveredClockUnderTestPod, err)
-			return ""
+			return nil, err
 		}
-		return buf.String()
-	}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring(metrics.OpenshiftPtpProcessStatus),
-		"Process status metrics are not detected")
-
-	Eventually(func() string {
-		buf, _, err := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
+		status, err := processRunning(buf.String(), state)
 		if err != nil {
-			refreshPodOnNotFound(fullConfig.DiscoveredClockUnderTestPod, err)
-			return ""
+			return nil, err
 		}
-		return buf.String()
-	}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring("phc2sys"),
-		"phc2ys process status not detected")
-
-	time.Sleep(10 * time.Second)
-	buf, _, _ := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
-	ret, err := processRunning(buf.String(), state)
-	Expect(err).To(BeNil())
-	Expect(ret["phc2sys"]).To(BeTrue(), fmt.Sprintf("Expected phc2sys to be  %s for GM", state))
-	Expect(ret["ptp4l"]).To(BeTrue(), fmt.Sprintf("Expected ptp4l to be  %s for GM", state))
-	Expect(ret["ts2phc"]).To(BeTrue(), fmt.Sprintf("Expected ts2phc to be  %s for GM", state))
-	Expect(ret["gpspipe"]).To(BeTrue(), fmt.Sprintf("Expected gpspipe to be %s for GM", state))
-	Expect(ret["gpsd"]).To(BeTrue(), fmt.Sprintf("Expected gpsd to be q %s for GM", state))
+		var failing []string
+		for _, process := range []string{"phc2sys", "ptp4l", "ts2phc", "gpspipe", "gpsd"} {
+			if !status[process] {
+				failing = append(failing, process)
+			}
+		}
+		return failing, nil
+	}, timeout, 5*time.Second).Should(BeEmpty(), "Processes missing or not reporting status %s", state)
 }
 
 func checkClockClassState(fullConfig testconfig.TestConfig, expectedState string, timeout time.Duration) {
@@ -4258,8 +4259,31 @@ func verifyProcessRestartNoSocketErrors(fullConfig testconfig.TestConfig, proces
 		fmt.Sprintf("unexpected socket errors in logs after %s kill: %v", process, socketErrMatches))
 }
 
+// isProcessDelayed checks if a process has delayed startup in the daemon logs
+func isProcessDelayed(fullConfig testconfig.TestConfig, process string) bool {
+	delayedMatches, err := pods.GetPodLogsRegex(
+		openshiftPtpNamespace,
+		fullConfig.DiscoveredClockUnderTestPod.Name,
+		pkg.PtpContainerName,
+		fmt.Sprintf(`Delaying %s startup`, process),
+		true, // fixed log text
+		2*time.Second,
+	)
+	if err != nil {
+		logrus.Warnf("Could not confirm delayed %s startup from pod logs; using 3-minute timeout: %v", process, err)
+	}
+	return len(delayedMatches) > 0
+}
+
 // checkStatusByProcess mirrors checkClockStateForProcess but for process status (1/0)
 func checkStatusByProcess(fullConfig testconfig.TestConfig, process string, state string) {
+	// Determine timeout based on whether process has delayed startup
+	timeout := pkg.TimeoutIn3Minutes
+	if isProcessDelayed(fullConfig, process) {
+		By(fmt.Sprintf("%s has delayed startup, using extended timeout of 10 minutes", process))
+		timeout = 10 * time.Minute
+	}
+
 	Eventually(func() string {
 		buf, _, _ := pods.ExecCommand(client.Client, true, fullConfig.DiscoveredClockUnderTestPod, pkg.PtpContainerName, []string{"curl", pkg.MetricsEndPoint})
 		retState, found := getProcessStatusByProcess(buf.String(), process)
@@ -4267,8 +4291,8 @@ func checkStatusByProcess(fullConfig testconfig.TestConfig, process string, stat
 			return ""
 		}
 		return retState
-	}, pkg.TimeoutIn3Minutes, pkg.Timeout10Seconds).Should(Equal(state),
-		fmt.Sprintf("Expected %s process status to be %s for GM", process, state))
+	}, timeout, pkg.Timeout10Seconds).Should(Equal(state),
+		fmt.Sprintf("Expected %s process status to be %s", process, state))
 }
 
 // watchProcessFlipOneZeroOne aggressively samples metrics to detect a fast 1→0→1 flip for a process.

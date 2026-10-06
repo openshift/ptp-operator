@@ -627,6 +627,9 @@ func GetPerConfigClockClassesWithMetrics(fullConfig testconfig.TestConfig) (map[
 			}
 		}
 	}
+	if len(result) == 0 {
+		fmt.Fprintf(GinkgoWriter, "No per-config clock class metrics found. Raw metrics output (first 4 KiB):\n%s\n", buf.String()[:min(len(buf.String()), 4096)])
+	}
 	return result, nil
 }
 
