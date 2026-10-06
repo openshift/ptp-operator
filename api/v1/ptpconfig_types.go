@@ -33,17 +33,74 @@ type PtpConfigSpec struct {
 	Recommend []PtpRecommend `json:"recommend"`
 }
 
+// ProfileStatus reports the relationship and apply state of a single profile within this PtpConfig.
+type ProfileStatus struct {
+	// Name is the fully qualified profile name: <ptpconfigName>_<profileName>.
+	Name string `json:"name"`
+
+	// ControlledBy is the fully qualified name of the profile that controls this one.
+	// +optional
+	ControlledBy string `json:"controlledBy,omitempty"`
+
+	// Controls lists the fully qualified names of profiles this one controls (reverse of controllingProfile).
+	// +optional
+	Controls []string `json:"controls,omitempty"`
+
+	// HaMembers lists the fully qualified names of profiles coordinated by this HA profile.
+	// +optional
+	HaMembers []string `json:"haMembers,omitempty"`
+
+	// PartOfHa is the fully qualified name of the HA coordinator profile this one belongs to.
+	// Empty if not part of HA.
+	// +optional
+	PartOfHa string `json:"partOfHa,omitempty"`
+
+	// HasPhc2sys is true if this profile has phc2sysOpts configured (syncs system clock).
+	HasPhc2sys bool `json:"hasPhc2sys"`
+
+	// ClockType is T-GM, T-BC, BC, or OC. Written by linuxptp-daemon at apply.
+	// +optional
+	ClockType string `json:"clockType,omitempty"`
+
+	// AppliedOnNodes lists the nodes where the linuxptp-daemon has applied this profile.
+	// This is observed from NodePtpDevice.status.sync.profiles, not from matchList.
+	// +optional
+	AppliedOnNodes []string `json:"appliedOnNodes,omitempty"`
+
+	// HardwareConfigs lists HardwareConfig CRs whose relatedPtpProfileName refers to this profile.
+	// +optional
+	HardwareConfigs []string `json:"hardwareConfigs,omitempty"`
+}
+
 // PtpConfigStatus defines the observed state of PtpConfig
 type PtpConfigStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// MatchList contains the nodes matched by this PtpConfig's recommend rules.
 	MatchList []NodeMatchList `json:"matchList,omitempty"`
-	// Conditions contains the conditions for the PtpConfig
+
+	// ObservedGeneration is the most recent generation observed by the controller.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// ProfileStatuses reports the relationship and apply state of each profile in this PtpConfig.
+	// +optional
+	ProfileStatuses []ProfileStatus `json:"profileStatuses,omitempty"`
+
+	// Warnings contains any detected misconfigurations (e.g., multiple profiles with phc2sys on same node).
+	// +optional
+	Warnings []string `json:"warnings,omitempty"`
+
+	// Conditions represent the latest available observations of the PtpConfig's state.
+	// Known condition types are: "ProfileReferenceValid".
+	// +optional
+	// +listType=map
+	// +listMapKey=type
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="Refs Valid",type="string",JSONPath=`.status.conditions[?(@.type=="ProfileReferenceValid")].status`,priority=0
+//+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
 // PtpConfig is the Schema for the ptpconfigs API
 type PtpConfig struct {
@@ -80,10 +137,16 @@ type PtpProfile struct {
 	PtpSchedulingPolicy *string `json:"ptpSchedulingPolicy,omitempty"`
 	// +kubebuilder:validation:Minimum=1
 	// +kubebuilder:validation:Maximum=65
-	PtpSchedulingPriority *int64                         `json:"ptpSchedulingPriority,omitempty"`
-	PtpClockThreshold     *PtpClockThreshold             `json:"ptpClockThreshold,omitempty"`
-	PtpSettings           map[string]string              `json:"ptpSettings,omitempty"`
-	Plugins               map[string]*apiextensions.JSON `json:"plugins,omitempty"`
+	PtpSchedulingPriority *int64             `json:"ptpSchedulingPriority,omitempty"`
+	PtpClockThreshold     *PtpClockThreshold `json:"ptpClockThreshold,omitempty"`
+	// PtpSettings holds free-form, string-typed configuration knobs validated individually
+	// by the PtpConfig admission webhook. Recognized keys include (non-exhaustive):
+	//   - logReduce: log reduction mode ('true', 'false', 'basic', 'enhanced').
+	//   - inSyncConditionThreshold: ptp4l offset threshold (ns) used by the T-BC state machine.
+	//   - inSyncConditionTimes: number of consecutive in-sync samples before T-BC reports LOCKED.
+	//   - stdoutFilter: regexp filtering ptp4l/phc2sys stdout.
+	PtpSettings map[string]string              `json:"ptpSettings,omitempty"`
+	Plugins     map[string]*apiextensions.JSON `json:"plugins,omitempty"`
 }
 
 type PtpClockThreshold struct {
@@ -93,9 +156,21 @@ type PtpClockThreshold struct {
 	// +kubebuilder:default=100
 	// max offset in nano secs
 	MaxOffsetThreshold int64 `json:"maxOffsetThreshold,omitempty"`
-	// +kubebuilder:default=-100
-	// min offset in nano secs
+	// DEPRECATED: min offset in nano secs. This field is no longer used for offset-range evaluation; the system now evaluates abs(offset) against maxOffsetThreshold only. The field is retained for backward compatibility with existing PtpConfig resources and its value is ignored. Do not set this field in new configurations.
+	// Deprecated: MinOffsetThreshold is no longer used for offset-range evaluation; abs(offset) < MaxOffsetThreshold is evaluated instead.
 	MinOffsetThreshold int64 `json:"minOffsetThreshold,omitempty"`
+	// sysOffsetInSyncThreshold is the phc2sys-to-CLOCK_REALTIME offset threshold, in nanoseconds, that must be met to gate the OS Clock Sync (E3) LOCKED state. abs(offset) <= this threshold for sysOffsetSamples consecutive samples triggers LOCKED. When unset, it defaults to maxOffsetThreshold.
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	SysOffsetInSyncThreshold *int64 `json:"sysOffsetInSyncThreshold,omitempty"`
+	// sysOffsetOutOfSyncThreshold is the phc2sys-to-CLOCK_REALTIME offset threshold, in nanoseconds, that when exceeded gates the OS Clock Sync (E3) FREERUN state. abs(offset) > this threshold for sysOffsetSamples consecutive samples triggers FREERUN. Independent of sysOffsetInSyncThreshold; together they form a hysteresis band. When unset, it defaults to maxOffsetThreshold.
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	SysOffsetOutOfSyncThreshold *int64 `json:"sysOffsetOutOfSyncThreshold,omitempty"`
+	// sysOffsetSamples is the number of consecutive phc2sys offset samples required for an E3 LOCKED/FREERUN state transition in either direction (relative to sysOffsetInSyncThreshold for LOCKED, or sysOffsetOutOfSyncThreshold for FREERUN). When unset, it defaults to 10.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	SysOffsetSamples *int64 `json:"sysOffsetSamples,omitempty"`
 	// Acceptable process downtime in seconds for each process
 	ProcessDowntimeThresholds *ProcessDowntimeThresholds `json:"processDowntimeThresholds,omitempty"`
 }
@@ -153,7 +228,8 @@ type MatchRule struct {
 
 type NodeMatchList struct {
 	NodeName *string `json:"nodeName"`
-	Profile  *string `json:"profile"`
+	// Profile is the fully qualified profile name: <ptpconfigName>_<profileName>.
+	Profile *string `json:"profile"`
 }
 
 func init() {

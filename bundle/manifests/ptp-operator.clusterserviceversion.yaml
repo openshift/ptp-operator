@@ -55,13 +55,37 @@ metadata:
             },
             "ptpEventConfig": {}
           }
+        },
+        {
+          "apiVersion": "ptp.openshift.io/v2alpha1",
+          "kind": "HardwareConfig",
+          "metadata": {
+            "name": "example-hardwareconfig"
+          },
+          "spec": {
+            "profile": {
+              "clockChain": {
+                "structure": [
+                  {
+                    "dpll": {
+                      "networkInterface": "ens787f1"
+                    },
+                    "name": "nic1"
+                  }
+                ]
+              },
+              "clockType": "T-GM",
+              "name": "example-profile"
+            },
+            "relatedPtpProfileName": "profile1"
+          }
         }
       ]
     capabilities: Basic Install
     categories: Networking
     certified: "false"
     containerImage: quay.io/openshift/origin-ptp-operator:5.0
-    createdAt: "2026-07-02T18:03:02Z"
+    createdAt: "2025-09-10T10:13:05"
     description: This software enables configuration of Precision Time Protocol(PTP)
       on Kubernetes. It detects hardware capable PTP devices on each node, and configures
       linuxptp processes such as ptp4l, phc2sys and timemaster.
@@ -79,8 +103,8 @@ metadata:
     operatorframework.io/suggested-namespace: openshift-ptp
     operators.openshift.io/infrastructure-features: '["disconnected"]'
     operators.openshift.io/must-gather-image: quay.io/openshift/origin-ptp-operator-must-gather:5.0
-    operators.operatorframework.io/builder: operator-sdk-v1.36.1-ocp
-    operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
+    operators.operatorframework.io/builder: operator-sdk-v1.38.0-ocp
+    operators.operatorframework.io/project_layout: go.kubebuilder.io/v4
     provider: Red Hat
     repository: https://github.com/k8snetworkplumbingwg/ptp-operator
     support: Red Hat
@@ -90,7 +114,9 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
-    - kind: HardwareConfig
+    - description: HardwareConfig is the Schema for the hardwareconfigs API
+      displayName: Hardware Config
+      kind: HardwareConfig
       name: hardwareconfigs.ptp.openshift.io
       version: v2alpha1
     - description: NodePtpDevice is the Schema for the nodeptpdevices API
@@ -334,6 +360,15 @@ spec:
           - get
           - patch
           - update
+        - apiGroups:
+          - ptp.openshift.io
+          resources:
+          - nodeptpdevices
+          verbs:
+          - create
+          - get
+          - list
+          - watch
         serviceAccountName: ptp-operator
       deployments:
       - name: ptp-operator
@@ -370,6 +405,9 @@ spec:
                   value: quay.io/openshift/origin-kube-rbac-proxy:5.0
                 - name: SIDECAR_EVENT_IMAGE
                   value: quay.io/openshift/origin-cloud-event-proxy:5.0
+                - name: EVENT_PROXY_IMAGE
+                - name: LINUXPTP_VERBOSITY
+                  value: "10"
                 - name: OPERATOR_NAMESPACE
                   valueFrom:
                     fieldRef:

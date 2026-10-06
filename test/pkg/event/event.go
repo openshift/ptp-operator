@@ -54,10 +54,14 @@ func InitPubSub() {
 	PubSub = chanpubsub.NewPubsub()
 }
 
-// enables event if ptp event is required
+// Enable reports whether PTP cloud events must be exercised by the tests.
+// Events are required on PTP operator 5.1+ (CEPv2); on older releases they are
+// opt-in via the ENABLE_PTP_EVENT env var.
 func Enable() bool {
-	eventMode, _ := strconv.ParseBool(os.Getenv("ENABLE_PTP_EVENT"))
-	return eventMode
+	if eventMode, _ := strconv.ParseBool(os.Getenv("ENABLE_PTP_EVENT")); eventMode {
+		return true
+	}
+	return ptphelper.IsPTPOperatorVersionAtLeast("5.1")
 }
 
 // IsV1RegressionNeeded returns true when we need to test both v1 and v2 event API
@@ -792,6 +796,25 @@ type Subscriptions struct {
 
 	gID, cID, lID int
 } // Subscriptions holds the channels for GNSS, CC and LS events and their IDs
+
+// Drain removes any events currently buffered on the subscription channels so a
+// subsequent wait observes only events published afterwards. Call it before
+// triggering a state change to establish a fresh baseline; otherwise a
+// long-lived subscription can retain stale steady-state events that falsely
+// satisfy a later same-valued assertion (e.g. a recovery-to-LOCKED wait matching
+// a LOCKED event emitted before the outage). It is non-blocking and safe to call
+// on a zero-valued Subscriptions (nil channels are never ready, so it returns).
+func (s Subscriptions) Drain() {
+	for {
+		select {
+		case <-s.GNSS:
+		case <-s.CLOCKCLASS:
+		case <-s.LOCKSTATE:
+		default:
+			return
+		}
+	}
+}
 
 // SubscribeChangeEvents subscribes to GNSS/ClockClass/State change topics,
 // optionally pushes initial events, and returns a cleanup() to defer.

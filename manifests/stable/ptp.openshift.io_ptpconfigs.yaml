@@ -14,7 +14,14 @@ spec:
     singular: ptpconfig
   scope: Namespaced
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - jsonPath: .status.conditions[?(@.type=="ProfileReferenceValid")].status
+      name: Refs Valid
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1
     schema:
       openAPIV3Schema:
         description: PtpConfig is the Schema for the ptpconfigs API
@@ -75,8 +82,9 @@ spec:
                           format: int64
                           type: integer
                         minOffsetThreshold:
-                          default: -100
-                          description: min offset in nano secs
+                          description: |-
+                            DEPRECATED: min offset in nano secs. This field is no longer used for offset-range evaluation; the system now evaluates abs(offset) against maxOffsetThreshold only. The field is retained for backward compatibility with existing PtpConfig resources and its value is ignored. Do not set this field in new configurations.
+                            Deprecated: MinOffsetThreshold is no longer used for offset-range evaluation; abs(offset) < MaxOffsetThreshold is evaluated instead.
                           format: int64
                           type: integer
                         processDowntimeThresholds:
@@ -133,6 +141,35 @@ spec:
                               minimum: 0
                               type: integer
                           type: object
+                        sysOffsetInSyncThreshold:
+                          description: sysOffsetInSyncThreshold is the phc2sys-to-CLOCK_REALTIME
+                            offset threshold, in nanoseconds, that must be met to
+                            gate the OS Clock Sync (E3) LOCKED state. abs(offset)
+                            <= this threshold for sysOffsetSamples consecutive samples
+                            triggers LOCKED. When unset, it defaults to maxOffsetThreshold.
+                          format: int64
+                          minimum: 0
+                          type: integer
+                        sysOffsetOutOfSyncThreshold:
+                          description: sysOffsetOutOfSyncThreshold is the phc2sys-to-CLOCK_REALTIME
+                            offset threshold, in nanoseconds, that when exceeded gates
+                            the OS Clock Sync (E3) FREERUN state. abs(offset) > this
+                            threshold for sysOffsetSamples consecutive samples triggers
+                            FREERUN. Independent of sysOffsetInSyncThreshold; together
+                            they form a hysteresis band. When unset, it defaults to
+                            maxOffsetThreshold.
+                          format: int64
+                          minimum: 0
+                          type: integer
+                        sysOffsetSamples:
+                          description: sysOffsetSamples is the number of consecutive
+                            phc2sys offset samples required for an E3 LOCKED/FREERUN
+                            state transition in either direction (relative to sysOffsetInSyncThreshold
+                            for LOCKED, or sysOffsetOutOfSyncThreshold for FREERUN).
+                            When unset, it defaults to 10.
+                          format: int64
+                          minimum: 1
+                          type: integer
                       type: object
                     ptpSchedulingPolicy:
                       enum:
@@ -147,6 +184,13 @@ spec:
                     ptpSettings:
                       additionalProperties:
                         type: string
+                      description: |-
+                        PtpSettings holds free-form, string-typed configuration knobs validated individually
+                        by the PtpConfig admission webhook. Recognized keys include (non-exhaustive):
+                          - logReduce: log reduction mode ('true', 'false', 'basic', 'enhanced').
+                          - inSyncConditionThreshold: ptp4l offset threshold (ns) used by the T-BC state machine.
+                          - inSyncConditionTimes: number of consecutive in-sync samples before T-BC reports LOCKED.
+                          - stdoutFilter: regexp filtering ptp4l/phc2sys stdout.
                       type: object
                     synce4lConf:
                       type: string
@@ -190,7 +234,9 @@ spec:
             description: PtpConfigStatus defines the observed state of PtpConfig
             properties:
               conditions:
-                description: Conditions contains the conditions for the PtpConfig
+                description: |-
+                  Conditions represent the latest available observations of the PtpConfig's state.
+                  Known condition types are: "ProfileReferenceValid".
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -246,20 +292,91 @@ spec:
                   - type
                   type: object
                 type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
               matchList:
-                description: |-
-                  INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-                  Important: Run "make" to regenerate code after modifying this file
+                description: MatchList contains the nodes matched by this PtpConfig's
+                  recommend rules.
                 items:
                   properties:
                     nodeName:
                       type: string
                     profile:
+                      description: 'Profile is the fully qualified profile name: <ptpconfigName>_<profileName>.'
                       type: string
                   required:
                   - nodeName
                   - profile
                   type: object
+                type: array
+              observedGeneration:
+                description: ObservedGeneration is the most recent generation observed
+                  by the controller.
+                format: int64
+                type: integer
+              profileStatuses:
+                description: ProfileStatuses reports the relationship and apply state
+                  of each profile in this PtpConfig.
+                items:
+                  description: ProfileStatus reports the relationship and apply state
+                    of a single profile within this PtpConfig.
+                  properties:
+                    appliedOnNodes:
+                      description: |-
+                        AppliedOnNodes lists the nodes where the linuxptp-daemon has applied this profile.
+                        This is observed from NodePtpDevice.status.sync.profiles, not from matchList.
+                      items:
+                        type: string
+                      type: array
+                    clockType:
+                      description: ClockType is T-GM, T-BC, BC, or OC. Written by
+                        linuxptp-daemon at apply.
+                      type: string
+                    controlledBy:
+                      description: ControlledBy is the fully qualified name of the
+                        profile that controls this one.
+                      type: string
+                    controls:
+                      description: Controls lists the fully qualified names of profiles
+                        this one controls (reverse of controllingProfile).
+                      items:
+                        type: string
+                      type: array
+                    haMembers:
+                      description: HaMembers lists the fully qualified names of profiles
+                        coordinated by this HA profile.
+                      items:
+                        type: string
+                      type: array
+                    hardwareConfigs:
+                      description: HardwareConfigs lists HardwareConfig CRs whose
+                        relatedPtpProfileName refers to this profile.
+                      items:
+                        type: string
+                      type: array
+                    hasPhc2sys:
+                      description: HasPhc2sys is true if this profile has phc2sysOpts
+                        configured (syncs system clock).
+                      type: boolean
+                    name:
+                      description: 'Name is the fully qualified profile name: <ptpconfigName>_<profileName>.'
+                      type: string
+                    partOfHa:
+                      description: |-
+                        PartOfHa is the fully qualified name of the HA coordinator profile this one belongs to.
+                        Empty if not part of HA.
+                      type: string
+                  required:
+                  - hasPhc2sys
+                  - name
+                  type: object
+                type: array
+              warnings:
+                description: Warnings contains any detected misconfigurations (e.g.,
+                  multiple profiles with phc2sys on same node).
+                items:
+                  type: string
                 type: array
             type: object
         type: object

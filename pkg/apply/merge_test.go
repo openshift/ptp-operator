@@ -261,6 +261,64 @@ metadata:
 	g.Expect(s).To(ConsistOf("foo"))
 }
 
+func TestMergeDaemonSetPreservesVerbosityArgs(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	cur := UnstructuredFromYaml(t, `
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: linuxptp-daemon
+spec:
+  template:
+    spec:
+      volumes:
+      - name: ptp4l-conf-tlv-auth
+        configMap:
+          name: ptp4l-conf
+      containers:
+      - name: linuxptp-daemon-container
+        command: ["/bin/sh"]
+        args: ["-c", "/usr/local/bin/ptp --alsologtostderr -v 10"]`)
+
+	upd := UnstructuredFromYaml(t, `
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: linuxptp-daemon
+spec:
+  template:
+    spec:
+      containers:
+      - name: linuxptp-daemon-container
+        command: ["/bin/sh"]
+        args: ["-c", "/usr/local/bin/ptp --alsologtostderr -v 7"]
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/linuxptp`)
+
+	ctx := context.WithValue(context.Background(), ControllerSourceKey, SourcePtpOperatorConfig)
+	err := MergeDaemonSetForUpdate(ctx, cur, upd)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	containers, found, err := uns.NestedSlice(upd.Object,
+		"spec", "template", "spec", "containers")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(found).To(BeTrue())
+	container, ok := containers[0].(map[string]interface{})
+	g.Expect(ok).To(BeTrue())
+	containerArgs, _, err := uns.NestedStringSlice(container, "args")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(containerArgs).To(ContainElement(ContainSubstring("-v 7")),
+		"rendered -v verbosity args must be preserved across the merge path")
+
+	volumes, ok, err := uns.NestedSlice(upd.Object, "spec", "template", "spec", "volumes")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(ok).To(BeTrue())
+	g.Expect(volumes).To(ContainElement(HaveKey("name")),
+		"security volumes should still be merged")
+}
+
 // UnstructuredFromYaml creates an unstructured object from a raw yaml string
 func UnstructuredFromYaml(t *testing.T, obj string) *uns.Unstructured {
 	t.Helper()

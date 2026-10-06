@@ -59,19 +59,19 @@ func BasicClockSyncCheck(fullConfig testconfig.TestConfig, ptpConfig *ptpv1.PtpC
 		logrus.Debugf("could not get nodeName because of err: %s", err)
 	}
 	var slaveMaster string
-	if fullConfig.PtpModeDesired == testconfig.Discovery {
-		slaveMaster, err = ptphelper.GetClockIDForeign(profileName, label, nodeName)
-	} else {
-		Eventually(func() error {
-			slaveMaster, err = ptphelper.GetClockIDForeign(profileName, label, nodeName)
-			if err != nil {
-				logrus.Infof("GetClockIDForeign retry due to err: %s", err)
-			}
-			return err
-		}, pkg.TimeoutIn3Minutes, pkg.Timeout10Seconds).Should(BeNil(),
-			fmt.Sprintf("Timeout to get foreign clock ID for ptpconfig %s", ptpConfig.Name))
-	}
 	if errProfile == nil {
+		if fullConfig.PtpModeDesired == testconfig.Discovery {
+			slaveMaster, err = ptphelper.GetClockIDForeign(ptpConfig.Name, profileName, label, nodeName)
+		} else {
+			Eventually(func() error {
+				slaveMaster, err = ptphelper.GetClockIDForeign(ptpConfig.Name, profileName, label, nodeName)
+				if err != nil {
+					logrus.Infof("GetClockIDForeign retry due to err: %s", err)
+				}
+				return err
+			}, pkg.TimeoutIn3Minutes, pkg.Timeout10Seconds).Should(BeNil(),
+				fmt.Sprintf("Timeout to get foreign clock ID for ptpconfig %s", ptpConfig.Name))
+		}
 		if fullConfig.PtpModeDesired == testconfig.Discovery {
 			if err != nil {
 				logrus.Infof("slave's Master not detected in log (probably because of log rollover))")
@@ -87,12 +87,12 @@ func BasicClockSyncCheck(fullConfig testconfig.TestConfig, ptpConfig *ptpv1.PtpC
 			}
 			logrus.Infof("slave's Master=%s", slaveMaster)
 		}
-	}
-	if gmID != nil {
-		if !strings.HasPrefix(slaveMaster, *gmID) {
-			logrus.Infof("slaveMaster=%s does not match expected GM=%s, waiting for re-sync...", slaveMaster, *gmID)
-			if waitErr := ptphelper.WaitForClockIDForeign(profileName, label, nodeName, *gmID); waitErr != nil {
-				return errors.Errorf("Slave connected to another (incorrect) Master, slaveMaster=%s, gmID=%s, waitErr=%s", slaveMaster, *gmID, waitErr)
+		if gmID != nil {
+			if !strings.HasPrefix(slaveMaster, *gmID) {
+				logrus.Infof("slaveMaster=%s does not match expected GM=%s, waiting for re-sync...", slaveMaster, *gmID)
+				if waitErr := ptphelper.WaitForClockIDForeign(ptpConfig.Name, profileName, label, nodeName, *gmID); waitErr != nil {
+					return errors.Errorf("Slave connected to another (incorrect) Master, slaveMaster=%s, gmID=%s, waitErr=%s", slaveMaster, *gmID, waitErr)
+				}
 			}
 		}
 	}
@@ -198,7 +198,9 @@ func CheckSlaveSyncWithMaster(fullConfig testconfig.TestConfig) {
 	var grandmasterID *string
 	if fullConfig.L2Config != nil && !isExternalMaster {
 		aLabel := pkg.PtpGrandmasterNodeLabel
-		aString, err := ptphelper.GetClockIDMaster(pkg.PtpGrandMasterPolicyName, &aLabel, nil, true)
+		Expect(fullConfig.DiscoveredGrandMasterPtpConfig).NotTo(BeNil(), "expected discovered grandmaster config")
+		gmConfigName := (*ptpv1.PtpConfig)(fullConfig.DiscoveredGrandMasterPtpConfig).Name
+		aString, err := ptphelper.GetClockIDMaster(gmConfigName, pkg.PtpGrandMasterPolicyName, &aLabel, nil, true)
 		grandmasterID = &aString
 		if err != nil {
 			logrus.Warnf("could not determine the Grandmaster ID (probably because the log no longer exists), err=%s", err)
@@ -679,13 +681,13 @@ func WaitForConfigContent(fullConfig testconfig.TestConfig, configFile, expected
 
 // DiscoverPtp4lConfigByProfile uses GetProfileLogID to find the config file
 // name (e.g. "ptp4l.0.config") for a PtpConfig, then returns the full path.
-func DiscoverPtp4lConfigByProfile(ptpConfigName string, nodeName string) (string, error) {
-	logID, err := ptphelper.GetProfileLogID(ptpConfigName, nil, &nodeName)
+func DiscoverPtp4lConfigByProfile(ptpConfigName string, profileName string, nodeName string) (string, error) {
+	logID, err := ptphelper.GetProfileLogID(ptpConfigName, profileName, nil, &nodeName)
 	if err != nil {
-		return "", fmt.Errorf("failed to get profile log ID for %s: %v", ptpConfigName, err)
+		return "", fmt.Errorf("failed to get profile log ID for %s/%s: %v", ptpConfigName, profileName, err)
 	}
 	if logID == "" {
-		return "", fmt.Errorf("empty profile log ID for %s", ptpConfigName)
+		return "", fmt.Errorf("empty profile log ID for %s/%s", ptpConfigName, profileName)
 	}
 	configNameStr := logID
 	if idx := strings.Index(configNameStr, ":"); idx != -1 {
@@ -703,7 +705,9 @@ func DiscoverNICInfo(ptpConfig ptpv1.PtpConfig, nodeName, nicLabel string) NICIn
 	masterIfs := ptpv1.GetInterfaces(ptpConfig, ptpv1.Master)
 	Expect(len(masterIfs)).To(BeNumerically(">=", 1), "%s should have at least one master interface", nicLabel)
 
-	configFile, err := DiscoverPtp4lConfigByProfile(ptpConfig.Name, nodeName)
+	profileName, err := ptphelper.GetProfileName(&ptpConfig, true)
+	Expect(err).NotTo(HaveOccurred(), "Could not determine profile name for %s", nicLabel)
+	configFile, err := DiscoverPtp4lConfigByProfile(ptpConfig.Name, profileName, nodeName)
 	Expect(err).NotTo(HaveOccurred(), "Could not find ptp4l config for %s profile %s", nicLabel, ptpConfig.Name)
 	configName := strings.TrimPrefix(configFile, DefaultConfigDir)
 

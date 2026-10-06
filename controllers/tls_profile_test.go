@@ -74,6 +74,9 @@ func makeTestRenderData() *render.RenderData {
 	data.Data["EnabledPlugins"] = "e810"
 	data.Data["StorageType"] = "emptyDir"
 	data.Data["EventApiVersion"] = "2.0"
+	data.Data["SideCarV2"] = ""
+	data.Data["EventTransportHost"] = ""
+	data.Data["Verbosity"] = "10"
 	return &data
 }
 

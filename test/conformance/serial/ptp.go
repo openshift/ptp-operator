@@ -356,7 +356,11 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 	Describe("PTP e2e tests", func() {
 		var ptpPods *v1core.PodList
-		var fifoPriorities map[string]int64
+		var fifoPriorities []struct {
+			configName  string
+			profileName string
+			priority    int64
+		}
 		var fullConfig testconfig.TestConfig
 		portEngine := ptptesthelper.PortEngine{}
 
@@ -528,10 +532,21 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				if fullConfig.PtpModeDesired == testconfig.Discovery {
 					Skip("This test needs the ptp-daemon to be rebooted but it is not possible in discovery mode, skipping")
 				}
-				profileSlave := fmt.Sprintf("Profile Name: %s", fullConfig.DiscoveredClockUnderTestPtpConfig.Name)
+				clockUnderTestConfig := (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig)
+				profileSlaveName, err := ptphelper.GetProfileName(clockUnderTestConfig, true)
+				Expect(err).NotTo(HaveOccurred(), "could not get clock-under-test profile name")
+				profileSlave := ptphelper.ProfileNameLogPattern(clockUnderTestConfig.Name, profileSlaveName)
+				if fullConfig.PtpModeDesired == testconfig.TelcoBoundaryClock {
+					profileSlave = `(?m)Profile Name: (?:` +
+						ptphelper.ProfileNameMatchPattern(clockUnderTestConfig.Name, "tbc-tr") + "|" +
+						ptphelper.ProfileNameMatchPattern(clockUnderTestConfig.Name, "tbc-tt") + ")"
+				}
 				profileMaster := ""
 				if fullConfig.DiscoveredGrandMasterPtpConfig != nil {
-					profileMaster = fmt.Sprintf("Profile Name: %s", fullConfig.DiscoveredGrandMasterPtpConfig.Name)
+					gmConfig := (*ptpv1.PtpConfig)(fullConfig.DiscoveredGrandMasterPtpConfig)
+					gmProfileName, gmErr := ptphelper.GetProfileName(gmConfig, false)
+					Expect(gmErr).NotTo(HaveOccurred(), "could not get grandmaster profile name")
+					profileMaster = ptphelper.ProfileNameLogPattern(gmConfig.Name, gmProfileName)
 				}
 
 				for podIndex := range ptpPods.Items {
@@ -544,24 +559,16 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 						Fail(fmt.Sprintf("check Grandmaster clock type, err=%s", err))
 					}
 					if isClockUnderTest {
-						if fullConfig.PtpModeDesired == testconfig.TelcoBoundaryClock {
-							// T-BC daemon profiles are qualified: <configname>_tbc-tr / <configname>_tbc-tt
-							tbcConfigName := fullConfig.DiscoveredClockUnderTestPtpConfig.Name
-							_, err = pods.GetPodLogsRegex(ptpPods.Items[podIndex].Namespace,
-								ptpPods.Items[podIndex].Name, pkg.PtpContainerName,
-								"Profile Name: "+regexp.QuoteMeta(tbcConfigName)+"_tbc-t(r|t)", false, pkg.TimeoutIn3Minutes)
-						} else {
-							_, err = pods.GetPodLogsRegex(ptpPods.Items[podIndex].Namespace,
-								ptpPods.Items[podIndex].Name, pkg.PtpContainerName,
-								profileSlave, true, pkg.TimeoutIn3Minutes)
-						}
+						_, err = pods.GetPodLogsRegex(ptpPods.Items[podIndex].Namespace,
+							ptpPods.Items[podIndex].Name, pkg.PtpContainerName,
+							profileSlave, false, pkg.TimeoutIn3Minutes)
 						if err != nil {
 							Fail(fmt.Sprintf("could not get slave profile name, err=%s", err))
 						}
 					} else if isGrandmaster && fullConfig.DiscoveredGrandMasterPtpConfig != nil {
 						_, err = pods.GetPodLogsRegex(ptpPods.Items[podIndex].Namespace,
 							ptpPods.Items[podIndex].Name, pkg.PtpContainerName,
-							profileMaster, true, pkg.TimeoutIn5Minutes)
+							profileMaster, false, pkg.TimeoutIn5Minutes)
 						if err != nil {
 							Fail(fmt.Sprintf("could not get master profile name, err=%s", err))
 						}
@@ -576,7 +583,21 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 			//
 			// Single node clock sync test:
 			// - waits for the foreign master to appear
+			// - use cloud events to verify the slave is locked
 			// - use metrics to verify that the offset is below threshold
+			It("Slave reports lock state LOCKED via cloud events", func() {
+				if fullConfig.PtpModeDesired == testconfig.TelcoGrandMasterClock {
+					Skip("Skipping as slave interface is not available with a WPC-GM profile")
+				}
+				Expect(fullConfig.DiscoveredClockUnderTestPod).NotTo(BeNil(),
+					"clock-under-test pod missing; label node with "+pkg.PtpClockUnderTestNodeLabel)
+				evCtx := setupBCClockClassEvents(fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName)
+				if !evCtx.available {
+					Skip("PTP events not available")
+				}
+				waitForLockStateViaEvent(evCtx.subs, ptpEvent.LOCKED, pkg.TimeoutIn5Minutes)
+			})
+
 			It("Slave can sync to master", func() {
 				if fullConfig.PtpModeDesired == testconfig.TelcoGrandMasterClock {
 					Skip("Skipping as slave interface is not available with a WPC-GM profile")
@@ -586,14 +607,17 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				if fullConfig.L2Config != nil && !isExternalMaster {
 					aLabel := pkg.PtpGrandmasterNodeLabel
 					var aString string
+					Expect(fullConfig.DiscoveredGrandMasterPtpConfig).NotTo(BeNil(), "expected discovered grandmaster config")
+					gmConfigName := (*ptpv1.PtpConfig)(fullConfig.DiscoveredGrandMasterPtpConfig).Name
 					Eventually(func() error {
 						var getErr error
-						aString, getErr = ptphelper.GetClockIDMaster(pkg.PtpGrandMasterPolicyName, &aLabel, nil, true)
+						aString, getErr = ptphelper.GetClockIDMaster(gmConfigName, pkg.PtpGrandMasterPolicyName, &aLabel, nil, true)
 						return getErr
 					}, pkg.TimeoutIn3Minutes, pkg.Timeout10Seconds).Should(BeNil(),
 						"Timeout to get grandmaster clock ID")
 					grandmasterID = &aString
 				}
+
 				err = ptptesthelper.BasicClockSyncCheck(fullConfig, (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), grandmasterID, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
 				Expect(err).To(BeNil())
 				if fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock || fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClockHA {
@@ -774,9 +798,11 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				if fullConfig.L2Config != nil && !isExternalMaster {
 					aLabel := pkg.PtpGrandmasterNodeLabel
 					var aString string
+					Expect(fullConfig.DiscoveredGrandMasterPtpConfig).NotTo(BeNil(), "expected discovered grandmaster config")
+					gmConfigName := (*ptpv1.PtpConfig)(fullConfig.DiscoveredGrandMasterPtpConfig).Name
 					Eventually(func() error {
 						var getErr error
-						aString, getErr = ptphelper.GetClockIDMaster(pkg.PtpGrandMasterPolicyName, &aLabel, nil, true)
+						aString, getErr = ptphelper.GetClockIDMaster(gmConfigName, pkg.PtpGrandMasterPolicyName, &aLabel, nil, true)
 						return getErr
 					}, pkg.TimeoutIn3Minutes, pkg.Timeout10Seconds).Should(BeNil(),
 						"Timeout to get grandmaster clock ID")
@@ -890,15 +916,15 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				}
 				aLabel := pkg.PtpClockUnderTestNodeLabel
 				name := pkg.PtpBcMaster1PolicyName
+				Expect(fullConfig.DiscoveredClockUnderTestPtpConfig).ToNot(BeNil(), "BC mode requires DiscoveredClockUnderTestPtpConfig")
+				bc1ConfigName := (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig).Name
 				if fullConfig.PtpModeDiscovered == testconfig.TelcoBoundaryClock {
-					Expect(fullConfig.DiscoveredClockUnderTestPtpConfig).ToNot(BeNil(), "T-BC mode requires DiscoveredClockUnderTestPtpConfig")
-					crName := (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig).Name
-					name = ptphelper.QualifyProfileName(crName, "tbc-tr")
+					name = "tbc-tr"
 				}
 				var masterIDBc1 string
 				Eventually(func() error {
 					var getErr error
-					masterIDBc1, getErr = ptphelper.GetClockIDMaster(name, &aLabel, nil, false)
+					masterIDBc1, getErr = ptphelper.GetClockIDMaster(bc1ConfigName, name, &aLabel, nil, false)
 					return getErr
 				}, pkg.TimeoutIn3Minutes, pkg.Timeout10Seconds).Should(BeNil(),
 					"Timeout to get BC master1 clock ID")
@@ -909,9 +935,13 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					(fullConfig.FoundSolutions[testconfig.AlgoDualNicBCWithSlavesExtGMString] || fullConfig.FoundSolutions[testconfig.AlgoDualNicBCWithSlavesString]) {
 					aLabel := pkg.PtpClockUnderTestNodeLabel
 					var masterIDBc2 string
+					bc2ConfigName := bc1ConfigName
+					if fullConfig.DiscoveredClockUnderTestSecondaryPtpConfig != nil {
+						bc2ConfigName = (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestSecondaryPtpConfig).Name
+					}
 					Eventually(func() error {
 						var getErr error
-						masterIDBc2, getErr = ptphelper.GetClockIDMaster(pkg.PtpBcMaster2PolicyName, &aLabel, nil, false)
+						masterIDBc2, getErr = ptphelper.GetClockIDMaster(bc2ConfigName, pkg.PtpBcMaster2PolicyName, &aLabel, nil, false)
 						return getErr
 					}, pkg.TimeoutIn3Minutes, pkg.Timeout10Seconds).Should(BeNil(),
 						"Timeout to get BC master2 clock ID")
@@ -922,144 +952,171 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 			})
 
 			// 25743
-			It("Can provide a profile with higher priority", func() {
-				var testPtpPod v1core.Pod
-				isExternalMaster := ptphelper.IsExternalGM()
-				if fullConfig.PtpModeDesired == testconfig.Discovery {
-					Skip("Skipping because adding a different profile and no modifications are allowed in discovery mode")
-				}
-				if fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClockHA {
-					Skip("DualNICBCHA: temp profile conflicts with phc2sys HA haProfiles reference, causing master port to stay LISTENING")
-				}
-				var policyName string
-				var modifiedPtpConfig *ptpv1.PtpConfig
-				By("Creating a config with higher priority", func() {
-					if fullConfig.PtpModeDiscovered == testconfig.TelcoGrandMasterClock {
-						Skip("WPC GM (T-GM) mode is not supported for this test")
-					}
-					switch fullConfig.PtpModeDiscovered {
-					case testconfig.Discovery, testconfig.None:
-						Skip("Skipping because Discovery or None is not supported yet for this test")
-					case testconfig.OrdinaryClock:
-						policyName = pkg.PtpSlave1PolicyName
-					case testconfig.DualFollowerClock:
-						policyName = pkg.PtpSlave1PolicyName
-					case testconfig.BoundaryClock:
-						policyName = pkg.PtpBcMaster1PolicyName
-					case testconfig.DualNICBoundaryClock, testconfig.DualNICBoundaryClockHA:
-						policyName = pkg.PtpBcMaster1PolicyName
-					case testconfig.TelcoBoundaryClock:
-						policyName = pkg.PTPWPCTBCPolicyName
-					}
-					ptpConfigToModify, err := client.Client.PtpV1Interface.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), policyName, metav1.GetOptions{})
-					Expect(err).NotTo(HaveOccurred())
-					nodes, err := client.Client.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{
-						LabelSelector: pkg.PtpClockUnderTestNodeLabel,
-					})
-					Expect(err).NotTo(HaveOccurred())
-					Expect(len(nodes.Items)).To(BeNumerically(">", 0),
-						fmt.Sprintf("PTP Nodes with label %s are not deployed on cluster", pkg.PtpClockUnderTestNodeLabel))
+			Context("Can provide a profile with higher priority", Ordered, ContinueOnFailure, func() {
+				var (
+					testPtpPod        v1core.Pod
+					policyName        string
+					modifiedPtpConfig *ptpv1.PtpConfig
+					isExternalMaster  bool
+					evCtx             bcEventContext
+				)
 
-					ptpConfigTest := ptphelper.MutateProfile(ptpConfigToModify, pkg.PtpTempPolicyName, nodes.Items[0].Name)
-					modifiedPtpConfig, err = client.Client.PtpV1Interface.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Create(context.Background(), ptpConfigTest, metav1.CreateOptions{})
-					Expect(err).NotTo(HaveOccurred())
-
-					DeferCleanup(func() {
-						err := client.Client.PtpV1Interface.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Delete(context.Background(), pkg.PtpTempPolicyName, metav1.DeleteOptions{})
-						if err != nil && !kerrors.IsNotFound(err) {
-							logrus.Errorf("failed to delete temp ptpconfig %s: %s", pkg.PtpTempPolicyName, err)
+				BeforeAll(func() {
+					isExternalMaster = ptphelper.IsExternalGM()
+					if fullConfig.PtpModeDesired == testconfig.Discovery {
+						Skip("Skipping because adding a different profile and no modifications are allowed in discovery mode")
+					}
+					if fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClockHA {
+						Skip("DualNICBCHA: temp profile conflicts with phc2sys HA haProfiles reference, causing master port to stay LISTENING")
+					}
+					By("Creating a config with higher priority", func() {
+						if fullConfig.PtpModeDiscovered == testconfig.TelcoGrandMasterClock {
+							Skip("WPC GM (T-GM) mode is not supported for this test")
 						}
+						switch fullConfig.PtpModeDiscovered {
+						case testconfig.Discovery, testconfig.None:
+							Skip("Skipping because Discovery or None is not supported yet for this test")
+						case testconfig.OrdinaryClock:
+							policyName = pkg.PtpSlave1PolicyName
+						case testconfig.DualFollowerClock:
+							policyName = pkg.PtpSlave1PolicyName
+						case testconfig.BoundaryClock:
+							policyName = pkg.PtpBcMaster1PolicyName
+						case testconfig.DualNICBoundaryClock, testconfig.DualNICBoundaryClockHA:
+							policyName = pkg.PtpBcMaster1PolicyName
+						case testconfig.TelcoBoundaryClock:
+							policyName = pkg.PTPWPCTBCPolicyName
+						}
+						ptpConfigToModify, err := client.Client.PtpV1Interface.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), policyName, metav1.GetOptions{})
+						Expect(err).NotTo(HaveOccurred())
+						nodes, err := client.Client.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{
+							LabelSelector: pkg.PtpClockUnderTestNodeLabel,
+						})
+						Expect(err).NotTo(HaveOccurred())
+						Expect(len(nodes.Items)).To(BeNumerically(">", 0),
+							fmt.Sprintf("PTP Nodes with label %s are not deployed on cluster", pkg.PtpClockUnderTestNodeLabel))
+
+						ptpConfigTest := ptphelper.MutateProfile(ptpConfigToModify, pkg.PtpTempPolicyName, nodes.Items[0].Name)
+						modifiedPtpConfig, err = client.Client.PtpV1Interface.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Create(context.Background(), ptpConfigTest, metav1.CreateOptions{})
+						Expect(err).NotTo(HaveOccurred())
+
+						DeferCleanup(func() {
+							err := client.Client.PtpV1Interface.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Delete(context.Background(), pkg.PtpTempPolicyName, metav1.DeleteOptions{})
+							if err != nil && !kerrors.IsNotFound(err) {
+								logrus.Errorf("failed to delete temp ptpconfig %s: %s", pkg.PtpTempPolicyName, err)
+							}
+						})
+
+						// Wait for operator to reconcile the config map with the
+						// temp profile. The daemon watches the configmap and will
+						// hot-reload ptp4l internally — no pod restart needed.
+						err = ptphelper.WaitForConfigMapProfile(nodes.Items[0].Name, pkg.PtpTempPolicyName, 2*time.Minute)
+						Expect(err).NotTo(HaveOccurred(), "operator did not reconcile temp profile into configmap in time")
+
+						testPtpPod, err = ptphelper.GetPtpPodOnNode(nodes.Items[0].Name)
+						Expect(err).NotTo(HaveOccurred())
 					})
 
-					// Wait for operator to reconcile the config map with the
-					// temp profile. The daemon watches the configmap and will
-					// hot-reload ptp4l internally — no pod restart needed.
-					err = ptphelper.WaitForConfigMapProfile(nodes.Items[0].Name, pkg.PtpTempPolicyName, 2*time.Minute)
-					Expect(err).NotTo(HaveOccurred(), "operator did not reconcile temp profile into configmap in time")
+					By("Waiting for daemon to load the temp profile", func() {
+						_, err := pods.GetPodLogsRegex(testPtpPod.Namespace,
+							testPtpPod.Name, pkg.PtpContainerName,
+							ptphelper.ProfileNameLogPattern(pkg.PtpTempPolicyName, pkg.PtpTempPolicyName), false, pkg.TimeoutIn3Minutes)
+						Expect(err).NotTo(HaveOccurred(), "daemon did not load temp profile in time")
+					})
 
-					testPtpPod, err = ptphelper.GetPtpPodOnNode(nodes.Items[0].Name)
-					Expect(err).NotTo(HaveOccurred())
+					evCtx = setupBCClockClassEvents(testPtpPod.Spec.NodeName)
 				})
 
-				By("Waiting for daemon to load the temp profile", func() {
-					_, err := pods.GetPodLogsRegex(testPtpPod.Namespace,
-						testPtpPod.Name, pkg.PtpContainerName,
-						"Profile Name: "+pkg.PtpTempPolicyName, true, pkg.TimeoutIn3Minutes)
-					Expect(err).NotTo(HaveOccurred(), "daemon did not load temp profile in time")
+				It("reports lock state LOCKED via cloud events under the higher-priority profile", func() {
+					if !evCtx.available {
+						Skip("PTP events not available")
+					}
+					waitForLockStateViaEvent(evCtx.subs, ptpEvent.LOCKED, pkg.TimeoutIn5Minutes)
 				})
 
-				By("Checking if Node has Profile and check sync", func() {
-					// Don't pass gmID upfront: creating the temp config triggers
-					// operator reconciliation which may restart the GM daemon
-					// asynchronously, changing its clock ID. First confirm the
-					// slave is synced (role + offset metrics), then verify the
-					// slave's master matches the GM's current clock.
-					err = ptptesthelper.BasicClockSyncCheck(fullConfig, modifiedPtpConfig, nil, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
-					Expect(err).To(BeNil())
-
-					if fullConfig.L2Config != nil && !isExternalMaster {
-						aLabel := pkg.PtpGrandmasterNodeLabel
-						var gmClockID string
-						Eventually(func() error {
-							var getErr error
-							gmClockID, getErr = ptphelper.GetClockIDMaster(pkg.PtpGrandMasterPolicyName, &aLabel, nil, true)
-							return getErr
-						}, pkg.TimeoutIn3Minutes, pkg.Timeout10Seconds).Should(BeNil(),
-							"Timeout to get grandmaster clock ID")
-
-						profileName, err := ptphelper.GetProfileName(modifiedPtpConfig, true)
+				It("Can provide a profile with higher priority", func() {
+					By("Checking if Node has Profile and check sync", func() {
+						// Don't pass gmID upfront: creating the temp config triggers
+						// operator reconciliation which may restart the GM daemon
+						// asynchronously, changing its clock ID. First confirm the
+						// slave is synced (role + offset metrics), then verify the
+						// slave's master matches the GM's current clock.
+						err = ptptesthelper.BasicClockSyncCheck(fullConfig, modifiedPtpConfig, nil, metrics.MetricClockStateLocked, metrics.MetricRoleSlave, true)
 						Expect(err).To(BeNil())
-						label, err := ptphelper.GetLabel(modifiedPtpConfig)
-						if err != nil {
-							logrus.Warnf("could not get label from ptpconfig: %v", err)
-						}
-						node, err := ptphelper.GetFirstNode(modifiedPtpConfig)
-						if err != nil {
-							logrus.Warnf("could not get first node from ptpconfig: %v", err)
-						}
-						if label != nil && node != nil {
-							var slaveMaster string
+
+						if fullConfig.L2Config != nil && !isExternalMaster {
+							aLabel := pkg.PtpGrandmasterNodeLabel
+							var gmClockID string
+							Expect(fullConfig.DiscoveredGrandMasterPtpConfig).NotTo(BeNil(), "expected discovered grandmaster config")
+							gmConfigName := (*ptpv1.PtpConfig)(fullConfig.DiscoveredGrandMasterPtpConfig).Name
 							Eventually(func() error {
 								var getErr error
-								slaveMaster, getErr = ptphelper.GetClockIDForeign(profileName, label, node)
-								if getErr != nil {
-									return getErr
-								}
-								if !strings.HasPrefix(slaveMaster, gmClockID) {
-									return fmt.Errorf("Slave master %s does not match GM clock %s", slaveMaster, gmClockID)
-								}
-								return nil
+								gmClockID, getErr = ptphelper.GetClockIDMaster(gmConfigName, pkg.PtpGrandMasterPolicyName, &aLabel, nil, true)
+								return getErr
 							}, pkg.TimeoutIn3Minutes, pkg.Timeout10Seconds).Should(BeNil(),
-								"Timeout waiting for slave to follow expected GM")
+								"Timeout to get grandmaster clock ID")
+
+							profileName, err := ptphelper.GetProfileName(modifiedPtpConfig, true)
+							Expect(err).To(BeNil())
+							label, err := ptphelper.GetLabel(modifiedPtpConfig)
+							if err != nil {
+								logrus.Warnf("could not get label from ptpconfig: %v", err)
+							}
+							node, err := ptphelper.GetFirstNode(modifiedPtpConfig)
+							if err != nil {
+								logrus.Warnf("could not get first node from ptpconfig: %v", err)
+							}
+							if label != nil && node != nil {
+								var slaveMaster string
+								Eventually(func() error {
+									var getErr error
+									slaveMaster, getErr = ptphelper.GetClockIDForeign(modifiedPtpConfig.Name, profileName, label, node)
+									if getErr != nil {
+										return getErr
+									}
+									if !strings.HasPrefix(slaveMaster, gmClockID) {
+										return fmt.Errorf("slave master %s does not match GM clock %s", slaveMaster, gmClockID)
+									}
+									return nil
+								}, pkg.TimeoutIn3Minutes, pkg.Timeout10Seconds).Should(BeNil(),
+									"Timeout waiting for slave to follow expected GM")
+							}
 						}
-					}
+					})
 				})
 
-				By("Deleting the test profile", func() {
-					err := client.Client.PtpV1Interface.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Delete(context.Background(), pkg.PtpTempPolicyName, metav1.DeleteOptions{})
-					Expect(err).NotTo(HaveOccurred())
-					Eventually(func() bool {
-						_, err := client.Client.PtpV1Interface.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), pkg.PtpTempPolicyName, metav1.GetOptions{})
-						return kerrors.IsNotFound(err)
-					}, 1*time.Minute, 1*time.Second).Should(BeTrue(), "Could not delete the test profile")
-				})
+				It("reverts to the original profile after deleting the higher-priority profile", func() {
+					By("Deleting the test profile", func() {
+						err := client.Client.PtpV1Interface.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Delete(context.Background(), pkg.PtpTempPolicyName, metav1.DeleteOptions{})
+						Expect(err).NotTo(HaveOccurred())
+						Eventually(func() bool {
+							_, err := client.Client.PtpV1Interface.PtpConfigs(pkg.PtpLinuxDaemonNamespace).Get(context.Background(), pkg.PtpTempPolicyName, metav1.GetOptions{})
+							return kerrors.IsNotFound(err)
+						}, 1*time.Minute, 1*time.Second).Should(BeTrue(), "Could not delete the test profile")
+					})
 
-				By("Checking the profile is reverted", func() {
-					_, err := pods.GetPodLogsRegex(testPtpPod.Namespace,
-						testPtpPod.Name, pkg.PtpContainerName,
-						"Profile Name: "+policyName, true, pkg.TimeoutIn3Minutes)
-					if err != nil {
-						profileRegex := policyName
+					By("Checking the profile is reverted", func() {
+						profileLogPattern := ptphelper.ProfileNameLogPattern(policyName, policyName)
+						profileFilePattern := ptphelper.ProfileNameMatchPattern(policyName, policyName)
 						if policyName == pkg.PTPWPCTBCPolicyName {
-							profileRegex = "tbc-(tr|tt)"
+							tbcPattern := "(?:" +
+								ptphelper.ProfileNameMatchPattern(policyName, "tbc-tr") + "|" +
+								ptphelper.ProfileNameMatchPattern(policyName, "tbc-tt") + ")"
+							profileLogPattern = `(?m)Profile Name: ` + tbcPattern
+							profileFilePattern = tbcPattern
 						}
-						// Fallback to file-based search to get the profile name
-						// for when logs do not contain the profile.
-						_, err = ptphelper.GetConfigForProfileFromVarRun(profileRegex, &testPtpPod, pkg.PtpContainerName)
+						_, err := pods.GetPodLogsRegex(testPtpPod.Namespace,
+							testPtpPod.Name, pkg.PtpContainerName,
+							profileLogPattern, false, pkg.TimeoutIn3Minutes)
 						if err != nil {
-							Fail(fmt.Sprintf("could not get profile name, err=%s", err))
+							// Fallback to file-based search to get the profile name
+							// for when logs do not contain the profile.
+							_, err = ptphelper.GetConfigForProfileFromVarRun(profileFilePattern, &testPtpPod, pkg.PtpContainerName)
+							if err != nil {
+								Fail(fmt.Sprintf("could not get profile name, err=%s", err))
+							}
 						}
-					}
+					})
 				})
 			})
 
@@ -1077,6 +1134,12 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 
 				logrus.Infof("Primary   BC slave interfaces: %v", primaryBCSlaveInterfaces)
 				logrus.Infof("Secondary BC slave interfaces: %v", secondaryBCSlaveInterfaces)
+
+				// HA member profile names, used to assert openshift_ptp_ha_profile_status
+				// (ACTIVE for the phc2sys-selected member, INACTIVE for the other).
+				primaryProfile := *primaryPtpConfig.Spec.Profile[0].Name
+				secondaryProfile := *secondaryPtpConfig.Spec.Profile[0].Name
+				haNodeName := &fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName
 
 				// phc2sys is delayed until ptp4l synchronizes, so first wait for
 				// the primary BC slave interface to reach SLAVE state, then give
@@ -1111,6 +1174,15 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					Fail(fmt.Sprintf("Selected interface %s does not belong to the primary boundary clock config. Primary interfaces: %v", selectedInterface, primaryBCSlaveInterfaces))
 				}
 
+				By("Verifying ha_profile_status reports the primary profile ACTIVE and the secondary INACTIVE")
+				Eventually(func() error {
+					if err := metrics.CheckHAProfileStatus(primaryProfile, true, haNodeName); err != nil {
+						return err
+					}
+					return metrics.CheckHAProfileStatus(secondaryProfile, false, haNodeName)
+				}, pkg.TimeoutIn3Minutes, 5*time.Second).Should(BeNil(),
+					"primary HA profile must be ACTIVE and secondary INACTIVE while phc2sys uses the primary")
+
 				// Wait for some time to ensure the regex won't match the previous log entry
 				time.Sleep(2 * time.Second)
 				ifDownTime := time.Now()
@@ -1143,6 +1215,15 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					Fail(fmt.Sprintf("Selected interface %s does not belong to the secondary boundary clock config. Secondary interfaces: %v", newSelectedInterface, secondaryBCSlaveInterfaces))
 				}
 
+				By("Verifying ha_profile_status flips to the secondary profile ACTIVE after failover")
+				Eventually(func() error {
+					if err := metrics.CheckHAProfileStatus(secondaryProfile, true, haNodeName); err != nil {
+						return err
+					}
+					return metrics.CheckHAProfileStatus(primaryProfile, false, haNodeName)
+				}, pkg.TimeoutIn3Minutes, 5*time.Second).Should(BeNil(),
+					"secondary HA profile must become ACTIVE and primary INACTIVE after failover")
+
 				time.Sleep(2 * time.Second)
 				ifUpTime := time.Now()
 				By("Restoring the primary BC's slave interface " + primaryInterface)
@@ -1172,67 +1253,137 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				if selectedInterface != primaryInterface {
 					Fail(fmt.Sprintf("Selected interface %s is not the original primary interface %s", selectedInterface, primaryInterface))
 				}
+
+				By("Verifying ha_profile_status returns to the primary profile ACTIVE after recovery")
+				Eventually(func() error {
+					if err := metrics.CheckHAProfileStatus(primaryProfile, true, haNodeName); err != nil {
+						return err
+					}
+					return metrics.CheckHAProfileStatus(secondaryProfile, false, haNodeName)
+				}, pkg.TimeoutIn3Minutes, 5*time.Second).Should(BeNil(),
+					"primary HA profile must be ACTIVE again and secondary INACTIVE after recovery")
 			})
 
-			// OCPBUGS-66407 / OCPBUGS-59883: Verify clockClass reported by Event API and
-			// Prometheus metrics matches PMC after locking PTP source.
-			//
-			// The test framework creates BC configs with gmCapable=0, but real partner
-			// deployments default to gmCapable=1 (ptp4l default). Without gmCapable=1,
-			// ptp4l won't promote itself to GM on sync loss and won't report clockClass 248.
-			// The test does an in-place edit to set gmCapable=1 + clockClass=248, then
-			// restores the original config via DeferCleanup.
-			It("Verify clockClass when locking PTP source on single NIC boundary clock", func() {
+		})
+
+		// OCPBUGS-66407 / OCPBUGS-59883: after locking the PTP source, the
+		// clockClass reported via cloud events and Prometheus metrics must
+		// match PMC.
+		//
+		// The test framework creates BC configs with gmCapable=0, but real partner
+		// deployments default to gmCapable=1 (ptp4l default). Without gmCapable=1,
+		// ptp4l won't promote itself to GM on sync loss and won't report clockClass
+		// 248. BeforeAll edits the config in place (gmCapable=1 + clockClass 248)
+		// and restores it via DeferCleanup.
+		Context("clockClass when locking PTP source on single NIC boundary clock", Ordered, ContinueOnFailure, func() {
+			const eventTimeout = pkg.TimeoutIn5Minutes
+			freerun := ClockClassFreerun          // 248
+			locked := int(fbprotocol.ClockClass6) // 6
+			var (
+				nic1     ptptesthelper.NICInfo
+				nodeName string
+				evCtx    bcEventContext
+			)
+
+			BeforeAll(func() {
+				ptphelper.WaitForPtpDaemonToExist()
+				fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
+				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
+					Skip("Failed to find a valid ptp slave configuration")
+				}
 				if fullConfig.PtpModeDiscovered != testconfig.BoundaryClock {
 					Skip("Test only valid for single NIC Boundary Clock")
 				}
 				if fullConfig.PtpModeDesired == testconfig.Discovery {
 					Skip("Test not valid in discovery mode")
 				}
+				podsRunningPTP4l, err := testconfig.GetPodsRunningPTP4l(&fullConfig)
+				Expect(err).NotTo(HaveOccurred())
+				ptphelper.WaitForPtpDaemonToBeReady(podsRunningPTP4l)
 
-				freerun := ClockClassFreerun          // 248
-				locked := int(fbprotocol.ClockClass6) // 6
+				nodeName = fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName
+				nic1 = ptptesthelper.DiscoverNICInfo(*(*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), nodeName, "NIC-1")
 
-				// Discover NIC interfaces and ptp4l config path
-				nodeName := fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName
-				nic1 := ptptesthelper.DiscoverNICInfo(*(*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), nodeName, "NIC-1")
-
-				// Enable gmCapable=1 so ptp4l reports clockClass 248 on sync loss
 				By("Updating BC config in-place: gmCapable 0 -> gmCapable 1 + clockClass 248")
 				originalConf := ptptesthelper.EnableGMCapableInPlace(nic1.PtpConfigName)
-				// Restore original config when test ends
 				DeferCleanup(func() {
 					ptptesthelper.RestorePtp4lConf(nic1.PtpConfigName, originalConf)
 				})
-
-				// Wait for ptp4l to pick up the new config
 				By("Waiting for PTP daemon to apply gmCapable=1 config")
 				ptptesthelper.WaitForConfigContent(fullConfig, nic1.ConfigPath(), "gmCapable 1")
 
-				// Deploy consumer pod and subscribe to clock class events
-				evCtx := setupBCClockClassEvents(nodeName)
-
-				// Step 1: verify initial locked state via PMC, metrics, and events
-				By("Step 1: Verifying NIC reports clockClass 6 (initial locked state)")
-				ptptesthelper.VerifyNICClockClass(fullConfig, nic1, locked, false)
-				verifyClockClassViaEvent(evCtx, locked)
-
-				// Step 2: cut upstream sync by bringing slave interface down
-				By(fmt.Sprintf("Step 2: Locking NIC-1 PTP source (bringing down %s)", nic1.SlaveIf))
-				portEngine.TurnOffAndWaitFaulty(nic1.SlaveIf, nodeName)
-				// Clock should transition to freerun (248) without its time source
-				ptptesthelper.VerifyNICClockClass(fullConfig, nic1, freerun, false)
-				verifyClockClassViaEvent(evCtx, freerun)
-
-				// Step 3: restore upstream sync by bringing slave interface back up
-				By(fmt.Sprintf("Step 3: Unlocking NIC-1 PTP source (bringing up %s)", nic1.SlaveIf))
-				portEngine.TurnOnAndWaitSlave(nic1.SlaveIf, nodeName)
-				// Clock should recover to locked (6)
-				ptptesthelper.VerifyNICClockClass(fullConfig, nic1, locked, false)
-				verifyClockClassViaEvent(evCtx, locked)
+				evCtx = setupBCClockClassEvents(nodeName)
 			})
 
-			It("Verify clockClass when locking PTP source on dual NIC boundary clock", func() {
+			AfterAll(func() {
+				if err := portEngine.TurnAllPortsUp(); err != nil {
+					logrus.Warnf("TurnAllPortsUp during cleanup failed: %v", err)
+				}
+			})
+
+			It("Step 1: initial state reports clockClass 6 via cloud events", func() {
+				if !evCtx.available {
+					Skip("PTP events not available")
+				}
+				waitForClockClassViaEvent(evCtx.subs, locked, eventTimeout)
+			})
+			It("Step 1: initial state reports clockClass 6 via metrics", func() {
+				ptptesthelper.VerifyNICClockClass(fullConfig, nic1, locked, false)
+			})
+
+			It("Step 2: locks NIC-1 PTP source by bringing slave interface down", func() {
+				if evCtx.available {
+					evCtx.subs.Drain()
+				}
+				By(fmt.Sprintf("Bringing down %s", nic1.SlaveIf))
+				Expect(portEngine.TurnPortDown(nic1.SlaveIf)).To(Succeed())
+			})
+			It("Step 2: freerun state reports clockClass 248 via cloud events", func() {
+				if !evCtx.available {
+					Skip("PTP events not available")
+				}
+				waitForClockClassViaEvent(evCtx.subs, freerun, eventTimeout)
+			})
+			It("Step 2: freerun state reports clockClass 248 via metrics", func() {
+				ptptesthelper.VerifyNICClockClass(fullConfig, nic1, freerun, false)
+			})
+
+			It("Step 3: unlocks NIC-1 PTP source by bringing slave interface up", func() {
+				if evCtx.available {
+					evCtx.subs.Drain()
+				}
+				By(fmt.Sprintf("Bringing up %s", nic1.SlaveIf))
+				Expect(portEngine.TurnPortUp(nic1.SlaveIf)).To(Succeed())
+			})
+			It("Step 3: recovered state reports clockClass 6 via cloud events", func() {
+				if !evCtx.available {
+					Skip("PTP events not available")
+				}
+				waitForClockClassViaEvent(evCtx.subs, locked, eventTimeout)
+			})
+			It("Step 3: recovered state reports clockClass 6 via metrics", func() {
+				ptptesthelper.VerifyNICClockClass(fullConfig, nic1, locked, false)
+			})
+		})
+
+		// Dual-NIC boundary clock: after locking each PTP source, verify the
+		// clockClass via cloud events (node-level) and per-NIC via metrics.
+		Context("clockClass when locking PTP source on dual NIC boundary clock", Ordered, ContinueOnFailure, func() {
+			const eventTimeout = pkg.TimeoutIn5Minutes
+			freerun := ClockClassFreerun          // 248
+			locked := int(fbprotocol.ClockClass6) // 6
+			var (
+				nic1, nic2 ptptesthelper.NICInfo
+				nodeName   string
+				evCtx      bcEventContext
+			)
+
+			BeforeAll(func() {
+				ptphelper.WaitForPtpDaemonToExist()
+				fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
+				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
+					Skip("Failed to find a valid ptp slave configuration")
+				}
 				if fullConfig.PtpModeDiscovered != testconfig.DualNICBoundaryClock &&
 					fullConfig.PtpModeDiscovered != testconfig.DualNICBoundaryClockHA {
 					Skip("Test only valid for dual NIC Boundary Clock configurations")
@@ -1240,62 +1391,89 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				if fullConfig.PtpModeDesired == testconfig.Discovery {
 					Skip("Test not valid in discovery mode")
 				}
+				podsRunningPTP4l, err := testconfig.GetPodsRunningPTP4l(&fullConfig)
+				Expect(err).NotTo(HaveOccurred())
+				ptphelper.WaitForPtpDaemonToBeReady(podsRunningPTP4l)
 
-				freerun := ClockClassFreerun          // 248
-				locked := int(fbprotocol.ClockClass6) // 6
-
-				// Discover both NIC interfaces and ptp4l config paths
-				nodeName := fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName
-				nic1 := ptptesthelper.DiscoverNICInfo(*(*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), nodeName, "NIC-1")
+				nodeName = fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName
+				nic1 = ptptesthelper.DiscoverNICInfo(*(*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestPtpConfig), nodeName, "NIC-1")
 				secondaryPtpConfig := (*ptpv1.PtpConfig)(fullConfig.DiscoveredClockUnderTestSecondaryPtpConfig)
 				Expect(secondaryPtpConfig).ToNot(BeNil(), "Secondary PtpConfig not found for dual NIC")
-				nic2 := ptptesthelper.DiscoverNICInfo(*secondaryPtpConfig, nodeName, "NIC-2")
+				nic2 = ptptesthelper.DiscoverNICInfo(*secondaryPtpConfig, nodeName, "NIC-2")
 
-				// Enable gmCapable=1 on both NICs so ptp4l reports clockClass 248 on sync loss
 				By("Updating BC configs in-place: gmCapable 0 -> gmCapable 1 + clockClass 248")
 				originalNic1Conf := ptptesthelper.EnableGMCapableInPlace(nic1.PtpConfigName)
 				originalNic2Conf := ptptesthelper.EnableGMCapableInPlace(nic2.PtpConfigName)
-				// Restore original configs when test ends
 				DeferCleanup(func() {
 					logrus.Info("Restoring original BC configs")
 					ptptesthelper.RestorePtp4lConf(nic1.PtpConfigName, originalNic1Conf)
 					ptptesthelper.RestorePtp4lConf(nic2.PtpConfigName, originalNic2Conf)
 				})
-
-				// Wait for ptp4l to pick up the new config on both NICs
 				By("Waiting for PTP daemon to apply gmCapable=1 config")
 				ptptesthelper.WaitForConfigContent(fullConfig, nic1.ConfigPath(), "gmCapable 1")
 				ptptesthelper.WaitForConfigContent(fullConfig, nic2.ConfigPath(), "gmCapable 1")
 
-				// Deploy consumer pod and subscribe to clock class events
-				evCtx := setupBCClockClassEvents(nodeName)
+				evCtx = setupBCClockClassEvents(nodeName)
+			})
 
-				// Step 1: all NICs should report clockClass 6 (locked)
-				By("Step 1: Verifying all NICs report clockClass 6 (initial locked state)")
+			AfterAll(func() {
+				if err := portEngine.TurnAllPortsUp(); err != nil {
+					logrus.Warnf("TurnAllPortsUp during cleanup failed: %v", err)
+				}
+			})
+
+			It("Step 1: all NICs report clockClass 6 via cloud events", func() {
+				if !evCtx.available {
+					Skip("PTP events not available")
+				}
+				waitForClockClassViaEvent(evCtx.subs, locked, eventTimeout)
+			})
+			It("Step 1: NIC-1 reports clockClass 6 via metrics", func() {
 				ptptesthelper.VerifyNICClockClass(fullConfig, nic1, locked, true)
+			})
+			It("Step 1: NIC-2 reports clockClass 6 via metrics", func() {
 				ptptesthelper.VerifyNICClockClass(fullConfig, nic2, locked, true)
-				verifyClockClassViaEvent(evCtx, locked)
+			})
 
-				// Step 2: lock NIC-2's PTP source
-				By(fmt.Sprintf("Step 2: Locking NIC-2 PTP source (bringing down %s)", nic2.SlaveIf))
-				portEngine.TurnOffAndWaitFaulty(nic2.SlaveIf, nodeName)
-
-				// Step 3: NIC-1 still locked, NIC-2 now freerun
-				By("Step 3: Verifying NIC-1=6, NIC-2=248")
+			It("Step 2: locks NIC-2 PTP source by bringing slave interface down", func() {
+				if evCtx.available {
+					evCtx.subs.Drain()
+				}
+				By(fmt.Sprintf("Bringing down %s", nic2.SlaveIf))
+				Expect(portEngine.TurnPortDown(nic2.SlaveIf)).To(Succeed())
+			})
+			It("Step 3: freerun clockClass 248 appears via cloud events", func() {
+				if !evCtx.available {
+					Skip("PTP events not available")
+				}
+				waitForClockClassViaEvent(evCtx.subs, freerun, eventTimeout)
+			})
+			It("Step 3: NIC-1 still reports clockClass 6 via metrics", func() {
 				ptptesthelper.VerifyNICClockClass(fullConfig, nic1, locked, true)
+			})
+			It("Step 3: NIC-2 reports freerun clockClass 248 via metrics", func() {
 				ptptesthelper.VerifyNICClockClass(fullConfig, nic2, freerun, true)
-				verifyClockClassViaEvent(evCtx, freerun)
+			})
 
-				// Step 4: swap — lock NIC-1, unlock NIC-2
-				By(fmt.Sprintf("Step 4: Locking NIC-1 (down %s), Unlocking NIC-2 (up %s)", nic1.SlaveIf, nic2.SlaveIf))
-				portEngine.TurnOffAndWaitFaulty(nic1.SlaveIf, nodeName)
-				portEngine.TurnOnAndWaitSlave(nic2.SlaveIf, nodeName)
-
-				// Step 5: NIC-1 now freerun, NIC-2 recovered to locked
-				By("Step 5: Verifying NIC-1=248, NIC-2=6")
+			It("Step 4: swaps sources — locks NIC-1 (down), unlocks NIC-2 (up)", func() {
+				if evCtx.available {
+					evCtx.subs.Drain()
+				}
+				By(fmt.Sprintf("Bringing down %s and up %s", nic1.SlaveIf, nic2.SlaveIf))
+				Expect(portEngine.TurnPortDown(nic1.SlaveIf)).To(Succeed())
+				Expect(portEngine.TurnPortUp(nic2.SlaveIf)).To(Succeed())
+			})
+			It("Step 5: freerun clockClass 248 appears via cloud events", func() {
+				if !evCtx.available {
+					Skip("PTP events not available")
+				}
+				waitForClockClassViaEvent(evCtx.subs, freerun, eventTimeout)
+			})
+			It("Step 5: NIC-1 reports freerun clockClass 248 via metrics", func() {
 				ptptesthelper.VerifyNICClockClass(fullConfig, nic1, freerun, true)
+			})
+			It("Step 5: NIC-2 reports recovered clockClass 6 via metrics", func() {
 				ptptesthelper.VerifyNICClockClass(fullConfig, nic2, locked, true)
-				verifyClockClassViaEvent(evCtx, freerun)
 			})
 		})
 
@@ -1357,91 +1535,33 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				Expect(len(ptpPods.Items)).To(BeNumerically(">", 0), "linuxptp-daemon is not deployed on cluster")
 			})
 
-			It("Should check for ptp events ", func() {
-				By("Checking event side car is present")
+			// Subscribe to PTP events and assert an event payload is delivered to
+			// the consumer, exercising the O-RAN pub/sub path end to end (v1
+			// sidecar transport or v2 in-daemon proxy).
+			It("Should deliver ptp events to a subscribed consumer", func() {
 				apiVersion := ptphelper.PtpEventEnabled()
-				var apiBase, endpointUri string
-				if apiVersion == 1 {
-					apiBase = event.ApiBaseV1
-					endpointUri = "endpointUri"
-				} else {
-					apiBase = event.ApiBaseV2
-					endpointUri = "EndpointUri"
-				}
+
+				By("Checking the cloud-event-proxy sidecar is present")
 				cloudProxyFound := false
-				Expect(len(fullConfig.DiscoveredClockUnderTestPod.Spec.Containers)).To(BeNumerically("==", 3), "linuxptp-daemon is not deployed on cluster with cloud event proxy")
+				Expect(len(fullConfig.DiscoveredClockUnderTestPod.Spec.Containers)).To(BeNumerically("==", 3),
+					"linuxptp-daemon is not deployed on cluster with cloud event proxy")
 				for _, c := range fullConfig.DiscoveredClockUnderTestPod.Spec.Containers {
 					if c.Name == pkg.EventProxyContainerName {
 						cloudProxyFound = true
 					}
 				}
-				Expect(cloudProxyFound).ToNot(BeFalse(), "No event pods detected")
+				Expect(cloudProxyFound).To(BeTrue(), "No cloud-event-proxy container detected")
 
-				By("Checking event api is healthy")
-
-				Eventually(func() string {
-					buf, _, _ := pods.ExecCommand(client.Client, false, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", path.Join(apiBase, "health")})
-					return buf.String()
-				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring("OK"),
-					"Event API is not in healthy state")
-
-				By("Checking ptp publisher is created")
-
-				Eventually(func() string {
-					buf, _, _ := pods.ExecCommand(client.Client, false, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", path.Join(apiBase, "publishers")})
-					return buf.String()
-				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring(endpointUri),
-					"Event API  did not return publishers")
-
-				By("Checking events are generated")
-
-				_, err := pods.GetPodLogsRegex(fullConfig.DiscoveredClockUnderTestPod.Namespace,
-					fullConfig.DiscoveredClockUnderTestPod.Name, pkg.EventProxyContainerName,
-					"Created publisher", true, pkg.TimeoutIn3Minutes)
-				if err != nil {
-					Fail(fmt.Sprintf("PTP event publisher was not created in pod %s, err=%s", fullConfig.DiscoveredClockUnderTestPod.Name, err))
-				}
-				_, err = pods.GetPodLogsRegex(fullConfig.DiscoveredClockUnderTestPod.Namespace,
-					fullConfig.DiscoveredClockUnderTestPod.Name, pkg.EventProxyContainerName,
-					"event sent", true, pkg.TimeoutIn3Minutes)
-				if err != nil {
-					Fail(fmt.Sprintf("PTP event was not generated in the pod %s, err=%s", fullConfig.DiscoveredClockUnderTestPod.Name, err))
-				}
-
-				By("Checking event metrics are present")
-
-				Eventually(func() string {
-					buf, _, _ := pods.ExecCommand(client.Client, false, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", pkg.MetricsEndPoint})
-					return buf.String()
-				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring(metrics.OpenshiftPtpInterfaceRole),
-					"Interface role metrics are not detected")
-
-				Eventually(func() string {
-					buf, _, _ := pods.ExecCommand(client.Client, false, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", pkg.MetricsEndPoint})
-					return buf.String()
-				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring(metrics.OpenshiftPtpThreshold),
-					"Threshold metrics are not detected")
-			})
-
-			It("Should recover clockClass via event API after cloud-event-proxy crash", func() {
-				if ptphelper.PtpEventEnabled() != 2 {
-					Skip("Skipping: test applies to event API v2 only")
-				}
-
-				// Determine expected clock class based on PTP mode
-				// In 4.21+, OC correctly reports its local clock class (255/SlaveOnly)
-				// instead of the upstream GM's class (6).
-				expectedClockClass := fbprotocol.ClockClass6
-				if fullConfig.PtpModeDiscovered == testconfig.OrdinaryClock && ptphelper.IsPTPOperatorVersionAtLeast("4.21") {
-					expectedClockClass = fbprotocol.ClockClassSlaveOnly
-				}
-				expectedClockClassStr := strconv.Itoa(int(expectedClockClass))
-				logrus.Infof("PtpModeDiscovered: %s, expected clockClass: %s", fullConfig.PtpModeDiscovered, expectedClockClassStr)
-
-				By("Deploying consumer app for event API v2")
+				By("Deploying a consumer that subscribes to PTP events")
 				nodeName := fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName
 				Expect(nodeName).ToNot(BeEmpty(), "clock-under-test pod node is empty")
-				err := event.CreateConsumerApp(nodeName)
+				var err error
+				if apiVersion == 1 {
+					// v1 delivers events over the cloud-event-proxy sidecar.
+					err = event.CreateConsumerAppWithSidecar(nodeName)
+				} else {
+					err = event.CreateConsumerApp(nodeName)
+				}
 				if err != nil {
 					Skip(fmt.Sprintf("Consumer app setup failed: %v", err))
 				}
@@ -1451,50 +1571,137 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 						event.PubSub.Close()
 					}
 				})
-				if waitErr := event.WaitForConsumerReady(nodeName); waitErr != nil {
-					Skip(fmt.Sprintf("Consumer app not ready: %v", waitErr))
+				// v2 exposes a publisher health endpoint to poll; v1 readiness
+				// was handled above.
+				if apiVersion != 1 {
+					if waitErr := event.WaitForConsumerReady(nodeName); waitErr != nil {
+						Skip(fmt.Sprintf("Consumer app not ready: %v", waitErr))
+					}
 				}
+
+				By("Listening for events delivered to the subscribed consumer")
 				event.InitPubSub()
+				term, monErr := event.MonitorPodLogsRegex()
+				Expect(monErr).ToNot(HaveOccurred(), "could not start listening to events")
+				DeferCleanup(func() { stopMonitor(term) })
 
-				By(fmt.Sprintf("Verifying initial clockClass is %s via metrics", expectedClockClassStr))
-				checkClockClassState(fullConfig, expectedClockClassStr, pkg.TimeoutIn5Minutes)
+				By("Verifying a PTP event is delivered to the consumer (subscribe + read)")
+				Expect(event.PushInitialEvent(string(ptpEvent.SyncStateChange), 2*time.Minute)).
+					To(Succeed(), "did not receive a SyncStateChange event via the subscribed consumer")
+			})
 
-				// PMC gm.ClockClass always reports the upstream GM's class (6),
-				// regardless of whether this node is BC or OC.
-				By("Verifying initial gm.ClockClass is 6 via PMC")
-				ptptesthelper.VerifyClockClassViaPMC(fullConfig, "/var/run/ptp4l.0.config", int(fbprotocol.ClockClass6))
+			// The event pipeline also exports Prometheus metrics.
+			It("Should expose ptp event metrics", func() {
+				By("Checking interface role metrics are present")
+				Eventually(func() string {
+					buf, _, _ := pods.ExecCommand(client.Client, false, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", pkg.MetricsEndPoint})
+					return buf.String()
+				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring(metrics.OpenshiftPtpInterfaceRole),
+					"Interface role metrics are not detected")
 
-				By(fmt.Sprintf("Verifying initial clockClass is %s via Event API", expectedClockClassStr))
-				verifyClockClassCurrentState(int(expectedClockClass), 60*time.Second)
+				By("Checking threshold metrics are present")
+				Eventually(func() string {
+					buf, _, _ := pods.ExecCommand(client.Client, false, fullConfig.DiscoveredClockUnderTestPod, pkg.EventProxyContainerName, []string{"curl", pkg.MetricsEndPoint})
+					return buf.String()
+				}, pkg.TimeoutIn5Minutes, 5*time.Second).Should(ContainSubstring(metrics.OpenshiftPtpThreshold),
+					"Threshold metrics are not detected")
+			})
 
-				By("Killing cloud-event-proxy process in sidecar container")
-				// Use /proc/PID/comm to find and kill the process — portable across
-				// minimal container images that lack pgrep/pkill. "cloud-event-proxy"
-				// truncated to 15 chars (Linux TASK_COMM_LEN) is "cloud-event-pro".
-				// The exec may error if killing PID 1 crashes the container.
-				killCmd := `for pid in $(ls /proc/ | grep '^[0-9]'); do ` +
-					`if [ "$(cat /proc/$pid/comm 2>/dev/null)" = "cloud-event-pro" ]; then ` +
-					`kill -9 $pid 2>/dev/null; fi; done`
-				pods.ExecCommand(
-					client.Client,
-					true,
-					fullConfig.DiscoveredClockUnderTestPod,
-					pkg.EventProxyContainerName,
-					[]string{"sh", "-c", killCmd},
+			// clockClass recovery after a cloud-event-proxy crash. BeforeAll
+			// crashes the proxy once; each It then verifies recovery via the
+			// Event API, PMC, and metrics.
+			Context("clockClass recovery after cloud-event-proxy crash", Ordered, ContinueOnFailure, func() {
+				var (
+					expectedClockClass    fbprotocol.ClockClass
+					expectedClockClassStr string
+					crashDone             bool
 				)
 
-				By("Waiting for cloud-event-proxy to be ready")
-				Expect(event.WaitForCloudEventProxyReady(fullConfig.DiscoveredClockUnderTestPod)).To(BeNil(),
-					"cloud-event-proxy did not become ready after restart")
+				BeforeAll(func() {
+					if ptphelper.PtpEventEnabled() != 2 {
+						Skip("Skipping: test applies to event API v2 only")
+					}
 
-				By(fmt.Sprintf("Verifying clockClass remains %s via metrics after cloud-event-proxy restart", expectedClockClassStr))
-				checkClockClassState(fullConfig, expectedClockClassStr, pkg.TimeoutIn5Minutes)
+					// Determine expected clock class based on PTP mode.
+					// In 4.21+, OC correctly reports its local clock class
+					// (255/SlaveOnly) instead of the upstream GM's class (6).
+					expectedClockClass = fbprotocol.ClockClass6
+					if fullConfig.PtpModeDiscovered == testconfig.OrdinaryClock && ptphelper.IsPTPOperatorVersionAtLeast("4.21") {
+						expectedClockClass = fbprotocol.ClockClassSlaveOnly
+					}
+					expectedClockClassStr = strconv.Itoa(int(expectedClockClass))
+					logrus.Infof("PtpModeDiscovered: %s, expected clockClass: %s", fullConfig.PtpModeDiscovered, expectedClockClassStr)
 
-				By("Verifying gm.ClockClass remains 6 via PMC after cloud-event-proxy restart")
-				ptptesthelper.VerifyClockClassViaPMC(fullConfig, "/var/run/ptp4l.0.config", int(fbprotocol.ClockClass6))
+					By("Deploying consumer app for event API v2")
+					nodeName := fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName
+					Expect(nodeName).ToNot(BeEmpty(), "clock-under-test pod node is empty")
+					if err := event.CreateConsumerApp(nodeName); err != nil {
+						Skip(fmt.Sprintf("Consumer app setup failed: %v", err))
+					}
+					if waitErr := event.WaitForConsumerReady(nodeName); waitErr != nil {
+						Skip(fmt.Sprintf("Consumer app not ready: %v", waitErr))
+					}
+					event.InitPubSub()
 
-				By(fmt.Sprintf("Verifying clockClass is %s via Event API after cloud-event-proxy restart", expectedClockClassStr))
-				verifyClockClassCurrentState(int(expectedClockClass), 90*time.Second)
+					// Baseline via the metrics-independent paths: Event API and PMC.
+					By(fmt.Sprintf("Verifying initial clockClass is %s via Event API", expectedClockClassStr))
+					verifyClockClassCurrentState(int(expectedClockClass), 60*time.Second)
+
+					// PMC gm.ClockClass always reports the upstream GM's class (6),
+					// regardless of whether this node is BC or OC.
+					By("Verifying initial gm.ClockClass is 6 via PMC")
+					ptptesthelper.VerifyClockClassViaPMC(fullConfig, "/var/run/ptp4l.0.config", int(fbprotocol.ClockClass6))
+
+					By("Killing cloud-event-proxy process in sidecar container")
+					// Use /proc/PID/comm to find and kill the process — portable across
+					// minimal container images that lack pgrep/pkill. "cloud-event-proxy"
+					// truncated to 15 chars (Linux TASK_COMM_LEN) is "cloud-event-pro".
+					// The exec may error if killing PID 1 crashes the container.
+					killCmd := `for pid in $(ls /proc/ | grep '^[0-9]'); do ` +
+						`if [ "$(cat /proc/$pid/comm 2>/dev/null)" = "cloud-event-pro" ]; then ` +
+						`kill -9 $pid 2>/dev/null; fi; done`
+					// Intentionally ignore the result: killing the proxy may crash
+					// the container and make the exec itself error.
+					_, _, _ = pods.ExecCommand(
+						client.Client,
+						true,
+						fullConfig.DiscoveredClockUnderTestPod,
+						pkg.EventProxyContainerName,
+						[]string{"sh", "-c", killCmd},
+					)
+
+					By("Waiting for cloud-event-proxy to be ready")
+					Expect(event.WaitForCloudEventProxyReady(fullConfig.DiscoveredClockUnderTestPod)).To(BeNil(),
+						"cloud-event-proxy did not become ready after restart")
+					crashDone = true
+				})
+
+				AfterAll(func() {
+					if event.PubSub != nil {
+						event.PubSub.Close()
+					}
+					if err := event.DeleteConsumerNamespace(); err != nil {
+						logrus.Debugf("Deleting consumer namespace failed: %s", err)
+					}
+				})
+
+				It("recovers clockClass via Event API after cloud-event-proxy restart", func() {
+					Expect(crashDone).To(BeTrue(), "cloud-event-proxy crash setup did not complete")
+					By(fmt.Sprintf("Verifying clockClass is %s via Event API after restart", expectedClockClassStr))
+					verifyClockClassCurrentState(int(expectedClockClass), 90*time.Second)
+				})
+
+				It("recovers gm.ClockClass via PMC after cloud-event-proxy restart", func() {
+					Expect(crashDone).To(BeTrue(), "cloud-event-proxy crash setup did not complete")
+					By("Verifying gm.ClockClass remains 6 via PMC after restart")
+					ptptesthelper.VerifyClockClassViaPMC(fullConfig, "/var/run/ptp4l.0.config", int(fbprotocol.ClockClass6))
+				})
+
+				It("recovers clockClass via metrics after cloud-event-proxy restart", func() {
+					Expect(crashDone).To(BeTrue(), "cloud-event-proxy crash setup did not complete")
+					By(fmt.Sprintf("Verifying clockClass remains %s via metrics after restart", expectedClockClassStr))
+					checkClockClassState(fullConfig, expectedClockClassStr, pkg.TimeoutIn5Minutes)
+				})
 			})
 
 			Context("Event API version validation", func() {
@@ -1906,12 +2113,16 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				masterConfigs, slaveConfigs := ptphelper.DiscoveryPTPConfiguration(pkg.PtpLinuxDaemonNamespace)
 				ptpConfigs := append(masterConfigs, slaveConfigs...)
 
-				fifoPriorities = make(map[string]int64)
+				fifoPriorities = nil
 				for _, config := range ptpConfigs {
 					for _, profile := range config.Spec.Profile {
 						if profile.PtpSchedulingPolicy != nil && *profile.PtpSchedulingPolicy == "SCHED_FIFO" {
-							if profile.PtpSchedulingPriority != nil {
-								fifoPriorities[ptphelper.QualifyProfileName(config.Name, *profile.Name)] = *profile.PtpSchedulingPriority
+							if profile.Name != nil && profile.PtpSchedulingPriority != nil {
+								fifoPriorities = append(fifoPriorities, struct {
+									configName  string
+									profileName string
+									priority    int64
+								}{config.Name, *profile.Name, *profile.PtpSchedulingPriority})
 							}
 						}
 					}
@@ -1926,15 +2137,17 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 			})
 			It("Should check whether using fifo scheduling", func() {
 				By("checking for chrt logs")
-				for name, priority := range fifoPriorities {
-					ptp4lLog := fmt.Sprintf("/bin/chrt -f %d /usr/sbin/ptp4l", priority)
+				for i := 0; i < len(fifoPriorities); {
+					fp := fifoPriorities[i]
+					ptp4lLog := fmt.Sprintf("/bin/chrt -f %d /usr/sbin/ptp4l", fp.priority)
+					matched := false
 					for podIndex := range ptpPods.Items {
-						profileName := fmt.Sprintf("Profile Name: %s", name)
+						profileLog := ptphelper.ProfileNameLogPattern(fp.configName, fp.profileName)
 						_, err := pods.GetPodLogsRegex(ptpPods.Items[podIndex].Namespace,
 							ptpPods.Items[podIndex].Name, pkg.PtpContainerName,
-							profileName, true, pkg.TimeoutIn3Minutes)
+							profileLog, false, pkg.TimeoutIn3Minutes)
 						if err != nil {
-							logrus.Errorf("error getting profile=%s, err=%s ", name, err)
+							logrus.Errorf("error getting profile=%s/%s, err=%s ", fp.configName, fp.profileName, err)
 							continue
 						}
 						_, err = pods.GetPodLogsRegex(ptpPods.Items[podIndex].Namespace,
@@ -1944,7 +2157,13 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 							logrus.Errorf("error getting ptp4l chrt line=%s, err=%s ", ptp4lLog, err)
 							continue
 						}
-						delete(fifoPriorities, name)
+						matched = true
+						break
+					}
+					if matched {
+						fifoPriorities = append(fifoPriorities[:i], fifoPriorities[i+1:]...)
+					} else {
+						i++
 					}
 				}
 				Expect(fifoPriorities).To(HaveLen(0))
@@ -2207,93 +2426,6 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				}
 			})
 
-			It("BC clock class recovers to Locked after upstream link outage", func() {
-				if fullConfig.PtpModeDiscovered == testconfig.TelcoGrandMasterClock {
-					Skip("test not valid for WPC GM config")
-				}
-				if fullConfig.PtpModeDesired == testconfig.DualFollowerClock {
-					Skip("Test not valid for dual follower scenario")
-				}
-				if fullConfig.PtpModeDiscovered != testconfig.BoundaryClock &&
-					fullConfig.PtpModeDiscovered != testconfig.DualNICBoundaryClock &&
-					fullConfig.PtpModeDiscovered != testconfig.DualNICBoundaryClockHA {
-					Skip("test only valid for Boundary Clock configurations")
-				}
-
-				slaveIf := ptpv1.GetInterfaces((ptpv1.PtpConfig)(*fullConfig.DiscoveredClockUnderTestPtpConfig), ptpv1.Slave)
-				if fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock ||
-					fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClockHA {
-					Expect(fullConfig.DiscoveredClockUnderTestSecondaryPtpConfig).NotTo(BeNil(),
-						"secondary PtpConfig required for dual-NIC BC outage tests")
-					secondarySlaveIf := ptpv1.GetInterfaces((ptpv1.PtpConfig)(*fullConfig.DiscoveredClockUnderTestSecondaryPtpConfig), ptpv1.Slave)
-					logrus.Infof("Secondary BC slave interfaces are %+q", secondarySlaveIf)
-					slaveIf = append(slaveIf, secondarySlaveIf...)
-				}
-				Expect(slaveIf).ToNot(BeEmpty(), "no slave interfaces found in the clock-under-test PtpConfig(s)")
-				logrus.Infof("All slave interfaces are %+q", slaveIf)
-				slavePodNodeName := fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName
-
-				portEngine.Initialize(fullConfig.DiscoveredClockUnderTestPod, slaveIf)
-				DeferCleanup(func() {
-					ptptesthelper.DeletePtpTestPrivilegedDaemonSet(
-						pkg.RecoveryNetworkOutageDaemonSetName,
-						pkg.RecoveryNetworkOutageDaemonSetNamespace,
-					)
-				})
-
-				By("Checking initial clock class is Locked (6)")
-				checkClockClassState(fullConfig, strconv.Itoa(int(fbprotocol.ClockClass6)), pkg.TimeoutIn5Minutes)
-
-				By("Setting all slave interfaces down")
-				skippedInterfacesStr, isSet := os.LookupEnv("SKIP_INTERFACES")
-				if !isSet {
-					Skip("Mandatory to provide skipped interface to avoid making a node disconnected from the cluster")
-				}
-				skipInterfaces := make(map[string]bool)
-				for _, val := range strings.Split(skippedInterfacesStr, ",") {
-					skipInterfaces[val] = true
-				}
-				err := portEngine.TurnAllPortsDown(skipInterfaces)
-				Expect(err).To(BeNil())
-				DeferCleanup(func() {
-					portEngine.TurnAllPortsUp()
-				})
-
-				faultyRoles := make([]metrics.MetricRole, len(slaveIf))
-				for i := range faultyRoles {
-					faultyRoles[i] = metrics.MetricRoleFaulty
-				}
-				slaveRoles := make([]metrics.MetricRole, len(slaveIf))
-				for i := range slaveRoles {
-					slaveRoles[i] = metrics.MetricRoleSlave
-				}
-
-				By("Checking that all slave port roles are FAULTY after wait")
-				Eventually(func() error {
-					return metrics.CheckClockRole(faultyRoles, slaveIf, &slavePodNodeName)
-				}, 5*time.Minute, 10*time.Second).Should(BeNil())
-
-				By("Checking clock class has degraded away from Locked (6)")
-				Eventually(func() bool {
-					return !checkClockClassStateReturnBool(fullConfig, strconv.Itoa(int(fbprotocol.ClockClass6)))
-				}, 5*time.Minute, 10*time.Second).Should(BeTrue(),
-					"expected clock class to degrade from Locked (6) after upstream link loss")
-
-				By("Setting all slave interfaces up")
-				err = portEngine.TurnAllPortsUp()
-				Expect(err).To(BeNil())
-
-				By("Checking that all slave port roles are SLAVE after wait")
-				Eventually(func() error {
-					return metrics.CheckClockRole(slaveRoles, slaveIf, &slavePodNodeName)
-				}, 5*time.Minute, 10*time.Second).Should(BeNil())
-
-				By("Checking clock class recovers to Locked (6)")
-				waitForClockClass(fullConfig, strconv.Itoa(int(fbprotocol.ClockClass6)))
-
-				logrus.Info("Successfully verified T-BC clock class recovery after upstream link outage")
-			})
-
 			// OsClockSyncState goes FREERUN when BC upstream is lost (reverse phc2sys)
 			// and recovers to LOCKED when the link is restored.
 			//
@@ -2417,6 +2549,144 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 					Skip("ts2phc only runs in GM configuration")
 				}
 				verifyProcessRestartNoSocketErrors(fullConfig, "ts2phc")
+			})
+		})
+
+		// BC clock class recovery after an upstream link outage. The degraded
+		// phase has no fixed clockClass to assert (gmCapable is not forced here,
+		// only that the clock leaves Locked/6), so the two Locked states are
+		// verified via cloud events and the degraded state via metrics.
+		Context("BC clock class recovery after upstream link outage", Ordered, ContinueOnFailure, func() {
+			const eventTimeout = pkg.TimeoutIn5Minutes
+			lockedStr := strconv.Itoa(int(fbprotocol.ClockClass6))
+			lockedCC := int(fbprotocol.ClockClass6)
+			var (
+				slaveIf          []string
+				slavePodNodeName string
+				faultyRoles      []metrics.MetricRole
+				slaveRoles       []metrics.MetricRole
+				evCtx            bcEventContext
+			)
+
+			BeforeAll(func() {
+				ptphelper.WaitForPtpDaemonToExist()
+				fullConfig = testconfig.GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
+				if fullConfig.Status == testconfig.DiscoveryFailureStatus {
+					Skip("Failed to find a valid ptp slave configuration")
+				}
+				if fullConfig.PtpModeDiscovered == testconfig.TelcoGrandMasterClock {
+					Skip("test not valid for WPC GM config")
+				}
+				if fullConfig.PtpModeDesired == testconfig.DualFollowerClock {
+					Skip("Test not valid for dual follower scenario")
+				}
+				if fullConfig.PtpModeDiscovered != testconfig.BoundaryClock &&
+					fullConfig.PtpModeDiscovered != testconfig.DualNICBoundaryClock &&
+					fullConfig.PtpModeDiscovered != testconfig.DualNICBoundaryClockHA {
+					Skip("test only valid for Boundary Clock configurations")
+				}
+				if _, isSet := os.LookupEnv("SKIP_INTERFACES"); !isSet {
+					Skip("Mandatory to provide skipped interface to avoid making a node disconnected from the cluster")
+				}
+				Expect(fullConfig.DiscoveredClockUnderTestPod).NotTo(BeNil(),
+					"clock-under-test pod missing after refresh; label node with "+pkg.PtpClockUnderTestNodeLabel)
+				Expect(fullConfig.DiscoveredClockUnderTestPtpConfig).NotTo(BeNil(),
+					"clock-under-test PtpConfig missing after refresh")
+				podsRunningPTP4l, err := testconfig.GetPodsRunningPTP4l(&fullConfig)
+				Expect(err).NotTo(HaveOccurred())
+				ptphelper.WaitForPtpDaemonToBeReady(podsRunningPTP4l)
+
+				slaveIf = ptpv1.GetInterfaces((ptpv1.PtpConfig)(*fullConfig.DiscoveredClockUnderTestPtpConfig), ptpv1.Slave)
+				if fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClock ||
+					fullConfig.PtpModeDiscovered == testconfig.DualNICBoundaryClockHA {
+					Expect(fullConfig.DiscoveredClockUnderTestSecondaryPtpConfig).NotTo(BeNil(),
+						"secondary PtpConfig required for dual-NIC BC outage tests")
+					secondarySlaveIf := ptpv1.GetInterfaces((ptpv1.PtpConfig)(*fullConfig.DiscoveredClockUnderTestSecondaryPtpConfig), ptpv1.Slave)
+					logrus.Infof("Secondary BC slave interfaces are %+q", secondarySlaveIf)
+					slaveIf = append(slaveIf, secondarySlaveIf...)
+				}
+				Expect(slaveIf).ToNot(BeEmpty(), "no slave interfaces found in the clock-under-test PtpConfig(s)")
+				logrus.Infof("All slave interfaces are %+q", slaveIf)
+				slavePodNodeName = fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName
+
+				faultyRoles = make([]metrics.MetricRole, len(slaveIf))
+				for i := range faultyRoles {
+					faultyRoles[i] = metrics.MetricRoleFaulty
+				}
+				slaveRoles = make([]metrics.MetricRole, len(slaveIf))
+				for i := range slaveRoles {
+					slaveRoles[i] = metrics.MetricRoleSlave
+				}
+
+				portEngine.Initialize(fullConfig.DiscoveredClockUnderTestPod, slaveIf)
+				DeferCleanup(func() {
+					ptptesthelper.DeletePtpTestPrivilegedDaemonSet(
+						pkg.RecoveryNetworkOutageDaemonSetName,
+						pkg.RecoveryNetworkOutageDaemonSetNamespace,
+					)
+				})
+
+				evCtx = setupBCClockClassEvents(slavePodNodeName)
+			})
+
+			AfterAll(func() {
+				if err := portEngine.TurnAllPortsUp(); err != nil {
+					logrus.Warnf("TurnAllPortsUp during cleanup failed: %v", err)
+				}
+			})
+
+			It("initial state reports clock class Locked (6) via cloud events", func() {
+				if !evCtx.available {
+					Skip("PTP events not available")
+				}
+				waitForClockClassViaEvent(evCtx.subs, lockedCC, eventTimeout)
+			})
+			It("initial state reports clock class Locked (6) via metrics", func() {
+				checkClockClassState(fullConfig, lockedStr, pkg.TimeoutIn5Minutes)
+			})
+
+			It("takes all slave interfaces down (simulate upstream outage)", func() {
+				skippedInterfacesStr, isSet := os.LookupEnv("SKIP_INTERFACES")
+				if !isSet {
+					Skip("Mandatory to provide skipped interface to avoid making a node disconnected from the cluster")
+				}
+				skipInterfaces := make(map[string]bool)
+				for _, val := range strings.Split(skippedInterfacesStr, ",") {
+					skipInterfaces[val] = true
+				}
+				Expect(portEngine.TurnAllPortsDown(skipInterfaces)).To(BeNil())
+			})
+			It("degraded state: all slave port roles are FAULTY via metrics", func() {
+				Eventually(func() error {
+					return metrics.CheckClockRole(faultyRoles, slaveIf, &slavePodNodeName)
+				}, 5*time.Minute, 10*time.Second).Should(BeNil())
+			})
+			It("degraded state: clock class leaves Locked (6) via metrics", func() {
+				Eventually(func() bool {
+					return !checkClockClassStateReturnBool(fullConfig, lockedStr)
+				}, 5*time.Minute, 10*time.Second).Should(BeTrue(),
+					"expected clock class to degrade from Locked (6) after upstream link loss")
+			})
+
+			It("brings all slave interfaces back up", func() {
+				if evCtx.available {
+					evCtx.subs.Drain()
+				}
+				Expect(portEngine.TurnAllPortsUp()).To(BeNil())
+			})
+			It("recovered state reports clock class Locked (6) via cloud events", func() {
+				if !evCtx.available {
+					Skip("PTP events not available")
+				}
+				waitForClockClassViaEvent(evCtx.subs, lockedCC, eventTimeout)
+			})
+			It("recovered state: all slave port roles are SLAVE via metrics", func() {
+				Eventually(func() error {
+					return metrics.CheckClockRole(slaveRoles, slaveIf, &slavePodNodeName)
+				}, 5*time.Minute, 10*time.Second).Should(BeNil())
+			})
+			It("recovered state: clock class recovers to Locked (6) via metrics", func() {
+				waitForClockClass(fullConfig, lockedStr)
 			})
 		})
 
@@ -3164,15 +3434,11 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 			)
 			Expect(err).NotTo(HaveOccurred())
 
-			// Daemon profiles are qualified: <configname>_<profilename>
-			qualifiedTT := ptphelper.QualifyProfileName(originalPtpConfig.Name, "tbc-tt")
-			qualifiedTR := ptphelper.QualifyProfileName(originalPtpConfig.Name, "tbc-tr")
-
 			// Discover TT config (for PMC) and TR config (daemon publishes clock_class metric under receiver)
 			nodeName := fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName
-			cfgName, err := ptphelper.GetConfigForProfile(qualifiedTT, nil, &nodeName)
+			cfgName, err := ptphelper.GetConfigForProfile(originalPtpConfig.Name, "tbc-tt", nil, &nodeName)
 			Expect(err).NotTo(HaveOccurred())
-			trCfgName, err := ptphelper.GetConfigForProfile(qualifiedTR, nil, &nodeName)
+			trCfgName, err := ptphelper.GetConfigForProfile(originalPtpConfig.Name, "tbc-tr", nil, &nodeName)
 			Expect(err).NotTo(HaveOccurred())
 			ttNIC := ptptesthelper.NICInfo{
 				ConfigName:    strings.TrimPrefix(trCfgName, "/var/run/"),
@@ -4297,16 +4563,83 @@ func waitForStateAndCC(subs event.Subscriptions, state ptpEvent.SyncState, cc in
 			return
 		case ev := <-subs.LOCKSTATE:
 			if res, ok := processEvent(ptpEvent.PtpStateChange, ev); ok {
-				if s, ok2 := res.Values["notification"].(string); ok2 && s == string(state) {
-					stateSeen = true
+				// Values are keyed by "<resource>/<dataType>"; look up by dataType.
+				if raw, ok2 := event.ValueByDataType(res.Values, "notification"); ok2 {
+					if s, ok3 := raw.(string); ok3 && s == string(state) {
+						stateSeen = true
+					}
 				}
 			}
 		case ev := <-subs.CLOCKCLASS:
 			if res, ok := processEvent(ptpEvent.PtpClockClassChange, ev); ok {
-				if v, ok2 := res.Values["metric"].(float64); ok2 && int(v) == cc {
-					ccSeen = true
+				if raw, ok2 := event.ValueByDataType(res.Values, "metric"); ok2 {
+					if v, ok3 := raw.(float64); ok3 && int(v) == cc {
+						ccSeen = true
+					}
 				}
 			}
+		// Drain GNSS (not needed here) so its buffer can't fill and stall the
+		// single blocking PubSub.Publish goroutine (see waitForClockClassViaEvent).
+		case <-subs.GNSS:
+		}
+	}
+}
+
+// waitForClockClassViaEvent blocks until a clock-class change event carrying the
+// expected class is observed on the cloud-event CLOCKCLASS channel, or fails at
+// timeout. It reads only the cloud-event pipeline (no metrics).
+func waitForClockClassViaEvent(subs event.Subscriptions, cc int, timeout time.Duration) {
+	deadline := time.NewTimer(timeout)
+	defer deadline.Stop()
+	for {
+		select {
+		case <-deadline.C:
+			Fail(fmt.Sprintf("Timed out waiting for clockClass %d via cloud events", cc))
+			return
+		case ev := <-subs.CLOCKCLASS:
+			if res, ok := processEvent(ptpEvent.PtpClockClassChange, ev); ok {
+				// Values are keyed by "<resource>/<dataType>"; look up by dataType.
+				if raw, ok2 := event.ValueByDataType(res.Values, "metric"); ok2 {
+					if v, ok3 := raw.(float64); ok3 && int(v) == cc {
+						fmt.Fprintf(GinkgoWriter, "ClockClass %d observed via cloud events\n", cc)
+						return
+					}
+				}
+			}
+		// Drain the channels we don't need. PubSub.Publish sends blockingly from a
+		// single monitor goroutine, so an undrained GNSS/LOCKSTATE channel would
+		// fill its buffer and stall publishing of the CLOCKCLASS events we wait for.
+		case <-subs.GNSS:
+		case <-subs.LOCKSTATE:
+		}
+	}
+}
+
+// waitForLockStateViaEvent blocks until a lock-state change event carrying the
+// expected sync state is observed on the cloud-event LOCKSTATE channel, or fails
+// at timeout. It reads only the cloud-event pipeline (no metrics).
+func waitForLockStateViaEvent(subs event.Subscriptions, state ptpEvent.SyncState, timeout time.Duration) {
+	deadline := time.NewTimer(timeout)
+	defer deadline.Stop()
+	for {
+		select {
+		case <-deadline.C:
+			Fail(fmt.Sprintf("Timed out waiting for lock state %s via cloud events", state))
+			return
+		case ev := <-subs.LOCKSTATE:
+			if res, ok := processEvent(ptpEvent.PtpStateChange, ev); ok {
+				// Values are keyed by "<resource>/<dataType>"; look up by dataType.
+				if raw, ok2 := event.ValueByDataType(res.Values, "notification"); ok2 {
+					if s, ok3 := raw.(string); ok3 && s == string(state) {
+						fmt.Fprintf(GinkgoWriter, "Lock state %s observed via cloud events\n", state)
+						return
+					}
+				}
+			}
+		// Drain the channels we don't need so their buffers can't fill and stall
+		// the single blocking PubSub.Publish goroutine (see waitForClockClassViaEvent).
+		case <-subs.GNSS:
+		case <-subs.CLOCKCLASS:
 		}
 	}
 }

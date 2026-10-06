@@ -135,10 +135,7 @@ func TestResolveProfileReference_Unresolved(t *testing.T) {
 
 	result := resolveProfileReference("nonexistent", "controllingProfile", &cfg, list)
 	assert.Equal(t, "nonexistent", result, "unresolved should return original value")
-	assert.Len(t, cfg.Status.Conditions, 1, "should set a condition")
-	assert.Equal(t, "ProfileReferenceValid", cfg.Status.Conditions[0].Type)
-	assert.Equal(t, metav1.ConditionFalse, cfg.Status.Conditions[0].Status)
-	assert.Equal(t, "UnresolvedProfileReference", cfg.Status.Conditions[0].Reason)
+	assert.Empty(t, cfg.Status.Conditions, "status conditions are owned by syncPtpConfig")
 }
 
 func TestResolveProfileReference_UnderscoreNoCRMatch(t *testing.T) {

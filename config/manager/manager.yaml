@@ -75,3 +75,7 @@ spec:
               value: $KUBE_RBAC_PROXY_IMAGE
             - name: SIDECAR_EVENT_IMAGE
               value: $SIDECAR_EVENT_IMAGE
+            - name: EVENT_PROXY_IMAGE
+              value: $EVENT_PROXY_IMAGE
+            - name: LINUXPTP_VERBOSITY
+              value: $LINUXPTP_VERBOSITY

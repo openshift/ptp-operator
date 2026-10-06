@@ -97,7 +97,7 @@ func (r *HardwareConfigReconciler) syncHardwareConfigStatus(ctx context.Context,
 	var matchedNodes []ptpv2alpha1.MatchedNode
 	for _, ptpConfig := range ptpConfigList.Items {
 		for _, match := range ptpConfig.Status.MatchList {
-			if match.Profile != nil && *match.Profile == hardwareConfig.Spec.RelatedPtpProfileName {
+			if match.Profile != nil && relatedProfileMatches(*match.Profile, hardwareConfig.Spec.RelatedPtpProfileName, ptpConfig.Name) {
 				if match.NodeName != nil {
 					matchedNodes = append(matchedNodes, ptpv2alpha1.MatchedNode{
 						NodeName:   *match.NodeName,

@@ -27,6 +27,7 @@ const (
 	OpenshiftPtpNMEAStatus          = "openshift_ptp_nmea_status"
 	OpenshiftPtpThreshold           = "openshift_ptp_threshold"
 	OpenshiftPtpProcessRestartCount = "openshift_ptp_process_restart_count"
+	OpenshiftPtpHaProfileStatus     = "openshift_ptp_ha_profile_status"
 	metricsEndPoint                 = "127.0.0.1:9091/metrics"
 	MaxOffsetDefaultNs              = 100
 	MinOffsetDefaultNs              = -100
@@ -178,6 +179,57 @@ func CheckClockRealTimeState(state MetricClockState, nodeName *string) error {
 			return nil
 		}
 		return fmt.Errorf("openshift_ptp_clock_state iface=CLOCK_REALTIME process=phc2sys not found on node %s", *nodeName)
+	}
+	return fmt.Errorf("linuxptp-daemon pod not found on node %s", *nodeName)
+}
+
+// CheckHAProfileStatus verifies openshift_ptp_ha_profile_status for the given HA
+// member profile on a node: process="phc2sys", profile=<profile>. active=true
+// expects the gauge value 1 (ACTIVE, the phc2sys-selected source), active=false
+// expects 0 (INACTIVE).
+func CheckHAProfileStatus(profile string, active bool, nodeName *string) error {
+	if nodeName == nil || *nodeName == "" {
+		return fmt.Errorf("nodeName is required")
+	}
+	want := 0
+	if active {
+		want = 1
+	}
+	ptpPods, err := client.Client.CoreV1().Pods(pkg.PtpLinuxDaemonNamespace).List(context.Background(), metav1.ListOptions{LabelSelector: "app=linuxptp-daemon"})
+	if err != nil {
+		return err
+	}
+	for index := range ptpPods.Items {
+		if ptpPods.Items[index].Spec.NodeName != *nodeName {
+			continue
+		}
+		buf, _, err := pods.ExecCommand(client.Client, false, &ptpPods.Items[index], pkg.PtpContainerName, []string{"curl", "-s", metricsEndPoint})
+		if err != nil {
+			return fmt.Errorf("error fetching metrics for ha_profile_status: %w", err)
+		}
+		for _, line := range strings.Split(buf.String(), "\n") {
+			if !strings.HasPrefix(line, OpenshiftPtpHaProfileStatus+"{") {
+				continue
+			}
+			if !strings.Contains(line, `process="phc2sys"`) ||
+				!strings.Contains(line, fmt.Sprintf(`profile="%s"`, profile)) ||
+				!strings.Contains(line, fmt.Sprintf(`node="%s"`, *nodeName)) {
+				continue
+			}
+			parts := strings.Fields(line)
+			if len(parts) != 2 {
+				continue
+			}
+			value, err := strconv.Atoi(parts[1])
+			if err != nil {
+				return fmt.Errorf("error strconv for ha_profile_status %q: %w", parts[1], err)
+			}
+			if value != want {
+				return fmt.Errorf("ha_profile_status for profile %q expected=%d observed=%d", profile, want, value)
+			}
+			return nil
+		}
+		return fmt.Errorf("%s process=phc2sys profile=%q not found on node %s", OpenshiftPtpHaProfileStatus, profile, *nodeName)
 	}
 	return fmt.Errorf("linuxptp-daemon pod not found on node %s", *nodeName)
 }

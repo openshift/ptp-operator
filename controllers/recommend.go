@@ -7,8 +7,6 @@ import (
 
 	"github.com/golang/glog"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
 )
@@ -45,28 +43,43 @@ func resolveProfileReference(value, settingName string, ptpConfig *ptpv1.PtpConf
 	}
 
 	// search for the profile by its full name across all CRs if the user did not add a valid prefix
+	if owner := owningConfigName(value, ptpConfigList); owner != "" {
+		return qualifyProfileName(owner, value)
+	}
+
+	// profile not found anywhere -- status.conditions[ProfileReferenceValid] is set in syncPtpConfig
+	glog.Warningf("PtpConfig %s: profile '%s' referenced in %s not found in any PtpConfig CR",
+		ptpConfig.Name, value, settingName)
+	return value
+}
+
+func profileReferenceExists(value string, ptpConfigList *ptpv1.PtpConfigList) bool {
+	if value == "" || ptpConfigList == nil {
+		return false
+	}
+	if parts := strings.SplitN(value, "_", 2); len(parts) == 2 {
+		if profileExistsInCR(parts[0], parts[1], ptpConfigList) {
+			return true
+		}
+	}
+	return owningConfigName(value, ptpConfigList) != ""
+}
+
+func owningConfigName(profileName string, ptpConfigList *ptpv1.PtpConfigList) string {
+	if ptpConfigList == nil {
+		return ""
+	}
 	for _, cfg := range ptpConfigList.Items {
 		if cfg.Spec.Profile == nil {
 			continue
 		}
 		for _, p := range cfg.Spec.Profile {
-			if p.Name != nil && *p.Name == value {
-				return qualifyProfileName(cfg.Name, value)
+			if p.Name != nil && *p.Name == profileName {
+				return cfg.Name
 			}
 		}
 	}
-
-	// profile not found anywhere -- warn and set condition on the PtpConfig
-	msg := fmt.Sprintf("profile '%s' referenced in %s not found in any PtpConfig CR", value, settingName)
-	glog.Warningf("PtpConfig %s: %s", ptpConfig.Name, msg)
-	meta.SetStatusCondition(&ptpConfig.Status.Conditions, metav1.Condition{
-		Type:               "ProfileReferenceValid",
-		Status:             metav1.ConditionFalse,
-		Reason:             "UnresolvedProfileReference",
-		Message:            msg,
-		LastTransitionTime: metav1.Now(),
-	})
-	return value
+	return ""
 }
 
 // update controllingProfile and haProfiles settings with qualified names

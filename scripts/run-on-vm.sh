@@ -356,7 +356,10 @@ if [[ "$RUN_PHASE" == "load" ]]; then
     tar xf "$TARBALL" -C "${PTP_RUN_DIR}/ptp-images-load"
 
     step "Retagging images for local registry"
-    TAGS=(lptpd cep ptpop krp openvswitch prometheus ptpmg debug)
+    # Derive the tag list from ptp-tools/Makefile VALUES so it stays in sync
+    # with what the build/save phase produced (e.g. cepv2).
+    read_ptp_tool_images
+    TAGS=("${_ptp_tool_images[@]}")
     for t in "${TAGS[@]}"; do
         podman load -i "${PTP_RUN_DIR}/ptp-images-load/$t.tar"
     done

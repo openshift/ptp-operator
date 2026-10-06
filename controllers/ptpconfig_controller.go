@@ -26,6 +26,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/golang/glog"
 	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
+	ptpv2alpha1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v2alpha1"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/apply"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/names"
 	appsv1 "k8s.io/api/apps/v1"
@@ -40,6 +41,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -57,6 +59,8 @@ type PtpConfigReconciler struct {
 //+kubebuilder:rbac:groups=ptp.openshift.io,resources=ptpconfigs,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=ptp.openshift.io,resources=ptpconfigs/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=ptp.openshift.io,resources=ptpconfigs/finalizers,verbs=update
+//+kubebuilder:rbac:groups=ptp.openshift.io,resources=nodeptpdevices,verbs=get;list;watch;create
+//+kubebuilder:rbac:groups=ptp.openshift.io,resources=hardwareconfigs,verbs=get;list;watch
 //+kubebuilder:rbac:groups=config.openshift.io,resources=infrastructures,verbs=get;list;watch
 
 func (r *PtpConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (reconcile.Result, error) {
@@ -79,7 +83,21 @@ func (r *PtpConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return reconcile.Result{}, err
 	}
 
-	if err = r.syncPtpConfig(ctx, instances, nodeList); err != nil {
+	deviceList := &ptpv1.NodePtpDeviceList{}
+	err = r.List(ctx, deviceList, &client.ListOptions{})
+	if err != nil {
+		glog.Errorf("failed to list NodePtpDevices")
+		return reconcile.Result{}, err
+	}
+
+	hwList := &ptpv2alpha1.HardwareConfigList{}
+	err = r.List(ctx, hwList, &client.ListOptions{})
+	if err != nil {
+		glog.Errorf("failed to list HardwareConfigs")
+		return reconcile.Result{}, err
+	}
+
+	if err = r.syncPtpConfig(ctx, instances, nodeList, deviceList, hwList); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -92,7 +110,7 @@ func (r *PtpConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 }
 
 // syncPtpConfig synchronizes PtpConfig CR
-func (r *PtpConfigReconciler) syncPtpConfig(ctx context.Context, ptpConfigList *ptpv1.PtpConfigList, nodeList *corev1.NodeList) error {
+func (r *PtpConfigReconciler) syncPtpConfig(ctx context.Context, ptpConfigList *ptpv1.PtpConfigList, nodeList *corev1.NodeList, deviceList *ptpv1.NodePtpDeviceList, hwList *ptpv2alpha1.HardwareConfigList) error {
 	var err error
 
 	nodePtpConfigMap := &corev1.ConfigMap{}
@@ -100,36 +118,55 @@ func (r *PtpConfigReconciler) syncPtpConfig(ctx context.Context, ptpConfigList *
 	nodePtpConfigMap.Namespace = names.Namespace
 	nodePtpConfigMap.Data = make(map[string]string)
 
-	// Also update PTP config status with match list
-	for _, ptpConfig := range ptpConfigList.Items {
+	// First pass: compute match lists so warnings can see cross-CR phc2sys conflicts.
+	type cfgMatch struct {
+		cfg       *ptpv1.PtpConfig
+		prev      *ptpv1.PtpConfigStatus
+		matchList []ptpv1.NodeMatchList
+	}
+	matches := make([]cfgMatch, 0, len(ptpConfigList.Items))
+	for i := range ptpConfigList.Items {
+		ptpConfig := &ptpConfigList.Items[i]
 		var matchList []ptpv1.NodeMatchList
 
 		for _, node := range nodeList.Items {
-			nodePtpProfiles, err := getRecommendNodePtpProfilesForConfig(&ptpConfig, node)
+			nodePtpProfiles, err := getRecommendNodePtpProfilesForConfig(ptpConfig, node)
 			if err != nil {
 				glog.Errorf("failed to get recommended profiles for node %s: %v", node.Name, err)
 				continue
 			}
 
-			// If this PTP config recommends profiles for this node, add to match list
-			if len(nodePtpProfiles) > 0 {
-				for _, profile := range nodePtpProfiles {
-					matchList = append(matchList, ptpv1.NodeMatchList{
-						NodeName: &node.Name,
-						Profile:  profile.Name,
-					})
+			for _, profile := range nodePtpProfiles {
+				if profile.Name == nil {
+					continue
 				}
+				nodeName := node.Name
+				profileName := qualifyProfileName(ptpConfig.Name, *profile.Name)
+				matchList = append(matchList, ptpv1.NodeMatchList{
+					NodeName: &nodeName,
+					Profile:  &profileName,
+				})
 			}
 		}
 
-		// Update PTP config status if it has changed
-		if !reflect.DeepEqual(ptpConfig.Status.MatchList, matchList) {
-			ptpConfig.Status.MatchList = matchList
-			err = r.Status().Update(ctx, &ptpConfig)
+		prev := ptpConfig.Status.DeepCopy()
+		ptpConfig.Status.MatchList = matchList
+		matches = append(matches, cfgMatch{cfg: ptpConfig, prev: prev, matchList: matchList})
+	}
+
+	for _, m := range matches {
+		m.cfg.Status.ObservedGeneration = m.cfg.Generation
+		m.cfg.Status.ProfileStatuses = buildProfileStatuses(m.cfg, deviceList, ptpConfigList, hwList)
+		m.cfg.Status.Warnings = detectWarnings(m.cfg, m.matchList, ptpConfigList)
+
+		valid, msg := profileReferencesValid(m.cfg, ptpConfigList)
+		setCondition(&m.cfg.Status.Conditions, "ProfileReferenceValid", valid,
+			conditionReason(valid, "AllReferencesResolved", "UnresolvedProfileReference"), msg)
+
+		if !reflect.DeepEqual(m.prev, &m.cfg.Status) {
+			err = r.Status().Update(ctx, m.cfg)
 			if err != nil {
-				glog.Errorf("failed to update PTP config status for %s: %v", ptpConfig.Name, err)
-			} else {
-				glog.Infof("updated PTP config status for %s with %d matches", ptpConfig.Name, len(matchList))
+				glog.Errorf("failed to update PTP config status for %s: %v", m.cfg.Name, err)
 			}
 		}
 	}
@@ -243,19 +280,43 @@ func getRecommendProfilesNamesForConfig(ptpConfig *ptpv1.PtpConfig, node corev1.
 }
 
 func (r *PtpConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	inNamespace := predicate.NewPredicateFuncs(func(object client.Object) bool {
+		return object.GetNamespace() == names.Namespace
+	})
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&ptpv1.PtpConfig{}, builder.WithPredicates(predicate.NewPredicateFuncs(func(object client.Object) bool {
-			return object.GetNamespace() == names.Namespace
-		}))).
+		For(&ptpv1.PtpConfig{}, builder.WithPredicates(inNamespace)).
 		Watches(
 			&corev1.Secret{},
 			&secretEventHandler{client: mgr.GetClient()},
-			builder.WithPredicates(predicate.NewPredicateFuncs(func(object client.Object) bool {
-				// Only watch secrets in openshift-ptp namespace
-				return object.GetNamespace() == names.Namespace
-			})),
+			builder.WithPredicates(inNamespace),
+		).
+		Watches(
+			&ptpv1.NodePtpDevice{},
+			handler.EnqueueRequestsFromMapFunc(r.enqueuePtpConfigs),
+			builder.WithPredicates(inNamespace),
+		).
+		Watches(
+			&ptpv2alpha1.HardwareConfig{},
+			handler.EnqueueRequestsFromMapFunc(r.enqueuePtpConfigs),
+			builder.WithPredicates(inNamespace),
 		).
 		Complete(r)
+}
+
+func (r *PtpConfigReconciler) enqueuePtpConfigs(ctx context.Context, _ client.Object) []reconcile.Request {
+	list := &ptpv1.PtpConfigList{}
+	if err := r.List(ctx, list, client.InNamespace(names.Namespace)); err != nil {
+		glog.Errorf("failed to list PtpConfigs after related resource change: %v", err)
+		return nil
+	}
+	reqs := make([]reconcile.Request, 0, len(list.Items))
+	for _, cfg := range list.Items {
+		reqs = append(reqs, reconcile.Request{NamespacedName: types.NamespacedName{
+			Name:      cfg.Name,
+			Namespace: cfg.Namespace,
+		}})
+	}
+	return reqs
 }
 
 // secretEventHandler handles Secret create/delete events and triggers PtpConfig reconciliation

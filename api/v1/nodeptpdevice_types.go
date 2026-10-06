@@ -23,6 +23,7 @@ import (
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+//+kubebuilder:printcolumn:name="Ready",type="string",JSONPath=`.status.conditions[?(@.type=="Ready")].status`,priority=0
 //+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 
 // NodePtpDevice is the Schema for the nodeptpdevices API
@@ -204,6 +205,24 @@ type BaseBoardInfo struct {
 	SerialNumber string `json:"serialNumber,omitempty"`
 }
 
+// NodeProfileStatus reports the clock type of a single profile running on this node.
+type NodeProfileStatus struct {
+	// Name is the fully qualified profile name: <ptpconfigName>_<profileName>.
+	Name string `json:"name"`
+
+	// ClockType is T-GM, T-BC, BC, or OC. Written by linuxptp-daemon at apply.
+	// +optional
+	ClockType string `json:"clockType,omitempty"`
+}
+
+// SyncStatus represents PTP configuration metadata for this node.
+// Clock state, clock class, and process status are available via Prometheus metrics.
+type SyncStatus struct {
+	// Profiles lists the applied profiles and their inferred clock types on this node.
+	// +optional
+	Profiles []NodeProfileStatus `json:"profiles,omitempty"`
+}
+
 // NodePtpDeviceStatus defines the observed state of NodePtpDevice
 type NodePtpDeviceStatus struct {
 
@@ -227,6 +246,18 @@ type NodePtpDeviceStatus struct {
 	// This includes the base board manufacturer, product name, version, and serial number.
 	// +optional
 	BaseBoardInfo *BaseBoardInfo `json:"baseBoardInfo,omitempty"`
+
+	// Sync contains the current PTP synchronization snapshot for this node.
+	// Updated by the linuxptp-daemon on state transitions and periodic heartbeats.
+	// +optional
+	Sync *SyncStatus `json:"sync,omitempty"`
+
+	// Conditions represent the latest available observations of the NodePtpDevice's state.
+	// Known condition types are: "Ready".
+	// +optional
+	// +listType=map
+	// +listMapKey=type
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 //+kubebuilder:object:root=true

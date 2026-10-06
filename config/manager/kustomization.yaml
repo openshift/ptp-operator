@@ -14,5 +14,5 @@ images:
 - name: controller
   newName: quay.io/openshift/origin-ptp-operator
   newTag: "5.0"
-patchesStrategicMerge:
-- env.yaml
+patches:
+- path: env.yaml

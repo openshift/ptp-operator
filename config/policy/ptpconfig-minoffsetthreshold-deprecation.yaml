@@ -1,0 +1,36 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: ptpconfig-minoffsetthreshold-deprecation
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ["ptp.openshift.io"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["ptpconfigs"]
+  validations:
+    - expression: >-
+        !object.spec.profile.exists(p,
+          has(p.ptpClockThreshold) &&
+          has(p.ptpClockThreshold.minOffsetThreshold) &&
+          p.ptpClockThreshold.minOffsetThreshold != 0)
+      message: >-
+        minOffsetThreshold is deprecated and ignored; the system now evaluates
+        abs(offset) < maxOffsetThreshold only. Remove minOffsetThreshold from
+        this PtpConfig's ptpClockThreshold.
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: ptpconfig-minoffsetthreshold-deprecation-binding
+spec:
+  policyName: ptpconfig-minoffsetthreshold-deprecation
+  validationActions: [Warn]
+  matchResources:
+    resourceRules:
+      - apiGroups: ["ptp.openshift.io"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["ptpconfigs"]

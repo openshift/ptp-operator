@@ -81,17 +81,24 @@ func findMatchingPod(label *string, nodeName *string) (*corev1.Pod, error) {
 	}
 }
 
-func GetProfileLogID(ptpConfigName string, label *string, nodeName *string) (string, error) {
+func GetProfileLogID(ptpConfigName string, profileName string, label *string, nodeName *string) (string, error) {
 	const logIDRegex = `(?m).*?Ptp4lConf: #profile: %s(.|\n)*?message_tag \[(.*)\]`
 	const logIDIndex = 2
 
-	renderedRegex := fmt.Sprintf(logIDRegex, ptpConfigName)
+	if ptpConfigName == "" {
+		return "", fmt.Errorf("ptp config name is required")
+	}
+	if profileName == "" {
+		return "", fmt.Errorf("profile name is required")
+	}
+
+	renderedRegex := fmt.Sprintf(logIDRegex, ProfileNameMatchPattern(ptpConfigName, profileName))
 	var lastErr error
 	deadline := time.Now().Add(pkg.TimeoutIn3Minutes)
 	for attempt := 1; ; attempt++ {
 		pod, err := findMatchingPod(label, nodeName)
 		if err != nil {
-			lastErr = fmt.Errorf("finding pod for %s: %w", ptpConfigName, err)
+			lastErr = fmt.Errorf("finding pod for profile %s: %w", profileName, err)
 		} else {
 			matches, err := pods.GetPodLogsRegex(pod.Namespace,
 				pod.Name, pkg.PtpContainerName,
@@ -99,11 +106,11 @@ func GetProfileLogID(ptpConfigName string, label *string, nodeName *string) (str
 			if err != nil {
 				lastErr = fmt.Errorf("could not get any profile line, err=%s", err)
 			} else if len(matches) == 0 || len(matches[len(matches)-1]) <= logIDIndex {
-				lastErr = fmt.Errorf("profile log id not found for %s in pod %s/%s", ptpConfigName, pod.Namespace, pod.Name)
+				lastErr = fmt.Errorf("profile log id not found for %s in pod %s/%s", profileName, pod.Namespace, pod.Name)
 			} else {
 				id := matches[len(matches)-1][logIDIndex]
 				if id == "" {
-					lastErr = fmt.Errorf("empty profile log id for %s in pod %s/%s", ptpConfigName, pod.Namespace, pod.Name)
+					lastErr = fmt.Errorf("empty profile log id for %s in pod %s/%s", profileName, pod.Namespace, pod.Name)
 				} else {
 					return id, nil
 				}
@@ -113,14 +120,14 @@ func GetProfileLogID(ptpConfigName string, label *string, nodeName *string) (str
 		if time.Now().After(deadline) {
 			pod, podErr := findMatchingPod(label, nodeName)
 			if podErr == nil {
-				configPath, fallbackErr := GetConfigForProfileFromVarRun(ptpConfigName, pod, pkg.PtpContainerName)
-				if fallbackErr == nil {
+				configPath, err := GetConfigForProfileFromVarRun(ProfileNameMatchPattern(ptpConfigName, profileName), pod, pkg.PtpContainerName)
+				if err == nil {
 					return filepath.Base(configPath), nil
 				}
 			}
 			return "", lastErr
 		}
-		logrus.Infof("GetProfileLogID attempt %d failed for %s: %v, retrying...", attempt, ptpConfigName, lastErr)
+		logrus.Infof("GetProfileLogID attempt %d failed for profile=%s ptpConfig=%s: %v, retrying...", attempt, profileName, ptpConfigName, lastErr)
 		time.Sleep(pkg.Timeout10Seconds)
 	}
 }
@@ -152,7 +159,7 @@ func getClockIDViaPMC(pod *corev1.Pod, configFile, field string) (string, error)
 	return matches[1], nil
 }
 
-func GetClockIDMaster(ptpConfigName string, label *string, nodeName *string, isGM bool) (string, error) {
+func GetClockIDMaster(ptpConfigName string, profileName string, label *string, nodeName *string, isGM bool) (string, error) {
 	const clockIDGMRegex = `(?m)\[%s\] selected local clock (.*) as best master`
 	const clockIDBCRegex = `(?m)\[%s\] selected best master clock (.*)`
 	const clockIDIndex = 1
@@ -160,7 +167,7 @@ func GetClockIDMaster(ptpConfigName string, label *string, nodeName *string, isG
 	if isGM {
 		clockIDRegex = clockIDGMRegex
 	}
-	logID, err := GetProfileLogID(ptpConfigName, label, nodeName)
+	logID, err := GetProfileLogID(ptpConfigName, profileName, label, nodeName)
 	if err != nil {
 		return "", err
 	}
@@ -179,14 +186,14 @@ func GetClockIDMaster(ptpConfigName string, label *string, nodeName *string, isG
 	if err == nil && len(matches) > 0 && len(matches[len(matches)-1]) > clockIDIndex {
 		return matches[len(matches)-1][clockIDIndex], nil
 	}
-	logrus.Infof("GetClockIDMaster: log parsing failed for %s (isGM=%v), falling back to pmc: %v", ptpConfigName, isGM, err)
+	logrus.Infof("GetClockIDMaster: log parsing failed for %s (isGM=%v), falling back to pmc: %v", profileName, isGM, err)
 	return getClockIDViaPMC(pod, configFile, "grandmasterIdentity")
 }
 
-func GetClockIDForeign(ptpConfigName string, label *string, nodeName *string) (string, error) {
+func GetClockIDForeign(ptpConfigName string, profileName string, label *string, nodeName *string) (string, error) {
 	const clockIDForeignRegex = `(?m)\[%s\].* selected best master clock (.*)`
 	const clockIDForeignIndex = 1
-	logID, err := GetProfileLogID(ptpConfigName, label, nodeName)
+	logID, err := GetProfileLogID(ptpConfigName, profileName, label, nodeName)
 	if err != nil {
 		return "", err
 	}
@@ -205,7 +212,7 @@ func GetClockIDForeign(ptpConfigName string, label *string, nodeName *string) (s
 	if err == nil && len(matches) > 0 && len(matches[len(matches)-1]) > clockIDForeignIndex {
 		return matches[len(matches)-1][clockIDForeignIndex], nil
 	}
-	logrus.Infof("GetClockIDForeign: log parsing failed for %s, falling back to pmc: %v", ptpConfigName, err)
+	logrus.Infof("GetClockIDForeign: log parsing failed for %s, falling back to pmc: %v", profileName, err)
 	return getClockIDViaPMC(pod, configFile, "parentPortIdentity.clockIdentity")
 }
 
@@ -213,8 +220,8 @@ func GetClockIDForeign(ptpConfigName string, label *string, nodeName *string) (s
 // GM clock ID. Unlike GetClockIDForeign (which returns whatever master is in
 // the logs), this waits for the expected master to appear — handling the case
 // where the GM restarted and the slave hasn't re-synced yet.
-func WaitForClockIDForeign(ptpConfigName string, label *string, nodeName *string, expectedGMID string) error {
-	logID, err := GetProfileLogID(ptpConfigName, label, nodeName)
+func WaitForClockIDForeign(ptpConfigName string, profileName string, label *string, nodeName *string, expectedGMID string) error {
+	logID, err := GetProfileLogID(ptpConfigName, profileName, label, nodeName)
 	if err != nil {
 		return fmt.Errorf("could not get profile log ID: %w", err)
 	}
@@ -223,7 +230,7 @@ func WaitForClockIDForeign(ptpConfigName string, label *string, nodeName *string
 	}
 	pod, err := findMatchingPod(label, nodeName)
 	if err != nil {
-		return fmt.Errorf("no matching pod found for profile %s: %w", ptpConfigName, err)
+		return fmt.Errorf("no matching pod found for profile %s: %w", profileName, err)
 	}
 	expectedMasterRegex := fmt.Sprintf(`(?m)\[%s\].* selected best master clock %s`, logID, expectedGMID)
 	_, err = pods.GetPodLogsRegex(pod.Namespace, pod.Name, pkg.PtpContainerName,
@@ -481,11 +488,11 @@ func mutateE810PluginSettings(config *ptpv1.PtpConfig, profileName, nodeName str
 
 // GetConfigForProfile returns the config file path for a given profile name,
 // using the provided label and/or nodeName to locate the target pod.
-func GetConfigForProfile(profileName string, label *string, nodeName *string) (string, error) {
+func GetConfigForProfile(ptpConfigName string, profileName string, label *string, nodeName *string) (string, error) {
 	deadline := time.Now().Add(pkg.TimeoutIn3Minutes)
 	var lastErr error
 	for {
-		runId, err := GetProfileLogID(profileName, label, nodeName)
+		runId, err := GetProfileLogID(ptpConfigName, profileName, label, nodeName)
 		if err == nil && runId != "" {
 			// Normalize message_tag runId like "ptp4l.0.config:{level}"
 			runId = strings.TrimSpace(runId)
@@ -506,7 +513,7 @@ func GetConfigForProfile(profileName string, label *string, nodeName *string) (s
 			if podErr != nil {
 				return "", podErr
 			}
-			configName, fallbackErr := GetConfigForProfileFromVarRun(profileName, pod, pkg.PtpContainerName)
+			configName, fallbackErr := GetConfigForProfileFromVarRun(ProfileNameMatchPattern(ptpConfigName, profileName), pod, pkg.PtpContainerName)
 			if fallbackErr == nil {
 				return configName, nil
 			}
@@ -960,9 +967,21 @@ func QualifyProfileName(crName, profileName string) string {
 	return prefix + profileName
 }
 
-// GetProfileName returns the daemon-qualified profile name from a PtpConfig,
-// matching against the known set of test policy names. This whitelist prevents
-// accidentally selecting unrelated profiles (e.g. operator-internal ones).
+// ProfileNameMatchPattern matches both the CR profile name and the daemon-qualified
+// form (<ptpConfigName>_<profileName>) used in some operator versions.
+func ProfileNameMatchPattern(ptpConfigName, profileName string) string {
+	return fmt.Sprintf("(?:%s_)?%s", regexp.QuoteMeta(ptpConfigName), regexp.QuoteMeta(profileName))
+}
+
+// ProfileNameLogPattern is a daemon log regex for "Profile Name:" lines.
+// It includes (?m) because GetPodLogsRegex appends \s*^ when isLiteralText is false.
+func ProfileNameLogPattern(ptpConfigName, profileName string) string {
+	return `(?m)Profile Name: ` + ProfileNameMatchPattern(ptpConfigName, profileName)
+}
+
+// GetProfileName returns the profile name from a PtpConfig, matching against
+// the known set of test policy names. This whitelist prevents accidentally
+// selecting unrelated profiles (e.g. operator-internal ones).
 func GetProfileName(config *ptpv1.PtpConfig, receiverOnly bool) (string, error) {
 	if config == nil {
 		return "", fmt.Errorf("ptp config is nil")
@@ -982,11 +1001,10 @@ func GetProfileName(config *ptpv1.PtpConfig, receiverOnly bool) (string, error) 
 			"tbc-tr",
 			"tbc-tt":
 
-			qualified := QualifyProfileName(config.Name, *profile.Name)
-			if receiverOnly && qualified == QualifyProfileName(config.Name, "tbc-tt") {
+			if receiverOnly && *profile.Name == "tbc-tt" {
 				continue
 			}
-			return qualified, nil
+			return *profile.Name, nil
 		}
 	}
 	return "", fmt.Errorf("cannot find valid test profile name")

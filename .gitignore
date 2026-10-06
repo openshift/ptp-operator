@@ -112,3 +112,6 @@ catalog.Dockerfile
 config/manager/env.yaml.bak
 # Per-run temp artifacts created by scripts/run-on-vm.sh
 .local-runs
+
+# Rendered manifests from `make install/uninstall/deploy/undeploy FREE_RUN=1`
+_free-run/

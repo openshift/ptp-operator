@@ -33,6 +33,30 @@ spec:
       priorityClassName: "system-node-critical"
       containers:
         {{ if (eq .EnableEventPublisher true) }}
+        {{ if .SideCarV2 }}
+        - name: cloud-event-proxy
+          image: {{ .SideCarV2 }}
+          imagePullPolicy: {{ .ImagePullPolicy }}
+          command: ["/usr/local/bin/cloud-event-proxy"]
+          args:
+            - "--api-port=9043"
+            - "--store-path=/var/run"
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/linuxptp
+            - name: socket-dir
+              mountPath: /var/run
+          ports:
+            - name: api-port
+              containerPort: 9043
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: NAME_SPACE
+              value: {{.Namespace}}
+        {{ else }}
         - name: cloud-event-proxy
           image: {{ .SideCar }}
           imagePullPolicy: {{ .ImagePullPolicy }}
@@ -65,6 +89,7 @@ spec:
                   fieldPath: spec.nodeName
             - name: NAME_SPACE
               value: {{.Namespace}}
+        {{ end }}
         {{ end }}
         - name: kube-rbac-proxy
           image: {{.KubeRbacProxy}}
@@ -101,7 +126,7 @@ spec:
           imagePullPolicy: {{.ImagePullPolicy}}
           command: [ "/bin/bash", "-c", "--" ]
           args:
-          {{ $cmd := "/usr/local/bin/ptp --alsologtostderr -v 10" }}
+          {{ $cmd := printf "/usr/local/bin/ptp --alsologtostderr -v %s" .Verbosity }}
           {{- if (eq .EnableEventPublisher true) }}
             - "until [ $(curl -s -w '%{http_code}' 'http://localhost:9043/api/ocloudNotifications/v2/health' -o /dev/null) -eq 200 ]; do echo 'waiting for cloud event proxy to start'; sleep 10s; done; {{ $cmd }}"
           {{- else }}
@@ -122,8 +147,10 @@ spec:
                   fieldPath: metadata.name
             - name: NAME_SPACE
               value: {{.Namespace}}
+            {{ if and (eq .EnableEventPublisher true) (not .SideCarV2) }}
             - name: LOGS_TO_SOCKET
-              value: "{{ .EnableEventPublisher }}"
+              value: "true"
+            {{ end }}
             - name: PLUGINS
               value: "{{ .EnabledPlugins }}"
           volumeMounts:
@@ -133,7 +160,7 @@ spec:
               mountPath: /etc/leap
             - name: socket-dir
               mountPath: /var/run
-            {{ if (eq .EnableEventPublisher true) }}
+            {{ if and (eq .EnableEventPublisher true) (not .SideCarV2) }}
             - name: event-bus-socket
               mountPath: /cloud-native
             {{ end }}
@@ -147,7 +174,7 @@ spec:
         - name: linuxptp-certs
           secret:
             secretName: linuxptp-daemon-secret
-        {{ if (eq .EnableEventPublisher true) }}
+        {{ if and (eq .EnableEventPublisher true) (not .SideCarV2) }}
         - name: pubsubstore
           emptyDir: {}
         - name: event-bus-socket

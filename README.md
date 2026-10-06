@@ -147,7 +147,6 @@ spec:
     ptpClockThreshold:
       holdOverTimeout: 24 # in secs
       maxOffsetThreshold: 100 #in nano secs
-      minOffsetThreshold: 100 #in nano secs
   recommend:
   - profile: "profile1"
     priority: 4

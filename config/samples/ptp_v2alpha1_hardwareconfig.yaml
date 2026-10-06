@@ -1,0 +1,14 @@
+apiVersion: ptp.openshift.io/v2alpha1
+kind: HardwareConfig
+metadata:
+  name: example-hardwareconfig
+spec:
+  relatedPtpProfileName: "profile1"
+  profile:
+    name: "example-profile"
+    clockType: "T-GM"
+    clockChain:
+      structure:
+      - name: "nic1"
+        dpll:
+          networkInterface: "ens787f1"

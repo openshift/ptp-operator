@@ -3,4 +3,5 @@ resources:
 - ptp_v1_ptpconfig.yaml
 - ptp_v1_nodeptpdevice.yaml
 - ptp_v1_ptpoperatorconfig.yaml
+- ptp_v2alpha1_hardwareconfig.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples
