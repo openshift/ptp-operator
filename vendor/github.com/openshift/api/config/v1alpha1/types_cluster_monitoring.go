@@ -466,6 +466,21 @@ type NodeExporterCollectorConfig struct {
 	// Enable when you need visibility into kernel softirq processing across CPUs.
 	// +optional
 	Softirqs NodeExporterCollectorSoftirqsConfig `json:"softirqs,omitempty,omitzero"`
+	// deviceMapperMultipath configures the dmmultipath collector, which collects statistics
+	// about DM-Multipath devices.
+	// deviceMapperMultipath is optional.
+	// When omitted, this means no opinion and the platform is left to choose a reasonable default,
+	// which is subject to change over time. The current default is enabled.
+	// +optional
+	DeviceMapperMultipath NodeExporterCollectorDeviceMapperMultipathConfig `json:"deviceMapperMultipath,omitzero"`
+	// zoneinfo configures the zoneinfo collector, which exposes per-zone memory page counts,
+	// watermarks, and protection thresholds from /proc/zoneinfo.
+	// zoneinfo is optional.
+	// When omitted, this means no opinion and the platform is left to choose a reasonable default,
+	// which is subject to change over time. The current default is to not collect zoneinfo metrics.
+	// Enable when you need visibility into kernel memory zone allocation and pressure.
+	// +optional
+	Zoneinfo NodeExporterCollectorZoneinfoConfig `json:"zoneinfo,omitzero"`
 }
 
 // NodeExporterCollectorCpufreqConfig provides configuration for the cpufreq collector
@@ -685,6 +700,34 @@ type NodeExporterCollectorSoftirqsConfig struct {
 	// Valid values are "Collect" and "DoNotCollect".
 	// When set to "Collect", the softirqs collector is active and softirq statistics are collected.
 	// When set to "DoNotCollect", the softirqs collector is inactive.
+	// +required
+	CollectionPolicy NodeExporterCollectorCollectionPolicy `json:"collectionPolicy,omitempty"`
+}
+
+// NodeExporterCollectorDeviceMapperMultipathConfig provides configuration for the dmmultipath collector
+// of the node-exporter agent. The dmmultipath collector collects statistics about
+// DM-Multipath devices.
+// It is enabled by default.
+type NodeExporterCollectorDeviceMapperMultipathConfig struct {
+	// collectionPolicy declares whether the dmmultipath collector collects metrics.
+	// This field is required.
+	// Valid values are "Collect" and "DoNotCollect".
+	// When set to "Collect", the dmmultipath collector is active and DM-Multipath device statistics are collected.
+	// When set to "DoNotCollect", the dmmultipath collector is inactive and the corresponding metrics become unavailable.
+	// +required
+	CollectionPolicy NodeExporterCollectorCollectionPolicy `json:"collectionPolicy,omitempty"`
+}
+
+// NodeExporterCollectorZoneinfoConfig provides configuration for the zoneinfo collector
+// of the node-exporter agent. The zoneinfo collector exposes per-zone memory page counts,
+// watermarks, and protection thresholds from /proc/zoneinfo.
+// By default, the zoneinfo collector does not collect metrics.
+type NodeExporterCollectorZoneinfoConfig struct {
+	// collectionPolicy declares whether the zoneinfo collector collects metrics.
+	// This field is required.
+	// Valid values are "Collect" and "DoNotCollect".
+	// When set to "Collect", the zoneinfo collector is active and zone memory statistics are collected.
+	// When set to "DoNotCollect", the zoneinfo collector is inactive.
 	// +required
 	CollectionPolicy NodeExporterCollectorCollectionPolicy `json:"collectionPolicy,omitempty"`
 }
@@ -1550,9 +1593,16 @@ type RemoteWriteSpec struct {
 	// +kubebuilder:validation:MaxLength=63
 	// +kubebuilder:validation:XValidation:rule="self.matches('^[a-zA-Z0-9_-]+$')",message="must contain only alphanumeric characters, hyphens, and underscores"
 	Name string `json:"name,omitempty"`
+	// messageVersion defines the Remote Write message's version to use when writing to the endpoint.
+	// When omitted, this means no opinion and the platform is left to choose a reasonable default, which is subject to change over time.
+	// The default value is "V1.0".
+	// When set to "V1.0", Prometheus uses the `prometheus.WriteRequest` protobuf message introduced in Remote Write 1.0.
+	// When set to "V2.0", Prometheus uses the `io.prometheus.write.v2.Request` protobuf message introduced in Remote Write 2.0.
+	// +optional
+	MessageVersion RemoteWriteMessageVersion `json:"messageVersion,omitempty,omitzero"`
 	// authorization defines the authorization method for the remote write endpoint.
 	// When omitted, no authorization is performed.
-	// When set, type must be one of BearerToken, BasicAuth, OAuth2, SigV4, SafeAuthorization, or ServiceAccount; the corresponding nested config must be set (ServiceAccount has no config).
+	// When set, type must be one of Authorization, BasicAuth, OAuth2, SigV4, or ServiceAccount; the corresponding nested config must be set (ServiceAccount has no config).
 	// +optional
 	AuthorizationConfig RemoteWriteAuthorization `json:"authorization,omitzero"`
 	// headers specifies the custom HTTP headers to be sent along with each remote write request.
@@ -1654,39 +1704,49 @@ type BasicAuth struct {
 }
 
 // RemoteWriteAuthorizationType defines the authorization method for remote write endpoints.
-// +kubebuilder:validation:Enum=BearerToken;BasicAuth;OAuth2;SigV4;SafeAuthorization;ServiceAccount
+// +kubebuilder:validation:Enum=Authorization;BasicAuth;OAuth2;SigV4;ServiceAccount
 type RemoteWriteAuthorizationType string
 
 const (
-	// RemoteWriteAuthorizationTypeBearerToken indicates bearer token from a secret.
-	RemoteWriteAuthorizationTypeBearerToken RemoteWriteAuthorizationType = "BearerToken"
+	// RemoteWriteAuthorizationTypeAuthorization indicates authorization credentials from a secret.
+	// The secret key contains the credentials (e.g. a Bearer token). Use the authorization field.
+	RemoteWriteAuthorizationTypeAuthorization RemoteWriteAuthorizationType = "Authorization"
 	// RemoteWriteAuthorizationTypeBasicAuth indicates HTTP basic authentication.
 	RemoteWriteAuthorizationTypeBasicAuth RemoteWriteAuthorizationType = "BasicAuth"
 	// RemoteWriteAuthorizationTypeOAuth2 indicates OAuth2 client credentials.
 	RemoteWriteAuthorizationTypeOAuth2 RemoteWriteAuthorizationType = "OAuth2"
 	// RemoteWriteAuthorizationTypeSigV4 indicates AWS Signature Version 4.
 	RemoteWriteAuthorizationTypeSigV4 RemoteWriteAuthorizationType = "SigV4"
-	// RemoteWriteAuthorizationTypeSafeAuthorization indicates authorization from a secret (Prometheus SafeAuthorization pattern).
-	// The secret key contains the credentials (e.g. a Bearer token). Use the safeAuthorization field.
-	RemoteWriteAuthorizationTypeSafeAuthorization RemoteWriteAuthorizationType = "SafeAuthorization"
 	// RemoteWriteAuthorizationTypeServiceAccount indicates use of the pod's service account token for machine identity.
 	// No additional field is required; the operator configures the token path.
 	RemoteWriteAuthorizationTypeServiceAccount RemoteWriteAuthorizationType = "ServiceAccount"
+
+	// --- TOMBSTONE ---
+	// RemoteWriteAuthorizationTypeBearerToken was a constant for bearer token authentication from a secret.
+	// It has been removed in favor of RemoteWriteAuthorizationTypeAuthorization. The constant name is reserved to prevent reuse.
+	//
+	// RemoteWriteAuthorizationTypeBearerToken RemoteWriteAuthorizationType = "BearerToken"
+
+	// --- TOMBSTONE ---
+	// RemoteWriteAuthorizationTypeSafeAuthorization was a constant for authorization credentials from a secret (Prometheus SafeAuthorization pattern).
+	// It has been removed in favor of RemoteWriteAuthorizationTypeAuthorization. The constant name is reserved to prevent reuse.
+	//
+	// RemoteWriteAuthorizationTypeSafeAuthorization RemoteWriteAuthorizationType = "SafeAuthorization"
 )
 
 // RemoteWriteAuthorization defines the authorization method for a remote write endpoint.
-// Exactly one of the nested configs must be set according to the type discriminator.
-// +kubebuilder:validation:XValidation:rule="has(self.type) && self.type == 'BearerToken' ? has(self.bearerToken) : !has(self.bearerToken)",message="bearerToken is required when type is BearerToken, and forbidden otherwise"
+// Nested config requirements depend on the type discriminator: Authorization requires authorization,
+// BasicAuth requires basicAuth, OAuth2 requires oauth2, SigV4 requires sigv4, and ServiceAccount forbids all nested configs.
+// +kubebuilder:validation:XValidation:rule="has(self.type) && self.type == 'Authorization' ? has(self.authorization) : !has(self.authorization)",message="authorization is required when type is Authorization, and forbidden otherwise"
 // +kubebuilder:validation:XValidation:rule="has(self.type) && self.type == 'BasicAuth' ? has(self.basicAuth) : !has(self.basicAuth)",message="basicAuth is required when type is BasicAuth, and forbidden otherwise"
 // +kubebuilder:validation:XValidation:rule="has(self.type) && self.type == 'OAuth2' ? has(self.oauth2) : !has(self.oauth2)",message="oauth2 is required when type is OAuth2, and forbidden otherwise"
 // +kubebuilder:validation:XValidation:rule="has(self.type) && self.type == 'SigV4' ? has(self.sigv4) : !has(self.sigv4)",message="sigv4 is required when type is SigV4, and forbidden otherwise"
-// +kubebuilder:validation:XValidation:rule="has(self.type) && self.type == 'SafeAuthorization' ? has(self.safeAuthorization) : !has(self.safeAuthorization)",message="safeAuthorization is required when type is SafeAuthorization, and forbidden otherwise"
 // +union
 type RemoteWriteAuthorization struct {
 	// type specifies the authorization method to use.
-	// Allowed values are BearerToken, BasicAuth, OAuth2, SigV4, SafeAuthorization, ServiceAccount.
+	// Allowed values are Authorization, BasicAuth, OAuth2, SigV4, and ServiceAccount.
 	//
-	// When set to BearerToken, the bearer token is read from a Secret referenced by the bearerToken field.
+	// When set to Authorization, credentials are read from a single Secret key. The secret key typically contains a Bearer token. Use the authorization field.
 	//
 	// When set to BasicAuth, HTTP basic authentication is used; the basicAuth field (username and password from Secrets) must be set.
 	//
@@ -1694,22 +1754,16 @@ type RemoteWriteAuthorization struct {
 	//
 	// When set to SigV4, AWS Signature Version 4 is used for authentication; the sigv4 field must be set.
 	//
-	// When set to SafeAuthorization, credentials are read from a single Secret key (Prometheus SafeAuthorization pattern). The secret key typically contains a Bearer token. Use the safeAuthorization field.
-	//
 	// When set to ServiceAccount, the pod's service account token is used for machine identity. No additional field is required; the operator configures the token path.
 	// +unionDiscriminator
 	// +required
 	Type RemoteWriteAuthorizationType `json:"type,omitempty"`
-	// safeAuthorization defines the secret reference containing the credentials for authentication (e.g. Bearer token).
-	// Required when type is "SafeAuthorization", and forbidden otherwise. Maps to Prometheus SafeAuthorization. The secret must exist in the openshift-monitoring namespace.
-	// +unionMember
+	// authorization defines the secret reference containing the authorization credentials (e.g. Bearer token).
+	// Required when type is "Authorization", and forbidden otherwise.
+	// The secret must exist in the openshift-monitoring namespace.
+	// +unionMember=Authorization
 	// +optional
-	SafeAuthorization *v1.SecretKeySelector `json:"safeAuthorization,omitempty"`
-	// bearerToken defines the secret reference containing the bearer token.
-	// Required when type is "BearerToken", and forbidden otherwise.
-	// +unionMember
-	// +optional
-	BearerToken SecretKeySelector `json:"bearerToken,omitempty,omitzero"`
+	Authorization SecretKeySelector `json:"authorization,omitempty,omitzero"`
 	// basicAuth defines HTTP basic authentication credentials.
 	// Required when type is "BasicAuth", and forbidden otherwise.
 	// +unionMember
@@ -1725,7 +1779,34 @@ type RemoteWriteAuthorization struct {
 	// +unionMember
 	// +optional
 	Sigv4 Sigv4 `json:"sigv4,omitempty,omitzero"`
+
+	// --- TOMBSTONE ---
+	// bearerToken was a field for bearer token authentication from a secret.
+	// It has been removed in favor of authorization. The field name is reserved to prevent reuse.
+	//
+	// +unionMember
+	// +optional
+	// BearerToken SecretKeySelector `json:"bearerToken,omitempty,omitzero"`
+
+	// --- TOMBSTONE ---
+	// safeAuthorization was a field for authorization credentials from a secret (Prometheus SafeAuthorization pattern).
+	// It has been removed in favor of authorization. The field name is reserved to prevent reuse.
+	//
+	// +unionMember
+	// +optional
+	// SafeAuthorization *v1.SecretKeySelector `json:"safeAuthorization,omitempty"`
 }
+
+// RemoteWriteMessageVersion defines the version of the remote-write protocol.
+// +kubebuilder:validation:Enum=V1.0;V2.0
+type RemoteWriteMessageVersion string
+
+const (
+	// RemoteWriteMessageVersion1_0 indicates the version 1.0 of the remote-write protocol.
+	RemoteWriteMessageVersion1_0 RemoteWriteMessageVersion = "V1.0"
+	// RemoteWriteMessageVersion2_0 indicates the version 2.0 of the remote-write protocol.
+	RemoteWriteMessageVersion2_0 RemoteWriteMessageVersion = "V2.0"
+)
 
 // MetadataConfigSendPolicy defines whether to send metadata with platform defaults or with custom settings.
 // +kubebuilder:validation:Enum=Default;Custom
