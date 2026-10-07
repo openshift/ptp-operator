@@ -12,7 +12,6 @@ import (
 	"time"
 
 	configv1 "github.com/openshift/api/config/v1"
-	openshifttls "github.com/openshift/controller-runtime-common/pkg/tls"
 	"github.com/stretchr/testify/require"
 )
 
@@ -47,7 +46,7 @@ func TestTLSProfileNegotiation(t *testing.T) {
 			if tt.group != "" {
 				profile.Groups = []configv1.TLSGroup{tt.group}
 			}
-			tlsOption, unsupported := openshifttls.NewTLSConfigFromProfile(profile)
+			tlsOption, unsupported := newTLSConfigFromProfile(profile)
 			require.Empty(t, unsupported)
 
 			server := httptest.NewUnstartedServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
