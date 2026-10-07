@@ -259,17 +259,7 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 		}
 	}
 
-	var pluginList []string
-
-	if defaultCfg.Spec.EnabledPlugins != nil {
-		for k := range *defaultCfg.Spec.EnabledPlugins {
-			pluginList = append(pluginList, k)
-		}
-	} else {
-		pluginList = []string{"e810", "e825", "e830", "ntpfailover"} // Enable e810 by default if plugins not specified
-	}
-	sort.Strings(pluginList)
-	enabledPlugins := strings.Join(pluginList, ",")
+	enabledPlugins := enabledPluginNames(defaultCfg)
 	data.Data["EnabledPlugins"] = enabledPlugins
 	if enabledPlugins != "" {
 		glog.Infof("ptp operator enabled plugins: %s", enabledPlugins)
@@ -320,6 +310,21 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 	}
 
 	return nil
+}
+
+func enabledPluginNames(defaultCfg *ptpv1.PtpOperatorConfig) string {
+	var pluginList []string
+
+	if defaultCfg.Spec.EnabledPlugins != nil {
+		for name := range *defaultCfg.Spec.EnabledPlugins {
+			pluginList = append(pluginList, name)
+		}
+	} else {
+		pluginList = []string{"e810", "e825", "e830", "ntpfailover", "phc-first-step"}
+	}
+
+	sort.Strings(pluginList)
+	return strings.Join(pluginList, ",")
 }
 
 // applyEventNetworkPolicy applies the NetworkPolicy for cloud-event-proxy
