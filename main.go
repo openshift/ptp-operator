@@ -108,7 +108,7 @@ func main() {
 	if honorClusterTLS {
 		tlsProfileSpecPtr = &tlsProfileSpec
 		var unsupported []string
-		tlsOption, unsupported = newTLSConfigFromProfile(tlsProfileSpec)
+		tlsOption, unsupported = openshifttls.NewTLSConfigFromProfile(tlsProfileSpec)
 		if len(unsupported) > 0 {
 			setupLog.Info("some ciphers or groups from the TLS profile are not supported", "unsupported", unsupported)
 		}
@@ -346,13 +346,6 @@ func fetchTLSConfig(cfg *rest.Config) (configv1.TLSProfileSpec, configv1.TLSAdhe
 		return configv1.TLSProfileSpec{}, "", fmt.Errorf("failed to fetch TLS adherence policy: %v", err)
 	}
 	return profileSpec, adherencePolicy, nil
-}
-
-// newTLSConfigFromProfile keeps the operator's TLS configuration entry point
-// testable while delegating profile interpretation to the shared library.
-func newTLSConfigFromProfile(profile configv1.TLSProfileSpec) (func(*tls.Config), []string) {
-	tlsOption, unsupported := openshifttls.NewTLSConfigFromProfile(profile)
-	return tlsOption, unsupported
 }
 
 // waitForWebhookServer waits until the local webhook server is listening and

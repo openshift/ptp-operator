@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"io"
 	"log"
 	"net"
@@ -12,7 +13,10 @@ import (
 	"time"
 
 	configv1 "github.com/openshift/api/config/v1"
+	openshifttls "github.com/openshift/controller-runtime-common/pkg/tls"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/rest"
 )
 
 // Exercise the TLS option used by both the webhook and metrics servers against
@@ -46,7 +50,7 @@ func TestTLSProfileNegotiation(t *testing.T) {
 			if tt.group != "" {
 				profile.Groups = []configv1.TLSGroup{tt.group}
 			}
-			tlsOption, unsupported := newTLSConfigFromProfile(profile)
+			tlsOption, unsupported := openshifttls.NewTLSConfigFromProfile(profile)
 			require.Empty(t, unsupported)
 
 			server := httptest.NewUnstartedServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
@@ -80,4 +84,69 @@ func TestTLSProfileNegotiation(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestFetchTLSConfig(t *testing.T) {
+	expectedProfile := configv1.TLSProfileSpec{
+		MinTLSVersion: configv1.VersionTLS13,
+		Ciphers:       []string{"TLS_AES_128_GCM_SHA256"},
+		Groups:        []configv1.TLSGroup{configv1.TLSGroupSecP256r1MLKEM768, configv1.TLSGroupSecP256r1},
+	}
+	apiServer := configv1.APIServer{
+		TypeMeta: metav1.TypeMeta{APIVersion: configv1.GroupVersion.String(), Kind: "APIServer"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "cluster",
+		},
+		Spec: configv1.APIServerSpec{
+			TLSAdherence: configv1.TLSAdherencePolicyStrictAllComponents,
+			TLSSecurityProfile: &configv1.TLSSecurityProfile{
+				Type:   configv1.TLSProfileCustomType,
+				Custom: &configv1.CustomTLSProfile{TLSProfileSpec: expectedProfile},
+			},
+		},
+	}
+
+	resourceRequests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		var response any
+		switch r.URL.Path {
+		case "/api":
+			response = metav1.APIVersions{
+				TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "APIVersions"},
+				Versions: []string{"v1"},
+			}
+		case "/apis":
+			groupVersion := metav1.GroupVersionForDiscovery{GroupVersion: configv1.GroupVersion.String(), Version: "v1"}
+			response = metav1.APIGroupList{
+				TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "APIGroupList"},
+				Groups: []metav1.APIGroup{{
+					Name:             configv1.GroupName,
+					Versions:         []metav1.GroupVersionForDiscovery{groupVersion},
+					PreferredVersion: groupVersion,
+				}},
+			}
+		case "/apis/config.openshift.io/v1":
+			response = metav1.APIResourceList{
+				GroupVersion: configv1.GroupVersion.String(),
+				APIResources: []metav1.APIResource{{
+					Name: "apiservers", SingularName: "apiserver", Kind: "APIServer", Verbs: metav1.Verbs{"get"},
+				}},
+			}
+		case "/apis/config.openshift.io/v1/apiservers/cluster":
+			resourceRequests++
+			response = apiServer
+		default:
+			http.NotFound(w, r)
+			return
+		}
+		require.NoError(t, json.NewEncoder(w).Encode(response))
+	}))
+	defer server.Close()
+
+	profile, adherence, err := fetchTLSConfig(&rest.Config{Host: server.URL})
+	require.NoError(t, err)
+	require.Equal(t, expectedProfile, profile)
+	require.Equal(t, configv1.TLSAdherencePolicyStrictAllComponents, adherence)
+	require.Equal(t, 2, resourceRequests)
 }
