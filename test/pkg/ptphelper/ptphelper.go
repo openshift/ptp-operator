@@ -146,7 +146,19 @@ func configFileFromLogID(logID string) string {
 // file inside the linuxptp-daemon pod and returns the value of the requested
 // field (e.g. "grandmasterIdentity" or "parentPortIdentity.clockIdentity").
 func getClockIDViaPMC(pod *corev1.Pod, configFile, field string) (string, error) {
-	re := regexp.MustCompile(`(?m)` + regexp.QuoteMeta(field) + `\s+(\S+)`)
+	// Handle special case for extracting clock ID from port identity.
+	// PMC output shows "parentPortIdentity" as "clockIdentity-portNumber"
+	// When field is "parentPortIdentity.clockIdentity", we need to:
+	// 1. Query for "parentPortIdentity"
+	// 2. Extract the clock ID portion (everything before the hyphen)
+	queryField := field
+	var needsClockIDExtraction bool
+	if field == "parentPortIdentity.clockIdentity" {
+		queryField = "parentPortIdentity"
+		needsClockIDExtraction = true
+	}
+
+	re := regexp.MustCompile(`(?m)` + regexp.QuoteMeta(queryField) + `\s+(\S+)`)
 	buf, _, err := pods.ExecCommand(client.Client, true, pod,
 		pkg.PtpContainerName, []string{"pmc", "-b", "0", "-u", "-f", configFile, "GET PARENT_DATA_SET"})
 	if err != nil {
@@ -156,7 +168,18 @@ func getClockIDViaPMC(pod *corev1.Pod, configFile, field string) (string, error)
 	if len(matches) < 2 {
 		return "", fmt.Errorf("%s not found in pmc output for %s: %s", field, configFile, buf.String())
 	}
-	return matches[1], nil
+	result := matches[1]
+
+	// Extract clock ID from port identity if needed.
+	// Port identity format: clockIdentity-portNumber (e.g., "507c6f.fffe.836aa0-0")
+	if needsClockIDExtraction {
+		parts := strings.Split(result, "-")
+		if len(parts) > 0 {
+			result = parts[0]
+		}
+	}
+
+	return result, nil
 }
 
 func GetClockIDMaster(ptpConfigName string, profileName string, label *string, nodeName *string, isGM bool) (string, error) {

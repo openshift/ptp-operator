@@ -242,7 +242,7 @@ done
 if [[ -n "$PTPOP_SPEC" ]]; then
   PTPOP_CLONE=$(git_clone_cmd "https://github.com/${PTPOP_REPO}.git" "${PTPOP_BRANCH}" "/go/src/github.com/k8snetworkplumbingwg/ptp-operator")
   cat > "${TOOLS_DIR}/Dockerfile.ptpop" <<DOCKERFILE
-FROM docker.io/golang:1.25.7 AS builder
+FROM docker.io/golang:1.26.0 AS builder
 RUN apt-get update && apt-get install -y binutils-gold && rm -rf /var/lib/apt/lists/*
 WORKDIR /go/src/github.com/k8snetworkplumbingwg/ptp-operator
 ${PTPOP_CLONE}

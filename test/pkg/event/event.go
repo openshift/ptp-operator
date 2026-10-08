@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	ptpEvent "github.com/redhat-cne/sdk-go/pkg/event/ptp"
+	"maps"
 	"os"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -645,28 +647,77 @@ func PushInitialEvents(eventTypes []string, timeout time.Duration) (missing []st
 		pending[t] = true
 	}
 
-	count := int64(0)
-	podLogOptions := corev1.PodLogOptions{
-		Container: containerName,
-		Follow:    true,
-		TailLines: &count,
-	}
-
+	logrus.Infof("PushInitialEvents: starting log scan for pod %s/%s, waiting for events: %v, timeout: %v",
+		namespace, podName, eventTypes, timeout)
+	logrus.Infof("PushInitialEvents: searching for pattern: %s", regex)
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
+	// Check pod status before attempting to read logs
+	pod, podErr := testclient.Client.Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
+	if podErr != nil {
+		logrus.Errorf("PushInitialEvents: failed to get pod status: %v", podErr)
+		return nil, fmt.Errorf("could not get pod status in ns=%s pod=%s, err=%s", namespace, podName, podErr)
+	}
+	logrus.Infof("PushInitialEvents: pod status is %s, phase: %s, ready: %v",
+		podName, pod.Status.Phase, pod.Status.Conditions)
+
+	count := int64(0)
+	podLogOptions := corev1.PodLogOptions{Container: containerName, Follow: true, TailLines: &count}
+	logrus.Infof("PushInitialEvents: opening log stream for %s/%s container %s", namespace, podName, containerName)
 	podLogRequest := testclient.Client.CoreV1().Pods(namespace).GetLogs(podName, &podLogOptions)
 	stream, err := podLogRequest.Stream(ctx)
 	if err != nil {
+		logrus.Errorf("PushInitialEvents: failed to open log stream: %v", err)
 		return nil, fmt.Errorf("could not retrieve log in ns=%s pod=%s, err=%s", namespace, podName, err)
 	}
 	defer stream.Close()
 
+	// Capture initial pod logs for diagnostic baseline. Follow stream is already open,
+	// so events emitted during this read remain available to the scanner below.
+	logrus.Infof("PushInitialEvents: Capturing initial pod logs for diagnostic baseline...")
+	initialTailLines := int64(30)
+	initialLogOpts := corev1.PodLogOptions{
+		Container: containerName,
+		TailLines: &initialTailLines,
+	}
+	initialReq := testclient.Client.CoreV1().Pods(namespace).GetLogs(podName, &initialLogOpts)
+	initialStream, initErr := initialReq.Stream(ctx)
+	if initErr == nil {
+		defer initialStream.Close()
+		initialScanner := bufio.NewScanner(initialStream)
+		var initialLogLines []string
+		for initialScanner.Scan() {
+			initialLogLines = append(initialLogLines, initialScanner.Text())
+		}
+		logrus.Infof("PushInitialEvents: Consumer pod initial logs (last %d lines):\n%s",
+			len(initialLogLines), strings.Join(initialLogLines, "\n"))
+	} else {
+		logrus.Warnf("PushInitialEvents: Could not capture initial logs: %v", initErr)
+	}
+
 	r := regexp.MustCompile(regex)
 	scanner := bufio.NewScanner(stream)
+	lineCount := 0
+	startTime := time.Now()
+	lastProgressLog := time.Now()
+
 	for scanner.Scan() {
 		line := scanner.Text()
+		lineCount++
 		logrus.Trace(line)
+
+		// Log progress every 10 lines or 2 seconds
+		if lineCount%10 == 0 || time.Since(lastProgressLog) > 2*time.Second {
+			logrus.Infof("PushInitialEvents: Progress - scanned %d lines in %.2fs, still waiting for: %v",
+				lineCount, time.Since(startTime).Seconds(), slices.Collect(maps.Keys(pending)))
+			lastProgressLog = time.Now()
+		}
+
+		// Log sample lines to understand what we're seeing
+		if lineCount <= 5 || lineCount%50 == 0 {
+			logrus.Debugf("PushInitialEvents: [Line %d] %s", lineCount, line)
+		}
 
 		matches := r.FindAllStringSubmatch(line, -1)
 		if len(matches) > 0 {
@@ -676,17 +727,82 @@ func PushInitialEvents(eventTypes []string, timeout time.Duration) (missing []st
 				continue
 			}
 			if pending[eType] {
+				logrus.Infof("PushInitialEvents: found event type %s, publishing it", eType)
 				PubSub.Publish(eType, aStoredEvent)
 				delete(pending, eType)
 				if len(pending) == 0 {
+					logrus.Infof("PushInitialEvents: all requested events found in %.2fs after scanning %d lines",
+						time.Since(startTime).Seconds(), lineCount)
 					return nil, nil
 				}
 			}
 		}
 	}
-	if scanErr := scanner.Err(); scanErr != nil {
+
+	// Distinguish between timeout and actual scanner error
+	scanErr := scanner.Err()
+	if ctx.Err() != nil {
+		scanErr = ctx.Err()
+	}
+	if scanErr != nil {
+		if scanErr == context.DeadlineExceeded {
+			logrus.Errorf("PushInitialEvents: TIMEOUT after %.2fs, scanned %d lines, still missing: %v",
+				time.Since(startTime).Seconds(), lineCount, slices.Collect(maps.Keys(pending)))
+
+			// CRITICAL DIAGNOSTICS: Dump recent consumer pod logs to understand what happened
+			logrus.Errorf("PushInitialEvents: Dumping recent consumer pod logs for timeout analysis...")
+			dumpTailLines := int64(100)
+			dumpLogOpts := corev1.PodLogOptions{
+				Container: containerName,
+				TailLines: &dumpTailLines,
+			}
+			dumpReq := testclient.Client.CoreV1().Pods(namespace).GetLogs(podName, &dumpLogOpts)
+			dumpCtx, dumpCancel := context.WithTimeout(context.Background(), 10*time.Second)
+			dumpStream, dumpErr := dumpReq.Stream(dumpCtx)
+			if dumpErr == nil {
+				dumpScanner := bufio.NewScanner(dumpStream)
+				var dumpLogLines []string
+				for dumpScanner.Scan() {
+					dumpLogLines = append(dumpLogLines, dumpScanner.Text())
+				}
+				logrus.Errorf("PushInitialEvents: Last %d lines of consumer pod logs:\n%s",
+					len(dumpLogLines), strings.Join(dumpLogLines, "\n"))
+			} else {
+				logrus.Errorf("PushInitialEvents: Could not dump logs on timeout: %v", dumpErr)
+			}
+			if dumpStream != nil {
+				dumpStream.Close()
+			}
+			dumpCancel()
+
+			// Check pod for crash/restart indicators
+			logrus.Errorf("PushInitialEvents: Checking pod for crash/restart indicators...")
+			statusCtx, statusCancel := context.WithTimeout(context.Background(), 10*time.Second)
+			currentPod, statusErr := testclient.Client.Pods(namespace).Get(statusCtx, podName, metav1.GetOptions{})
+			statusCancel()
+			if statusErr != nil {
+				logrus.Errorf("PushInitialEvents: could not refresh pod status: %v", statusErr)
+			} else {
+				for _, cs := range currentPod.Status.ContainerStatuses {
+					if cs.Name == containerName {
+						logrus.Errorf("PushInitialEvents: Container %s - restarts=%d, ready=%v, terminated=%v",
+							cs.Name, cs.RestartCount, cs.Ready, cs.State.Terminated != nil)
+						if cs.State.Terminated != nil {
+							logrus.Errorf("PushInitialEvents: Container terminated: reason=%s, message=%s",
+								cs.State.Terminated.Reason, cs.State.Terminated.Message)
+						}
+					}
+				}
+			}
+		} else {
+			logrus.Errorf("PushInitialEvents: scanner error after %.2fs and %d lines: %v",
+				time.Since(startTime).Seconds(), lineCount, scanErr)
+		}
 		return nil, fmt.Errorf("error reading logs in ns=%s pod=%s: %s", namespace, podName, scanErr)
 	}
+
+	logrus.Warnf("PushInitialEvents: log stream ended without finding all events. Total lines scanned: %d, time elapsed: %.2fs, missing: %v",
+		lineCount, time.Since(startTime).Seconds(), slices.Collect(maps.Keys(pending)))
 	for t := range pending {
 		missing = append(missing, t)
 	}

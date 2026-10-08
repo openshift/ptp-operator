@@ -183,11 +183,9 @@ func CheckClockRealTimeState(state MetricClockState, nodeName *string) error {
 	return fmt.Errorf("linuxptp-daemon pod not found on node %s", *nodeName)
 }
 
-// CheckHAProfileStatus verifies openshift_ptp_ha_profile_status for the given HA
-// member profile on a node: process="phc2sys", profile=<profile>. active=true
-// expects the gauge value 1 (ACTIVE, the phc2sys-selected source), active=false
-// expects 0 (INACTIVE).
-func CheckHAProfileStatus(profile string, active bool, nodeName *string) error {
+// CheckHAProfileStatus verifies openshift_ptp_ha_profile_status for an HA member
+// profile on a node
+func CheckHAProfileStatus(profileRegEx *regexp.Regexp, active bool, nodeName *string) error {
 	if nodeName == nil || *nodeName == "" {
 		return fmt.Errorf("nodeName is required")
 	}
@@ -212,7 +210,7 @@ func CheckHAProfileStatus(profile string, active bool, nodeName *string) error {
 				continue
 			}
 			if !strings.Contains(line, `process="phc2sys"`) ||
-				!strings.Contains(line, fmt.Sprintf(`profile="%s"`, profile)) ||
+				!profileRegEx.MatchString(line) ||
 				!strings.Contains(line, fmt.Sprintf(`node="%s"`, *nodeName)) {
 				continue
 			}
@@ -225,11 +223,11 @@ func CheckHAProfileStatus(profile string, active bool, nodeName *string) error {
 				return fmt.Errorf("error strconv for ha_profile_status %q: %w", parts[1], err)
 			}
 			if value != want {
-				return fmt.Errorf("ha_profile_status for profile %q expected=%d observed=%d", profile, want, value)
+				return fmt.Errorf("ha_profile_status for profile %q expected=%d observed=%d", profileRegEx.String(), want, value)
 			}
 			return nil
 		}
-		return fmt.Errorf("%s process=phc2sys profile=%q not found on node %s", OpenshiftPtpHaProfileStatus, profile, *nodeName)
+		return fmt.Errorf("%s process=phc2sys profile=%q not found on node %s", OpenshiftPtpHaProfileStatus, profileRegEx.String(), *nodeName)
 	}
 	return fmt.Errorf("linuxptp-daemon pod not found on node %s", *nodeName)
 }

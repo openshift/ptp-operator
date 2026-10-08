@@ -60,6 +60,7 @@ var _ = BeforeSuite(func() {
 	if err != nil {
 		logrus.Errorf("Failed to start log collection: %v", err)
 	}
+
 })
 
 var _ = AfterSuite(func() {
