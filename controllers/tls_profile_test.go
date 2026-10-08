@@ -77,6 +77,7 @@ func makeTestRenderData() *render.RenderData {
 	data.Data["SideCarV2"] = ""
 	data.Data["EventTransportHost"] = ""
 	data.Data["Verbosity"] = "10"
+	data.Data["TLSGroups"] = ""
 	return &data
 }
 

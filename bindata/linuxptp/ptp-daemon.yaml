@@ -103,8 +103,8 @@ spec:
             {{- if .TLSMinVersion}}
             - --tls-min-version={{.TLSMinVersion}}
             {{- end}}
-            {{- with index . "TLSGroups"}}
-            - --tls-curve-preferences={{.}}
+            {{- if .TLSGroups}}
+            - --tls-curve-preferences={{.TLSGroups}}
             {{- end}}
             - --upstream=http://127.0.0.1:9091/
             - --tls-private-key-file=/etc/metrics/tls.key
