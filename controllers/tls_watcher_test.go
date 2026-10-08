@@ -22,6 +22,7 @@ func TestSetTLSTemplateData_WithProfile(t *testing.T) {
 	expectedCiphers := strings.Join(libgocrypto.OpenSSLToIANACipherSuites(profile.Ciphers), ",")
 	assert.Equal(t, string(profile.MinTLSVersion), data.Data["TLSMinVersion"])
 	assert.Equal(t, expectedCiphers, data.Data["TLSCipherSuites"])
+	assert.NotEmpty(t, data.Data["TLSGroups"])
 }
 
 func TestSetTLSTemplateData_NilProfileUsesLegacy(t *testing.T) {
@@ -35,6 +36,24 @@ func TestSetTLSTemplateData_NilProfileUsesLegacy(t *testing.T) {
 		"TLSMinVersion should be empty when TLSProfileSpec is nil")
 	assert.Equal(t, legacyCipherSuites, data.Data["TLSCipherSuites"],
 		"TLSCipherSuites should use hardcoded legacy ciphers when TLSProfileSpec is nil")
+	assert.Equal(t, "", data.Data["TLSGroups"],
+		"TLSGroups should be empty when TLSProfileSpec is nil")
+}
+
+func TestSetTLSTemplateData_WithGroups(t *testing.T) {
+	profile := configv1.TLSProfileSpec{
+		MinTLSVersion: configv1.VersionTLS12,
+		Groups: []configv1.TLSGroup{
+			configv1.TLSGroupX25519,
+			configv1.TLSGroupSecP256r1,
+			configv1.TLSGroupSecP384r1,
+		},
+	}
+	r := &PtpOperatorConfigReconciler{TLSProfileSpec: &profile}
+	data := render.MakeRenderData()
+	r.setTLSTemplateData(&data)
+
+	assert.Equal(t, "29,23,24", data.Data["TLSGroups"])
 }
 
 func TestSetTLSTemplateData_ModernProfile(t *testing.T) {
