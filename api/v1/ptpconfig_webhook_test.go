@@ -9,6 +9,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+func TestGetInterfacesPreservesConfigOrder(t *testing.T) {
+	ptp4lConf := "[global]\nslaveOnly 1\n[ens3f1]\nmasterOnly 0\n[ens3f0]\nmasterOnly 0"
+	config := PtpConfig{Spec: PtpConfigSpec{Profile: []PtpProfile{{Ptp4lConf: &ptp4lConf}}}}
+
+	assert.Equal(t, []string{"ens3f1", "ens3f0"}, GetInterfaces(config, Slave))
+}
+
 func TestPtpConfigValidator_MinOffsetThresholdAccepted(t *testing.T) {
 	profileName := "test-profile"
 	ptpConfig := &PtpConfig{
