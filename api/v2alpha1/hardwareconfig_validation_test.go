@@ -217,6 +217,143 @@ func TestSourceTypeValidation(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "valid gnss with USB device matcher",
+			source: &SourceConfig{
+				Subsystem:  "subsystem",
+				SourceType: SourceTypeGNSS,
+				BoardLabel: "GNSS",
+				GNSSConfig: &GNSSConfig{
+					Init: GNSSInit{},
+					Match: &GNSSMatcher{
+						USBDevice: &USBDevice{Vendor: "1546", Product: "01a9"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid gnss with USB device path matcher",
+			source: &SourceConfig{
+				Subsystem:  "subsystem",
+				SourceType: SourceTypeGNSS,
+				BoardLabel: "GNSS",
+				GNSSConfig: &GNSSConfig{
+					Init: GNSSInit{},
+					Match: &GNSSMatcher{
+						USBDevice: &USBDevice{Vendor: "1546", Product: "01a9", Path: "2-1.4"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid gnss with ACPI serial device matcher",
+			source: &SourceConfig{
+				Subsystem:  "subsystem",
+				SourceType: SourceTypeGNSS,
+				BoardLabel: "GNSS",
+				GNSSConfig: &GNSSConfig{
+					Init: GNSSInit{},
+					Match: &GNSSMatcher{
+						SerialDevice: &SerialDevice{
+							ACPI: &ACPIDevice{HID: "INTC10EE", UID: "00"},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid gnss with deprecated Ethernet interface matcher",
+			source: &SourceConfig{
+				Subsystem:  "subsystem",
+				SourceType: SourceTypeGNSS,
+				BoardLabel: "GNSS",
+				GNSSConfig: &GNSSConfig{
+					Init: GNSSInit{},
+					Match: &GNSSMatcher{
+						EthernetInterface: "eno1",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid gnss with Ethernet device PCI matcher",
+			source: &SourceConfig{
+				Subsystem:  "subsystem",
+				SourceType: SourceTypeGNSS,
+				BoardLabel: "GNSS",
+				GNSSConfig: &GNSSConfig{
+					Init: GNSSInit{},
+					Match: &GNSSMatcher{
+						EthernetDevice: &EthernetDevice{PCIAddress: "0000:86:00.0"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid gnss with Intel E810 PCI vendor and device ID matcher",
+			source: &SourceConfig{
+				Subsystem:  "subsystem",
+				SourceType: SourceTypeGNSS,
+				BoardLabel: "GNSS",
+				GNSSConfig: &GNSSConfig{
+					Init: GNSSInit{},
+					Match: &GNSSMatcher{
+						EthernetDevice: &EthernetDevice{VendorID: "8086", DeviceID: "159B"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid gnss with Ethernet device permanent MAC matcher",
+			source: &SourceConfig{
+				Subsystem:  "subsystem",
+				SourceType: SourceTypeGNSS,
+				BoardLabel: "GNSS",
+				GNSSConfig: &GNSSConfig{
+					Init: GNSSInit{},
+					Match: &GNSSMatcher{
+						EthernetDevice: &EthernetDevice{PermanentMACAddress: "00:11:22:aa:bb:cc"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid gnss with Ethernet device slot matcher",
+			source: &SourceConfig{
+				Subsystem:  "subsystem",
+				SourceType: SourceTypeGNSS,
+				BoardLabel: "GNSS",
+				GNSSConfig: &GNSSConfig{
+					Init: GNSSInit{},
+					Match: &GNSSMatcher{
+						EthernetDevice: &EthernetDevice{Slot: "2"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid gnss with Ethernet device name matcher",
+			source: &SourceConfig{
+				Subsystem:  "subsystem",
+				SourceType: SourceTypeGNSS,
+				BoardLabel: "GNSS",
+				GNSSConfig: &GNSSConfig{
+					Init: GNSSInit{},
+					Match: &GNSSMatcher{
+						EthernetDevice: &EthernetDevice{Name: "ens2f0"},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
 			name: "valid dpllPhaseLocked source",
 			source: &SourceConfig{
 				Subsystem:  "subsystem",

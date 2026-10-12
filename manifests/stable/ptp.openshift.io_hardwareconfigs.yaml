@@ -356,21 +356,137 @@ spec:
                                         a GNSS device on the system.  If omitted,
                                         autodetects the best-available GNSS source
                                       properties:
+                                        ethernetDevice:
+                                          description: |-
+                                            EthernetDevice defines the Ethernet device to which the GNSS device is
+                                            attached. All specified Ethernet device selectors must match.
+                                          properties:
+                                            deviceID:
+                                              description: DeviceID is the four-digit
+                                                hexadecimal PCI device (product) ID,
+                                                such as "159B" for Intel E810.
+                                              pattern: ^[0-9a-fA-F]{4}$
+                                              type: string
+                                            name:
+                                              description: Name is any Linux Ethernet
+                                                interface name, such as eno8703, enp2s0,
+                                                or ens2f0.
+                                              minLength: 1
+                                              type: string
+                                            pciAddress:
+                                              description: PCIAddress is the PCI bus
+                                                address of the Ethernet device, such
+                                                as "0000:86:00.0".
+                                              pattern: ^([0-9a-fA-F]{4}:)?[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\.[0-7]$
+                                              type: string
+                                            permanentMACAddress:
+                                              description: |-
+                                                PermanentMACAddress is the Ethernet device's permanent hardware MAC address,
+                                                such as "00:11:22:aa:bb:cc".
+                                              pattern: ^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$
+                                              type: string
+                                            slot:
+                                              description: |-
+                                                Slot is the firmware-reported PCI slot number used by systemd for slot-based
+                                                interface names, such as "2" in "ens2f0". It is not the PCI bus number.
+                                                Multiple PCI functions in one slot may share this slot number.
+                                              pattern: ^[0-9]+$
+                                              type: string
+                                            vendorID:
+                                              description: VendorID is the four-digit
+                                                hexadecimal PCI vendor ID, such as
+                                                "8086" for Intel.
+                                              pattern: ^[0-9a-fA-F]{4}$
+                                              type: string
+                                          type: object
+                                          x-kubernetes-validations:
+                                          - message: At least one Ethernet device
+                                              selection criterion must be provided.
+                                            rule: has(self.name) || has(self.pciAddress)
+                                              || has(self.permanentMACAddress) ||
+                                              has(self.slot) || has(self.vendorID)
+                                              || has(self.deviceID)
                                         ethernetInterface:
-                                          description: EthernetInterface defines the
-                                            GNSS device as the one attached to the
-                                            physical ethernet device name listed
+                                          description: |-
+                                            EthernetInterface defines the GNSS device as the one attached to the
+                                            physical Ethernet interface with this name.
+                                            Deprecated: Use EthernetDevice instead, which supports matching by name or stable hardware identity.
                                           type: string
+                                        serialDevice:
+                                          description: SerialDevice defines a platform
+                                            serial device by stable hardware identity.
+                                          properties:
+                                            acpi:
+                                              description: ACPI identifies an ACPI-enumerated
+                                                serial controller.
+                                              properties:
+                                                hid:
+                                                  description: HID is the ACPI hardware
+                                                    ID, such as INTC10EE for the HPE
+                                                    EL140 GNSS UART.
+                                                  pattern: ^[A-Za-z0-9._-]+$
+                                                  type: string
+                                                uid:
+                                                  description: UID is the optional
+                                                    Linux ACPI device instance suffix,
+                                                    such as 00.
+                                                  type: string
+                                              required:
+                                              - hid
+                                              type: object
+                                              x-kubernetes-validations:
+                                              - message: An ACPI hardware ID must
+                                                  be provided.
+                                                rule: has(self.hid)
+                                          type: object
+                                          x-kubernetes-validations:
+                                          - message: An ACPI serial device selector
+                                              must be provided.
+                                            rule: has(self.acpi)
                                         ttyDevice:
                                           description: TTYDevice defines the GNSS
                                             device by its /dev/xxxx character device
                                             path
                                           type: string
+                                        usbDevice:
+                                          description: USBDevice defines the GNSS
+                                            device by its USB vendor and product IDs.
+                                          properties:
+                                            path:
+                                              description: |-
+                                                Path is the Linux USB topology path (bus-port chain), such as "2-1.4".
+                                                It identifies the physical connection path, not a device serial number,
+                                                and can change if the device is moved to another port or topology changes.
+                                              pattern: ^[0-9]+-[0-9]+(\.[0-9]+)*$
+                                              type: string
+                                            product:
+                                              description: Product is the four-digit
+                                                hexadecimal USB product ID, such as
+                                                "01a9".
+                                              pattern: ^[0-9a-fA-F]{4}$
+                                              type: string
+                                            vendor:
+                                              description: Vendor is the four-digit
+                                                hexadecimal USB vendor ID, such as
+                                                "1546".
+                                              pattern: ^[0-9a-fA-F]{4}$
+                                              type: string
+                                          required:
+                                          - product
+                                          - vendor
+                                          type: object
                                       type: object
                                       x-kubernetes-validations:
-                                      - message: Exactly one of ttyDevice or ethernetInterface
+                                      - message: Exactly one of ttyDevice, serialDevice,
+                                          ethernetInterface, ethernetDevice, or usbDevice
                                           must be provided.
-                                        rule: has(self.ttyDevice) != has(self.ethernetInterface)
+                                        rule: 'has(self.ttyDevice) ? !(has(self.serialDevice)
+                                          || has(self.ethernetInterface) || has(self.ethernetDevice)
+                                          || has(self.usbDevice)) : has(self.serialDevice)
+                                          ? !(has(self.ethernetInterface) || has(self.ethernetDevice)
+                                          || has(self.usbDevice)) : has(self.ethernetInterface)
+                                          ? !(has(self.ethernetDevice) || has(self.usbDevice))
+                                          : has(self.ethernetDevice) != has(self.usbDevice)'
                                   required:
                                   - init
                                   type: object
@@ -768,6 +884,33 @@ spec:
                   required:
                   - nodeName
                   - ptpProfile
+                  type: object
+                type: array
+              sources:
+                description: Sources contains results of the source initialization
+                items:
+                  description: SourceStatus represents the initialization results
+                    of a given behavior source
+                  properties:
+                    gnss:
+                      description: Gnss is the result of GNSS source initialization
+                      properties:
+                        matchResult:
+                          description: MatchResult is an optional message from the
+                            GNSS device match logic
+                          type: string
+                        ttyDevice:
+                          description: TTYDevice is the name of the detected TTY device
+                            for this GNSS source
+                          type: string
+                      required:
+                      - ttyDevice
+                      type: object
+                    name:
+                      description: Name is the name of the source
+                      type: string
+                  required:
+                  - name
                   type: object
                 type: array
             type: object
