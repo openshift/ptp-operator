@@ -315,7 +315,7 @@ The names of these ptp4l configurations will be used and listed under the ptpSet
 
 ## Test Coverage
 
-Run `make coverage-gate` to compare test coverage of your branch against the upstream main branch. The script auto-detects the upstream remote and its tracking branch.
+Run `make coverage-gate` to compare test coverage of your branch against the upstream main branch. The script auto-detects the upstream remote and its tracking branch. Integration tests and the standalone CRD validation tool are excluded from this unit-coverage comparison.
 
 ```sh
 $ make coverage-gate
@@ -336,6 +336,12 @@ Current coverage:            16.2%
 Difference:                  5.9%
 🎉 Coverage increased by 5.9%, good job!
 ```
+
+To regenerate CRDs and validate them locally, including CEL rule parsing and
+estimated-cost checks using Kubernetes' CRD validator, run `make validate-crds`.
+No Kubernetes cluster or kubectl context is required. The validator uses this
+module's vendored dependencies and is pinned to the Kubernetes API version used
+by the project.
 
 ## Quick Start
 

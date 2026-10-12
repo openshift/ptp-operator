@@ -116,6 +116,10 @@ help: ## Display this help.
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) crd rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
+.PHONY: validate-crds
+validate-crds: manifests ## Validate generated CRDs locally, including Kubernetes CEL rule-cost checks.
+	cd hack/validate-crds && go run -mod=vendor . ../../config/crd/bases
+
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
@@ -314,7 +318,7 @@ bundle-push: ## Push the bundle image.
 	$(MAKE) docker-push IMG=$(BUNDLE_IMG)
 
 .PHONY: bundle-check
-bundle-check: common-deps-update generate manifests bundle
+bundle-check: common-deps-update generate manifests bundle validate-crds
 	hack/check-git-tree.sh
 
 .PHONY: opm
