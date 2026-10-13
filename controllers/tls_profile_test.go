@@ -77,6 +77,7 @@ func makeTestRenderData() *render.RenderData {
 	data.Data["SideCarV2"] = ""
 	data.Data["EventTransportHost"] = ""
 	data.Data["Verbosity"] = "10"
+	data.Data["TLSGroups"] = ""
 	return &data
 }
 
@@ -87,6 +88,7 @@ func TestTLSProfileTemplateRendering(t *testing.T) {
 	data := makeTestRenderData()
 	data.Data["TLSMinVersion"] = string(profile.MinTLSVersion)
 	data.Data["TLSCipherSuites"] = strings.Join(ianaCiphers, ",")
+	data.Data["TLSGroups"] = "29,23,24"
 
 	objs, err := render.RenderTemplate("../bindata/linuxptp/ptp-daemon.yaml", data)
 	assert.NoError(t, err)
@@ -124,6 +126,7 @@ func TestTLSProfileTemplateRendering(t *testing.T) {
 		expectedMinVersion := "--tls-min-version=VersionTLS12"
 		assert.Contains(t, rbacProxyArgs, expectedCiphers)
 		assert.Contains(t, rbacProxyArgs, expectedMinVersion)
+		assert.Contains(t, rbacProxyArgs, "--tls-curve-preferences=29,23,24")
 	}
 	assert.True(t, dsFound, "DaemonSet not found in rendered objects")
 }
@@ -133,6 +136,7 @@ func TestTLSProfileTemplateRendering_LegacyAdherence(t *testing.T) {
 	// cipher suites that were in place before cluster TLS profile support.
 	data := makeTestRenderData()
 	data.Data["TLSMinVersion"] = ""
+	data.Data["TLSGroups"] = ""
 	data.Data["TLSCipherSuites"] = "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256," +
 		"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256," +
 		"TLS_RSA_WITH_AES_128_CBC_SHA256," +
@@ -168,6 +172,8 @@ func TestTLSProfileTemplateRendering_LegacyAdherence(t *testing.T) {
 		for _, arg := range rbacProxyArgs {
 			assert.NotContains(t, arg, "--tls-min-version",
 				"TLS min version should not be set in legacy adherence mode")
+			assert.NotContains(t, arg, "--tls-curve-preferences",
+				"TLS curve preferences should not be set in legacy adherence mode")
 		}
 		assert.Contains(t, rbacProxyArgs,
 			"--tls-cipher-suites=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,"+
