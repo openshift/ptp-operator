@@ -16,6 +16,7 @@ import (
 	"github.com/onsi/ginkgo/v2/types"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 
@@ -617,14 +618,7 @@ func (c *PodLogCollector) streamDaemonContainer(podName, nodeName, containerName
 		return
 	}
 
-	// Write stream start marker
-	writer.write(createStreamStartMarker(podName, containerName))
-
-	// Stream logs
 	c.streamPodLogs(podName, containerName, writer)
-
-	// Write stream end marker
-	writer.write(createStreamEndMarker(podName, containerName))
 }
 
 func (c *PodLogCollector) streamPodLogs(podName, containerName string, writer *fileWriter) {
@@ -636,11 +630,39 @@ func (c *PodLogCollector) streamPodLogs(podName, containerName string, writer *f
 	}
 	defer c.streamTracker.markInactive(streamKey)
 
-	// Get log stream
-	logOptions := &corev1.PodLogOptions{
-		Follow:     true,
-		Timestamps: true,
+	var sinceTime *metav1.Time
+	retryUntilDone(c.ctx, watcherRetryDelay, func() bool {
+		lastLogTime, err := c.streamPodLogsOnce(podName, containerName, writer, sinceTime)
+		if lastLogTime != nil {
+			sinceTime = lastLogTime
+		}
+		if c.ctx.Err() != nil || apierrors.IsNotFound(err) {
+			return false
+		}
+		logrus.Debugf("Log stream from pod %s container %s ended, reconnecting", podName, containerName)
+		return true
+	})
+}
+
+func retryUntilDone(ctx context.Context, delay time.Duration, attempt func() bool) {
+	for attempt() {
+		if ctx.Err() != nil {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(delay):
+		}
 	}
+}
+
+func (c *PodLogCollector) streamPodLogsOnce(
+	podName, containerName string,
+	writer *fileWriter,
+	sinceTime *metav1.Time,
+) (*metav1.Time, error) {
+	logOptions := &corev1.PodLogOptions{Follow: true, Timestamps: true, SinceTime: sinceTime}
 	if containerName != "" {
 		logOptions.Container = containerName
 	}
@@ -649,28 +671,47 @@ func (c *PodLogCollector) streamPodLogs(podName, containerName string, writer *f
 	stream, err := req.Stream(c.ctx)
 	if err != nil {
 		logrus.Debugf("Failed to stream logs from pod %s: %v", podName, err)
-		return
+		return sinceTime, err
 	}
 	defer stream.Close()
+	if containerName != "" {
+		writer.write(createStreamStartMarker(podName, containerName))
+		defer writer.write(createStreamEndMarker(podName, containerName))
+	}
 
-	// Read and write logs
-	reader := bufio.NewReader(stream)
+	return readPodLogStream(bufio.NewReader(stream), podName, writer, sinceTime)
+}
+
+func readPodLogStream(reader *bufio.Reader, podName string, writer *fileWriter, sinceTime *metav1.Time) (*metav1.Time, error) {
+	lastLogTime := sinceTime
 	for {
-		select {
-		case <-c.ctx.Done():
-			return
-		default:
-			line, err := reader.ReadString('\n')
-			if err != nil {
-				if err != io.EOF {
-					logrus.Debugf("Error reading logs from pod %s: %v", podName, err)
-				}
-				return
+		line, err := reader.ReadString('\n')
+		if line != "" {
+			if timestamp := parseLogTimestamp(line); timestamp != nil {
+				lastLogTime = timestamp
 			}
-
 			writer.write(fmt.Sprintf("[%s] %s", podName, line))
 		}
+		if err != nil {
+			if err != io.EOF {
+				logrus.Debugf("Error reading logs from pod %s: %v", podName, err)
+			}
+			return lastLogTime, err
+		}
 	}
+}
+
+func parseLogTimestamp(line string) *metav1.Time {
+	timestamp, _, found := strings.Cut(line, " ")
+	if !found {
+		return nil
+	}
+	parsed, err := time.Parse(time.RFC3339Nano, timestamp)
+	if err != nil {
+		return nil
+	}
+	// Kubernetes SinceTime is inclusive; advance past the last written line.
+	return &metav1.Time{Time: parsed.Add(time.Nanosecond)}
 }
 
 func (c *PodLogCollector) streamExistingPods() {
