@@ -504,6 +504,9 @@ func (p *PortEngine) CheckClockRole(port0, port1 string, role0, role1 metrics.Me
 func (p *PortEngine) Initialize(aClockPod *corev1.Pod, aPorts []string) {
 	Expect(aClockPod).NotTo(BeNil(), "PortEngine.Initialize requires a non-nil clock-under-test pod")
 	p.Ports = aPorts
+	for i, port := range p.Ports {
+		logrus.Infof("PortEngine Ports[%d]=%s", i, port)
+	}
 
 	// Get the pod from ptp test daemonset set on the slave node
 	outageRecoveryDaemonSetRunningPods := CreatePtpTestPrivilegedDaemonSet(pkg.RecoveryNetworkOutageDaemonSetName, pkg.RecoveryNetworkOutageDaemonSetNamespace, pkg.RecoveryNetworkOutageDaemonSetContainerName)
