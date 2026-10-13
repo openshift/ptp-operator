@@ -148,7 +148,7 @@ func CheckClockRole(roles []MetricRole, Ifs []string, nodeName *string) (err err
 			return fmt.Errorf("error strconv for roleString=%s, err:%s", roleString, err)
 		}
 		if MetricRole(roleInt) != roles[index] {
-			return fmt.Errorf(fmt.Sprintf("incorrect role for %s, role expected=%d(%s), role observed=%d(%s)", Ifs[index], roles[index], roles[index].String(), roleInt, MetricRole(roleInt).String()))
+			return fmt.Errorf("incorrect role for %s, role expected=%d(%s), role observed=%d(%s)", Ifs[index], roles[index], roles[index].String(), roleInt, MetricRole(roleInt).String())
 		}
 	}
 	return nil
