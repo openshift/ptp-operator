@@ -228,85 +228,54 @@ spec:
           resources:
           - nodes
           verbs:
-          - '*'
-        - apiGroups:
-          - ""
-          resources:
-          - pods
-          verbs:
-          - '*'
+          - get
+          - list
+          - watch
         - apiGroups:
           - ""
           resources:
           - configmaps
-          verbs:
-          - '*'
-        - apiGroups:
-          - ""
-          resources:
-          - namespaces
-          verbs:
-          - '*'
-        - apiGroups:
-          - ""
-          resources:
           - services
           verbs:
-          - '*'
+          - get
+          - create
+          - update
         - apiGroups:
           - ""
           resources:
-          - serviceaccounts
+          - pods
+          - services
+          - endpoints
           verbs:
-          - '*'
+          - get
+          - list
+          - watch
         - apiGroups:
           - apps
           resources:
           - daemonsets
           verbs:
-          - '*'
-        - apiGroups:
-          - apps
-          resources:
-          - replicasets
-          verbs:
-          - '*'
-        - apiGroups:
-          - apps
-          resources:
-          - deployments
-          verbs:
-          - '*'
-        - apiGroups:
-          - ptp.openshift.io
-          resources:
-          - '*'
-          verbs:
-          - '*'
+          - get
+          - create
+          - update
         - apiGroups:
           - monitoring.coreos.com
           resources:
           - servicemonitors
-          verbs:
-          - '*'
-        - apiGroups:
-          - monitoring.coreos.com
-          resources:
           - prometheusrules
           verbs:
-          - '*'
+          - get
+          - create
+          - update
         - apiGroups:
           - rbac.authorization.k8s.io
           resources:
           - roles
-          verbs:
-          - '*'
-        - apiGroups:
-          - rbac.authorization.k8s.io
-          resources:
           - rolebindings
           verbs:
-          - '*'
+          - get
+          - create
+          - update
         - apiGroups:
           - config.openshift.io
           resources:
@@ -325,7 +294,6 @@ spec:
           - delete
           - get
           - list
-          - patch
           - update
           - watch
         - apiGroups:
@@ -333,37 +301,23 @@ spec:
           resources:
           - hardwareconfigs
           - ptpconfigs
-          - ptpoperatorconfigs
           verbs:
-          - create
-          - delete
           - get
           - list
-          - patch
-          - update
           - watch
         - apiGroups:
           - ptp.openshift.io
           resources:
-          - hardwareconfigs/finalizers
-          - ptpconfigs/finalizers
+          - hardwareconfigs/status
+          - ptpconfigs/status
           - ptpoperatorconfigs/finalizers
           verbs:
           - update
         - apiGroups:
           - ptp.openshift.io
           resources:
-          - hardwareconfigs/status
-          - ptpconfigs/status
-          - ptpoperatorconfigs/status
-          verbs:
-          - get
-          - patch
-          - update
-        - apiGroups:
-          - ptp.openshift.io
-          resources:
           - nodeptpdevices
+          - ptpoperatorconfigs
           verbs:
           - create
           - get

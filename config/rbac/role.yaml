@@ -22,7 +22,6 @@ rules:
   - delete
   - get
   - list
-  - patch
   - update
   - watch
 - apiGroups:
@@ -30,37 +29,23 @@ rules:
   resources:
   - hardwareconfigs
   - ptpconfigs
-  - ptpoperatorconfigs
   verbs:
-  - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - ptp.openshift.io
   resources:
-  - hardwareconfigs/finalizers
-  - ptpconfigs/finalizers
+  - hardwareconfigs/status
+  - ptpconfigs/status
   - ptpoperatorconfigs/finalizers
   verbs:
   - update
 - apiGroups:
   - ptp.openshift.io
   resources:
-  - hardwareconfigs/status
-  - ptpconfigs/status
-  - ptpoperatorconfigs/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - ptp.openshift.io
-  resources:
   - nodeptpdevices
+  - ptpoperatorconfigs
   verbs:
   - create
   - get

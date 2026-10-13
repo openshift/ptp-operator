@@ -40,9 +40,8 @@ type HardwareConfigReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=ptp.openshift.io,resources=hardwareconfigs,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=ptp.openshift.io,resources=hardwareconfigs/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=ptp.openshift.io,resources=hardwareconfigs/finalizers,verbs=update
+//+kubebuilder:rbac:groups=ptp.openshift.io,resources=hardwareconfigs,verbs=get;list;watch
+//+kubebuilder:rbac:groups=ptp.openshift.io,resources=hardwareconfigs/status,verbs=update
 //+kubebuilder:rbac:groups=ptp.openshift.io,resources=ptpconfigs,verbs=get;list;watch
 
 func (r *HardwareConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (reconcile.Result, error) {
