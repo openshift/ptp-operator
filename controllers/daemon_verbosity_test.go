@@ -100,6 +100,7 @@ func daemonContainerArgs(t *testing.T, data *render.RenderData) []string {
 	t.Helper()
 	data.Data["TLSMinVersion"] = "VersionTLS12"
 	data.Data["TLSCipherSuites"] = "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+	data.Data["TLSGroups"] = ""
 	objs, err := render.RenderTemplate("../bindata/linuxptp/ptp-daemon.yaml", data)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, objs)

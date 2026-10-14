@@ -69,7 +69,8 @@ type Ptp4lConfSection struct {
 }
 
 type Ptp4lConf struct {
-	sections map[string]Ptp4lConfSection
+	sections     map[string]Ptp4lConfSection
+	sectionOrder []string
 }
 
 // GetOption retrieves an option value from a specific section
@@ -90,6 +91,7 @@ func (output *Ptp4lConf) PopulatePtp4lConf(config *string, ptp4lopts *string) er
 	lines := strings.Split(string_config, "\n")
 	var currentSection string
 	output.sections = make(map[string]Ptp4lConfSection)
+	output.sectionOrder = nil
 
 	for _, line := range lines {
 		if strings.HasPrefix(line, "[") {
@@ -101,6 +103,9 @@ func (output *Ptp4lConf) PopulatePtp4lConf(config *string, ptp4lopts *string) er
 			}
 
 			currentSection = fmt.Sprintf("%s]", currentLine[0])
+			if _, exists := output.sections[currentSection]; !exists {
+				output.sectionOrder = append(output.sectionOrder, currentSection)
+			}
 			section := Ptp4lConfSection{options: map[string]string{}}
 			output.sections[currentSection] = section
 		} else if currentSection != "" {
@@ -443,7 +448,8 @@ func (v *ptpConfigValidator) ValidateDelete(ctx context.Context, obj runtime.Obj
 }
 
 func getInterfaces(input *Ptp4lConf, mode PtpRole) (interfaces []string) {
-	for index, section := range input.sections {
+	for _, index := range input.sectionOrder {
+		section := input.sections[index]
 		sectionName := strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(index, "[", ""), "]", ""))
 		if strings.TrimSpace(section.options["masterOnly"]) == strconv.Itoa(int(mode)) {
 			interfaces = append(interfaces, strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(sectionName, "[", ""), "]", "")))

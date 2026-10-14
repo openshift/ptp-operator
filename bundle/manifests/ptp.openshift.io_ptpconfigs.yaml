@@ -141,6 +141,45 @@ spec:
                               minimum: 0
                               type: integer
                           type: object
+                        ptpSourceDisqualifiedSamples:
+                          description: |-
+                            ptpSourceDisqualifiedSamples is the number of consecutive disqualifying ptp4l master offset
+                            samples required to declare the upstream source disqualified (offset mode). When unset, the
+                            daemon applies the default (5).
+                          format: int64
+                          minimum: 1
+                          type: integer
+                        ptpSourceDisqualifiedThreshold:
+                          description: |-
+                            ptpSourceDisqualifiedThreshold is the ptp4l master offset threshold, in nanoseconds, that
+                            when exceeded for ptpSourceDisqualifiedSamples consecutive samples disqualifies the upstream
+                            PTP source (offset mode). When unset, the daemon uses the existing T-BC qualification-path
+                            default as the fallback.
+                          format: int64
+                          minimum: 1
+                          type: integer
+                        ptpSourceQualifiedSamples:
+                          description: |-
+                            ptpSourceQualifiedSamples is the number of consecutive qualifying ptp4l master offset samples
+                            required to declare the upstream source qualified (offset mode). When unset, the daemon
+                            applies the default (5).
+                          format: int64
+                          minimum: 1
+                          type: integer
+                        ptpSourceQualifiedThreshold:
+                          description: |-
+                            ptpSourceQualifiedThreshold is the ptp4l master offset threshold, in nanoseconds, that the
+                            active TR port offset must stay at or below for ptpSourceQualifiedSamples consecutive samples
+                            to qualify the upstream PTP source (offset mode). When unset, the daemon uses the existing
+                            T-BC qualification-path default as the fallback.
+                          format: int64
+                          minimum: 1
+                          type: integer
+                        ptpSourceUseS3:
+                          default: false
+                          description: When true, use ptp4l servo S3 state for qualification
+                            instead of offset window.
+                          type: boolean
                         sysOffsetInSyncThreshold:
                           description: sysOffsetInSyncThreshold is the phc2sys-to-CLOCK_REALTIME
                             offset threshold, in nanoseconds, that must be met to
@@ -171,6 +210,11 @@ spec:
                           minimum: 1
                           type: integer
                       type: object
+                      x-kubernetes-validations:
+                      - message: ptpSourceDisqualifiedThreshold must be greater than
+                          or equal to ptpSourceQualifiedThreshold when both are set
+                        rule: '!has(self.ptpSourceQualifiedThreshold) || !has(self.ptpSourceDisqualifiedThreshold)
+                          || self.ptpSourceDisqualifiedThreshold >= self.ptpSourceQualifiedThreshold'
                     ptpSchedulingPolicy:
                       enum:
                       - SCHED_OTHER

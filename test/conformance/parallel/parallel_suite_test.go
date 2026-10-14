@@ -69,12 +69,13 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	// Write node under test information
 	nodeName := fullConfig.DiscoveredClockUnderTestPod.Spec.NodeName
 	testMode := strings.ToLower(fullConfig.PtpModeDiscovered.String())
-	info := make(map[string]string)
-	info["Pod Name"] = fullConfig.DiscoveredClockUnderTestPod.Name
-	info["Namespace"] = fullConfig.DiscoveredClockUnderTestPod.Namespace
-	err = logging.WriteNodeUnderTest(nodeName, testMode, info)
+	clockNodes, err := fullConfig.ClockNodeInfo()
 	if err != nil {
-		logrus.Warnf("Failed to write node under test file: %v", err)
+		logrus.Warnf("Failed to collect clock node information: %v", err)
+	}
+	err = logging.WriteNodeInfo(nodeName, testMode, clockNodes)
+	if err != nil {
+		logrus.Warnf("Failed to write node information file: %v", err)
 	}
 
 	ptphelper.RestartPTPDaemon()

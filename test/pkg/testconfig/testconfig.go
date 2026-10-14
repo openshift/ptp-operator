@@ -148,6 +148,35 @@ type TestConfig struct {
 	FoundSolutions               map[string]bool
 	PtpEventsIsConsumerReady     bool
 }
+
+// ClockNodeInfo returns the discovered PTP configs and the nodes running them.
+func (obj TestConfig) ClockNodeInfo() (map[string]string, error) {
+	clocks := []struct {
+		role   string
+		config *ptpDiscoveryRes
+	}{
+		{"Grandmaster Clock", obj.DiscoveredGrandMasterPtpConfig},
+		{"Clock Under Test", obj.DiscoveredClockUnderTestPtpConfig},
+		{"Secondary Clock Under Test", obj.DiscoveredClockUnderTestSecondaryPtpConfig},
+		{"Slave Clock 1", obj.DiscoveredSlave1PtpConfig},
+		{"Slave Clock 2", obj.DiscoveredSlave2PtpConfig},
+	}
+
+	info := make(map[string]string)
+	for _, clock := range clocks {
+		if clock.config == nil {
+			continue
+		}
+		config := (*ptpv1.PtpConfig)(clock.config)
+		pod, err := ptphelper.GetPTPPodWithPTPConfig(config)
+		if err != nil {
+			return info, fmt.Errorf("failed to find node for clock %s: %w", config.Name, err)
+		}
+		info[clock.role] = pod.Spec.NodeName
+	}
+	return info, nil
+}
+
 type solverData struct {
 	// Mapping between clock role and port depending on the algo
 	testClockRolesAlgoMapping map[string]*[]int
@@ -695,7 +724,8 @@ func initAndSolveProblems() {
 			{int(solver.StepSameNic), 2, 1, 3, solver.Negative}}, // step5
 	}
 	data.problems[AlgoTelcoGMString] = &[][][]int{
-		{{int(solver.StepIsWPCNic), 1, 0}}, // step1: first iface is WPC
+		{{int(solver.StepIsWPCNic), 1, 0}, // step1: first iface is WPC with connected GNSS
+			{int(solver.StepHasGNSSDevice), 1, 0}},
 		{{int(solver.StepIsWPCNic), 1, 1}, // step2: second iface is WPC
 			{int(solver.StepSameNic), 2, 0, 1}}, //        and on the same NIC
 	}
@@ -707,7 +737,8 @@ func initAndSolveProblems() {
 		{{int(solver.StepSameNic), 2, 0, 2}}, // step3: transmitter 2 on same NIC as receiver
 		{{int(solver.StepSameLan2), 2, 0, 3}, // step4: local grandmaster on same LAN as receiver
 			{int(solver.StepSameNode), 2, 0, 3, solver.Negative}}, // but NOT on the same node
-		{{int(solver.StepIsWPCNic), 1, 3}}, // step5: local grandmaster is a WPC NIC
+		{{int(solver.StepIsWPCNic), 1, 3}, // step5: local grandmaster is a WPC NIC with connected GNSS
+			{int(solver.StepHasGNSSDevice), 1, 3}},
 	}
 
 	// T-BC with external GM: WPC NIC required, PTP receiver, two transmitters on same NIC
@@ -728,7 +759,8 @@ func initAndSolveProblems() {
 		{{int(solver.StepSameNic), 2, 1, 2}},  // step5: transmitter 1 on same NIC as receiver
 		{{int(solver.StepSameNic), 2, 1, 3}},  // step6: transmitter 2 on same NIC as receiver
 		{{int(solver.StepSameLan2), 2, 1, 4}, // step7: local grandmaster on same LAN as receiver
-			{int(solver.StepSameNode), 2, 1, 4, solver.Negative}}, // but NOT on the same node
+			{int(solver.StepSameNode), 2, 1, 4, solver.Negative}, // but NOT on the same node
+			{int(solver.StepHasGNSSDevice), 1, 4}},               // and has connected GNSS
 	}
 
 	// T-BC with slaves and external GM: WPC NIC required, slave, receiver, two transmitters on same NIC
@@ -1883,12 +1915,15 @@ func PtpConfigTelcoGM(isExtGM bool) error {
 
 		ifList := []string{gmIf0.IfName, gmIf1.IfName}
 
-		deviceID := gmIf0.IfPTPCaps.GnssDevice
+		_, _, deviceID, err := ptphelper.InterfacesByPHCAndPins(GlobalConfig.L2Config, gmIf0.NodeName, gmIf0.IfName)
+		if err != nil {
+			return err
+		}
 		if deviceID == "" {
-			deviceID = gmIf1.IfPTPCaps.GnssDevice
+			return fmt.Errorf("no connected GNSS device found for T-GM interface %s on node %s", gmIf0.IfName, gmIf0.NodeName)
 		}
 
-		err := CreatePtpConfigWPCGrandMaster(pkg.PtpWPCGrandMasterPolicyName, gmIf0.NodeName, ifList, deviceID)
+		err = CreatePtpConfigWPCGrandMaster(pkg.PtpWPCGrandMasterPolicyName, gmIf0.NodeName, ifList, deviceID)
 		if err != nil {
 			logrus.Errorf("Error creating Grandmaster ptpconfig: %s", err)
 		}

@@ -387,9 +387,12 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				Fail("DiscoveredClockUnderTestPod is nil - check that the node is labeled with " + pkg.PtpClockUnderTestNodeLabel)
 			}
 			pod := fullConfig.DiscoveredClockUnderTestPod
-			if err := logging.WriteNodeUnderTest(pod.Spec.NodeName, strings.ToLower(fullConfig.PtpModeDiscovered.String()),
-				map[string]string{"Pod Name": pod.Name, "Namespace": pod.Namespace}); err != nil {
-				logrus.Warnf("Failed to write node under test file: %v", err)
+			clockNodes, err := fullConfig.ClockNodeInfo()
+			if err != nil {
+				logrus.Warnf("Failed to collect clock node information: %v", err)
+			}
+			if err := logging.WriteNodeInfo(pod.Spec.NodeName, strings.ToLower(fullConfig.PtpModeDiscovered.String()), clockNodes); err != nil {
+				logrus.Warnf("Failed to write node information file: %v", err)
 			}
 			portEngine.Initialize(fullConfig.DiscoveredClockUnderTestPod, fullConfig.DiscoveredFollowerInterfaces)
 

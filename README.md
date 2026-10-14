@@ -5,9 +5,18 @@
 - [PtpOperatorConfig](#ptpoperatorconfig)
 - [PtpConfig](#ptpconfig)
 - [Quick Start](#quick-start)
+- [Network Policy Scope](#network-policy-scope)
 
 ## PTP Operator
 Ptp Operator, runs in `openshift-ptp` namespace, manages cluster wide PTP configuration. It offers `PtpOperatorConfig` and `PtpConfig` CRDs and creates `linuxptp daemon` to apply node-specific PTP config.
+
+## Network Policy Scope
+
+The `openshift-ptp` NetworkPolicy objects are scoped to the daemon and operator
+pods. The current daemon pod uses host networking, so policies that select it do
+not enforce its own traffic on OpenShift OVN-Kubernetes. The normal-networked
+`ptp-operator` pod is covered by an interim operator-pod policy set, which is
+enforced.
 
 ## PtpOperatorConfig
 Upon deployment of PTP Operator, it automatically creates a `default` custom resource of `PtpOperatorConfig` kind which contains a configurable option `daemonNodeSelector`, it is used to specify which nodes `linuxptp daemon` shall be created on. The `daemonNodeSelector` will be applied to `linuxptp daemon` DaemonSet `nodeSelector` field and trigger relaunching of `linuxptp daemon`. Ptp Operator only recognizes `default` `PtpOperatorConfig`, use `oc edit PtpOperatorConfig default -n openshift-ptp` to update the `daemonNodeSelector`.
@@ -315,7 +324,7 @@ The names of these ptp4l configurations will be used and listed under the ptpSet
 
 ## Test Coverage
 
-Run `make coverage-gate` to compare test coverage of your branch against the upstream main branch. The script auto-detects the upstream remote and its tracking branch.
+Run `make coverage-gate` to compare test coverage of your branch against the upstream main branch. The script auto-detects the upstream remote and its tracking branch. Integration tests and the standalone CRD validation tool are excluded from this unit-coverage comparison.
 
 ```sh
 $ make coverage-gate
@@ -336,6 +345,12 @@ Current coverage:            16.2%
 Difference:                  5.9%
 🎉 Coverage increased by 5.9%, good job!
 ```
+
+To regenerate CRDs and validate them locally, including CEL rule parsing and
+estimated-cost checks using Kubernetes' CRD validator, run `make validate-crds`.
+No Kubernetes cluster or kubectl context is required. The validator uses this
+module's vendored dependencies and is pinned to the Kubernetes API version used
+by the project.
 
 ## Quick Start
 

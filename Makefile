@@ -116,6 +116,10 @@ help: ## Display this help.
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) crd rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
+.PHONY: validate-crds
+validate-crds: manifests ## Validate generated CRDs locally, including Kubernetes CEL rule-cost checks.
+	cd hack/validate-crds && go run -mod=vendor . ../../config/crd/bases
+
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
@@ -291,7 +295,7 @@ restore-env-yaml: ## Restore config/manager/env.yaml from backup
 .PHONY: bundle
 bundle: manifests kustomize operator-sdk update-env-yaml ## Generate bundle manifests and metadata, then validate generated files.
 	trap 'if [ -f $(ENV_YAML_BACKUP) ]; then mv $(ENV_YAML_BACKUP) config/manager/env.yaml; fi' EXIT; \
-	$(OPERATOR_SDK) generate kustomize manifests --interactive=false -q; \
+	CGO_ENABLED=0 $(OPERATOR_SDK) generate kustomize manifests --interactive=false -q; \
 	(cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)); \
 	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle $(BUNDLE_GEN_FLAGS); \
 	$(OPERATOR_SDK) bundle validate ./bundle; \
@@ -314,7 +318,7 @@ bundle-push: ## Push the bundle image.
 	$(MAKE) docker-push IMG=$(BUNDLE_IMG)
 
 .PHONY: bundle-check
-bundle-check: common-deps-update generate manifests bundle
+bundle-check: common-deps-update generate manifests bundle validate-crds
 	hack/check-git-tree.sh
 
 .PHONY: opm

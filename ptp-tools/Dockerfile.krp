@@ -1,8 +1,8 @@
 FROM docker.io/golang:1.26.3 AS builder
 WORKDIR /go/src/github.com/brancz/kube-rbac-proxy
-# Pin to v0.22.1 downstream merge (openshift/kube-rbac-proxy#146); requires Go >= 1.26.3.
+# Pin to v0.23.0 downstream merge (openshift/kube-rbac-proxy#162); requires Go >= 1.26.3.
 RUN git clone https://github.com/openshift/kube-rbac-proxy.git /go/src/github.com/brancz/kube-rbac-proxy && \
-    git -C /go/src/github.com/brancz/kube-rbac-proxy checkout 6580efaf6d4f29e6c1d8c7fbe16a8627c7c75049
+    git -C /go/src/github.com/brancz/kube-rbac-proxy checkout 75554a0355eb0c9b25904102437a529703af89b8
 ENV GO111MODULE=on
 ENV GOMAXPROCS=16
 
