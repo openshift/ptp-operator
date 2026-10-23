@@ -38,10 +38,13 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	uns "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
 	kscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -60,6 +63,24 @@ type PtpOperatorConfigReconciler struct {
 	TLSProfileSpec *configv1.TLSProfileSpec
 }
 
+func chronydNetworkPolicy() *networkingv1.NetworkPolicy {
+	ports := []networkingv1.NetworkPolicyPort{}
+	for _, protocol := range []corev1.Protocol{corev1.ProtocolUDP, corev1.ProtocolTCP} {
+		p := protocol
+		port := intstr.FromInt32(123)
+		ports = append(ports, networkingv1.NetworkPolicyPort{Protocol: &p, Port: &port})
+	}
+	return &networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{Name: "13-linuxptp-daemon-egress-ntp-optional", Namespace: names.Namespace},
+		Spec: networkingv1.NetworkPolicySpec{
+			PodSelector: metav1.LabelSelector{MatchLabels: map[string]string{"app": "linuxptp-daemon"}},
+			PolicyTypes: []networkingv1.PolicyType{networkingv1.PolicyTypeIngress, networkingv1.PolicyTypeEgress},
+			Ingress:     []networkingv1.NetworkPolicyIngressRule{{Ports: ports}},
+			Egress:      []networkingv1.NetworkPolicyEgressRule{{Ports: ports}},
+		},
+	}
+}
+
 func DefaultTransportHost() string {
 	return "http://ptp-event-publisher-service-NODE_NAME." + names.Namespace + ".svc.cluster.local:9043"
 }
@@ -70,12 +91,11 @@ const (
 	DefaultApiVersion  = "2.0"
 )
 
-// +kubebuilder:rbac:groups=ptp.openshift.io,resources=ptpoperatorconfigs,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=ptp.openshift.io,resources=ptpoperatorconfigs/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=ptp.openshift.io,resources=ptpoperatorconfigs,verbs=get;list;watch;create
 // +kubebuilder:rbac:groups=ptp.openshift.io,resources=ptpoperatorconfigs/finalizers,verbs=update
 // +kubebuilder:rbac:groups=config.openshift.io,resources=infrastructures,verbs=get;list;watch
 // +kubebuilder:rbac:groups=config.openshift.io,resources=apiservers,verbs=get;list;watch
-// +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;update;delete
 
 func (r *PtpOperatorConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (reconcile.Result, error) {
 	reqLogger := r.Log.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
@@ -330,83 +350,135 @@ func enabledPluginNames(defaultCfg *ptpv1.PtpOperatorConfig) string {
 	return strings.Join(pluginList, ",")
 }
 
-// applyEventNetworkPolicy applies the NetworkPolicy for cloud-event-proxy
-// applyNetworkPolicyFromYAML reads and applies the NetworkPolicy YAML directly
-// applyNetworkPoliciesFromYaml reads a multi-document YAML file and applies each NetworkPolicy
+// applyNetworkPoliciesFromYaml reconciles the operand and operator NetworkPolicy
+// objects declared in the multi-document YAML at path. The host-networked daemon
+// is not restricted by the daemon policies (06-13); the normal-networked
+// operator-pod policies (01-05) are enforced by OVN-Kubernetes.
 func (r *PtpOperatorConfigReconciler) applyNetworkPoliciesFromYaml(
 	ctx context.Context,
 	path string,
 	defaultCfg *ptpv1.PtpOperatorConfig,
 ) error {
-	glog.Infof("Applying network policies from YAML file: %s", path)
-
-	// Read the YAML file
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("failed to read YAML file: %v", err)
+		return fmt.Errorf("read operand policies: %w", err)
 	}
 
-	// Split YAML into separate documents
-	yamlDocs := strings.Split(string(data), "---")
-	var jsonBytes []byte
-	for _, doc := range yamlDocs {
+	// The API server egress rules are port-based (TCP 6443) with no peer, because
+	// the API server host IP is not known ahead of time. A ClusterIP-based rule is
+	// not reliable: in-cluster clients reach the API server through a path where
+	// the policy sees the backend/host address on the target port 6443.
+	desired := make(map[string]*networkingv1.NetworkPolicy)
+	for _, doc := range strings.Split(string(data), "---") {
 		trimmedDoc := strings.TrimSpace(doc)
-		if len(trimmedDoc) == 0 {
+		if trimmedDoc == "" {
 			continue
 		}
-
-		jsonBytes, err = k8syaml.ToJSON([]byte(trimmedDoc))
+		jsonBytes, err := k8syaml.ToJSON([]byte(trimmedDoc))
 		if err != nil {
-			return fmt.Errorf("failed to convert YAML to JSON: %v", err)
+			return fmt.Errorf("decode operand policy YAML: %w", err)
 		}
-
-		// Unmarshal into an Unstructured object
-		np := &uns.Unstructured{}
-		if err = json.Unmarshal(jsonBytes, np); err != nil {
-			return fmt.Errorf("failed to unmarshal JSON into Unstructured: %v", err)
+		np := &networkingv1.NetworkPolicy{}
+		if err := json.Unmarshal(jsonBytes, np); err != nil {
+			return fmt.Errorf("decode operand policy: %w", err)
 		}
-
-		// Process only NetworkPolicy objects
-		if np.GetKind() != "NetworkPolicy" {
-			glog.Infof("Ignoring network policy from YAML document: %s", trimmedDoc)
-			continue
+		switch np.Name {
+		case "06-linuxptp-daemon-default-deny", "07-linuxptp-daemon-egress-dns",
+			"08-linuxptp-daemon-egress-api-server", "09-linuxptp-daemon-ptp-traffic",
+			"11-linuxptp-daemon-ingress-metrics",
+			"01-ptp-operator-default-deny", "02-ptp-operator-ingress-webhook",
+			"03-ptp-operator-ingress-metrics", "04-ptp-operator-egress-dns",
+			"05-ptp-operator-egress-api-server":
+		default:
+			return fmt.Errorf("unexpected operand policy %q", np.Name)
 		}
+		np.Namespace = names.Namespace
+		desired[np.Name] = np
+	}
 
-		// Convert unstructured to typed object
-		var typedNP networkingv1.NetworkPolicy
-		if err = runtime.DefaultUnstructuredConverter.FromUnstructured(np.Object, &typedNP); err != nil {
-			glog.Errorf("Failed to convert to typed NetworkPolicy: %v", err)
-			return fmt.Errorf("failed to convert to typed NetworkPolicy: %v", err)
-		}
-		typedNP.Namespace = names.Namespace
-
-		// Check if the object already exists
-		found := &networkingv1.NetworkPolicy{}
-		err = r.Get(ctx, types.NamespacedName{
-			Namespace: typedNP.Namespace,
-			Name:      typedNP.Name,
-		}, found)
-
-		if err != nil {
-			if errors.IsNotFound(err) {
-				glog.Infof("NetworkPolicy %s/%s not found, creating it", typedNP.Namespace, typedNP.Name)
-
-				if err = controllerutil.SetControllerReference(defaultCfg, &typedNP, r.Scheme); err != nil {
-					glog.Errorf("Failed to set owner reference for NetworkPolicy: %v", err)
-					return fmt.Errorf("failed to set owner reference: %v", err)
-				}
-
-				if err = r.Create(ctx, &typedNP); err != nil {
-					glog.Errorf("Failed to create NetworkPolicy: %v", err)
-					return fmt.Errorf("failed to create NetworkPolicy: %v", err)
-				}
-				glog.Infof("Successfully created NetworkPolicy: %s/%s", typedNP.Namespace, typedNP.Name)
-			} else {
-				glog.Errorf("Failed to get NetworkPolicy: %v", err)
-				return fmt.Errorf("failed to get NetworkPolicy: %v", err)
+	configs := &ptpv1.PtpConfigList{}
+	if err := r.List(ctx, configs, client.InNamespace(names.Namespace)); err != nil {
+		return fmt.Errorf("list PtpConfigs for chronyd policy: %w", err)
+	}
+	for _, config := range configs.Items {
+		for _, profile := range config.Spec.Profile {
+			if profile.ChronydConf != nil || profile.ChronydOpts != nil {
+				desired["13-linuxptp-daemon-egress-ntp-optional"] = chronydNetworkPolicy()
 			}
-		} else {
-			glog.Infof("NetworkPolicy %s/%s already exists. Skipping creation.", typedNP.Namespace, typedNP.Name)
+		}
+	}
+
+	// Create allows before the default-deny declarations. Operator-pod policies
+	// are created before daemon policies because the operator pod is enforced.
+	for _, name := range []string{
+		"02-ptp-operator-ingress-webhook", "03-ptp-operator-ingress-metrics",
+		"04-ptp-operator-egress-dns", "05-ptp-operator-egress-api-server",
+		"07-linuxptp-daemon-egress-dns", "08-linuxptp-daemon-egress-api-server",
+		"09-linuxptp-daemon-ptp-traffic", "11-linuxptp-daemon-ingress-metrics",
+		"13-linuxptp-daemon-egress-ntp-optional",
+		"01-ptp-operator-default-deny", "06-linuxptp-daemon-default-deny",
+	} {
+		np, ok := desired[name]
+		if !ok {
+			continue
+		}
+		if err := controllerutil.SetControllerReference(defaultCfg, np, r.Scheme); err != nil {
+			return fmt.Errorf("set policy %s owner: %w", name, err)
+		}
+		current := &networkingv1.NetworkPolicy{}
+		err := r.Get(ctx, types.NamespacedName{Namespace: names.Namespace, Name: name}, current)
+		if errors.IsNotFound(err) {
+			if err := r.Create(ctx, np); err != nil {
+				return fmt.Errorf("create policy %s: %w", name, err)
+			}
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("get policy %s: %w", name, err)
+		}
+		if !metav1.IsControlledBy(current, defaultCfg) {
+			return fmt.Errorf("policy %s exists but is not owned by PtpOperatorConfig", name)
+		}
+		if !equality.Semantic.DeepEqual(current.Spec, np.Spec) {
+			current.Spec = np.Spec
+			if err := r.Update(ctx, current); err != nil {
+				return fmt.Errorf("update policy %s: %w", name, err)
+			}
+		}
+	}
+	policies := &networkingv1.NetworkPolicyList{}
+	if err := r.List(ctx, policies, client.InNamespace(names.Namespace)); err != nil {
+		return fmt.Errorf("list managed policies: %w", err)
+	}
+	for i := range policies.Items {
+		policy := &policies.Items[i]
+		if !metav1.IsControlledBy(policy, defaultCfg) {
+			continue
+		}
+		if _, ok := desired[policy.Name]; ok {
+			continue
+		}
+		// Renamed or stale owned policies are removed. The historical unnumbered
+		// operator-pod policies are renamed to the numbered 01-05 scheme here.
+		switch policy.Name {
+		case "06-linuxptp-daemon-default-deny", "07-linuxptp-daemon-egress-dns",
+			"08-linuxptp-daemon-egress-api-server", "09-linuxptp-daemon-ptp-traffic",
+			"11-linuxptp-daemon-ingress-metrics", "12-operator-to-daemon-management",
+			"13-linuxptp-daemon-egress-ntp-optional",
+			"01-ptp-operator-default-deny", "02-ptp-operator-ingress-webhook",
+			"03-ptp-operator-ingress-metrics", "04-ptp-operator-egress-dns",
+			"05-ptp-operator-egress-api-server",
+			"allow-webhook-traffic", "allow-egress-to-api-server", "allow-metrics-traffic":
+			if err := r.Delete(ctx, policy, client.Preconditions{
+				UID:             &policy.UID,
+				ResourceVersion: &policy.ResourceVersion,
+			}); err != nil && !errors.IsNotFound(err) {
+				return fmt.Errorf("delete stale policy %s: %w", policy.Name, err)
+			}
+		default:
+			// Unrelated policies, and historical objects such as the namespace-wide
+			// default-deny-all, are never adopted or deleted; leave them for a
+			// separately validated migration.
 		}
 	}
 	return nil

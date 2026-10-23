@@ -251,7 +251,7 @@ restore-env-yaml: ## Restore config/manager/env.yaml from backup
 
 .PHONY: bundle
 bundle: manifests kustomize operator-sdk update-env-yaml ## Generate bundle manifests and metadata, then validate generated files.
-	$(OPERATOR_SDK) generate kustomize manifests --interactive=false -q
+	CGO_ENABLED=0 $(OPERATOR_SDK) generate kustomize manifests --interactive=false -q
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | $(OPERATOR_SDK) generate bundle $(BUNDLE_GEN_FLAGS)
 	$(OPERATOR_SDK) bundle validate ./bundle
