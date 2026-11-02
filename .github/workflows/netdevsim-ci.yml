@@ -210,10 +210,16 @@ jobs:
     needs: ptp-images
     runs-on: ubuntu-24.04
     timeout-minutes: 90
+    name: "ptp-test (${{ matrix.mode }}${{ matrix.auth && '-auth' || '' }})"
     strategy:
       fail-fast: false
       matrix:
         mode: [oc, bc, dualnicbc, dualnicbcha, dualfollower, tgm, tgmoc, tgmbc]
+        auth: [false]
+        include:
+          # OC with PTP authentication enabled
+          - mode: oc
+            auth: true
     steps:
       - name: "Runner info (${{ matrix.mode }})"
         run: |
@@ -320,6 +326,7 @@ jobs:
           export PATH=/usr/local/ptp-podman-wrap:/usr/local/bin:/usr/local/go/bin:/root/go/bin:$PATH
           export KIND_EXPERIMENTAL_PROVIDER=podman
           export ENABLE_CEPV2=true
+          export PTP_AUTH_ENABLED=${{ matrix.auth }}
 
           VM_IP=$(hostname -I | awk '{print $1}')
           cd /root/ptp-operator/scripts
@@ -351,7 +358,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: ptp-artifacts-${{ matrix.mode }}
+          name: ptp-artifacts-${{ matrix.mode }}${{ matrix.auth && '-auth' || '' }}
           path: /tmp/artifacts/
           if-no-files-found: ignore
 

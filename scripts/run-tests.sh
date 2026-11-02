@@ -15,8 +15,11 @@
 #                                   When provided, must-gather runs for oc mode and on failure.
 #
 # Environment:
+# Environment:
 #   GNSS_SIM_DEPLOY=auto|on|off     Deploy gnss-sim for tgm/tgmoc/tgmbc (default: auto =
 #                                   only when a Kind netdevsim cluster is detected).
+#   PTP_AUTH_ENABLED=true          Run tests with PTP authentication enabled
+#                                  (applies test-config/ptp-security.yaml).
 #
 set -euo pipefail
 
@@ -189,6 +192,12 @@ on_exit() {
   fi
 }
 trap on_exit EXIT
+
+export PTP_AUTH_ENABLED="${PTP_AUTH_ENABLED:-false}"
+if [[ "${PTP_AUTH_ENABLED}" == "true" ]]; then
+  echo "PTP authentication enabled, applying ptp-security-conf Secret"
+  kubectl apply -f "${SCRIPT_DIR}/test-config/ptp-security.yaml"
+fi
 
 systemctl stop chronyd 2>/dev/null || systemctl stop chrony 2>/dev/null || true
 
@@ -368,10 +377,4 @@ for mode in "${TEST_MODES[@]}"; do
     break
   fi
 done
-
-# Run tests with authentication enabled
-# tests with auth will be enabled once the ci-github tests can last more than 1 hour
-# kubectl apply -f test-config/ptp-security.yaml
-# PTP_AUTH_ENABLED=true PTP_TEST_MODE=oc ginkgo --skip=".*The interfaces supporting ptp can be discovered correctly.*" --skip="Negative - run pmc in a new unprivileged pod on the slave node.*" -v --keep-going --output-dir=$JUNIT_OUTPUT_DIR --junit-report=$JUNIT_OUTPUT_FILE -v "$SUITE"/serial
-
 exit ${overall_exit}
