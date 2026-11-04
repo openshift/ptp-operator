@@ -268,28 +268,26 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 	data.Data["StorageType"] = DefaultStorageType
 	data.Data["EventApiVersion"] = DefaultApiVersion
 	// configure EventConfig
+	transportHost := ""
 	if defaultCfg.Spec.EventConfig == nil {
 		data.Data["EnableEventPublisher"] = false
 	} else {
 		data.Data["EnableEventPublisher"] = defaultCfg.Spec.EventConfig.EnableEventPublisher
-		data.Data["EventTransportHost"] = defaultCfg.Spec.EventConfig.TransportHost
-
-		if defaultCfg.Spec.EventConfig.EnableEventPublisher {
-			transportHost, e := r.EventTransportHostAvailabilityCheck(defaultCfg.Spec.EventConfig.TransportHost)
-			if e != nil {
-				return e
-			}
-			data.Data["EventTransportHost"] = transportHost
-			if defaultCfg.Spec.EventConfig.StorageType != "" {
-				data.Data["StorageType"] = defaultCfg.Spec.EventConfig.StorageType
-			}
-			if defaultCfg.Spec.EventConfig.ApiVersion != data.Data["EventApiVersion"] {
-				glog.Infof("Event API version is '%s', using version %s.",
-					defaultCfg.Spec.EventConfig.ApiVersion,
-					data.Data["EventApiVersion"])
-			}
+		transportHost = defaultCfg.Spec.EventConfig.TransportHost
+		if defaultCfg.Spec.EventConfig.StorageType != "" {
+			data.Data["StorageType"] = defaultCfg.Spec.EventConfig.StorageType
+		}
+		if defaultCfg.Spec.EventConfig.ApiVersion != data.Data["EventApiVersion"] {
+			glog.Infof("Event API version is '%s', using version %s.",
+				defaultCfg.Spec.EventConfig.ApiVersion,
+				data.Data["EventApiVersion"])
 		}
 	}
+	resolvedTransportHost, e := r.EventTransportHostAvailabilityCheck(transportHost)
+	if e != nil {
+		return e
+	}
+	data.Data["EventTransportHost"] = resolvedTransportHost
 
 	enabledPlugins := enabledPluginNames(defaultCfg)
 	data.Data["EnabledPlugins"] = enabledPlugins
@@ -328,21 +326,15 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 		}
 	}
 
-	if defaultCfg.Spec.EventConfig == nil {
-		return nil
-	}
-
-	if defaultCfg.Spec.EventConfig.EnableEventPublisher {
-		for _, node := range nodeList.Items {
-			data.Data["NodeName"] = strings.Split(node.Name, ".")[0]
-			objs, err = render.RenderTemplate(filepath.Join(names.ManifestDir, "linuxptp/event-service.yaml"), &data)
-			if err != nil {
-				return fmt.Errorf("failed to render event service manifest: %v", err)
-			}
-			for _, obj := range objs {
-				if err = apply.ApplyObject(ctx, r.Client, obj); err != nil {
-					return fmt.Errorf("failed to apply service object %v with err: %v", obj, err)
-				}
+	for _, node := range nodeList.Items {
+		data.Data["NodeName"] = strings.Split(node.Name, ".")[0]
+		objs, err = render.RenderTemplate(filepath.Join(names.ManifestDir, "linuxptp/event-service.yaml"), &data)
+		if err != nil {
+			return fmt.Errorf("failed to render event service manifest: %v", err)
+		}
+		for _, obj := range objs {
+			if err = apply.ApplyObject(ctx, r.Client, obj); err != nil {
+				return fmt.Errorf("failed to apply service object %v with err: %v", obj, err)
 			}
 		}
 	}
