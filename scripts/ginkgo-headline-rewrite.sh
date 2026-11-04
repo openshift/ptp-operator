@@ -12,7 +12,7 @@
 
 set -euo pipefail
 
-SPEC_DONE_SEP='------------------------------'
+SPEC_SEP='━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'
 
 strip_ansi() {
 	LC_ALL=C printf '%s' "$1" | LC_ALL=C sed -E $'s/\033\[[0-9;]*[A-Za-z]//g'
@@ -93,6 +93,27 @@ status_rank() {
 	esac
 }
 
+# Bold bright-white for START/DONE labels; magenta for STEP labels (avoids
+# clash with logrus INFO, typically cyan). Test names use bold dark orange
+# (256-color 166) — readable on white and still visible on dark. Honors NO_COLOR.
+bold_text() {
+	local text="$1"
+	if [[ -n "${NO_COLOR:-}" ]]; then
+		printf '%s' "$text"
+		return
+	fi
+	printf '\033[1;97m%s\033[0m' "$text"
+}
+
+name_colored() {
+	local text="$1"
+	if [[ -n "${NO_COLOR:-}" ]]; then
+		printf '%s' "$text"
+		return
+	fi
+	printf '\033[1;38;5;166m%s\033[0m' "$text"
+}
+
 status_colored() {
 	local word="$1"
 	if [[ -n "${NO_COLOR:-}" ]]; then
@@ -100,17 +121,51 @@ status_colored() {
 		return
 	fi
 	case "$word" in
-	PASSED) printf '\033[32m%s\033[0m' "$word" ;;
-	FAILED) printf '\033[31m%s\033[0m' "$word" ;;
-	PENDING) printf '\033[33m%s\033[0m' "$word" ;;
-	SKIPPED) printf '\033[34m%s\033[0m' "$word" ;;
-	*) printf '%s' "$word" ;;
+	PASSED) printf '\033[1;32m%s\033[0m' "$word" ;;
+	FAILED) printf '\033[1;31m%s\033[0m' "$word" ;;
+	PENDING) printf '\033[1;33m%s\033[0m' "$word" ;;
+	SKIPPED) printf '\033[1;34m%s\033[0m' "$word" ;;
+	*) printf '\033[1m%s\033[0m' "$word" ;;
 	esac
+}
+
+# Ginkgo By() lines look like: "  STEP: <content> @ <timestamp>"
+is_step_line() {
+	local plain="$1"
+	[[ "$plain" =~ ^[[:space:]]*STEP:[[:space:]] ]]
+}
+
+print_step_line() {
+	local plain="$1"
+	if [[ -n "${NO_COLOR:-}" ]]; then
+		printf '%s\n' "$plain"
+		return
+	fi
+	# Keep indent, color "STEP:" magenta bold, bold the step content, dim timestamp.
+	local indent content rest
+	indent="${plain%%STEP:*}"
+	rest="${plain#"${indent}STEP:"}"
+	rest="${rest#"${rest%%[![:space:]]*}"}"
+	if [[ "$rest" =~ ^(.*)[[:space:]]+@[[:space:]]+(.+)$ ]]; then
+		content="${BASH_REMATCH[1]}"
+		printf '%s\033[1;35mSTEP:\033[0m \033[1;97m%s\033[0m \033[90m@ %s\033[0m\n' \
+			"$indent" "$content" "${BASH_REMATCH[2]}"
+	else
+		printf '%s\033[1;35mSTEP:\033[0m \033[1;97m%s\033[0m\n' "$indent" "$rest"
+	fi
 }
 
 print_spec_start() {
 	local name="$1"
-	printf '▶ START  %s\n' "$name"
+	if [[ "$first_spec" == true ]]; then
+		printf '%s\n%s\n%s\n' "${SPEC_SEP}" "${SPEC_SEP}" "${SPEC_SEP}"
+		first_spec=false
+	fi
+	printf '🟢 '
+	bold_text "START"
+	printf '  '
+	name_colored "$name"
+	printf '\n'
 }
 
 release_queued_start() {
@@ -127,10 +182,20 @@ release_queued_start() {
 print_spec_done() {
 	local name="$1"
 	local st="$2"
-	printf '■ DONE   %s  ' "$name"
+	done_icon='✅'
+	case "$st" in
+		FAILED)  done_icon='❌' ;;
+		SKIPPED) done_icon='⏭️ ' ;;
+		PENDING) done_icon='⏸️ ' ;;
+	esac
+	printf '%s ' "$done_icon"
+	bold_text "DONE"
+	printf '   '
+	name_colored "$name"
+	printf '  '
 	status_colored "$st"
 	printf '\n'
-	printf '%s\n' "${SPEC_DONE_SEP}"
+	printf '%s\n%s\n%s\n' "${SPEC_SEP}" "${SPEC_SEP}" "${SPEC_SEP}"
 	release_queued_start
 }
 
@@ -150,6 +215,7 @@ flush_spec_done() {
 }
 
 have_spec=false
+first_spec=true
 spec_name=""
 status=""
 queued_headline=""
@@ -188,6 +254,10 @@ while IFS= read -r line || [[ -n "${line}" ]]; do
 	fi
 
 	if is_ginkgo_emit_skip_line "$plain" || is_ginkgo_emit_pending_line "$plain"; then
+		continue
+	fi
+	if is_step_line "$plain"; then
+		print_step_line "$plain"
 		continue
 	fi
 	printf '%s\n' "$line"
