@@ -18,6 +18,8 @@ nodes:
     extraMounts:
       - hostPath: /sys/bus/netdevsim
         containerPath: /sys/bus/netdevsim
+      - hostPath: /sys/bus/pci/devices
+        containerPath: /sys/bus/pci/devices
       - hostPath: /dev
         containerPath: /dev
       - hostPath: /root/registry
@@ -27,6 +29,8 @@ nodes:
     extraMounts:
       - hostPath: /sys/bus/netdevsim
         containerPath: /sys/bus/netdevsim
+      - hostPath: /sys/bus/pci/devices
+        containerPath: /sys/bus/pci/devices
       - hostPath: /dev
         containerPath: /dev
       - hostPath: /root/registry
@@ -36,6 +40,8 @@ nodes:
     extraMounts:
       - hostPath: /sys/bus/netdevsim
         containerPath: /sys/bus/netdevsim
+      - hostPath: /sys/bus/pci/devices
+        containerPath: /sys/bus/pci/devices
       - hostPath: /dev
         containerPath: /dev
       - hostPath: /root/registry

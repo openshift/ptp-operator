@@ -63,7 +63,15 @@ func Enable() bool {
 	if eventMode, _ := strconv.ParseBool(os.Getenv("ENABLE_PTP_EVENT")); eventMode {
 		return true
 	}
-	return ptphelper.IsPTPOperatorVersionAtLeast("5.1")
+	return ptphelper.IsPTPOperatorVersionAtLeast(cepV2MinOperatorVersion)
+}
+
+// cepV2MinOperatorVersion is the first PTP operator version that ships CEPv2
+const cepV2MinOperatorVersion = "5.1"
+
+// IsCEPV2 reports whether the running cloud-event-proxy is CEPv2, not CEPv1.
+func IsCEPV2() bool {
+	return ptphelper.IsPTPOperatorVersionAtLeast(cepV2MinOperatorVersion)
 }
 
 // IsV1RegressionNeeded returns true when we need to test both v1 and v2 event API
@@ -620,6 +628,24 @@ func MonitorPodLogsRegex() (term chan bool, err error) {
 	return term, nil
 }
 
+// consumerPushedEventMarker is the log line the consumer app writes for each
+// event pushed to it by the publisher (see the regex used in MonitorPodLogsRegex).
+const consumerPushedEventMarker = "received event"
+
+// ConsumerPushedEventCount returns how many pushed-event ("received event")
+// entries are currently in the subscribed consumer's log, optionally limited to
+// entries at/after since (pass the zero time to count the whole log).
+//
+// It is used to take a baseline before a cloud-event-proxy restart and then
+// detect newly delivered pushes afterwards via a count delta. Comparing a
+// before/after count from the same log stream is immune to clock skew between
+// the test runner and the node, unlike a timestamp-boundary check.
+func ConsumerPushedEventCount(since time.Time) (int, error) {
+	return pods.CountPodLogMatchesSince(
+		ConsumerNamespace, ConsumerPodName, ConsumerContainerName,
+		consumerPushedEventMarker, true /*isLiteralText*/, since)
+}
+
 // PushInitialEvent scans consumer logs for a single event type's CurrentState
 // and publishes it to PubSub. For multiple topics, prefer PushInitialEvents.
 func PushInitialEvent(eventType string, timeout time.Duration) error {
@@ -828,6 +854,17 @@ func ValueByDataType(values exports.StoredEventValues, dataType string) (interfa
 	suffix := "/" + dataType
 	for key, val := range values {
 		if strings.HasSuffix(key, suffix) || key == dataType {
+			return val, true
+		}
+	}
+	return nil, false
+}
+
+func ValueByInterfaceAndDataType(values exports.StoredEventValues, iface, dataType string) (interface{}, bool) {
+	ifaceSegment := "/" + iface + "/"
+	suffix := "/" + dataType
+	for key, val := range values {
+		if strings.Contains(key, ifaceSegment) && strings.HasSuffix(key, suffix) {
 			return val, true
 		}
 	}

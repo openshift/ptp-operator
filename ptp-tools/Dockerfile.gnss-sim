@@ -1,0 +1,8 @@
+FROM docker.io/golang:1.25.7 AS builder
+WORKDIR /build
+COPY ptp-tools/gnss-sim/ .
+RUN CGO_ENABLED=0 go build -o /gnss-sim .
+
+FROM quay.io/centos/centos:stream9
+COPY --from=builder /gnss-sim /usr/local/bin/gnss-sim
+ENTRYPOINT ["/usr/local/bin/gnss-sim"]

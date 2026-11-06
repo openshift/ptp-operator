@@ -15,7 +15,7 @@ keeping log lines as `CLOCK_REALTIME` so cloud-event-proxy metrics/events work.
 ## Activation
 
 1. Build/load netdevsim-dkms modules.
-2. Bring up Kind + topology (`configSwitch2.sh`).
+2. Bring up Kind + topology (`configServers.sh`).
 3. Run `create-vrt-clocks.sh` (writes `/var/run/ptp/vrt/device` per node → pod path `/var/run/vrt/device`).
 4. linuxptp image must contain the shim + wrapper (see `../../ptp-tools/Dockerfile.lptpd`).
 5. Tests: `run-tests.sh` sets `DisableAllSlaveRTUpdate: false` when `DKMS_MODE=true`

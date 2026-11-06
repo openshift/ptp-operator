@@ -5,7 +5,7 @@ export DKMS_MODE="${DKMS_MODE:-false}"
 # Stream child command output live (default: quiet, dump log only on failure).
 # Override with --verbose or RUN_ON_VM_VERBOSE=true|1|yes.
 RUN_ON_VM_VERBOSE="${RUN_ON_VM_VERBOSE:-false}"
-TEST_MODES="oc,bc,dualnicbc,dualnicbcha,dualfollower"
+TEST_MODES="oc,bc,dualnicbc,dualnicbcha,dualfollower,tgm,tgmoc,tgmbc"
 RUN_PHASE="all"
 REGISTRY_IP=""
 TARBALL=""
@@ -134,6 +134,20 @@ run_quiet_with_log_dump_on_failure() {
   echo -e "${COLOR_ERR}---- END ${log_tag} LOG ----${COLOR_RESET} ${COLOR_GRAY}@ $(log_ts)${COLOR_RESET}"
   rm -f "${log_file}"
   return "${rc}"
+}
+
+# Dump the state of a workload and the namespace it lives in, for diagnosing a
+# rollout that never became ready. Best-effort: every command is allowed to fail
+# so one missing object does not hide the rest.
+dump_rollout_diagnostics() {
+  local kind="$1" name="$2" ns="$3"
+  echo -e "${COLOR_ERR}---- BEGIN ${kind}/${name} diagnostics ----${COLOR_RESET} ${COLOR_GRAY}@ $(log_ts)${COLOR_RESET}"
+  run_ind kubectl get "${kind}" "${name}" -n "${ns}" -o wide || true
+  run_ind kubectl get pods -n "${ns}" -o wide || true
+  run_ind kubectl describe "${kind}" "${name}" -n "${ns}" || true
+  # Recent namespace events surface image-pull, scheduling and quota failures.
+  run_ind kubectl get events -n "${ns}" --sort-by=.lastTimestamp || true
+  echo -e "${COLOR_ERR}---- END ${kind}/${name} diagnostics ----${COLOR_RESET} ${COLOR_GRAY}@ $(log_ts)${COLOR_RESET}"
 }
 
 declare -A STEP_ROWS_DONE
@@ -294,6 +308,8 @@ run_quiet_with_log_dump_on_failure "install-tools" bash ./install-tools.sh
 export BASHRCSOURCED=1
 PS1="${PS1:-}" source ~/.bashrc
 
+# Kill leftover gnss-sim from a previous run (match --api-port like configGNSS.sh)
+pkill -f 'gnss-sim.*--api-port' || true
 
 # ── Images phase (--images) ──────────────────────────────────────────
 if [[ "$RUN_PHASE" == "images" ]]; then
@@ -314,10 +330,8 @@ fi
 # ── Images + deploy (default) ───────────────────────────────────────
 if [[ "$RUN_PHASE" == "all" ]]; then
 
-    step "Deleting existing kind cluster and containers"
+    step "Deleting existing kind cluster"
     run_quiet_with_log_dump_on_failure "kind-delete-cluster" kind delete cluster --name kind-netdevsim || true
-
-    run_quiet_with_log_dump_on_failure "podman-rm-switch1" podman rm -f switch1 || true
 
     export IMG_PREFIX="$VM_IP/test"
 
@@ -357,7 +371,7 @@ if [[ "$RUN_PHASE" == "load" ]]; then
 
     step "Retagging images for local registry"
     # Derive the tag list from ptp-tools/Makefile VALUES so it stays in sync
-    # with what the build/save phase produced (e.g. cepv2).
+    # with what the build/save phase produced
     read_ptp_tool_images
     TAGS=("${_ptp_tool_images[@]}")
     for t in "${TAGS[@]}"; do
@@ -394,9 +408,8 @@ if [[ "$RUN_PHASE" == "all" || "$RUN_PHASE" == "deploy" ]]; then
         export IMG_PREFIX="${IMG_PREFIX:-$VM_IP/test}"
     fi
 
-    step "Deleting kind cluster and containers"
+    step "Deleting existing kind cluster"
     run_quiet_with_log_dump_on_failure "kind-delete-cluster" kind delete cluster --name kind-netdevsim || true
-    run_quiet_with_log_dump_on_failure "podman-rm-switch1" podman rm -f switch1 || true
 
     step "Starting kind cluster"
     run_step_rows_begin "Building kind cluster..."
@@ -433,7 +446,16 @@ if [[ "$RUN_PHASE" == "all" || "$RUN_PHASE" == "deploy" ]]; then
     run_quiet_with_log_dump_on_failure "retry-patch-ptpoperatorconfig" ./retry.sh 60 5 kubectl patch ptpoperatorconfig default -nopenshift-ptp --type=merge --patch '{"spec": {"ptpEventConfig": {"enableEventPublisher": true, "transportHost": "http://ptp-event-publisher-service-NODE_NAME.openshift-ptp.svc.cluster.local:9043", "storageType": "local-sc"}, "daemonNodeSelector": {"node-role.kubernetes.io/worker": ""}}}'
 
     step "Waiting for linuxptp-daemon rollout"
-    run_quiet_with_log_dump_on_failure "retry-rollout-status" ./retry.sh 30 3 kubectl rollout status ds linuxptp-daemon -n openshift-ptp
+    # Bound each rollout-status attempt with --timeout so it cannot block
+    # forever (e.g. a DaemonSet pod stuck Pending/ImagePullBackOff); retry.sh
+    # re-runs until its own budget is spent, covering the window where the
+    # operator has not yet created the DaemonSet. On failure, dump the
+    # DaemonSet, pods and events so the cause is visible without a re-run.
+    if ! run_quiet_with_log_dump_on_failure "retry-rollout-status" \
+        ./retry.sh 180 5 kubectl rollout status ds linuxptp-daemon -n openshift-ptp --timeout=30s; then
+      dump_rollout_diagnostics ds linuxptp-daemon openshift-ptp
+      exit 1
+    fi
 
     step "Fixing Prometheus monitoring"
     run_quiet_with_log_dump_on_failure "fix-ptp-prometheus-monitoring" ./fix-ptp-prometheus-monitoring.sh

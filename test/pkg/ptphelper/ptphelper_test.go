@@ -53,6 +53,19 @@ func TestProfileNameLogPattern(t *testing.T) {
 	}
 }
 
+func TestPtp4lLogTagPattern(t *testing.T) {
+	line := "ptp4l[792.691]: [ptp4l.0.config:5] selected best master clock 001122.fffe.330102\n"
+	for _, logID := range []string{"ptp4l.0.config:{level}", "ptp4l.0.config"} {
+		re, err := regexp.Compile(`(?m)\[` + ptp4lLogTagPattern(logID) + `\].* selected best master clock (.*)`)
+		if err != nil {
+			t.Fatalf("compile %q: %v", logID, err)
+		}
+		if !re.MatchString(line) {
+			t.Errorf("tag pattern for %q did not match %q", logID, line)
+		}
+	}
+}
+
 func TestGetProfileName(t *testing.T) {
 	t.Run("returns CR profile name without qualifying", func(t *testing.T) {
 		profileName := pkg.PtpTempPolicyName
@@ -69,6 +82,24 @@ func TestGetProfileName(t *testing.T) {
 		}
 		if got != pkg.PtpTempPolicyName {
 			t.Errorf("GetProfileName() = %q, want %q", got, pkg.PtpTempPolicyName)
+		}
+	})
+
+	t.Run("accepts WPC grandmaster profile", func(t *testing.T) {
+		profileName := pkg.PtpWPCGrandMasterPolicyName
+		config := &ptpv1.PtpConfig{
+			ObjectMeta: metav1.ObjectMeta{Name: pkg.PtpWPCGrandMasterPolicyName},
+			Spec: ptpv1.PtpConfigSpec{
+				Profile: []ptpv1.PtpProfile{{Name: &profileName}},
+			},
+		}
+
+		got, err := GetProfileName(config, false)
+		if err != nil {
+			t.Fatalf("GetProfileName: %v", err)
+		}
+		if got != pkg.PtpWPCGrandMasterPolicyName {
+			t.Errorf("GetProfileName() = %q, want %q", got, pkg.PtpWPCGrandMasterPolicyName)
 		}
 	})
 

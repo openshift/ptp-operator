@@ -80,7 +80,6 @@ func Configs() {
 func Secrets() {
 	testSecrets := []string{
 		pkg.PtpTestVolumeSecretName,
-		pkg.PtpSecurityMismatchSecretName,
 	}
 
 	for _, secretName := range testSecrets {

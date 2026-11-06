@@ -14,6 +14,13 @@
 #   --must-gather-image <url>       Full image URL for the ptp must-gather image.
 #                                   When provided, must-gather runs for oc mode and on failure.
 #
+# Environment:
+# Environment:
+#   GNSS_SIM_DEPLOY=auto|on|off     Deploy gnss-sim for tgm/tgmoc/tgmbc (default: auto =
+#                                   only when a Kind netdevsim cluster is detected).
+#   PTP_AUTH_ENABLED=true          Run tests with PTP authentication enabled
+#                                  (applies test-config/ptp-security.yaml).
+#
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -186,36 +193,11 @@ on_exit() {
 }
 trap on_exit EXIT
 
-# Function to disable switch1 authentication
-disable_switch_auth() {
-    echo "Disabling switch1 authentication..."
-    podman cp ptpswitchconfig.cfg switch1:/etc/ptp4l.conf
-    podman exec switch1 systemctl restart ptp4l
-    echo "✓ Switch1 authentication disabled"
-}
-
-# Function to enable switch1 authentication
-enable_switch_auth() {
-    echo "Configuring switch1 with PTP authentication..."
-
-    # 1. Copy auth-enabled ptp4l.conf to switch1
-    podman cp test-config/ptpswitchconfig_auth.cfg switch1:/etc/ptp4l.conf
-
-    # 2. Create directory and copy security file
-    podman exec switch1 mkdir -p /etc/ptp-secret-mount/ptp-security-conf
-    podman cp test-config/ptp-security.conf switch1:/etc/ptp-secret-mount/ptp-security-conf/ptp-security.conf
-
-    # 3. Restart ptp4l with authentication enabled
-    podman exec switch1 systemctl restart ptp4l || {
-    echo "WARNING: systemctl restart failed, trying pkill..."
-    podman exec switch1 pkill ptp4l 2>/dev/null || true
-    sleep 2
-}
-
-    echo "✓ Switch1 configured with authentication"
-}
-
-disable_switch_auth
+export PTP_AUTH_ENABLED="${PTP_AUTH_ENABLED:-false}"
+if [[ "${PTP_AUTH_ENABLED}" == "true" ]]; then
+  echo "PTP authentication enabled, applying ptp-security-conf Secret"
+  kubectl apply -f "${SCRIPT_DIR}/test-config/ptp-security.yaml"
+fi
 
 systemctl stop chronyd 2>/dev/null || systemctl stop chrony 2>/dev/null || true
 
@@ -268,12 +250,122 @@ run_ginkgo_suite() {
   return "${ginkgo_rc}"
 }
 
+# gnss-sim (and GNSS_SIM_* env) is T-GM only. Exporting GNSS_SIM_IFACE* for
+# OC/BC/DualNIC* lets the WPC L2 overlay / solver pin DualNICBC onto worker1
+# GNSS NICs, and CLOCK_REALTIME never locks on the BC. Deploy the pod once
+# before the mode loop so we do not bounce it between suites.
+is_telco_gm_mode() {
+  case "${1,,}" in
+    tgm|tgmoc|tgmbc) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+modes_include_telco_gm() {
+  local mode
+  for mode in "${TEST_MODES[@]}"; do
+    if is_telco_gm_mode "${mode}"; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Deploy gnss-sim once for the Kind/netdevsim cluster (idempotent). Does not
+# export GNSS_SIM_IFACE* — those stay T-GM-mode-only via export_gnss_sim_env.
+#
+# GNSS_SIM_DEPLOY controls whether the simulator is installed:
+#   auto (default) — deploy only when a Kind netdevsim cluster is detected
+#                    and --mode includes tgm/tgmoc/tgmbc
+#   on|true|1|yes  — force deploy (even on baremetal) when T-GM modes are present
+#   off|false|0|no — never deploy (baremetal / hardware GNSS)
+deploy_gnss_sim() {
+  export GNSS_SIM_API_PORT="${GNSS_SIM_API_PORT:-9200}"
+
+  # Derive GNSS_SIM_IMAGE from the linuxptp-daemon image if not already set,
+  # by replacing the tag. This handles direct invocation of run-tests.sh.
+  if [ -z "${GNSS_SIM_IMAGE:-}" ] && [ -n "${LINUXPTP_DAEMON_IMAGE:-}" ]; then
+    export GNSS_SIM_IMAGE="${LINUXPTP_DAEMON_IMAGE%:*}:gnss-sim"
+  fi
+
+  bash "${SCRIPT_DIR}/configGNSS.sh"
+}
+
+is_kind_netdevsim_cluster() {
+  kubectl get nodes -o name 2>/dev/null | grep -q 'node/kind-netdevsim'
+}
+
+should_deploy_gnss_sim() {
+  if ! modes_include_telco_gm; then
+    return 1
+  fi
+  local mode="${GNSS_SIM_DEPLOY:-auto}"
+  case "${mode,,}" in
+    on|true|1|yes)
+      return 0
+      ;;
+    off|false|0|no)
+      return 1
+      ;;
+    auto|"")
+      is_kind_netdevsim_cluster
+      ;;
+    *)
+      echo "Error: invalid GNSS_SIM_DEPLOY=${mode} (use auto|on|off)" >&2
+      exit 1
+      ;;
+  esac
+}
+
+# Export GNSS_SIM_* for the test framework for a T-GM mode run. Assumes the
+# pod was already deployed by deploy_gnss_sim.
+export_gnss_sim_env() {
+  export GNSS_SIM_API_PORT="${GNSS_SIM_API_PORT:-9200}"
+  export GNSS_SIM_API_HOST="$(cat /tmp/gnss-sim-api-host 2>/dev/null || echo localhost)"
+
+  GNSS_KERNEL_DEV=""
+  for g in /dev/gnss*; do
+    [ -c "$g" ] && GNSS_KERNEL_DEV="$g" && break
+  done
+  if [ -n "$GNSS_KERNEL_DEV" ]; then
+    export GNSS_SIM_NMEA_DEVICE="${GNSS_SIM_NMEA_DEVICE:-$(basename "$GNSS_KERNEL_DEV")}"
+  else
+    # Must match gnss-sim --pty-links and the daemon's /var/run/ptp mount.
+    export GNSS_SIM_NMEA_DEVICE="${GNSS_SIM_NMEA_DEVICE:-/var/run/ptp/ttyGNSS_TS2PHC}"
+  fi
+  export GNSS_SIM_IFACE1="${GNSS_SIM_IFACE1:-ens1f0}"
+  export GNSS_SIM_IFACE2="${GNSS_SIM_IFACE2:-ens1f1}"
+}
+
+clear_gnss_sim_env() {
+  unset GNSS_SIM_API_HOST GNSS_SIM_NMEA_DEVICE GNSS_SIM_IFACE1 GNSS_SIM_IFACE2
+}
+
+GNSS_SIM_DEPLOYED=0
+if should_deploy_gnss_sim; then
+  echo "Deploying gnss-sim once before mode loop (GNSS_SIM_DEPLOY=${GNSS_SIM_DEPLOY:-auto})"
+  deploy_gnss_sim
+  GNSS_SIM_DEPLOYED=1
+elif modes_include_telco_gm; then
+  echo "Skipping gnss-sim deploy (GNSS_SIM_DEPLOY=${GNSS_SIM_DEPLOY:-auto}; Kind/netdevsim not detected — use GNSS_SIM_DEPLOY=on to force)"
+else
+  echo "Skipping gnss-sim deploy (no tgm/tgmoc/tgmbc in --mode)"
+fi
+
+overall_exit=0
 for mode in "${TEST_MODES[@]}"; do
+  if is_telco_gm_mode "${mode}" && [[ "${GNSS_SIM_DEPLOYED}" -eq 1 ]]; then
+    echo "Exporting GNSS_SIM_* env for T-GM mode ${mode}"
+    export_gnss_sim_env
+  else
+    echo "Clearing GNSS_SIM_* env for mode ${mode} (T-GM only: tgm, tgmoc, tgmbc)"
+    clear_gnss_sim_env
+  fi
   if [[ "${RUN_KIND}" == "serial" || "${RUN_KIND}" == "both" ]]; then
-    run_ginkgo_suite "${mode}" "serial"
+    run_ginkgo_suite "${mode}" "serial" || overall_exit=1
   fi
   if [[ "${RUN_KIND}" == "parallel" || "${RUN_KIND}" == "both" ]]; then
-    run_ginkgo_suite "${mode}" "parallel"
+    run_ginkgo_suite "${mode}" "parallel" || overall_exit=1
   fi
 done
 
@@ -285,11 +377,4 @@ for mode in "${TEST_MODES[@]}"; do
     break
   fi
 done
-
-# Configure switch1 for authentication testing
-# kubectl apply -f test-config/ptp-security.yaml
-# enable_switch_auth
-
-# Run tests with authentication enabled
-# tests with auth will be enabled once the ci-github tests can last more than 1 hour
-# PTP_AUTH_ENABLED=true PTP_TEST_MODE=oc ginkgo --skip=".*The interfaces supporting ptp can be discovered correctly.*" --skip="Negative - run pmc in a new unprivileged pod on the slave node.*" -v --keep-going --output-dir=$JUNIT_OUTPUT_DIR --junit-report=$JUNIT_OUTPUT_FILE -v "$SUITE"/serial
+exit ${overall_exit}

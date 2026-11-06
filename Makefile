@@ -9,7 +9,7 @@ endif
 # To re-generate a bundle for another specific version without changing the standard setup, you can:
 # - use the VERSION as arg of the bundle target (e.g make bundle VERSION=0.0.2)
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
-VERSION ?= 5.0
+VERSION ?= 5.1
 
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "preview,fast,stable")
@@ -275,13 +275,6 @@ update-env-yaml: ## Update config/manager/env.yaml with image variables if provi
 				sed -i '' '/- name: SIDECAR_EVENT_IMAGE$$/,/value:/s|value: ".*"|value: "$(SIDECAR_EVENT_IMAGE)"|' config/manager/env.yaml; \
 			else \
 				sed -i '/- name: SIDECAR_EVENT_IMAGE$$/,/value:/s|value: ".*"|value: "$(SIDECAR_EVENT_IMAGE)"|' config/manager/env.yaml; \
-			fi; \
-		fi; \
-		if [ -n "$(EVENT_PROXY_IMAGE)" ]; then \
-			if [ "$(OS)" = "Darwin" ]; then \
-				sed -i '' '/- name: EVENT_PROXY_IMAGE$$/,/value:/s|value: ".*"|value: "$(EVENT_PROXY_IMAGE)"|' config/manager/env.yaml; \
-			else \
-				sed -i '/- name: EVENT_PROXY_IMAGE$$/,/value:/s|value: ".*"|value: "$(EVENT_PROXY_IMAGE)"|' config/manager/env.yaml; \
 			fi; \
 		fi; \
 	fi
