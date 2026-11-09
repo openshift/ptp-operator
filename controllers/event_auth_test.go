@@ -70,6 +70,7 @@ func authResourceExists(t *testing.T, r *PtpOperatorConfigReconciler, obj client
 // ClusterRoleBinding - are torn down rather than orphaned.
 func TestSyncEventAuthDisabledDeletesResources(t *testing.T) {
 	seed := []client.Object{
+		&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "ptp-event-publisher-service-ca", Namespace: authTestNamespace}},
 		&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "ptp-event-publisher-ca-bundle", Namespace: authTestNamespace}},
 		&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "ptp-event-publisher-server", Namespace: authTestNamespace}},
 		&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "ptp-event-publisher-auth", Namespace: authTestNamespace}},
@@ -79,6 +80,7 @@ func TestSyncEventAuthDisabledDeletesResources(t *testing.T) {
 
 	assert.NoError(t, r.syncEventAuth(context.Background(), authRenderData(), false))
 
+	assert.False(t, authResourceExists(t, r, &corev1.ConfigMap{}, "ptp-event-publisher-service-ca", authTestNamespace))
 	assert.False(t, authResourceExists(t, r, &corev1.ConfigMap{}, "ptp-event-publisher-ca-bundle", authTestNamespace))
 	assert.False(t, authResourceExists(t, r, &corev1.Service{}, "ptp-event-publisher-server", authTestNamespace))
 	assert.False(t, authResourceExists(t, r, &corev1.ConfigMap{}, "ptp-event-publisher-auth", authTestNamespace))
@@ -95,6 +97,7 @@ func TestSyncEventAuthEnabledCreatesResources(t *testing.T) {
 
 	assert.NoError(t, r.syncEventAuth(context.Background(), authRenderData(), true))
 
+	assert.True(t, authResourceExists(t, r, &corev1.ConfigMap{}, "ptp-event-publisher-service-ca", authTestNamespace))
 	assert.True(t, authResourceExists(t, r, &corev1.ConfigMap{}, "ptp-event-publisher-ca-bundle", authTestNamespace))
 	assert.True(t, authResourceExists(t, r, &corev1.Service{}, "ptp-event-publisher-server", authTestNamespace))
 	assert.True(t, authResourceExists(t, r, &corev1.ConfigMap{}, "ptp-event-publisher-auth", authTestNamespace))
@@ -105,6 +108,7 @@ func TestSyncEventAuthEnabledCreatesResources(t *testing.T) {
 // once authentication has been enabled.
 func seedAuthResources() []client.Object {
 	return []client.Object{
+		&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "ptp-event-publisher-service-ca", Namespace: authTestNamespace}},
 		&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "ptp-event-publisher-ca-bundle", Namespace: authTestNamespace}},
 		&corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "ptp-event-publisher-server", Namespace: authTestNamespace}},
 		&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "ptp-event-publisher-auth", Namespace: authTestNamespace}},
@@ -115,6 +119,7 @@ func seedAuthResources() []client.Object {
 // assertAuthResourcesGone asserts none of the event-auth objects remain.
 func assertAuthResourcesGone(t *testing.T, r *PtpOperatorConfigReconciler) {
 	t.Helper()
+	assert.False(t, authResourceExists(t, r, &corev1.ConfigMap{}, "ptp-event-publisher-service-ca", authTestNamespace))
 	assert.False(t, authResourceExists(t, r, &corev1.ConfigMap{}, "ptp-event-publisher-ca-bundle", authTestNamespace))
 	assert.False(t, authResourceExists(t, r, &corev1.Service{}, "ptp-event-publisher-server", authTestNamespace))
 	assert.False(t, authResourceExists(t, r, &corev1.ConfigMap{}, "ptp-event-publisher-auth", authTestNamespace))
@@ -177,11 +182,12 @@ func getConfigMapData(t *testing.T, r *PtpOperatorConfigReconciler, name string)
 // key, which is what removes the scale-operator-to-0 workaround.
 func TestSyncEventCABundleCombinesCAs(t *testing.T) {
 	r := newAuthTestReconciler(t,
-		// Bundle CM as it looks once the Service CA operator has injected its cert.
+		// Service CA input after injection.
 		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{Name: names.EventPublisherCABundleConfigMapName, Namespace: authTestNamespace},
+			ObjectMeta: metav1.ObjectMeta{Name: names.EventPublisherServiceCAConfigMapName, Namespace: authTestNamespace},
 			Data:       map[string]string{names.ServiceCAKey: "SERVICE-CA-PEM"},
 		},
+		&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: names.EventPublisherCABundleConfigMapName, Namespace: authTestNamespace}},
 		// Out-of-band client CA published by e.g. make deploy-consumer.
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{Name: names.EventPublisherClientCAConfigMapName, Namespace: authTestNamespace},
@@ -193,8 +199,8 @@ func TestSyncEventCABundleCombinesCAs(t *testing.T) {
 
 	data := getConfigMapData(t, r, names.EventPublisherCABundleConfigMapName)
 	assert.Equal(t, "SERVICE-CA-PEM\nCLIENT-CA-PEM\n", data[names.EventPublisherCABundleKey])
-	// The injected key must be left untouched.
-	assert.Equal(t, "SERVICE-CA-PEM", data[names.ServiceCAKey])
+	assert.Equal(t, map[string]string{names.ServiceCAKey: "SERVICE-CA-PEM"},
+		getConfigMapData(t, r, names.EventPublisherServiceCAConfigMapName))
 }
 
 // TestSyncEventCABundleServiceCAOnly verifies that without a client CA the bundle
@@ -202,9 +208,10 @@ func TestSyncEventCABundleCombinesCAs(t *testing.T) {
 func TestSyncEventCABundleServiceCAOnly(t *testing.T) {
 	r := newAuthTestReconciler(t,
 		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{Name: names.EventPublisherCABundleConfigMapName, Namespace: authTestNamespace},
+			ObjectMeta: metav1.ObjectMeta{Name: names.EventPublisherServiceCAConfigMapName, Namespace: authTestNamespace},
 			Data:       map[string]string{names.ServiceCAKey: "SERVICE-CA-PEM"},
 		},
+		&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: names.EventPublisherCABundleConfigMapName, Namespace: authTestNamespace}},
 	)
 
 	assert.NoError(t, r.syncEventCABundle(context.Background()))
@@ -219,8 +226,9 @@ func TestSyncEventCABundleServiceCAOnly(t *testing.T) {
 func TestSyncEventCABundleWaitsForServiceCA(t *testing.T) {
 	r := newAuthTestReconciler(t,
 		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{Name: names.EventPublisherCABundleConfigMapName, Namespace: authTestNamespace},
+			ObjectMeta: metav1.ObjectMeta{Name: names.EventPublisherServiceCAConfigMapName, Namespace: authTestNamespace},
 		},
+		&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: names.EventPublisherCABundleConfigMapName, Namespace: authTestNamespace}},
 	)
 
 	assert.NoError(t, r.syncEventCABundle(context.Background()))
@@ -228,6 +236,27 @@ func TestSyncEventCABundleWaitsForServiceCA(t *testing.T) {
 	data := getConfigMapData(t, r, names.EventPublisherCABundleConfigMapName)
 	_, present := data[names.EventPublisherCABundleKey]
 	assert.False(t, present, "ca-bundle.crt must not be written before Service CA injection")
+}
+
+// TestMapCAConfigMapToRequest watches only external inputs. Watching the
+// operator-owned output would make every bundle update enqueue itself forever.
+func TestMapCAConfigMapToRequest(t *testing.T) {
+	r := &PtpOperatorConfigReconciler{}
+
+	for _, name := range []string{
+		names.EventPublisherServiceCAConfigMapName,
+		names.EventPublisherClientCAConfigMapName,
+	} {
+		requests := r.mapCAConfigMapToRequest(context.Background(), &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: names.Namespace},
+		})
+		assert.Len(t, requests, 1, "input ConfigMap %s must trigger reconciliation", name)
+	}
+
+	requests := r.mapCAConfigMapToRequest(context.Background(), &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: names.EventPublisherCABundleConfigMapName, Namespace: names.Namespace},
+	})
+	assert.Empty(t, requests, "operator-owned output must not trigger reconciliation")
 }
 
 // daemonSidecarArgs returns the args of the cloud-event-proxy container from a
@@ -330,6 +359,7 @@ func TestEventAuthEnabled(t *testing.T) {
 		}
 	}
 	assert.True(t, kinds["ConfigMap/ptp-event-publisher-ca-bundle"])
+	assert.True(t, kinds["ConfigMap/ptp-event-publisher-service-ca"])
 	assert.True(t, kinds["Service/ptp-event-publisher-server"])
 	assert.True(t, kinds["ConfigMap/ptp-event-publisher-auth"])
 	assert.True(t, kinds["ClusterRoleBinding/linuxptp-daemon-auth-delegator"])

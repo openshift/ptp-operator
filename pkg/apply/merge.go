@@ -517,16 +517,9 @@ func MergeServiceForUpdate(current, updated *uns.Unstructured) error {
 	return nil
 }
 
-// MergeConfigMapForUpdate preserves ConfigMap data populated by a party other
-// than the operator. The event-publisher CA bundle ConfigMap carries the
-// service.beta.openshift.io/inject-cabundle annotation, so the OpenShift Service
-// CA operator writes service-ca.crt into it, and the ptp-operator itself writes
-// the derived ca-bundle.crt (see syncEventCABundle). The bindata manifest for
-// this ConfigMap intentionally has no data, so a plain apply would wipe both keys
-// on every reconcile - the root cause of the old "scale the operator to 0"
-// workaround. Keeping existing keys the desired object does not set makes
-// re-applying the data-less template a no-op. Scoped by name so other ConfigMaps
-// whose data the operator fully owns (e.g. ptp-configmap) are unaffected.
+// MergeConfigMapForUpdate preserves the operator-derived ca-bundle.crt when the
+// data-less output template is reapplied. The injected Service CA lives in a
+// separate input ConfigMap so the two controllers never write the same object.
 func MergeConfigMapForUpdate(current, updated *uns.Unstructured) error {
 	gvk := updated.GroupVersionKind()
 	if gvk.Group != "" || gvk.Kind != "ConfigMap" {

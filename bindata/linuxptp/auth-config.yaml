@@ -1,21 +1,25 @@
 ---
-# CA bundle used to verify peer certificates for the event publisher's mTLS.
-# The OpenShift Service CA operator injects the cluster service CA into
-# service-ca.crt. All serving certificates minted below are signed by this CA,
-# so it is trusted for both the server certificate and Service CA-signed client
-# certificates. The ptp-operator additionally maintains a combined ca-bundle.crt
-# key (service-ca.crt ++ any client CA published in ptp-event-publisher-client-ca)
-# which cloud-event-proxy loads via caCertPath - see syncEventCABundle. This
-# manifest carries no data on purpose; MergeConfigMapForUpdate preserves the
-# injected and operator-derived keys across reconciles (removing the former
-# scale-operator-to-0 workaround).
+# Service CA operator-owned input. The operator reads service-ca.crt from this
+# ConfigMap but never writes it, preventing controller ownership conflicts.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ptp-event-publisher-service-ca
+  namespace: {{.Namespace}}
+  annotations:
+    service.beta.openshift.io/inject-cabundle: "true"
+  labels:
+    app: linuxptp-daemon
+---
+# Operator-owned output used by cloud-event-proxy to verify peer certificates.
+# The operator writes ca-bundle.crt as service-ca.crt plus any CA published in
+# ptp-event-publisher-client-ca. The manifest intentionally has no data;
+# MergeConfigMapForUpdate preserves the derived key across reconciles.
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: ptp-event-publisher-ca-bundle
   namespace: {{.Namespace}}
-  annotations:
-    service.beta.openshift.io/inject-cabundle: "true"
   labels:
     app: linuxptp-daemon
 ---

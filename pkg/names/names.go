@@ -33,11 +33,13 @@ const ManifestDir = "./bindata"
 
 // Event-publisher mTLS CA trust anchors.
 //
-// EventPublisherCABundleConfigMapName is the ConfigMap carrying the
-// service.beta.openshift.io/inject-cabundle annotation. The OpenShift Service CA
-// operator injects service-ca.crt into it; the ptp-operator maintains the
-// derived combined trust file (EventPublisherCABundleKey) that cloud-event-proxy
-// loads via caCertPath.
+// EventPublisherServiceCAConfigMapName is the Service CA operator-owned input.
+// Keeping this separate from the derived output avoids two controllers writing
+// the same ConfigMap and triggering an endless reconciliation loop.
+const EventPublisherServiceCAConfigMapName = "ptp-event-publisher-service-ca"
+
+// EventPublisherCABundleConfigMapName is the operator-owned output containing
+// the combined trust file that cloud-event-proxy loads via caCertPath.
 const EventPublisherCABundleConfigMapName = "ptp-event-publisher-ca-bundle"
 
 // EventPublisherClientCAConfigMapName is an optional operator-read input holding
@@ -57,7 +59,7 @@ const EventPublisherClientCAConfigMapName = "ptp-event-publisher-client-ca"
 const EventPublisherClientTLSSecretName = "ptp-event-publisher-client-tls"
 
 // ServiceCAKey is the key the OpenShift Service CA operator injects into
-// EventPublisherCABundleConfigMapName.
+// EventPublisherServiceCAConfigMapName.
 const ServiceCAKey = "service-ca.crt"
 
 // EventPublisherCABundleKey is the operator-owned combined trust file

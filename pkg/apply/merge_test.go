@@ -229,12 +229,9 @@ spec:
 	g.Expect(ip).To(Equal("cur"))
 }
 
-// TestMergeConfigMapPreservesInjectedData verifies the event-publisher CA bundle
-// ConfigMap keeps its externally-populated data (service-ca.crt injected by the
-// Service CA operator, ca-bundle.crt derived by the operator) when the data-less
-// bindata template is re-applied. This is the fix that removes the scale-to-0
-// workaround.
-func TestMergeConfigMapPreservesInjectedData(t *testing.T) {
+// TestMergeConfigMapPreservesDerivedData verifies the event-publisher CA bundle
+// keeps the operator-derived output when its data-less template is re-applied.
+func TestMergeConfigMapPreservesDerivedData(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	cur := UnstructuredFromYaml(t, `
@@ -243,7 +240,6 @@ kind: ConfigMap
 metadata:
   name: ptp-event-publisher-ca-bundle
 data:
-  service-ca.crt: INJECTED
   ca-bundle.crt: DERIVED`)
 
 	upd := UnstructuredFromYaml(t, `
@@ -258,7 +254,6 @@ metadata:
 	data, ok, err := uns.NestedStringMap(upd.Object, "data")
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(ok).To(BeTrue())
-	g.Expect(data).To(HaveKeyWithValue("service-ca.crt", "INJECTED"))
 	g.Expect(data).To(HaveKeyWithValue("ca-bundle.crt", "DERIVED"))
 }
 

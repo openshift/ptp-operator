@@ -400,7 +400,7 @@ func (r *PtpOperatorConfigReconciler) syncEventAuth(ctx context.Context, data *r
 }
 
 // syncEventCABundle maintains the combined trust anchor the event publisher uses
-// to verify mTLS peer certificates. The ptp-event-publisher-ca-bundle ConfigMap
+// to verify mTLS peer certificates. The ptp-event-publisher-service-ca ConfigMap
 // carries the service.beta.openshift.io/inject-cabundle annotation, so the
 // OpenShift Service CA operator writes service-ca.crt into it (trusting the
 // server certificate and any Service CA-signed client certs). A consumer that
@@ -411,15 +411,13 @@ func (r *PtpOperatorConfigReconciler) syncEventAuth(ctx context.Context, data *r
 // ConfigMap; this function folds it together with service-ca.crt into the
 // operator-owned ca-bundle.crt key that cloud-event-proxy loads via caCertPath.
 //
-// Building the bundle in the operator - instead of overwriting the injected
-// ConfigMap by hand - is what removes the previous "scale the operator to 0"
-// workaround: the derived key is operator-owned, so re-applying it is correct
-// rather than destructive, while the Service CA operator still owns
-// service-ca.crt (preserved across applies by MergeConfigMapForUpdate).
+// The Service CA input and derived output deliberately use different ConfigMaps.
+// This gives each controller exclusive ownership and prevents the Service CA
+// injection from triggering an endless operator reconciliation loop.
 func (r *PtpOperatorConfigReconciler) syncEventCABundle(ctx context.Context) error {
-	bundle := &corev1.ConfigMap{}
+	serviceCABundle := &corev1.ConfigMap{}
 	if err := r.Get(ctx, types.NamespacedName{
-		Namespace: names.Namespace, Name: names.EventPublisherCABundleConfigMapName}, bundle); err != nil {
+		Namespace: names.Namespace, Name: names.EventPublisherServiceCAConfigMapName}, serviceCABundle); err != nil {
 		if errors.IsNotFound(err) {
 			// Created by the auth manifest earlier in the same reconcile; it is
 			// populated on a later reconcile (the ConfigMap watch fires once the
@@ -429,7 +427,7 @@ func (r *PtpOperatorConfigReconciler) syncEventCABundle(ctx context.Context) err
 		return fmt.Errorf("failed to get event CA bundle configmap: %v", err)
 	}
 
-	serviceCA := strings.TrimSpace(bundle.Data[names.ServiceCAKey])
+	serviceCA := strings.TrimSpace(serviceCABundle.Data[names.ServiceCAKey])
 	if serviceCA == "" {
 		// Service CA operator has not injected the CA yet; wait for the watch to
 		// re-trigger reconciliation once service-ca.crt appears.
@@ -438,6 +436,11 @@ func (r *PtpOperatorConfigReconciler) syncEventCABundle(ctx context.Context) err
 	}
 
 	combined := serviceCA + "\n"
+	bundle := &corev1.ConfigMap{}
+	if err := r.Get(ctx, types.NamespacedName{
+		Namespace: names.Namespace, Name: names.EventPublisherCABundleConfigMapName}, bundle); err != nil {
+		return fmt.Errorf("failed to get event CA bundle output configmap: %v", err)
+	}
 
 	// Fold in an optional externally-supplied client CA (e.g. a test consumer's
 	// clientAuth CA). Absent -> mTLS still works for Service CA-signed clients.
@@ -717,8 +720,8 @@ func (r *PtpOperatorConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ptpv1.PtpOperatorConfig{}).
 		Owns(&appsv1.DaemonSet{}).
-		// The event-publisher CA bundle is assembled from ConfigMaps the operator
-		// does not own outright - the Service CA operator injects service-ca.crt
+		// The event-publisher CA bundle is assembled from input ConfigMaps the
+		// operator does not own - the Service CA operator injects service-ca.crt
 		// and an optional client CA is published out-of-band - so watch them to
 		// rebuild the bundle promptly instead of waiting for the resync period.
 		Watches(&corev1.ConfigMap{}, handler.EnqueueRequestsFromMapFunc(r.mapCAConfigMapToRequest)).
@@ -732,7 +735,7 @@ func (r *PtpOperatorConfigReconciler) mapCAConfigMapToRequest(ctx context.Contex
 		return nil
 	}
 	switch obj.GetName() {
-	case names.EventPublisherCABundleConfigMapName, names.EventPublisherClientCAConfigMapName:
+	case names.EventPublisherServiceCAConfigMapName, names.EventPublisherClientCAConfigMapName:
 		return []reconcile.Request{{NamespacedName: types.NamespacedName{
 			Namespace: names.Namespace, Name: names.DefaultOperatorConfigName}}}
 	}
