@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/names"
 	uns "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -44,6 +45,10 @@ func MergeObjectForUpdate(ctx context.Context, current, updated *uns.Unstructure
 	}
 
 	if err := MergeServiceAccountForUpdate(current, updated); err != nil {
+		return err
+	}
+
+	if err := MergeConfigMapForUpdate(current, updated); err != nil {
 		return err
 	}
 
@@ -509,6 +514,51 @@ func MergeServiceForUpdate(current, updated *uns.Unstructured) error {
 		}
 	}
 
+	return nil
+}
+
+// MergeConfigMapForUpdate preserves ConfigMap data populated by a party other
+// than the operator. The event-publisher CA bundle ConfigMap carries the
+// service.beta.openshift.io/inject-cabundle annotation, so the OpenShift Service
+// CA operator writes service-ca.crt into it, and the ptp-operator itself writes
+// the derived ca-bundle.crt (see syncEventCABundle). The bindata manifest for
+// this ConfigMap intentionally has no data, so a plain apply would wipe both keys
+// on every reconcile - the root cause of the old "scale the operator to 0"
+// workaround. Keeping existing keys the desired object does not set makes
+// re-applying the data-less template a no-op. Scoped by name so other ConfigMaps
+// whose data the operator fully owns (e.g. ptp-configmap) are unaffected.
+func MergeConfigMapForUpdate(current, updated *uns.Unstructured) error {
+	gvk := updated.GroupVersionKind()
+	if gvk.Group != "" || gvk.Kind != "ConfigMap" {
+		return nil
+	}
+	if updated.GetName() != names.EventPublisherCABundleConfigMapName {
+		return nil
+	}
+	for _, field := range []string{"data", "binaryData"} {
+		curData, found, err := uns.NestedMap(current.Object, field)
+		if err != nil {
+			return err
+		}
+		if !found || len(curData) == 0 {
+			continue
+		}
+		updData, _, err := uns.NestedMap(updated.Object, field)
+		if err != nil {
+			return err
+		}
+		if updData == nil {
+			updData = map[string]interface{}{}
+		}
+		for k, v := range curData {
+			if _, ok := updData[k]; !ok {
+				updData[k] = v
+			}
+		}
+		if err := uns.SetNestedMap(updated.Object, updData, field); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

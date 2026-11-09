@@ -71,6 +71,7 @@ func makeTestRenderData() *render.RenderData {
 	data.Data["SideCar"] = "test-sidecar"
 	data.Data["NodeName"] = "test-node"
 	data.Data["EnableEventPublisher"] = false
+	data.Data["EnableEventAuth"] = false
 	data.Data["EnabledPlugins"] = "e810"
 	data.Data["StorageType"] = "emptyDir"
 	data.Data["EventApiVersion"] = "2.0"

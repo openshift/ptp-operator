@@ -52,6 +52,25 @@ rules:
 - apiGroups: ["rbac.authorization.k8s.io"]
   resources: ["rolebindings"]
   verbs: ["*"]
+# The operator creates/removes the linuxptp-daemon-auth-delegator
+# ClusterRoleBinding when event authentication is toggled.
+# create/list/watch cannot be constrained by resourceNames (Kubernetes RBAC
+# only honors resourceNames for get/update/patch/delete), and the cache-backed
+# controller-runtime client needs cluster-wide list/watch on the type.
+- apiGroups: ["rbac.authorization.k8s.io"]
+  resources: ["clusterrolebindings"]
+  verbs: ["create", "list", "watch"]
+# Mutating/reading the specific binding the operator owns is scoped by name.
+- apiGroups: ["rbac.authorization.k8s.io"]
+  resources: ["clusterrolebindings"]
+  resourceNames: ["linuxptp-daemon-auth-delegator"]
+  verbs: ["get", "update", "patch", "delete"]
+# Binding to system:auth-delegator requires the "bind" verb on it (RBAC
+# escalation prevention), since the operator does not itself hold that role.
+- apiGroups: ["rbac.authorization.k8s.io"]
+  resources: ["clusterroles"]
+  resourceNames: ["system:auth-delegator"]
+  verbs: ["bind"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole

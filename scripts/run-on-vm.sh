@@ -246,6 +246,28 @@ run_ptp_tools_parallel_make_step_rows() {
   run_step_rows_end
 }
 
+# Podman image builds and exports must share one storage database. Running
+# multiple build-and-save targets concurrently can leave a freshly committed
+# image unavailable to `podman save` ("image not known"). Keep the image
+# artifact phase deterministic on CI runners.
+run_ptp_tools_sequential_make_step_rows() {
+  local row_prefix="$1"
+  local make_prefix="$2"
+  shift 2
+  local -a rows=()
+  local _img
+  for _img in "$@"; do
+    rows+=("${row_prefix} ${_img}")
+  done
+  run_step_rows_begin "${rows[@]}"
+  for _img in "$@"; do
+    run_quiet_with_log_dump_on_failure "${make_prefix}-${_img}" \
+      make -s "${make_prefix}-${_img}"
+    run_step_row_done "${row_prefix} ${_img}"
+  done
+  run_step_rows_end
+}
+
 step "Switching to script directory"
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
@@ -279,7 +301,7 @@ if [[ "$RUN_PHASE" == "images" ]]; then
     read_ptp_tool_images
     step "Building and saving ptp-tools images"
     cd "${PTP_TOOLS_DIR}"
-    run_ptp_tools_parallel_make_step_rows BUILD podman-build-and-save build-save "${_ptp_tool_images[@]}"
+    run_ptp_tools_sequential_make_step_rows BUILD podman-build-and-save "${_ptp_tool_images[@]}"
     cd -
 
     tar cf /tmp/ptp-images.tar -C /tmp/ptp-images .

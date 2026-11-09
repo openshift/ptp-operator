@@ -50,6 +50,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -96,6 +97,9 @@ const (
 // +kubebuilder:rbac:groups=config.openshift.io,resources=infrastructures,verbs=get;list;watch
 // +kubebuilder:rbac:groups=config.openshift.io,resources=apiservers,verbs=get;list;watch
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;update;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,verbs=create;list;watch
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterrolebindings,resourceNames=linuxptp-daemon-auth-delegator,verbs=get;update;patch;delete
+// +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=clusterroles,resourceNames="system:auth-delegator",verbs=bind
 
 func (r *PtpOperatorConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (reconcile.Result, error) {
 	reqLogger := r.Log.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
@@ -108,7 +112,16 @@ func (r *PtpOperatorConfigReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
-			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
+			// Owned objects are automatically garbage collected. The event-publisher
+			// authentication resources, however, are not owned by the PtpOperatorConfig -
+			// the ClusterRoleBinding is cluster-scoped (and grants system:auth-delegator
+			// access) and the other objects carry no owner reference - so they would be
+			// left orphaned. Tear them down explicitly before recreating the default
+			// config so no stale auth resources or TokenReview access survive a delete.
+			if err = r.teardownEventAuth(ctx); err != nil {
+				reqLogger.Error(err, "failed to tear down event auth on config deletion")
+				return reconcile.Result{}, err
+			}
 			defaultCfg.SetNamespace(names.Namespace)
 			defaultCfg.SetName(names.DefaultOperatorConfigName)
 			defaultCfg.Spec = ptpv1.PtpOperatorConfigSpec{
@@ -258,6 +271,12 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 	data.Data["NodeName"] = os.Getenv("NODE_NAME")
 	data.Data["StorageType"] = DefaultStorageType
 	data.Data["EventApiVersion"] = DefaultApiVersion
+	// EnableEventAuth turns on mTLS + TokenReview on the event publisher APIs. It
+	// depends on the OpenShift Service CA operator to mint serving certificates
+	// and inject the CA bundle, so it is opt-in (default off) to keep the
+	// operator usable on clusters without Service CA. Secured deployments set
+	// ENABLE_EVENT_AUTH=true explicitly.
+	data.Data["EnableEventAuth"] = os.Getenv("ENABLE_EVENT_AUTH") == "true"
 	// configure EventConfig
 	if defaultCfg.Spec.EventConfig == nil {
 		data.Data["EnableEventPublisher"] = false
@@ -313,11 +332,15 @@ func (r *PtpOperatorConfigReconciler) syncLinuxptpDaemon(ctx context.Context, de
 		}
 	}
 
-	if defaultCfg.Spec.EventConfig == nil {
-		return nil
+	// CEPv1 is deployed only when event publishing is enabled in 5.0. Reconcile
+	// the shared auth resources once, and tear them down whenever either switch
+	// is off so no TokenReview permission or serving-cert resources are orphaned.
+	authEnabled := data.Data["EnableEventPublisher"] == true && data.Data["EnableEventAuth"] == true
+	if err = r.syncEventAuth(ctx, &data, authEnabled); err != nil {
+		return err
 	}
 
-	if defaultCfg.Spec.EventConfig.EnableEventPublisher {
+	if defaultCfg.Spec.EventConfig != nil && defaultCfg.Spec.EventConfig.EnableEventPublisher {
 		for _, node := range nodeList.Items {
 			data.Data["NodeName"] = strings.Split(node.Name, ".")[0]
 			objs, err = render.RenderTemplate(filepath.Join(names.ManifestDir, "linuxptp/event-service.yaml"), &data)
@@ -348,6 +371,145 @@ func enabledPluginNames(defaultCfg *ptpv1.PtpOperatorConfig) string {
 
 	sort.Strings(pluginList)
 	return strings.Join(pluginList, ",")
+}
+
+// syncEventAuth reconciles the event-publisher authentication manifest (mTLS
+// serving-cert Service, injected CA bundle, auth-config ConfigMap and the
+// TokenReview ClusterRoleBinding). It renders the manifest unconditionally so
+// that when authentication is disabled - either the publisher is off or auth
+// was turned off - any resources left over from a previously-enabled state are
+// torn down. Otherwise the cluster-scoped ClusterRoleBinding and the
+// serving-cert Service would be orphaned after a user turns authentication off.
+func (r *PtpOperatorConfigReconciler) syncEventAuth(ctx context.Context, data *render.RenderData, enabled bool) error {
+	if !enabled {
+		return r.teardownEventAuth(ctx)
+	}
+	authObjs, err := render.RenderTemplate(filepath.Join(names.ManifestDir, "linuxptp/auth-config.yaml"), data)
+	if err != nil {
+		return fmt.Errorf("failed to render event auth-config manifest: %v", err)
+	}
+	for _, obj := range authObjs {
+		if err = apply.ApplyObject(ctx, r.Client, obj); err != nil {
+			return fmt.Errorf("failed to apply auth-config object %v with err: %v", obj, err)
+		}
+	}
+	if err = r.syncEventCABundle(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
+// syncEventCABundle maintains the combined trust anchor the event publisher uses
+// to verify mTLS peer certificates. The ptp-event-publisher-ca-bundle ConfigMap
+// carries the service.beta.openshift.io/inject-cabundle annotation, so the
+// OpenShift Service CA operator writes service-ca.crt into it (trusting the
+// server certificate and any Service CA-signed client certs). A consumer that
+// presents a client certificate signed by its own CA - e.g. an out-of-cluster
+// test consumer - cannot use a Service CA-issued client cert (Service CA serving
+// certs are serverAuth-only), so its CA must also be trusted. That CA is
+// published out-of-band into the optional ptp-event-publisher-client-ca
+// ConfigMap; this function folds it together with service-ca.crt into the
+// operator-owned ca-bundle.crt key that cloud-event-proxy loads via caCertPath.
+//
+// Building the bundle in the operator - instead of overwriting the injected
+// ConfigMap by hand - is what removes the previous "scale the operator to 0"
+// workaround: the derived key is operator-owned, so re-applying it is correct
+// rather than destructive, while the Service CA operator still owns
+// service-ca.crt (preserved across applies by MergeConfigMapForUpdate).
+func (r *PtpOperatorConfigReconciler) syncEventCABundle(ctx context.Context) error {
+	bundle := &corev1.ConfigMap{}
+	if err := r.Get(ctx, types.NamespacedName{
+		Namespace: names.Namespace, Name: names.EventPublisherCABundleConfigMapName}, bundle); err != nil {
+		if errors.IsNotFound(err) {
+			// Created by the auth manifest earlier in the same reconcile; it is
+			// populated on a later reconcile (the ConfigMap watch fires once the
+			// Service CA operator injects service-ca.crt).
+			return nil
+		}
+		return fmt.Errorf("failed to get event CA bundle configmap: %v", err)
+	}
+
+	serviceCA := strings.TrimSpace(bundle.Data[names.ServiceCAKey])
+	if serviceCA == "" {
+		// Service CA operator has not injected the CA yet; wait for the watch to
+		// re-trigger reconciliation once service-ca.crt appears.
+		glog.Infof("event CA bundle: waiting for Service CA injection of %q", names.ServiceCAKey)
+		return nil
+	}
+
+	combined := serviceCA + "\n"
+
+	// Fold in an optional externally-supplied client CA (e.g. a test consumer's
+	// clientAuth CA). Absent -> mTLS still works for Service CA-signed clients.
+	clientCA := &corev1.ConfigMap{}
+	err := r.Get(ctx, types.NamespacedName{
+		Namespace: names.Namespace, Name: names.EventPublisherClientCAConfigMapName}, clientCA)
+	switch {
+	case err == nil:
+		for _, k := range sortedStringKeys(clientCA.Data) {
+			v := strings.TrimSpace(clientCA.Data[k])
+			if v == "" {
+				continue
+			}
+			combined += v + "\n"
+		}
+	case errors.IsNotFound(err):
+		// No extra client CA to trust.
+	default:
+		return fmt.Errorf("failed to get event client CA configmap: %v", err)
+	}
+
+	if bundle.Data[names.EventPublisherCABundleKey] == combined {
+		return nil // already up to date
+	}
+	if bundle.Data == nil {
+		bundle.Data = map[string]string{}
+	}
+	bundle.Data[names.EventPublisherCABundleKey] = combined
+	if err := r.Update(ctx, bundle); err != nil {
+		return fmt.Errorf("failed to update event CA bundle configmap: %v", err)
+	}
+	glog.Infof("event CA bundle %q updated (%d bytes)", names.EventPublisherCABundleKey, len(combined))
+	return nil
+}
+
+// sortedStringKeys returns the keys of m in deterministic order so the derived
+// CA bundle is stable across reconciles (avoids spurious updates).
+func sortedStringKeys(m map[string]string) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// teardownEventAuth deletes every event-publisher authentication resource
+// (mTLS serving-cert Service, injected CA bundle, auth-config ConfigMap and the
+// TokenReview ClusterRoleBinding). It renders the auth manifest with a minimal
+// render context - only the object names and namespace matter for a
+// delete-by-name - so it can be called even when no PtpOperatorConfig exists
+// (e.g. the config was just deleted). Deletion is idempotent: NotFound is
+// ignored. This guarantees the cluster-scoped ClusterRoleBinding granting
+// system:auth-delegator and the serving-cert Service are never left orphaned,
+// whether authentication is reconciled off or the config itself is removed.
+func (r *PtpOperatorConfigReconciler) teardownEventAuth(ctx context.Context) error {
+	data := render.MakeRenderData()
+	data.Data["Namespace"] = names.Namespace
+	// The TLS fields only affect ConfigMap payloads, which are irrelevant for a
+	// delete-by-name, but must be present so template rendering succeeds.
+	r.setTLSTemplateData(&data)
+	authObjs, err := render.RenderTemplate(filepath.Join(names.ManifestDir, "linuxptp/auth-config.yaml"), &data)
+	if err != nil {
+		return fmt.Errorf("failed to render event auth-config manifest: %v", err)
+	}
+	for _, obj := range authObjs {
+		if err = r.Delete(ctx, obj); err != nil && !errors.IsNotFound(err) {
+			return fmt.Errorf("failed to delete auth-config object %s/%s with err: %v",
+				obj.GetKind(), obj.GetName(), err)
+		}
+	}
+	return nil
 }
 
 // applyNetworkPoliciesFromYaml reconciles the operand and operator NetworkPolicy
@@ -527,19 +689,54 @@ func (r *PtpOperatorConfigReconciler) setTLSTemplateData(data *render.RenderData
 		ianaCiphers := libgocrypto.OpenSSLToIANACipherSuites(r.TLSProfileSpec.Ciphers)
 		data.Data["TLSMinVersion"] = string(r.TLSProfileSpec.MinTLSVersion)
 		data.Data["TLSCipherSuites"] = strings.Join(ianaCiphers, ",")
+		data.Data["TLSCipherSuitesJSON"] = ciphersToJSONArray(ianaCiphers)
 		// TODO: pass TLSGroups to kube-rbac-proxy once it supports --tls-curve-preferences
 		// (upstream: https://github.com/kube-rbac-proxy/kube-rbac-proxy/issues/414)
 	} else {
 		data.Data["TLSMinVersion"] = ""
 		data.Data["TLSCipherSuites"] = legacyCipherSuites
+		data.Data["TLSCipherSuitesJSON"] = ciphersToJSONArray(strings.Split(legacyCipherSuites, ","))
 	}
+}
+
+// ciphersToJSONArray renders IANA cipher-suite names as a JSON array literal for
+// embedding in the cloud-event-proxy auth-config template.
+func ciphersToJSONArray(ciphers []string) string {
+	quoted := make([]string, 0, len(ciphers))
+	for _, c := range ciphers {
+		c = strings.TrimSpace(c)
+		if c == "" {
+			continue
+		}
+		quoted = append(quoted, fmt.Sprintf("%q", c))
+	}
+	return "[" + strings.Join(quoted, ", ") + "]"
 }
 
 func (r *PtpOperatorConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&ptpv1.PtpOperatorConfig{}).
 		Owns(&appsv1.DaemonSet{}).
+		// The event-publisher CA bundle is assembled from ConfigMaps the operator
+		// does not own outright - the Service CA operator injects service-ca.crt
+		// and an optional client CA is published out-of-band - so watch them to
+		// rebuild the bundle promptly instead of waiting for the resync period.
+		Watches(&corev1.ConfigMap{}, handler.EnqueueRequestsFromMapFunc(r.mapCAConfigMapToRequest)).
 		Complete(r)
+}
+
+// mapCAConfigMapToRequest enqueues a reconcile of the default PtpOperatorConfig
+// when one of the CA-bundle input ConfigMaps changes.
+func (r *PtpOperatorConfigReconciler) mapCAConfigMapToRequest(ctx context.Context, obj client.Object) []reconcile.Request {
+	if obj.GetNamespace() != names.Namespace {
+		return nil
+	}
+	switch obj.GetName() {
+	case names.EventPublisherCABundleConfigMapName, names.EventPublisherClientCAConfigMapName:
+		return []reconcile.Request{{NamespacedName: types.NamespacedName{
+			Namespace: names.Namespace, Name: names.DefaultOperatorConfigName}}}
+	}
+	return nil
 }
 
 // EventTransportHostAvailabilityCheck ... check availability for transporthost

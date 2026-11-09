@@ -297,6 +297,33 @@ spec:
           - get
           - list
           - watch
+        - apiGroups:
+          - rbac.authorization.k8s.io
+          resources:
+          - clusterrolebindings
+          verbs:
+          - create
+          - list
+          - watch
+        - apiGroups:
+          - rbac.authorization.k8s.io
+          resourceNames:
+          - linuxptp-daemon-auth-delegator
+          resources:
+          - clusterrolebindings
+          verbs:
+          - delete
+          - get
+          - patch
+          - update
+        - apiGroups:
+          - rbac.authorization.k8s.io
+          resourceNames:
+          - system:auth-delegator
+          resources:
+          - clusterroles
+          verbs:
+          - bind
         serviceAccountName: ptp-operator
       deployments:
       - name: ptp-operator
@@ -333,6 +360,8 @@ spec:
                   value: quay.io/openshift/origin-kube-rbac-proxy:5.0
                 - name: SIDECAR_EVENT_IMAGE
                   value: quay.io/openshift/origin-cloud-event-proxy:5.0
+                - name: ENABLE_EVENT_AUTH
+                  value: "false"
                 - name: OPERATOR_NAMESPACE
                   valueFrom:
                     fieldRef:

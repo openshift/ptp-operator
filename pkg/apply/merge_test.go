@@ -229,6 +229,67 @@ spec:
 	g.Expect(ip).To(Equal("cur"))
 }
 
+// TestMergeConfigMapPreservesInjectedData verifies the event-publisher CA bundle
+// ConfigMap keeps its externally-populated data (service-ca.crt injected by the
+// Service CA operator, ca-bundle.crt derived by the operator) when the data-less
+// bindata template is re-applied. This is the fix that removes the scale-to-0
+// workaround.
+func TestMergeConfigMapPreservesInjectedData(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	cur := UnstructuredFromYaml(t, `
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ptp-event-publisher-ca-bundle
+data:
+  service-ca.crt: INJECTED
+  ca-bundle.crt: DERIVED`)
+
+	upd := UnstructuredFromYaml(t, `
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ptp-event-publisher-ca-bundle`)
+
+	err := MergeObjectForUpdate(context.Background(), cur, upd)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	data, ok, err := uns.NestedStringMap(upd.Object, "data")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(ok).To(BeTrue())
+	g.Expect(data).To(HaveKeyWithValue("service-ca.crt", "INJECTED"))
+	g.Expect(data).To(HaveKeyWithValue("ca-bundle.crt", "DERIVED"))
+}
+
+// TestMergeConfigMapUnscopedUntouched verifies the merge only guards the CA
+// bundle ConfigMap; other ConfigMaps (e.g. ptp-configmap) are fully owned by the
+// operator and must not have stale keys preserved.
+func TestMergeConfigMapUnscopedUntouched(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	cur := UnstructuredFromYaml(t, `
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ptp-configmap
+data:
+  stale: old`)
+
+	upd := UnstructuredFromYaml(t, `
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ptp-configmap`)
+
+	err := MergeObjectForUpdate(context.Background(), cur, upd)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	_, ok, err := uns.NestedStringMap(upd.Object, "data")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(ok).To(BeFalse(), "unrelated ConfigMap data must not be preserved")
+}
+
 func TestMergeServiceAccount(t *testing.T) {
 	g := NewGomegaWithT(t)
 
