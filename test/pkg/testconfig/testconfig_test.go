@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
@@ -655,5 +656,212 @@ func GeneratePTPObjects(mode PTPMode) {
 		mockClientObjects = append(mockClientObjects, mockPtpConfig(config1, namespace1, ptpv1.Slave, TelcoBoundaryClock))
 		mockClientObjects = append(mockClientObjects, mockNode("node1"))
 		_ = testclient.GetTestClientSet(mockClientObjects)
+	}
+}
+
+func TestStripPhc2sysRealtimeOpts(t *testing.T) {
+	tests := []struct {
+		in   string
+		want string
+	}{
+		{in: "-a -r -n 24 -m -N 8 -R 16", want: "-a -n 24 -m -N 8 -R 16"},
+		{in: "-a -r -r -n 24", want: "-a -n 24"},
+		{in: "-a -n 24", want: "-a -n 24"},
+		{in: "  -a   -r  -m  ", want: "-a -m"},
+	}
+	for _, tt := range tests {
+		if got := stripPhc2sysRealtimeOpts(tt.in); got != tt.want {
+			t.Fatalf("stripPhc2sysRealtimeOpts(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
+func TestIsTelcoGMMode(t *testing.T) {
+	gm := map[PTPMode]bool{
+		TelcoGrandMasterClock: true,
+		TelcoGMOC:             true,
+		TelcoGMBC:             true,
+	}
+	nonGM := []PTPMode{
+		OrdinaryClock, BoundaryClock, DualNICBoundaryClock, DualNICBoundaryClockHA,
+		DualFollowerClock, Discovery, TelcoBoundaryClock, None,
+	}
+	for mode, want := range gm {
+		if got := isTelcoGMMode(mode); got != want {
+			t.Errorf("isTelcoGMMode(%s) = %v, want %v", mode, got, want)
+		}
+	}
+	for _, mode := range nonGM {
+		if isTelcoGMMode(mode) {
+			t.Errorf("isTelcoGMMode(%s) = true, want false", mode)
+		}
+	}
+}
+
+const (
+	authNegativeTestSharedSAD   = "/etc/ptp-secret-mount/ptp-security-conf/ptp-security.conf"
+	authNegativeTestIsolatedSAD = "/etc/ptp-secret-mount/ptp-security-conf/auth-negative-test.conf"
+)
+
+func TestPrepareAuthNegativeSAD(t *testing.T) {
+	input := `[security_association]
+spp 0
+allow_mutable 1
+1 AES128 HEX:00
+
+[security_association]
+spp 1
+seqid_window 20
+1 AES128 HEX:11
+2 SHA256-128 HEX:22
+3 SHA256-128 HEX:33
+`
+	want := `[security_association]
+spp 0
+allow_mutable 1
+1 AES128 HEX:00
+
+[security_association]
+spp 1
+seqid_window 20
+2 SHA256-128 HEX:22
+3 SHA256-128 HEX:33
+`
+
+	got, err := PrepareAuthNegativeSAD(input)
+	if err != nil {
+		t.Fatalf("PrepareAuthNegativeSAD() error = %v", err)
+	}
+	if got != want {
+		t.Fatalf("PrepareAuthNegativeSAD() = %q, want %q", got, want)
+	}
+}
+
+func TestPrepareAuthNegativeSADRejectsMissingOrAmbiguousTargets(t *testing.T) {
+	valid := `[security_association]
+spp 1
+1 AES128 HEX:11
+2 SHA256-128 HEX:22
+3 SHA256-128 HEX:33
+`
+	tests := []struct {
+		name string
+		sad  string
+	}{
+		{name: "missing key 1", sad: strings.Replace(valid, "1 AES128 HEX:11\n", "", 1)},
+		{name: "missing key 2", sad: strings.Replace(valid, "2 SHA256-128 HEX:22\n", "", 1)},
+		{name: "ambiguous SPP 1", sad: valid + valid},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := PrepareAuthNegativeSAD(tt.sad); err == nil {
+				t.Fatal("PrepareAuthNegativeSAD() error = nil, want an error")
+			}
+		})
+	}
+}
+
+func TestPrepareAuthNegativePtp4lConf(t *testing.T) {
+	input := `[global]
+sa_file /etc/ptp-secret-mount/ptp-security-conf/ptp-security.conf
+spp -1
+logging_level 6
+[ens1f0]
+spp 1
+active_key_id 1
+`
+	want := `[global]
+sa_file /etc/ptp-secret-mount/ptp-security-conf/auth-negative-test.conf
+spp -1
+logging_level 6
+[ens1f0]
+spp 1
+active_key_id 2
+`
+
+	got, interfaces, err := PrepareAuthNegativePtp4lConf(input, authNegativeTestSharedSAD, authNegativeTestIsolatedSAD, "ens1f0")
+	if err != nil {
+		t.Fatalf("PrepareAuthNegativePtp4lConf() error = %v", err)
+	}
+	if got != want {
+		t.Fatalf("PrepareAuthNegativePtp4lConf() = %q, want %q", got, want)
+	}
+	if !reflect.DeepEqual(interfaces, []string{"ens1f0"}) {
+		t.Fatalf("transmit interfaces = %v, want [ens1f0]", interfaces)
+	}
+}
+
+func TestPrepareAuthNegativePtp4lConfRetainsTransmitKeyOnEverySPP1Port(t *testing.T) {
+	input := `[global]
+sa_file /etc/ptp-secret-mount/ptp-security-conf/ptp-security.conf
+spp -1
+logging_level 6
+[ens1f0]
+masterOnly 0
+spp 1
+active_key_id 1
+[ens1f1]
+masterOnly 1
+spp 1
+active_key_id 1
+[ens2f0]
+masterOnly 1
+spp 0
+active_key_id 3
+`
+	got, interfaces, err := PrepareAuthNegativePtp4lConf(input, authNegativeTestSharedSAD, authNegativeTestIsolatedSAD, "ens1f0")
+	if err != nil {
+		t.Fatalf("PrepareAuthNegativePtp4lConf() error = %v", err)
+	}
+	want := `[global]
+sa_file /etc/ptp-secret-mount/ptp-security-conf/auth-negative-test.conf
+spp -1
+logging_level 6
+[ens1f0]
+masterOnly 0
+spp 1
+active_key_id 2
+[ens1f1]
+masterOnly 1
+spp 1
+active_key_id 2
+[ens2f0]
+masterOnly 1
+spp 0
+active_key_id 3
+`
+	if got != want {
+		t.Fatalf("PrepareAuthNegativePtp4lConf() = %q, want %q", got, want)
+	}
+	if !reflect.DeepEqual(interfaces, []string{"ens1f0", "ens1f1"}) {
+		t.Fatalf("transmit interfaces = %v, want [ens1f0 ens1f1]", interfaces)
+	}
+}
+
+func TestPrepareAuthNegativePtp4lConfRejectsInvalidInputs(t *testing.T) {
+	base := `[global]
+sa_file /etc/ptp-secret-mount/ptp-security-conf/ptp-security.conf
+spp -1
+logging_level 6
+[ens1f0]
+spp 1
+active_key_id 1
+`
+	tests := []struct {
+		name   string
+		config string
+		iface  string
+	}{
+		{name: "missing receive interface", config: base, iface: "ens9f0"},
+		{name: "missing retained active key", config: strings.Replace(base, "active_key_id 1\n", "", 1), iface: "ens1f0"},
+		{name: "nonstandard logging level", config: strings.Replace(base, "logging_level 6", "logging_level 7", 1), iface: "ens1f0"},
+		{name: "unexpected global sa_file", config: strings.Replace(base, "ptp-security.conf\n", "other.conf\n", 1), iface: "ens1f0"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, _, err := PrepareAuthNegativePtp4lConf(tt.config, authNegativeTestSharedSAD, authNegativeTestIsolatedSAD, tt.iface); err == nil {
+				t.Fatal("PrepareAuthNegativePtp4lConf() error = nil, want an error")
+			}
+		})
 	}
 }

@@ -31,9 +31,9 @@ fi
 NSIM_NEW=/sys/bus/netdevsim/new_device
 NSIM_DEL=/sys/bus/netdevsim/del_device
 
-# Reserved IDs well above the topology devices (1..18) in configSwitch2.sh.
+# Reserved IDs well above the topology devices (1..12) in configServers.sh.
 BASE_ID=90
-# PCI function slot 0x10+ also above topology (0x01..0x0f).
+# PCI function slot 0x10+ also above topology (0x01..0x07).
 BASE_FUNC=0x10
 
 runtime_exec() {

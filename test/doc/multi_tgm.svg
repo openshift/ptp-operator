@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="620px" height="430px" viewBox="0 0 620 430" style="background: transparent; background-color: transparent; color-scheme: light dark;">
+  <style>
+    .title { font: bold 14px Helvetica, Arial, sans-serif; fill: #000000; }
+    .label { font: 12px Helvetica, Arial, sans-serif; fill: #000000; }
+    .annot { font: 12px Helvetica, Arial, sans-serif; fill: #000000; }
+    .cap { font: 12px Helvetica, Arial, sans-serif; fill: #000000; }
+  </style>
+
+  <text class="title" x="10" y="24">TGM - WPC grandmaster constraints (algo TGM)</text>
+
+  <!-- role / step labels -->
+  <rect x="20" y="90" width="130" height="50" fill="#dae8fc" stroke="#6c8ebf"/>
+  <text class="label" text-anchor="middle" x="85" y="108">Grandmaster</text>
+  <text class="label" text-anchor="middle" x="85" y="124">IsWPCNic +</text>
+  <text class="label" text-anchor="middle" x="85" y="138">HasGNSSDevice</text>
+
+  <rect x="20" y="240" width="130" height="50" fill="#dae8fc" stroke="#6c8ebf"/>
+  <text class="label" text-anchor="middle" x="85" y="258">GrandmasterSibling</text>
+  <text class="label" text-anchor="middle" x="85" y="274">IsWPCNic +</text>
+  <text class="label" text-anchor="middle" x="85" y="288">SameNic(p0)</text>
+
+  <!-- Same NIC -->
+  <rect x="220" y="60" width="140" height="260" rx="15" ry="15" fill="none" stroke="#000000" stroke-width="3"/>
+  <text class="annot" text-anchor="middle" x="290" y="82">Same NIC</text>
+
+  <ellipse cx="290" cy="130" rx="28" ry="26" fill="#ffffff" stroke="#000000"/>
+  <text class="label" text-anchor="middle" x="290" y="126">GM</text>
+  <text class="label" text-anchor="middle" x="290" y="140">+GNSS</text>
+  <text class="annot" x="380" y="134">p0</text>
+
+  <ellipse cx="290" cy="270" rx="28" ry="26" fill="#ffffff" stroke="#000000"/>
+  <text class="label" text-anchor="middle" x="290" y="274">GM</text>
+  <text class="annot" x="380" y="274">p1</text>
+
+  <text class="cap" text-anchor="middle" x="310" y="360">p0 = Grandmaster (WPC NIC with connected GNSS / ts2phc). p1 = GrandmasterSibling</text>
+  <text class="cap" text-anchor="middle" x="310" y="378">on the same WPC NIC. Both are PTP masters. CUT is the T-GM; no downstream clock.</text>
+  <text class="cap" text-anchor="middle" x="310" y="406">Algo TGM:  p0 {IsWPCNic, HasGNSSDevice}  -&gt;  p1 {IsWPCNic, SameNic(p0)}</text>
+</svg>

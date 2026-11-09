@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gnss-sim
+  namespace: openshift-ptp
+  labels:
+    app: gnss-sim
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gnss-sim
+  template:
+    metadata:
+      labels:
+        app: gnss-sim
+    spec:
+      hostNetwork: true
+      nodeSelector:
+        kubernetes.io/hostname: kind-netdevsim-worker
+      restartPolicy: Always
+      containers:
+        - name: gnss-sim
+          image: GNSS_SIM_IMAGE
+          command:
+            - /bin/sh
+            - -c
+            - |
+              DPLL_SYSFS=""
+              for f in /sys/bus/pci/devices/*/dpll/lock_status; do
+                [ -f "$f" ] && DPLL_SYSFS="$f" && break
+              done
+              DPLL_ARGS=""
+              [ -n "$DPLL_SYSFS" ] && DPLL_ARGS="--dpll-sysfs $DPLL_SYSFS"
+              GNSS_DEV=""
+              for g in /dev/gnss*; do
+                [ -c "$g" ] && GNSS_DEV="$g" && break
+              done
+              if [ -n "$GNSS_DEV" ]; then
+                exec /usr/local/bin/gnss-sim \
+                  --gnss-dev "$GNSS_DEV" \
+                  --api-port GNSS_SIM_API_PORT \
+                  --holdover-timeout GNSS_SIM_HOLDOVER_TIMEOUT \
+                  $DPLL_ARGS
+              else
+                exec /usr/local/bin/gnss-sim \
+                  --pty-links /var/run/ptp/ttyGNSS_TS2PHC,/var/run/ptp/ttyGNSS_GNSS0 \
+                  --api-port GNSS_SIM_API_PORT \
+                  --holdover-timeout GNSS_SIM_HOLDOVER_TIMEOUT \
+                  $DPLL_ARGS
+              fi
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: dev
+              mountPath: /dev
+            - name: host-sys
+              mountPath: /sys
+              mountPropagation: Bidirectional
+            - name: ptp-run
+              mountPath: /var/run/ptp
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: GNSS_SIM_API_PORT
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: GNSS_SIM_API_PORT
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: dev
+          hostPath:
+            path: /dev
+        - name: host-sys
+          hostPath:
+            path: /sys
+        - name: ptp-run
+          hostPath:
+            path: /var/run/ptp
+            type: DirectoryOrCreate

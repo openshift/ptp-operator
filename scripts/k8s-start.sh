@@ -15,7 +15,7 @@ export PATH="/usr/local/ptp-podman-wrap:/usr/local/bin:${PATH}"
 # Delete cluster
 kind delete cluster --name kind-netdevsim
 
-# Delete and re-create netdevsim and openvswitch devices
+# Delete and re-create netdevsim devices
 ./reset-devices.sh
 
 # Substitute registry IP into a temp copy so the tracked template stays clean.
@@ -56,8 +56,8 @@ kubectl wait --for=condition=Ready pods -A --all --timeout=300s
 # Create openshift-ptp namespace
 kubectl create namespace openshift-ptp
 
-# Configure openvswitch and netdevsim interfaces 
-./configSwitch2.sh "$VM_IP"
+# Configure netdevsim interfaces with direct server-to-server links
+./configServers.sh
 
 # Per-node stand-in mock PHCs for virtual CLOCK_REALTIME (phc2sys shim).
 if [[ "${DKMS_MODE:-}" == "true" && "${PTP_VRT_ENABLE:-true}" == "true" ]]; then

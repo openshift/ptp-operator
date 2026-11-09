@@ -891,7 +891,7 @@ type GNSSStatus struct {
 	TTYDevice string `json:"ttyDevice" yaml:"ttyDevice"`
 
 	// MatchResult is an optional message from the GNSS device match logic
-	MatchResult string `json:"matchResult,omitempty" yaml:"matchResult:omitempty"`
+	MatchResult string `json:"matchResult,omitempty" yaml:"matchResult,omitempty"`
 }
 
 //+kubebuilder:object:root=true

@@ -9,7 +9,6 @@ The ptp-tools Makefile provides targets to build all images required for the PTP
 - `cep` - Cloud Event Proxy
 - `ptpop` - PTP Operator
 - `krp` - Kube RBAC Proxy
-- `openvswitch` - OpenVSwitch (for netdevsim test environment)
 - `prometheus` - Prometheus (for netdevsim test environment)
 
 All images are built using podman and stored in a single repository using different tags to identify each component.
@@ -34,7 +33,6 @@ This will create the following images:
 - `quay.io/yourusername/test:cep` - Cloud Event Proxy
 - `quay.io/yourusername/test:ptpop` - PTP Operator
 - `quay.io/yourusername/test:krp` - Kube RBAC Proxy
-- `quay.io/yourusername/test:openvswitch` - OpenVSwitch (for netdevsim test environment only)
 - `quay.io/yourusername/test:prometheus` - Prometheus (for netdevsim test environment only)
 
 ### Pushing All Images
@@ -257,7 +255,6 @@ When using `IMG_PREFIX=quay.io/yourusername/test`, the following images are crea
 | `quay.io/yourusername/test:ptpop` | PTP Operator | Main operator managing PTP configurations |
 | `quay.io/yourusername/test:lptpd` | LinuxPTP Daemon | Daemon running PTP processes on nodes |
 | `quay.io/yourusername/test:krp` | Kube RBAC Proxy | RBAC proxy for secure access |
-| `quay.io/yourusername/test:openvswitch` | OpenVSwitch | Network virtualization for netdevsim test environment |
 | `quay.io/yourusername/test:prometheus` | Prometheus | Monitoring for netdevsim test environment |
 
 ### Supported Platforms
@@ -304,7 +301,6 @@ Each component has its own Dockerfile:
 - `Dockerfile.ptpop` - PTP Operator
 - `Dockerfile.lptpd` - LinuxPTP Daemon (optional `LINUXPTP_RPM` build-arg)
 - `Dockerfile.krp` - Kube RBAC Proxy
-- `Dockerfile.openvswitch` - OpenVSwitch
 - `Dockerfile.prometheus` - Prometheus
 
 For staging images from remote branches without editing Dockerfiles by hand, prefer `scripts/build-push-deploy.sh` (see [Staging Images from Remote Branches](#staging-images-from-remote-branches)).

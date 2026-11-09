@@ -35,8 +35,8 @@ if [[ "${DKMS_MODE:-}" == "true" ]]; then
         # hook, but verify every required package actually installed.
         # Keep skopeo out of the required set: on Ubuntu CI it can pull
         # containers-common with unmet oci-runtime deps and abort the whole
-        # apt transaction (leaving openvswitch-switch uninstalled).
-        REQUIRED_PKGS=(podman pciutils openvswitch-switch git openssl)
+        # apt transaction.
+        REQUIRED_PKGS=(podman pciutils git openssl)
         apt-get install --fix-broken -y "${REQUIRED_PKGS[@]}" || true
         for pkg in "${REQUIRED_PKGS[@]}"; do
             status=$(dpkg-query -W -f='${db:Status-Abbrev}' "$pkg" 2>/dev/null || echo "missing")
@@ -49,7 +49,7 @@ if [[ "${DKMS_MODE:-}" == "true" ]]; then
         apt-get install --fix-broken -y skopeo || \
             echo "WARNING: skopeo not installed; deploy-prometheus will use podman fallback"
     else
-        dnf install -y podman pciutils openvswitch git openssl
+        dnf install -y podman pciutils git openssl
         dnf install -y skopeo || \
             echo "WARNING: skopeo not installed; deploy-prometheus will use podman fallback"
     fi

@@ -32,65 +32,36 @@ spec:
       serviceAccountName: linuxptp-daemon
       priorityClassName: "system-node-critical"
       containers:
-        {{ if (eq .EnableEventPublisher true) }}
-        {{ if .SideCarV2 }}
-        - name: cloud-event-proxy
-          image: {{ .SideCarV2 }}
-          imagePullPolicy: {{ .ImagePullPolicy }}
-          command: ["/usr/local/bin/cloud-event-proxy"]
-          args:
-            - "--api-port=9043"
-            - "--store-path=/var/run"
-          volumeMounts:
-            - name: config-volume
-              mountPath: /etc/linuxptp
-            - name: socket-dir
-              mountPath: /var/run
-          ports:
-            - name: api-port
-              containerPort: 9043
-          env:
-            - name: NODE_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: spec.nodeName
-            - name: NAME_SPACE
-              value: {{.Namespace}}
-        {{ else }}
         - name: cloud-event-proxy
           image: {{ .SideCar }}
           imagePullPolicy: {{ .ImagePullPolicy }}
+          command: ["/usr/local/bin/cloud-event-proxy"]
           args:
-            - "--metrics-addr=127.0.0.1:9091"
-            - "--store-path=/store"
-            - "--transport-host={{ .EventTransportHost }}"
-            - "--api-version={{ .EventApiVersion }}"
+            - "--logtostderr"
             - "--api-port=9043"
+            - "--api-host={{ .EventTransportHost }}"
           volumeMounts:
             - name: config-volume
               mountPath: /etc/linuxptp
-            - name: pubsubstore
-              mountPath: /store
-            - name: event-bus-socket
-              mountPath: /cloud-native
             - name: socket-dir
               mountPath: /var/run
           ports:
-            - name: metrics-port
-              containerPort: 9091
             - name: api-port
               containerPort: 9043
           env:
-            - name: PTP_PLUGIN
-              value: "true"
             - name: NODE_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
             - name: NAME_SPACE
               value: {{.Namespace}}
-        {{ end }}
-        {{ end }}
+            # TODO: Remove POD_NAMESPACE once cloud-event-proxy reads NAME_SPACE
+            # (the convention used elsewhere in linuxptp-daemon) for the
+            # ConfigMap subscription store namespace.
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
         - name: kube-rbac-proxy
           image: {{.KubeRbacProxy}}
           imagePullPolicy: {{.ImagePullPolicy}}
@@ -130,11 +101,7 @@ spec:
           command: [ "/bin/bash", "-c", "--" ]
           args:
           {{ $cmd := printf "/usr/local/bin/ptp --alsologtostderr -v %s" .Verbosity }}
-          {{- if (eq .EnableEventPublisher true) }}
             - "until [ $(curl -s -w '%{http_code}' 'http://localhost:9043/api/ocloudNotifications/v2/health' -o /dev/null) -eq 200 ]; do echo 'waiting for cloud event proxy to start'; sleep 10s; done; {{ $cmd }}"
-          {{- else }}
-            - {{ $cmd }}
-          {{- end }}
           resources:
             requests:
               cpu: 20m
@@ -150,10 +117,6 @@ spec:
                   fieldPath: metadata.name
             - name: NAME_SPACE
               value: {{.Namespace}}
-            {{ if and (eq .EnableEventPublisher true) (not .SideCarV2) }}
-            - name: LOGS_TO_SOCKET
-              value: "true"
-            {{ end }}
             - name: PLUGINS
               value: "{{ .EnabledPlugins }}"
           volumeMounts:
@@ -163,10 +126,6 @@ spec:
               mountPath: /etc/leap
             - name: socket-dir
               mountPath: /var/run
-            {{ if and (eq .EnableEventPublisher true) (not .SideCarV2) }}
-            - name: event-bus-socket
-              mountPath: /cloud-native
-            {{ end }}
       volumes:
         - name: config-volume
           configMap:
@@ -177,12 +136,6 @@ spec:
         - name: linuxptp-certs
           secret:
             secretName: linuxptp-daemon-secret
-        {{ if and (eq .EnableEventPublisher true) (not .SideCarV2) }}
-        - name: pubsubstore
-          emptyDir: {}
-        - name: event-bus-socket
-          emptyDir: {}
-        {{ end }}
         - name: socket-dir
           hostPath:
             path: /var/run/ptp
@@ -278,7 +231,6 @@ spec:
   groups:
     - name: ptp.rules
       rules:
-        {{ if (eq .EnableEventPublisher true) }}
         - alert: NodeOutOfPtpSync
           annotations:
             message: |
@@ -288,15 +240,3 @@ spec:
           for: 2m
           labels:
             severity: warning
-        {{ end }}
-        {{ if (eq .EnableEventPublisher false) }}
-        - alert: HighPtpSyncOffset
-          annotations:
-            message: |
-              All nodes should have ptp sync offset lower then 100
-          expr: |
-            openshift_ptp_offset_ns > 100 or openshift_ptp_offset_ns < -100
-          for: 2m
-          labels:
-            severity: warning
-        {{ end }}

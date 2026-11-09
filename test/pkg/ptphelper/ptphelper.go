@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -14,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
@@ -35,6 +38,7 @@ import (
 	"github.com/k8snetworkplumbingwg/ptp-operator/test/pkg/pods"
 
 	configv1 "github.com/openshift/api/config/v1"
+	l2lib "github.com/redhat-cne/l2discovery-lib"
 	l2exports "github.com/redhat-cne/l2discovery-lib/exports"
 	solver "github.com/redhat-cne/l2discovery-lib/pkg/graphsolver"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -144,7 +148,7 @@ func configFileFromLogID(logID string) string {
 
 // getClockIDViaPMC runs "pmc GET PARENT_DATA_SET" against the given ptp4l config
 // file inside the linuxptp-daemon pod and returns the value of the requested
-// field (e.g. "grandmasterIdentity" or "parentPortIdentity.clockIdentity").
+// field (e.g. "grandmasterIdentity" or "parentPortIdentity").
 func getClockIDViaPMC(pod *corev1.Pod, configFile, field string) (string, error) {
 	// Handle special case for extracting clock ID from port identity.
 	// PMC output shows "parentPortIdentity" as "clockIdentity-portNumber"
@@ -159,6 +163,8 @@ func getClockIDViaPMC(pod *corev1.Pod, configFile, field string) (string, error)
 	}
 
 	re := regexp.MustCompile(`(?m)` + regexp.QuoteMeta(queryField) + `\s+(\S+)`)
+	// pmc treats each positional arg after options as a separate command.
+	// "GET" and "PARENT_DATA_SET" must be a single argv entry.
 	buf, _, err := pods.ExecCommand(client.Client, true, pod,
 		pkg.PtpContainerName, []string{"pmc", "-b", "0", "-u", "-f", configFile, "GET PARENT_DATA_SET"})
 	if err != nil {
@@ -182,6 +188,19 @@ func getClockIDViaPMC(pod *corev1.Pod, configFile, field string) (string, error)
 	return result, nil
 }
 
+// ptp4lLogTagPattern matches the bracketed ptp4l message tag.
+// Parsed logs use "ptp4l.0.config:{level}". The /var/run fallback returns
+// "ptp4l.0.config", while ptp4l prints "[ptp4l.0.config:5]".
+func ptp4lLogTagPattern(logID string) string {
+	if strings.Contains(logID, "{level}") {
+		return strings.Replace(logID, "{level}", `\d+`, 1)
+	}
+	if strings.Contains(logID, ":") {
+		return logID
+	}
+	return regexp.QuoteMeta(logID) + `(?::\d+)?`
+}
+
 func GetClockIDMaster(ptpConfigName string, profileName string, label *string, nodeName *string, isGM bool) (string, error) {
 	const clockIDGMRegex = `(?m)\[%s\] selected local clock (.*) as best master`
 	const clockIDBCRegex = `(?m)\[%s\] selected best master clock (.*)`
@@ -195,9 +214,7 @@ func GetClockIDMaster(ptpConfigName string, profileName string, label *string, n
 		return "", err
 	}
 	configFile := configFileFromLogID(logID)
-	if strings.Contains(logID, "level") {
-		logID = strings.Replace(logID, "{level}", "\\d+", 1)
-	}
+	logID = ptp4lLogTagPattern(logID)
 	pod, err := findMatchingPod(label, nodeName)
 	if err != nil {
 		return "", err
@@ -221,9 +238,7 @@ func GetClockIDForeign(ptpConfigName string, profileName string, label *string, 
 		return "", err
 	}
 	configFile := configFileFromLogID(logID)
-	if strings.Contains(logID, "level") {
-		logID = strings.Replace(logID, "{level}", "\\d+", 1)
-	}
+	logID = ptp4lLogTagPattern(logID)
 	pod, err := findMatchingPod(label, nodeName)
 	if err != nil {
 		return "", err
@@ -236,7 +251,9 @@ func GetClockIDForeign(ptpConfigName string, profileName string, label *string, 
 		return matches[len(matches)-1][clockIDForeignIndex], nil
 	}
 	logrus.Infof("GetClockIDForeign: log parsing failed for %s, falling back to pmc: %v", profileName, err)
-	return getClockIDViaPMC(pod, configFile, "parentPortIdentity.clockIdentity")
+	// "selected best master clock" is the grandmaster identity. Behind a
+	// boundary clock, parentPortIdentity is the BC port and does not match.
+	return getClockIDViaPMC(pod, configFile, "grandmasterIdentity")
 }
 
 // WaitForClockIDForeign searches the slave's log stream for a specific expected
@@ -248,9 +265,7 @@ func WaitForClockIDForeign(ptpConfigName string, profileName string, label *stri
 	if err != nil {
 		return fmt.Errorf("could not get profile log ID: %w", err)
 	}
-	if strings.Contains(logID, "level") {
-		logID = strings.Replace(logID, "{level}", "\\d+", 1)
-	}
+	logID = ptp4lLogTagPattern(logID)
 	pod, err := findMatchingPod(label, nodeName)
 	if err != nil {
 		return fmt.Errorf("no matching pod found for profile %s: %w", profileName, err)
@@ -742,7 +757,7 @@ func WaitForPtpDaemonToBeReady(podList []*v1core.Pod) int {
 			}
 		}
 		return nil
-	}, 2*time.Minute, 2*time.Second).Should(Not(HaveOccurred()))
+	}, 3*time.Minute, 2*time.Second).Should(Not(HaveOccurred())) // CEP :9043 then ReadyServer :8081 after replace
 
 	return 0
 }
@@ -1015,6 +1030,7 @@ func GetProfileName(config *ptpv1.PtpConfig, receiverOnly bool) (string, error) 
 		}
 		switch *profile.Name {
 		case pkg.PtpGrandMasterPolicyName,
+			pkg.PtpWPCGrandMasterPolicyName,
 			pkg.PtpBcMaster1PolicyName,
 			pkg.PtpBcMaster2PolicyName,
 			pkg.PtpSlave1PolicyName,
@@ -1152,6 +1168,18 @@ func wpcInterfacesOnNode(l2Config l2exports.L2Info, nodeName string) ([]string, 
 	return group, err
 }
 
+// gnssSimNmeaActive is set when Telco GM uses a kernel virtual GNSS device (netdevsim) or
+// gnss-sim PTY NMEA instead of physical E810 hardware. It enables the "Simulated T-GM" test
+// contexts and skips hardware-only tests (e.g. ubxtool direct GNSS reboot).
+// Note: the e810 plugin is always applied regardless of this flag; the kernel virtual GNSS
+// device responds to UBX protocol commands, so gpsd/ubxtool initialisation succeeds.
+var gnssSimNmeaActive atomic.Bool
+
+// ResetGnssSimNmeaMode clears GNSS source state before a new CreatePtpConfigurations / Telco GM setup.
+func ResetGnssSimNmeaMode() {
+	gnssSimNmeaActive.Store(false)
+}
+
 // wpcInterfaceNamesOnNode returns WPC-capable interface names on a node.
 func wpcInterfaceNamesOnNode(l2Config l2exports.L2Info, nodeName string) []string {
 	if l2Config == nil {
@@ -1241,18 +1269,22 @@ func IsV1Api(version string) bool {
 }
 
 func CheckReadiness(pod *corev1.Pod) (err error) {
-	stdout, stderr, err := pods.ExecCommand(
+	// ReadyServer is served by the linuxptp-daemon process on 0.0.0.0:8081.
+	// Always exec into that container (Containers[0] is cloud-event-proxy when
+	// events are enabled) and prefer IPv4 — the daemon does not bind ::1.
+	stdout, _, err := pods.ExecCommand(
 		client.Client,
 		false,
 		pod,
-		pod.Spec.Containers[0].Name,
-		[]string{"curl", "-v", "localhost:8081/ready"},
+		pkg.PtpContainerName,
+		[]string{"curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", "--max-time", "5", "http://127.0.0.1:8081/ready"},
 	)
 	if err != nil {
-		return fmt.Errorf("error getting readiness, err: %v", err)
+		return fmt.Errorf("error getting readiness on %s/%s: %v", pod.Namespace, pod.Name, err)
 	}
-	if !strings.Contains(stdout.String()+stderr.String(), "HTTP/1.1 200 OK") {
-		return fmt.Errorf("pod not ready with, err: %s", stdout.String()+stderr.String())
+	code := strings.TrimSpace(stdout.String())
+	if code != "200" {
+		return fmt.Errorf("pod %s not ready: /ready returned HTTP %s", pod.Name, code)
 	}
 
 	return nil
@@ -1341,4 +1373,262 @@ func GetLocalClockID(ptpConfig *ptpv1.PtpConfig, profileName string, l2Config l2
 		}
 	}
 	return "", fmt.Errorf("could not find MAC for leading interface %s on node %s", leadingIface, nodeName)
+}
+
+// GetFirstWorkerNodeName returns the name of the first Kubernetes worker node.
+func GetFirstWorkerNodeName() (string, error) {
+	nodeList, err := client.Client.CoreV1().Nodes().List(
+		context.Background(),
+		metav1.ListOptions{LabelSelector: "node-role.kubernetes.io/worker"},
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to list worker nodes: %v", err)
+	}
+	if len(nodeList.Items) == 0 {
+		return "", fmt.Errorf("no worker nodes found in the cluster")
+	}
+	return nodeList.Items[0].Name, nil
+}
+
+var gnssSimClient = &http.Client{Timeout: 10 * time.Second}
+
+func gnssSimRequest(method, path string) (*http.Response, context.CancelFunc, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), gnssSimClient.Timeout)
+	req, err := http.NewRequestWithContext(ctx, method, GNSSSimAPIBase()+path, nil)
+	if err != nil {
+		cancel()
+		return nil, nil, err
+	}
+	if method == http.MethodPost {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	resp, err := gnssSimClient.Do(req)
+	if err != nil {
+		cancel()
+		return nil, nil, err
+	}
+	return resp, cancel, nil
+}
+
+// GNSSSimAPIBase returns the base URL for the gnss-sim HTTP API.
+// Reads GNSS_SIM_API_HOST (default "localhost") and GNSS_SIM_API_PORT (default "9200").
+func GNSSSimAPIBase() string {
+	host := os.Getenv("GNSS_SIM_API_HOST")
+	if host == "" {
+		host = "localhost"
+	}
+	port := os.Getenv("GNSS_SIM_API_PORT")
+	if port == "" {
+		port = "9200"
+	}
+	return fmt.Sprintf("http://%s:%s", host, port)
+}
+
+// GNSSSimSignalLoss calls POST /api/signal/loss on the gnss-sim, equivalent
+// to ubxtool CFG-NAVSPG-INFIL_NCNOTHRS,50,1 on real hardware.
+func GNSSSimSignalLoss() error {
+	resp, cancel, err := gnssSimRequest(http.MethodPost, "/api/signal/loss")
+	if err != nil {
+		return fmt.Errorf("gnss-sim signal loss request failed: %v", err)
+	}
+	defer cancel()
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("gnss-sim signal loss returned %d: %s", resp.StatusCode, string(body))
+	}
+	logrus.Info("gnss-sim: signal loss triggered")
+	return nil
+}
+
+// GNSSSimSignalRestore calls POST /api/signal/restore on the gnss-sim, equivalent
+// to ubxtool CFG-NAVSPG-INFIL_NCNOTHRS,0,1 on real hardware.
+func GNSSSimSignalRestore() error {
+	resp, cancel, err := gnssSimRequest(http.MethodPost, "/api/signal/restore")
+	if err != nil {
+		return fmt.Errorf("gnss-sim signal restore request failed: %v", err)
+	}
+	defer cancel()
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("gnss-sim signal restore returned %d: %s", resp.StatusCode, string(body))
+	}
+	logrus.Info("gnss-sim: signal restored")
+	return nil
+}
+
+// GNSSSimDPLLState represents the DPLL state returned by gnss-sim.
+type GNSSSimDPLLState struct {
+	State           string `json:"state"`
+	FrequencyStatus int    `json:"frequencyStatus"`
+	PhaseStatus     int    `json:"phaseStatus"`
+	ClockClass      int    `json:"clockClass"`
+	PPSStatus       int    `json:"ppsStatus"`
+}
+
+// GNSSSimGetDPLLState retrieves the current DPLL state from the gnss-sim API.
+func GNSSSimGetDPLLState() (*GNSSSimDPLLState, error) {
+	resp, cancel, err := gnssSimRequest(http.MethodGet, "/api/dpll")
+	if err != nil {
+		return nil, fmt.Errorf("gnss-sim DPLL status request failed: %v", err)
+	}
+	defer cancel()
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("gnss-sim DPLL status returned %d: %s", resp.StatusCode, string(body))
+	}
+	var state GNSSSimDPLLState
+	if err := json.NewDecoder(resp.Body).Decode(&state); err != nil {
+		return nil, fmt.Errorf("gnss-sim DPLL status decode failed: %v", err)
+	}
+	return &state, nil
+}
+
+// GNSSSimIsHealthy returns true if the gnss-sim /health endpoint responds with 200 OK.
+func GNSSSimIsHealthy() bool {
+	resp, cancel, err := gnssSimRequest(http.MethodGet, "/health")
+	if err != nil {
+		return false
+	}
+	defer cancel()
+	defer resp.Body.Close()
+	return resp.StatusCode == http.StatusOK
+}
+
+// UseGnssSimulation is true when a kernel virtual GNSS device or gnss-sim PTY is in use
+// (i.e. not a physical E810 with real external GNSS hardware), or when CI exported
+// GNSS_SIM_* env vars (tgm/tgmoc/tgmbc). The env check matters because Telco GM
+// setup may discover /dev/gnss0 via InterfacesByPHCAndPins; MarkGnssSimNmeaActive
+// is then called from the WPC GM config path when simulation is configured.
+func UseGnssSimulation() bool {
+	return gnssSimNmeaActive.Load() || IsGnssSimConfigured()
+}
+
+// IsGnssSimulatedCI is true for conformance paths that target a virtual/simulated GNSS source.
+func IsGnssSimulatedCI() bool {
+	return UseGnssSimulation()
+}
+
+// IsGnssSimConfigured returns true when GNSS simulation env vars are set,
+// indicating the CI environment has a gnss-sim instance available.
+// run-tests.sh exports those vars only for tgm/tgmoc/tgmbc.
+func IsGnssSimConfigured() bool {
+	_, hasDevice := os.LookupEnv("GNSS_SIM_NMEA_DEVICE")
+	_, hasIface := os.LookupEnv("GNSS_SIM_IFACE1")
+	return hasDevice || hasIface
+}
+
+// MarkGnssSimNmeaActive records that the Telco GM path is using simulated/virtual GNSS
+// (kernel netdevsim GNSS or gnss-sim), so hardware-only specs Skip and Simulated T-GM runs.
+func MarkGnssSimNmeaActive() {
+	gnssSimNmeaActive.Store(true)
+}
+
+// L2ConfigReportsIntelWPC returns true if L2 discovery reports an Intel WPC subsystem (E810-XXV-4T).
+// Call NormalizeL2IntegratedGnssNICsForTelcoGM first so integrated-GNSS (GNRD) ports are included.
+func L2ConfigReportsIntelWPC(config l2lib.L2Info) bool {
+	if config == nil {
+		return false
+	}
+	for _, p := range config.GetPtpIfList() {
+		if p != nil && strings.Contains(p.IfPci.Subsystem, solver.WPCNICSubsystemID) {
+			return true
+		}
+	}
+	return false
+}
+
+// l2PtpIfPCIIndicatesIntegratedGnss matches NICs that expose Intel integrated GNSS (e.g. GNRD in PCI
+// description/subsystem from L2) so Telco GM can be solved without patching netdevsim-only overlays.
+func l2PtpIfPCIIndicatesIntegratedGnss(p *l2exports.PtpIf) bool {
+	if p == nil {
+		return false
+	}
+	joined := strings.ToUpper(p.IfPci.Subsystem + " " + p.IfPci.Description)
+	return strings.Contains(joined, "GNRD")
+}
+
+// NormalizeL2IntegratedGnssNICsForTelcoGM patches L2 PtpIf PCI Subsystem so the graph solver's StepIsWPCNic
+// matches integrated-GNSS NICs (GNRD) the same as E810 Westport Channel WPC.
+func NormalizeL2IntegratedGnssNICsForTelcoGM() {
+	const tag = solver.WPCNICSubsystemID + " (integrated GNSS)"
+	patch := func(p *l2exports.PtpIf) {
+		if p == nil {
+			return
+		}
+		if strings.Contains(p.IfPci.Subsystem, solver.WPCNICSubsystemID) {
+			return
+		}
+		if !l2PtpIfPCIIndicatesIntegratedGnss(p) {
+			return
+		}
+		p.IfPci.Subsystem = tag
+		logrus.Infof("L2 Telco GM: normalized integrated GNSS PCI identity for interface %s (%s)",
+			p.InterfaceName, p.IfPci.Description)
+	}
+	for _, p := range l2lib.GlobalL2DiscoveryConfig.PtpIfList {
+		patch(p)
+	}
+	for _, p := range l2lib.GlobalL2DiscoveryConfig.PtpIfListUnfiltered {
+		patch(p)
+	}
+}
+
+func envOrDefault(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
+
+// ApplyIntegratedGnssSimWPCPCIOverlay sets IfPci.Subsystem and GnssDevice on selected
+// interfaces so the L2 graph solver treats them as Intel WPC with GNSS
+// (StepIsWPCNic / StepHasGNSSDevice) on netdevsim CI where real E810 PCI identity
+// is absent. Always applied when simulation is configured — including when L2 already
+// reports WPC — so GnssDevice is filled for InterfacesByPHCAndPins.
+func ApplyIntegratedGnssSimWPCPCIOverlay() {
+	list := strings.TrimSpace(os.Getenv("GNSS_SIM_WPC_IFACES"))
+	if list == "" {
+		list = envOrDefault("GNSS_SIM_IFACE1", "ens1f0") + "," + envOrDefault("GNSS_SIM_IFACE2", "ens1f1")
+	}
+	want := make(map[string]struct{})
+	for _, name := range strings.Split(list, ",") {
+		n := strings.TrimSpace(name)
+		if n != "" {
+			want[n] = struct{}{}
+		}
+	}
+	if len(want) == 0 {
+		return
+	}
+	gnssDev := envOrDefault("GNSS_SIM_NMEA_DEVICE", "gnss0")
+	// Kernel GNSS devices are short names (gnss0); PTY paths stay absolute for ts2phc.
+	if !strings.HasPrefix(gnssDev, "/") && !strings.HasPrefix(gnssDev, "gnss") {
+		gnssDev = "gnss0"
+	}
+	const wpcSubsystem = "E810-XXV-4T"
+	patch := func(p *l2exports.PtpIf) {
+		if p == nil {
+			return
+		}
+		if _, ok := want[p.InterfaceName]; !ok {
+			return
+		}
+		if !strings.Contains(p.IfPci.Subsystem, wpcSubsystem) {
+			p.IfPci.Subsystem = wpcSubsystem + " (gnss-sim CI)"
+		}
+		p.IfPTPCaps.HasPtpPins = true
+		if p.IfPTPCaps.GnssDevice == "" {
+			p.IfPTPCaps.GnssDevice = gnssDev
+		}
+	}
+	for _, p := range l2lib.GlobalL2DiscoveryConfig.PtpIfList {
+		patch(p)
+	}
+	for _, p := range l2lib.GlobalL2DiscoveryConfig.PtpIfListUnfiltered {
+		patch(p)
+	}
+	logrus.Infof("Applied L2 WPC PCI overlay for netdevsim Telco GM: interfaces %v gnss=%s", want, gnssDev)
 }

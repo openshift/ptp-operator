@@ -2,15 +2,27 @@
 set -x
 set -euo pipefail
 
+# Create a pair of netdevsim devices and link them together, one interface
+# placed in each container's network namespace.
+#
+# Usage: ./configpair.sh <port1 netdevsim ID (unique)> <port2 netdevsim ID (unique)> \
+#   <name of the interface on side 1 (ptp1)> <name of the interface on side 2 (ptp1)> \
+#   <port1 ptp clock ID A (/dev/ptpA)> <port2 ptp clock ID B (/dev/ptpB)> \
+#   <port1 container name> <port2 container name> <port1 pci ID> <port2 pci ID> \
+#   [wpc]
+#   wpc=1 enables DPLL + GNSS emulation on the port1 (side 1) NIC (WPC NIC).
+
 NSIM_DEV_1_ID=$1
 NSIM_DEV_2_ID=$2
-NSIM_DEV_COMMON_NAME=$3
-CLK1=$4
-CLK2=$5
-CONTAINER1=$6
-CONTAINER2=$7
-PCI1=$8
-PCI2=$9
+IF1_NAME=$3
+IF2_NAME=$4
+CLK1=$5
+CLK2=$6
+CONTAINER1=$7
+CONTAINER2=$8
+PCI1=$9
+PCI2=${10}
+WPC=${11:-0}
 
 NSIM_DEV_1_SYS=/sys/bus/pci/devices/$PCI1
 NSIM_DEV_2_SYS=/sys/bus/pci/devices/$PCI2
@@ -38,18 +50,17 @@ setup_ns() {
     PODMAN_NODE1_NS=$(get_container_netns_id $CONTAINER1)
     PODMAN_NODE2_NS=$(get_container_netns_id $CONTAINER2)
 
-    ip link set dev $NSIM_DEV_1_NAME name $NSIM_DEV_COMMON_NAME
-    ip link set $NSIM_DEV_COMMON_NAME netns $PODMAN_NODE1_NS
-    ip netns exec $PODMAN_NODE1_NS ip link set $NSIM_DEV_COMMON_NAME netns $PODMAN_NODE1_NS
-    ip netns exec $PODMAN_NODE1_NS ip link set $NSIM_DEV_COMMON_NAME address 00:11:22:33:"$NSIM_DEV_1_ID":"$NSIM_DEV_2_ID"
+    ip link set dev $NSIM_DEV_1_NAME name $IF1_NAME
+    ip link set $IF1_NAME netns $PODMAN_NODE1_NS
+    ip netns exec $PODMAN_NODE1_NS ip link set $IF1_NAME netns $PODMAN_NODE1_NS
+    ip netns exec $PODMAN_NODE1_NS ip link set $IF1_NAME address 00:11:22:33:"$NSIM_DEV_1_ID":"$NSIM_DEV_2_ID"
+    ip netns exec $PODMAN_NODE1_NS ip link set dev $IF1_NAME up
 
-    ip link set dev $NSIM_DEV_2_NAME name $NSIM_DEV_COMMON_NAME
-    ip link set $NSIM_DEV_COMMON_NAME netns $PODMAN_NODE2_NS
-    ip netns exec $PODMAN_NODE2_NS ip link set $NSIM_DEV_COMMON_NAME netns $PODMAN_NODE2_NS
-    ip netns exec $PODMAN_NODE2_NS ip link set $NSIM_DEV_COMMON_NAME address 00:11:22:33:"$NSIM_DEV_2_ID":"$NSIM_DEV_1_ID"
-
-    ip netns exec $PODMAN_NODE1_NS ip link set dev $NSIM_DEV_COMMON_NAME up
-    ip netns exec $PODMAN_NODE2_NS ip link set dev $NSIM_DEV_COMMON_NAME up
+    ip link set dev $NSIM_DEV_2_NAME name $IF2_NAME
+    ip link set $IF2_NAME netns $PODMAN_NODE2_NS
+    ip netns exec $PODMAN_NODE2_NS ip link set $IF2_NAME netns $PODMAN_NODE2_NS
+    ip netns exec $PODMAN_NODE2_NS ip link set $IF2_NAME address 00:11:22:33:"$NSIM_DEV_2_ID":"$NSIM_DEV_1_ID"
+    ip netns exec $PODMAN_NODE2_NS ip link set dev $IF2_NAME up
 }
 
 get_container_netns_id() {
@@ -86,7 +97,7 @@ get_container_netns_id() {
         return 1
     fi
 
-    echo "$NETNS_ID"
+    echo $NETNS_ID
 }
 
 # main
@@ -94,18 +105,19 @@ set -x
 
 cleanup_ns
 
-echo "$NSIM_DEV_1_ID $PCI1 $CLK1" >$NSIM_DEV_SYS_NEW
-echo "$NSIM_DEV_2_ID $PCI2 $CLK2" >$NSIM_DEV_SYS_NEW
+# Format: id pci clk [ports queues wpc] — wpc=1 enables DPLL + GNSS on that device.
+echo "$NSIM_DEV_1_ID $PCI1 $CLK1 1 1 $WPC" >$NSIM_DEV_SYS_NEW
+echo "$NSIM_DEV_2_ID $PCI2 $CLK2 1 1 0" >$NSIM_DEV_SYS_NEW
 udevadm settle
 setup_ns
 
 NSIM_DEV_1_FD=$((256 + RANDOM % 256))
 exec {NSIM_DEV_1_FD}</var/run/netns/$PODMAN_NODE1_NS
-NSIM_DEV_1_IFIDX=$(ip netns exec $PODMAN_NODE1_NS cat /sys/class/net/$NSIM_DEV_COMMON_NAME/ifindex)
+NSIM_DEV_1_IFIDX=$(ip netns exec $PODMAN_NODE1_NS cat /sys/class/net/$IF1_NAME/ifindex)
 
 NSIM_DEV_2_FD=$((256 + RANDOM % 256))
 exec {NSIM_DEV_2_FD}</var/run/netns/$PODMAN_NODE2_NS
-NSIM_DEV_2_IFIDX=$(ip netns exec $PODMAN_NODE2_NS cat /sys/class/net/$NSIM_DEV_COMMON_NAME/ifindex)
+NSIM_DEV_2_IFIDX=$(ip netns exec $PODMAN_NODE2_NS cat /sys/class/net/$IF2_NAME/ifindex)
 
 echo "$NSIM_DEV_1_FD:$NSIM_DEV_1_IFIDX $NSIM_DEV_2_FD:$NSIM_DEV_2_IFIDX" >$NSIM_DEV_SYS_LINK
 if [ $? -ne 0 ]; then

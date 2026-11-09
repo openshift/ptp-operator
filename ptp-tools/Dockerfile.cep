@@ -1,22 +1,16 @@
-FROM docker.io/golang:1.26.0 AS builder
-ENV GO111MODULE=off
-ENV CGO_ENABLED=1
-ENV COMMON_GO_ARGS=-race
-ENV GOOS=linux
-ENV GOPATH=/go
+FROM docker.io/golang:1.26.0 AS daemon-builder
+WORKDIR /go/src/github.com/k8snetworkplumbingwg/linuxptp-daemon
 ENV GOMAXPROCS=16
 
-WORKDIR /go/src/github.com/redhat-cne/cloud-event-proxy
-RUN git clone -b main https://github.com/redhat-cne/cloud-event-proxy.git /go/src/github.com/redhat-cne/cloud-event-proxy
+RUN git clone -b main https://github.com/k8snetworkplumbingwg/linuxptp-daemon.git  /go/src/github.com/k8snetworkplumbingwg/linuxptp-daemon
 
-RUN hack/build-go.sh
+RUN make clean && make -j 16
 
 FROM quay.io/centos/centos:stream9
-COPY --from=builder /go/src/github.com/redhat-cne/cloud-event-proxy/build/cloud-event-proxy /
-COPY --from=builder /go/src/github.com/redhat-cne/cloud-event-proxy/plugins/*.so /plugins/
-LABEL io.k8s.display-name="Cloud Event Proxy" \
-      io.k8s.description="This is a component of OpenShift Container Platform and provides a side car to handle cloud events." \
+COPY --from=daemon-builder /go/src/github.com/k8snetworkplumbingwg/linuxptp-daemon/bin/cloud-event-proxy /usr/local/bin/
+LABEL io.k8s.display-name="Cloud Event Proxy v2" \
+      io.k8s.description="Cloud Event Proxy (v2) built from linuxptp-daemon, run as an in-daemon event proxy sidecar." \
       io.openshift.tags="openshift" \
       maintainer="PTP Team <ptp-dev@redhat.com>"
 
-ENTRYPOINT ["./cloud-event-proxy"]
+CMD ["/usr/local/bin/cloud-event-proxy"]

@@ -13,6 +13,6 @@ kind: Kustomization
 images:
 - name: controller
   newName: quay.io/openshift/origin-ptp-operator
-  newTag: "5.0"
+  newTag: "5.1"
 patches:
 - path: env.yaml

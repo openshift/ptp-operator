@@ -487,23 +487,30 @@ where `<constraint_function>` is a function validating if a single constraint is
  ```
  	data.problems[AlgoDualNicBCString] = &[][][]int{
 		{{int(solver.StepNil), 0, 0}},         // step1
-		{{int(solver.StepSameNic), 2, 0, 1}},  // step2
-		{{int(solver.StepSameLan2), 2, 1, 2}}, // step3
+		{{int(solver.StepSameNic), 2, 0, 1}},  // step2: BC1 ports on the same NIC
+		{{int(solver.StepSameLan2), 2, 0, 2}}, // step3: GM port 1 on BC1 slave port's LAN
 		{
-      {int(solver.StepSameNode), 2, 1, 3}, // step4
-			{int(solver.StepSameLan2), 2, 2, 3}  // step4
+			{int(solver.StepSameNode), 2, 2, 3}, // step4: GM port 2 on same node as GM port 1
+			{int(solver.StepSameNic), 2, 2, 3}   // step4: and on the same NIC
     },
-		{{int(solver.StepSameNic), 2, 3, 4}}, // step5
+		{{int(solver.StepSameNode), 2, 0, 4}, // step5: BC2 slave port on the BC node
+			{int(solver.StepSameLan2), 2, 3, 4}, // step5: on GM port 2's LAN
+			{int(solver.StepSameNic), 2, 0, 4, solver.Negative}}, // step5: different NIC than the BC1 slave port
+		{{int(solver.StepSameNic), 2, 4, 5}, // step6: BC2 ports on the same NIC
+			{int(solver.StepSameNic), 2, 1, 5, solver.Negative}}, // step6: BC1 and BC2 master ports on different NICs
  ```
-in step 4 we are checking that p1 and p3 are in the same node and that p2 and p3 are in the same LAN. Note that you can only do a constraint check if the interface is already selected from previous steps.
+in step 4 we are checking that p2 and p3 are in the same node and on the same NIC. Note that you can only do a constraint check if the interface is already selected from previous steps.
 So for instance, in step 4, interfaces p0, p1, p2, p3 are selected (the 4 first ones). So in step 4 we can run constraints on any of these interfaces, but not let's say on p4 since it is not selected yet.
 The number of steps, not including the first one must be equal to the number of interfaces.
 
+Note that since the servers are directly connected (no switch in between), a grand master feeding 2 remote ports (e.g. the 2 ports of a dual follower clock, or the 2 slave ports of a dual NIC BC) needs 2 ports of its own: the `Grandmaster` and `GrandmasterSibling` roles are the 2 master interfaces of such a grand master, and they must be on the same node and the same NIC (single PHC).
+
 Another information needed is the role each of these interfaces p0, p1, p2, ... are playing such as grandmaster
 ```
-const NumTestClockRoles = 7
+const NumTestClockRoles = 8
 const (
 	Grandmaster TestIfClockRoles = iota
+	GrandmasterSibling
 	Slave1
 	Slave2
 	BC1Master
@@ -514,6 +521,7 @@ const (
 ```
 the roles above corresponds to each of the individual interfaces of clocks under test:
 - `Grandmaster` is the Grandmaster master interface
+- `GrandmasterSibling` is the second master interface of a 2-port grand master (dual follower, dual NIC BC scenarios)
 - `slave1` is the slave port of the OC clock or the slave port of the OC slave to BC clock or the OC slave to the first BC clock in dual NIC BC mode
 - `slave2` is the slave port of the OC slave to the second BC clock in dual NIC BC mode
 - `BC1Master` is the master port of the BC clock or the master port of the first BC clock in the DualNic BC scenario

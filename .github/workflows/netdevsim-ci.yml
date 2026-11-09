@@ -40,11 +40,15 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y dkms gcc make ethtool linuxptp \
-            linux-headers-$(uname -r) \
-            linux-modules-extra-$(uname -r) || {
-            echo "::error::Could not install kernel headers/modules for $(uname -r)"
-            exit 1
-          }
+            linux-headers-$(uname -r)
+          # gnss.ko lives in linux-modules-extra on Azure kernels, but the
+          # package is not published for every runner ABI — install when
+          # available, skip otherwise.
+          if apt-cache show linux-modules-extra-$(uname -r) >/dev/null 2>&1; then
+            sudo apt-get install -y linux-modules-extra-$(uname -r)
+          else
+            echo "::warning::linux-modules-extra-$(uname -r) not available — continuing without it"
+          fi
 
       - name: Install DKMS source tree
         run: |
@@ -206,10 +210,16 @@ jobs:
     needs: ptp-images
     runs-on: ubuntu-24.04
     timeout-minutes: 90
+    name: "ptp-test (${{ matrix.mode }}${{ matrix.auth && '-auth' || '' }})"
     strategy:
       fail-fast: false
       matrix:
-        mode: [oc, bc, dualnicbc, dualnicbcha, dualfollower]
+        mode: [oc, bc, dualnicbc, dualnicbcha, dualfollower, tgm, tgmoc, tgmbc]
+        auth: [false]
+        include:
+          # OC with PTP authentication enabled
+          - mode: oc
+            auth: true
     steps:
       - name: "Runner info (${{ matrix.mode }})"
         run: |
@@ -252,9 +262,15 @@ jobs:
 
       - name: Install DKMS dependencies
         run: |
+          sudo apt-get update
           sudo apt-get install -y dkms gcc make ethtool linuxptp \
-            linux-headers-$(uname -r) \
-            linux-modules-extra-$(uname -r)
+            linux-headers-$(uname -r)
+          # Best-effort: linux-modules-extra is not published for every ABI.
+          if apt-cache show linux-modules-extra-$(uname -r) >/dev/null 2>&1; then
+            sudo apt-get install -y linux-modules-extra-$(uname -r)
+          else
+            echo "::warning::linux-modules-extra-$(uname -r) not available — continuing without it"
+          fi
 
       - name: Clone and install DKMS modules
         run: |
@@ -310,17 +326,39 @@ jobs:
           export PATH=/usr/local/ptp-podman-wrap:/usr/local/bin:/usr/local/go/bin:/root/go/bin:$PATH
           export KIND_EXPERIMENTAL_PROVIDER=podman
           export ENABLE_CEPV2=true
+          export PTP_AUTH_ENABLED=${{ matrix.auth }}
 
           VM_IP=$(hostname -I | awk '{print $1}')
           cd /root/ptp-operator/scripts
           ./run-on-vm.sh --dkms --deploy "${VM_IP}" --mode "${{ matrix.mode }}" "${VM_IP}"
           DEPLOY
 
+      - name: "Collect Kubernetes debug info"
+        if: always()
+        run: |
+          sudo bash -l <<'DEBUGINFO'
+          set -x
+          export PATH=/usr/local/ptp-podman-wrap:/usr/local/bin:/usr/local/go/bin:/root/go/bin:$PATH
+          mkdir -p /tmp/artifacts/k8s-debug
+          kubectl get pods -n openshift-ptp -o wide \
+            > /tmp/artifacts/k8s-debug/pods.txt 2>&1 || true
+          kubectl get events -n openshift-ptp \
+            --sort-by=.metadata.creationTimestamp \
+            > /tmp/artifacts/k8s-debug/events.txt 2>&1 || true
+          kubectl describe pods -n openshift-ptp -l app=linuxptp-daemon \
+            > /tmp/artifacts/k8s-debug/linuxptp-daemon-describe.txt 2>&1 || true
+          for pod in $(kubectl get pods -n openshift-ptp -l app=linuxptp-daemon \
+              -o jsonpath='{.items[*].metadata.name}' 2>/dev/null); do
+            kubectl logs -n openshift-ptp "$pod" -c cloud-event-proxy --previous \
+              > "/tmp/artifacts/k8s-debug/${pod}-cep-previous.txt" 2>&1 || true
+          done
+          DEBUGINFO
+
       - name: Upload test artifacts
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: ptp-artifacts-${{ matrix.mode }}
+          name: ptp-artifacts-${{ matrix.mode }}${{ matrix.auth && '-auth' || '' }}
           path: /tmp/artifacts/
           if-no-files-found: ignore
 

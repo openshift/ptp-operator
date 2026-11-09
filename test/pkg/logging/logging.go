@@ -6,6 +6,7 @@ import (
 	"path"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -44,4 +45,15 @@ func SetLogFormat() {
 		return strconv.Itoa(f.Line) + "]", fmt.Sprintf("[%s:", filename)
 	}
 	logrus.SetFormatter(customFormatter)
+}
+
+// PrintTestSeparator prints a visible separator block to stdout to help
+// distinguish individual tests when scrolling through long log output.
+func PrintTestSeparator() {
+	line := strings.Repeat("━", 100)
+	fmt.Fprintln(os.Stdout)
+	fmt.Fprintln(os.Stdout, line)
+	fmt.Fprintln(os.Stdout, line)
+	fmt.Fprintln(os.Stdout, line)
+	fmt.Fprintln(os.Stdout)
 }

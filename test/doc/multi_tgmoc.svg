@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="700px" height="500px" viewBox="0 0 700 500" style="background: transparent; background-color: transparent; color-scheme: light dark;">
+  <style>
+    .title { font: bold 14px Helvetica, Arial, sans-serif; fill: #000000; }
+    .label { font: 12px Helvetica, Arial, sans-serif; fill: #000000; }
+    .annot { font: 12px Helvetica, Arial, sans-serif; fill: #000000; }
+    .same-lan { font: 12px Helvetica, Arial, sans-serif; fill: #A680B8; }
+    .neg { font: 12px Helvetica, Arial, sans-serif; fill: #CC0000; }
+    .cap { font: 12px Helvetica, Arial, sans-serif; fill: #000000; }
+  </style>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#000000"/>
+    </marker>
+  </defs>
+
+  <text class="title" x="10" y="24">TGMOC - WPC T-GM + OC constraints (algo TGMOC)</text>
+
+  <!-- LAN1 contains both SameLan endpoints p0 and p2 -->
+  <rect x="200" y="100" width="320" height="110" fill="#d5e8d4" stroke="#82b366"/>
+  <text class="annot" text-anchor="middle" x="360" y="200">LAN1</text>
+
+  <!-- GM Same NIC (p0 in LAN1, p1 below) -->
+  <rect x="210" y="70" width="110" height="270" rx="15" ry="15" fill="none" stroke="#000000" stroke-width="3"/>
+  <text class="annot" text-anchor="middle" x="265" y="92">Same NIC</text>
+
+  <rect x="20" y="110" width="140" height="50" fill="#dae8fc" stroke="#6c8ebf"/>
+  <text class="label" text-anchor="middle" x="90" y="128">Grandmaster</text>
+  <text class="label" text-anchor="middle" x="90" y="144">IsWPCNic +</text>
+  <text class="label" text-anchor="middle" x="90" y="158">HasGNSSDevice</text>
+
+  <rect x="20" y="270" width="140" height="50" fill="#dae8fc" stroke="#6c8ebf"/>
+  <text class="label" text-anchor="middle" x="90" y="288">GrandmasterSibling</text>
+  <text class="label" text-anchor="middle" x="90" y="304">IsWPCNic +</text>
+  <text class="label" text-anchor="middle" x="90" y="318">SameNic(p0)</text>
+
+  <ellipse cx="265" cy="145" rx="28" ry="26" fill="#ffffff" stroke="#000000"/>
+  <text class="label" text-anchor="middle" x="265" y="141">GM</text>
+  <text class="label" text-anchor="middle" x="265" y="155">+GNSS</text>
+  <text class="annot" x="340" y="125">p0</text>
+
+  <ellipse cx="265" cy="300" rx="28" ry="26" fill="#ffffff" stroke="#000000"/>
+  <text class="label" text-anchor="middle" x="265" y="304">GM</text>
+  <text class="annot" x="340" y="304">p1</text>
+
+  <!-- OC (CUT) -->
+  <rect x="560" y="125" width="110" height="50" fill="#dae8fc" stroke="#6c8ebf"/>
+  <text class="label" text-anchor="middle" x="615" y="143">OC / Slave1</text>
+  <text class="label" text-anchor="middle" x="615" y="159">CUT</text>
+  <text class="label" text-anchor="middle" x="615" y="173">SameLan(p0)</text>
+
+  <ellipse cx="470" cy="145" rx="28" ry="26" fill="#ffffff" stroke="#000000"/>
+  <text class="label" text-anchor="middle" x="470" y="149">OC</text>
+  <text class="annot" x="510" y="125">p2</text>
+
+  <line x1="293" y1="145" x2="442" y2="145" stroke="#000000" stroke-width="1.5" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text class="same-lan" text-anchor="middle" x="370" y="130">Same LAN</text>
+  <text class="neg" text-anchor="middle" x="370" y="80">not SameNode(p0, p2)</text>
+
+  <text class="cap" text-anchor="middle" x="350" y="390">p0/p1 = WPC T-GM (same NIC; only p0 requires GNSS). p2 = OC slave (CUT).</text>
+  <text class="cap" text-anchor="middle" x="350" y="408">SameLan2(p0, p2) and not SameNode(p0, p2) so priority-override tests cannot wipe the GM.</text>
+  <text class="cap" text-anchor="middle" x="350" y="436">Algo TGMOC:</text>
+  <text class="cap" text-anchor="middle" x="350" y="454">p0 {IsWPCNic, HasGNSSDevice} -&gt; p1 {IsWPCNic, SameNic(p0)} -&gt; p2 {SameLan2(p0), not SameNode(p0)}</text>
+</svg>

@@ -35,14 +35,15 @@ const (
 	PtpVolumeMountCleanPolicyName = "test-volume-mount-cleanup"
 
 	// test secret names
-	PtpTestVolumeSecretName       = "ptp-test-volume-secret"
-	PtpSecurityMismatchSecretName = "ptp-security-mismatch"
+	PtpTestVolumeSecretName   = "ptp-test-volume-secret"
+	PtpSecurityConfSecretName = "ptp-security-conf"
 
 	// node labels
 	PtpGrandmasterNodeLabel    = "ptp/test-grandmaster"
 	PtpClockUnderTestNodeLabel = "ptp/clock-under-test"
 	PtpSlave1NodeLabel         = "ptp/test-slave1"
 	PtpSlave2NodeLabel         = "ptp/test-slave2"
+	TimeoutIn30Seconds         = 30 * time.Second
 	TimeoutIn1Minute           = 1 * time.Minute
 	TimeoutIn3Minutes          = 3 * time.Minute
 	TimeoutIn5Minutes          = 5 * time.Minute

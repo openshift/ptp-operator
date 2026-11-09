@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="820px" height="620px" viewBox="0 0 820 620" style="background: transparent; background-color: transparent; color-scheme: light dark;">
+  <style>
+    .title { font: bold 14px Helvetica, Arial, sans-serif; fill: #000000; }
+    .label { font: 12px Helvetica, Arial, sans-serif; fill: #000000; }
+    .annot { font: 12px Helvetica, Arial, sans-serif; fill: #000000; }
+    .same-lan { font: 12px Helvetica, Arial, sans-serif; fill: #A680B8; }
+    .neg { font: 12px Helvetica, Arial, sans-serif; fill: #CC0000; }
+    .cap { font: 12px Helvetica, Arial, sans-serif; fill: #000000; }
+  </style>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 Z" fill="#000000"/>
+    </marker>
+  </defs>
+
+  <text class="title" x="10" y="24">TGMBC - WPC T-GM + BC (+ optional OC) constraints</text>
+
+  <!-- LAN1: SameLan2(p0, p2) - both endpoints inside -->
+  <rect x="200" y="95" width="300" height="110" fill="#d5e8d4" stroke="#82b366"/>
+  <text class="annot" text-anchor="middle" x="350" y="195">LAN1</text>
+
+  <!-- LAN2: SameLan2(p3, p4) - both endpoints inside (bottom row, multi_bc style) -->
+  <rect x="380" y="280" width="300" height="110" fill="#d5e8d4" stroke="#82b366"/>
+  <text class="annot" text-anchor="middle" x="530" y="380">LAN2 (TGMBCWithSlaves)</text>
+
+  <!-- GM Same NIC: 210-320 -->
+  <rect x="210" y="65" width="110" height="280" rx="15" ry="15" fill="none" stroke="#000000" stroke-width="3"/>
+  <text class="annot" text-anchor="middle" x="265" y="87">Same NIC</text>
+
+  <rect x="20" y="105" width="140" height="50" fill="#dae8fc" stroke="#6c8ebf"/>
+  <text class="label" text-anchor="middle" x="90" y="123">Grandmaster</text>
+  <text class="label" text-anchor="middle" x="90" y="139">IsWPCNic +</text>
+  <text class="label" text-anchor="middle" x="90" y="153">HasGNSSDevice</text>
+
+  <rect x="20" y="275" width="140" height="50" fill="#dae8fc" stroke="#6c8ebf"/>
+  <text class="label" text-anchor="middle" x="90" y="293">GrandmasterSibling</text>
+  <text class="label" text-anchor="middle" x="90" y="309">IsWPCNic +</text>
+  <text class="label" text-anchor="middle" x="90" y="323">SameNic(p0)</text>
+
+  <!-- p0 -->
+  <ellipse cx="265" cy="140" rx="28" ry="26" fill="#ffffff" stroke="#000000"/>
+  <text class="label" text-anchor="middle" x="265" y="136">GM</text>
+  <text class="label" text-anchor="middle" x="265" y="150">+GNSS</text>
+  <text class="annot" x="340" y="120">p0</text>
+
+  <!-- p1 -->
+  <ellipse cx="265" cy="310" rx="28" ry="26" fill="#ffffff" stroke="#000000"/>
+  <text class="label" text-anchor="middle" x="265" y="314">GM</text>
+  <text class="annot" x="340" y="314">p1</text>
+
+  <!-- BC Same NIC: 400-510 (p2 in LAN1, p3 in LAN2) -->
+  <rect x="400" y="65" width="110" height="330" rx="15" ry="15" fill="none" stroke="#000000" stroke-width="3"/>
+  <text class="annot" text-anchor="middle" x="455" y="87">Same NIC</text>
+
+  <rect x="530" y="105" width="100" height="40" fill="#dae8fc" stroke="#6c8ebf"/>
+  <text class="label" text-anchor="middle" x="580" y="122">BC1Slave</text>
+  <text class="label" text-anchor="middle" x="580" y="138">CUT</text>
+
+  <!-- p2 -->
+  <ellipse cx="455" cy="140" rx="28" ry="26" fill="#ffffff" stroke="#000000"/>
+  <text class="label" text-anchor="middle" x="455" y="136">BC</text>
+  <text class="label" text-anchor="middle" x="455" y="150">slave</text>
+  <text class="annot" x="345" y="155">p2</text>
+
+  <!-- p3 -->
+  <ellipse cx="455" cy="325" rx="28" ry="26" fill="#ffffff" stroke="#000000"/>
+  <text class="label" text-anchor="middle" x="455" y="321">BC</text>
+  <text class="label" text-anchor="middle" x="455" y="335">master</text>
+  <text class="annot" x="345" y="340">p3</text>
+
+  <!-- BC1Master label below LAN2 - must not overlap green LAN -->
+  <rect x="400" y="405" width="110" height="36" fill="#dae8fc" stroke="#6c8ebf"/>
+  <text class="label" text-anchor="middle" x="455" y="420">BC1Master</text>
+  <text class="label" text-anchor="middle" x="455" y="434">SameNic(p2)</text>
+
+  <!-- p0 <-> p2 -->
+  <line x1="293" y1="140" x2="427" y2="140" stroke="#000000" stroke-width="1.5" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text class="same-lan" text-anchor="middle" x="360" y="125">Same LAN</text>
+  <text class="neg" text-anchor="middle" x="360" y="75">not SameNode(p0, p2)</text>
+
+  <!-- optional OC p4 in LAN2 -->
+  <ellipse cx="620" cy="325" rx="28" ry="26" fill="#ffffff" stroke="#000000"/>
+  <text class="label" text-anchor="middle" x="620" y="329">OC</text>
+  <text class="annot" x="655" y="310">p4</text>
+
+  <rect x="700" y="300" width="110" height="55" fill="#dae8fc" stroke="#6c8ebf"/>
+  <text class="label" text-anchor="middle" x="755" y="317">Slave1 (opt.)</text>
+  <text class="label" text-anchor="middle" x="755" y="333">SameLan(p3)</text>
+  <text class="label" text-anchor="middle" x="755" y="347">TGMBCWithSlaves</text>
+
+  <line x1="483" y1="325" x2="592" y2="325" stroke="#000000" stroke-width="1.5" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text class="same-lan" text-anchor="middle" x="540" y="310">Same LAN</text>
+
+  <!-- three negatives vs GM p0 - matches AlgoTGMBCWithSlaves step5 -->
+  <text class="neg" text-anchor="middle" x="620" y="265">p4 vs p0 (GM):</text>
+  <text class="neg" text-anchor="middle" x="620" y="281">not SameNic / not SameLan / not SameNode</text>
+
+  <text class="cap" text-anchor="middle" x="410" y="470">Algo TGMBC: p0 {IsWPCNic, HasGNSSDevice} -&gt; p1 {IsWPCNic, SameNic(p0)} -&gt;</text>
+  <text class="cap" text-anchor="middle" x="410" y="488">p2 {SameLan2(p0), not SameNode(p0)} -&gt; p3 {SameNic(p2)}.  CUT is the BC.</text>
+  <text class="cap" text-anchor="middle" x="410" y="514">Algo TGMBCWithSlaves adds p4 (downstream OC) on p3's LAN with:</text>
+  <text class="cap" text-anchor="middle" x="410" y="532">SameLan2(p3, p4) and not SameNic(p0,p4) and not SameLan2(p0,p4) and not SameNode(p0,p4).</text>
+  <text class="cap" text-anchor="middle" x="410" y="556">(A GNSS PHC and an OC follower on the same node produce a garbage offset / no clock_state.)</text>
+  <text class="cap" text-anchor="middle" x="410" y="580">Cascading holdover tests assert GM and BC clock-class through GNSS loss while BC is CUT.</text>
+</svg>
