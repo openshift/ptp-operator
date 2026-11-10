@@ -187,7 +187,10 @@ func TestSyncEventCABundleCombinesCAs(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{Name: names.EventPublisherServiceCAConfigMapName, Namespace: authTestNamespace},
 			Data:       map[string]string{names.ServiceCAKey: "SERVICE-CA-PEM"},
 		},
-		&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: names.EventPublisherCABundleConfigMapName, Namespace: authTestNamespace}},
+		&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: names.EventPublisherCABundleConfigMapName, Namespace: authTestNamespace},
+			Data:       map[string]string{names.ServiceCAKey: "STALE-PRE-SPLIT-CA"},
+		},
 		// Out-of-band client CA published by e.g. make deploy-consumer.
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{Name: names.EventPublisherClientCAConfigMapName, Namespace: authTestNamespace},
@@ -199,6 +202,7 @@ func TestSyncEventCABundleCombinesCAs(t *testing.T) {
 
 	data := getConfigMapData(t, r, names.EventPublisherCABundleConfigMapName)
 	assert.Equal(t, "SERVICE-CA-PEM\nCLIENT-CA-PEM\n", data[names.EventPublisherCABundleKey])
+	assert.NotContains(t, data, names.ServiceCAKey, "legacy injected key must be removed from the output")
 	assert.Equal(t, map[string]string{names.ServiceCAKey: "SERVICE-CA-PEM"},
 		getConfigMapData(t, r, names.EventPublisherServiceCAConfigMapName))
 }
@@ -363,6 +367,12 @@ func TestEventAuthEnabled(t *testing.T) {
 	assert.True(t, kinds["Service/ptp-event-publisher-server"])
 	assert.True(t, kinds["ConfigMap/ptp-event-publisher-auth"])
 	assert.True(t, kinds["ClusterRoleBinding/linuxptp-daemon-auth-delegator"])
+
+	for _, o := range authObjs {
+		if o.GetKind() == "ConfigMap" && o.GetName() == names.EventPublisherCABundleConfigMapName {
+			assert.Equal(t, "false", o.GetAnnotations()["service.beta.openshift.io/inject-cabundle"])
+		}
+	}
 
 	// config.json must be valid and carry the cluster TLS profile.
 	var cfg map[string]interface{}

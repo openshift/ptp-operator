@@ -20,6 +20,10 @@ kind: ConfigMap
 metadata:
   name: ptp-event-publisher-ca-bundle
   namespace: {{.Namespace}}
+  annotations:
+    # Explicitly override the legacy "true" value during upgrades. Merely
+    # omitting the annotation does not remove it with the apply merge behavior.
+    service.beta.openshift.io/inject-cabundle: "false"
   labels:
     app: linuxptp-daemon
 ---

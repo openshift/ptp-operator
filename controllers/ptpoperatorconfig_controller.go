@@ -462,13 +462,16 @@ func (r *PtpOperatorConfigReconciler) syncEventCABundle(ctx context.Context) err
 		return fmt.Errorf("failed to get event client CA configmap: %v", err)
 	}
 
-	if bundle.Data[names.EventPublisherCABundleKey] == combined {
+	if bundle.Data[names.EventPublisherCABundleKey] == combined && bundle.Data[names.ServiceCAKey] == "" {
 		return nil // already up to date
 	}
 	if bundle.Data == nil {
 		bundle.Data = map[string]string{}
 	}
 	bundle.Data[names.EventPublisherCABundleKey] = combined
+	// Remove data left by the pre-split layout during an upgrade. The Service CA
+	// controller now owns only EventPublisherServiceCAConfigMapName.
+	delete(bundle.Data, names.ServiceCAKey)
 	if err := r.Update(ctx, bundle); err != nil {
 		return fmt.Errorf("failed to update event CA bundle configmap: %v", err)
 	}
