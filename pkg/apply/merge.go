@@ -517,15 +517,17 @@ func MergeServiceForUpdate(current, updated *uns.Unstructured) error {
 	return nil
 }
 
-// MergeConfigMapForUpdate preserves the operator-derived ca-bundle.crt when the
-// data-less output template is reapplied. The injected Service CA lives in a
-// separate input ConfigMap so the two controllers never write the same object.
+// MergeConfigMapForUpdate preserves data in the two event-auth ConfigMaps whose
+// data is populated outside the manifest apply path: Service CA injects the
+// input service-ca.crt, and syncEventCABundle writes the derived output. Keeping
+// those values prevents apply/inject and apply/derive reconciliation loops.
 func MergeConfigMapForUpdate(current, updated *uns.Unstructured) error {
 	gvk := updated.GroupVersionKind()
 	if gvk.Group != "" || gvk.Kind != "ConfigMap" {
 		return nil
 	}
-	if updated.GetName() != names.EventPublisherCABundleConfigMapName {
+	if updated.GetName() != names.EventPublisherServiceCAConfigMapName &&
+		updated.GetName() != names.EventPublisherCABundleConfigMapName {
 		return nil
 	}
 	for _, field := range []string{"data", "binaryData"} {
