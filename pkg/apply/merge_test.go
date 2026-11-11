@@ -229,6 +229,91 @@ spec:
 	g.Expect(ip).To(Equal("cur"))
 }
 
+// TestMergeConfigMapPreservesDerivedData verifies the event-publisher CA bundle
+// keeps the operator-derived output when its data-less template is re-applied.
+func TestMergeConfigMapPreservesDerivedData(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	cur := UnstructuredFromYaml(t, `
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ptp-event-publisher-ca-bundle
+data:
+  ca-bundle.crt: DERIVED`)
+
+	upd := UnstructuredFromYaml(t, `
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ptp-event-publisher-ca-bundle`)
+
+	err := MergeObjectForUpdate(context.Background(), cur, upd)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	data, ok, err := uns.NestedStringMap(upd.Object, "data")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(ok).To(BeTrue())
+	g.Expect(data).To(HaveKeyWithValue("ca-bundle.crt", "DERIVED"))
+}
+
+// TestMergeConfigMapPreservesInjectedServiceCA verifies the data-less Service
+// CA input template does not clear service-ca.crt after injection. Clearing it
+// would cause Service CA and ptp-operator to update the object forever.
+func TestMergeConfigMapPreservesInjectedServiceCA(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	cur := UnstructuredFromYaml(t, `
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ptp-event-publisher-service-ca
+data:
+  service-ca.crt: INJECTED`)
+
+	upd := UnstructuredFromYaml(t, `
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ptp-event-publisher-service-ca`)
+
+	err := MergeObjectForUpdate(context.Background(), cur, upd)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	data, ok, err := uns.NestedStringMap(upd.Object, "data")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(ok).To(BeTrue())
+	g.Expect(data).To(HaveKeyWithValue("service-ca.crt", "INJECTED"))
+}
+
+// TestMergeConfigMapUnscopedUntouched verifies the merge only guards the CA
+// bundle ConfigMap; other ConfigMaps (e.g. ptp-configmap) are fully owned by the
+// operator and must not have stale keys preserved.
+func TestMergeConfigMapUnscopedUntouched(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	cur := UnstructuredFromYaml(t, `
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ptp-configmap
+data:
+  stale: old`)
+
+	upd := UnstructuredFromYaml(t, `
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ptp-configmap`)
+
+	err := MergeObjectForUpdate(context.Background(), cur, upd)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	_, ok, err := uns.NestedStringMap(upd.Object, "data")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(ok).To(BeFalse(), "unrelated ConfigMap data must not be preserved")
+}
+
 func TestMergeServiceAccount(t *testing.T) {
 	g := NewGomegaWithT(t)
 

@@ -30,3 +30,38 @@ const DefaultOperatorConfigName = "default"
 
 // ManifestDir is the directory where manifests are located.
 const ManifestDir = "./bindata"
+
+// Event-publisher mTLS CA trust anchors.
+//
+// EventPublisherServiceCAConfigMapName is the Service CA operator-owned input.
+// Keeping this separate from the derived output avoids two controllers writing
+// the same ConfigMap and triggering an endless reconciliation loop.
+const EventPublisherServiceCAConfigMapName = "ptp-event-publisher-service-ca"
+
+// EventPublisherCABundleConfigMapName is the operator-owned output containing
+// the combined trust file that cloud-event-proxy loads via caCertPath.
+const EventPublisherCABundleConfigMapName = "ptp-event-publisher-ca-bundle"
+
+// EventPublisherClientCAConfigMapName is an optional operator-read input holding
+// an additional client CA to trust for mTLS (e.g. a test consumer's clientAuth
+// CA that cannot be minted by the Service CA). Published out-of-band; when absent
+// only Service CA-signed clients are trusted.
+const EventPublisherClientCAConfigMapName = "ptp-event-publisher-client-ca"
+
+// EventPublisherClientTLSSecretName is an optional out-of-band secret holding the
+// clientAuth certificate (tls.crt/tls.key) that cloud-event-proxy presents when it
+// acts as an mTLS *client* on the outbound push leg (delivering initial
+// notifications to a consumer callback). The Service CA only mints serverAuth
+// certificates, so the push client cannot reuse ptp-event-publisher-server-tls; a
+// dedicated clientAuth cert must be supplied here. The daemonset mounts it
+// optionally - when absent, outbound pushes rely on the ServiceAccount bearer
+// token alone (see clientCertPath/clientKeyPath in auth-config.yaml).
+const EventPublisherClientTLSSecretName = "ptp-event-publisher-client-tls"
+
+// ServiceCAKey is the key the OpenShift Service CA operator injects into
+// EventPublisherServiceCAConfigMapName.
+const ServiceCAKey = "service-ca.crt"
+
+// EventPublisherCABundleKey is the operator-owned combined trust file
+// (service-ca.crt ++ any client CA) referenced by cloud-event-proxy's caCertPath.
+const EventPublisherCABundleKey = "ca-bundle.crt"

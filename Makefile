@@ -11,6 +11,14 @@ endif
 # - use environment variables to overwrite this value (e.g export VERSION=0.0.2)
 VERSION ?= 5.0
 
+# SECURED is the opt-in switch for mTLS + TokenReview on the event-publisher O-RAN v2
+# APIs. Default off, so `make deploy` behaves exactly as before (unsecured event
+# publisher). Set SECURED=true (or use the deploy-secured target) to have
+# update-env-yaml render ENABLE_EVENT_AUTH=true into config/manager/env.yaml.
+# Honored equally as a make variable or an environment variable.
+SECURED ?=
+ENABLE_EVENT_AUTH ?= $(if $(filter true,$(SECURED)),true,false)
+
 # CHANNELS define the bundle channels used in the bundle.
 # Add a new line here if you would like to change its default config. (E.g CHANNELS = "preview,fast,stable")
 # To re-generate a bundle for other specific channels without changing the standard setup, you can:
@@ -163,6 +171,14 @@ deploy: manifests kustomize update-env-yaml ## Deploy controller to the K8s clus
 	$(KUSTOMIZE) build config/custom | kubectl $(KUBECONFIG_OPTS) apply -f -
 	@$(MAKE) restore-env-yaml
 
+deploy-secured: ## Deploy with mTLS + TokenReview enabled on the event-publisher APIs (convenience for SECURED=true make deploy).
+	# Pass ENABLE_EVENT_AUTH=true explicitly, not just SECURED=true: when a local
+	# .env is present the top-level `export` propagates its ENABLE_EVENT_AUTH value
+	# into this recursive make, where the `?=` default can no longer recompute it
+	# from SECURED. A command-line override is the only assignment that always wins,
+	# so secured deploys can never silently inherit ENABLE_EVENT_AUTH=false.
+	$(MAKE) deploy SECURED=true ENABLE_EVENT_AUTH=true
+
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/default | kubectl $(KUBECONFIG_OPTS) delete -f - || true
 	$(KUSTOMIZE) build config/custom | kubectl $(KUBECONFIG_OPTS) delete -f - || true
@@ -217,8 +233,8 @@ endif
 ENV_YAML_BACKUP := config/manager/env.yaml.bak
 
 .PHONY: update-env-yaml
-update-env-yaml: ## Update config/manager/env.yaml with image variables if provided (creates backup)
-	@if [ -n "$(LINUXPTP_DAEMON_IMAGE)$(KUBE_RBAC_PROXY_IMAGE)$(SIDECAR_EVENT_IMAGE)" ]; then \
+update-env-yaml: ## Update config/manager/env.yaml with image variables if provided (creates backup). SECURED=true also renders ENABLE_EVENT_AUTH=true.
+	@if [ -n "$(LINUXPTP_DAEMON_IMAGE)$(KUBE_RBAC_PROXY_IMAGE)$(SIDECAR_EVENT_IMAGE)" ] || [ "$(ENABLE_EVENT_AUTH)" = "true" ]; then \
 		cp config/manager/env.yaml $(ENV_YAML_BACKUP); \
 		if [ -n "$(LINUXPTP_DAEMON_IMAGE)" ]; then \
 			if [ "$(OS)" = "Darwin" ]; then \
@@ -240,6 +256,11 @@ update-env-yaml: ## Update config/manager/env.yaml with image variables if provi
 			else \
 				sed -i '/- name: SIDECAR_EVENT_IMAGE$$/,/value:/s|value: ".*"|value: "$(SIDECAR_EVENT_IMAGE)"|' config/manager/env.yaml; \
 			fi; \
+		fi; \
+		if [ "$(OS)" = "Darwin" ]; then \
+			sed -i '' '/- name: ENABLE_EVENT_AUTH$$/,/value:/s|value: ".*"|value: "$(ENABLE_EVENT_AUTH)"|' config/manager/env.yaml; \
+		else \
+			sed -i '/- name: ENABLE_EVENT_AUTH$$/,/value:/s|value: ".*"|value: "$(ENABLE_EVENT_AUTH)"|' config/manager/env.yaml; \
 		fi; \
 	fi
 
