@@ -223,6 +223,8 @@ jobs:
     needs: ptp-images
     runs-on: ubuntu-24.04
     timeout-minutes: 90
+    env:
+      PTP_GO_VERSION: go1.27.4
     name: "ptp-test (${{ matrix.mode }}${{ matrix.auth && '-auth' || '' }})"
     strategy:
       fail-fast: false
@@ -241,6 +243,48 @@ jobs:
           echo "Kernel: $(uname -r)"
 
       - uses: actions/checkout@v5
+
+      - name: Cache kustomize
+        uses: actions/cache@v4
+        with:
+          path: bin/kustomize
+          key: kustomize-5.4.2-${{ runner.os }}-${{ runner.arch }}
+
+      - name: Install kustomize
+        run: |
+          if [ -s bin/kustomize ]; then
+            bin/kustomize version
+            exit 0
+          fi
+          arch="$(dpkg --print-architecture)"
+          case "$arch" in
+            amd64) asset="kustomize_v5.4.2_linux_amd64.tar.gz" ;;
+            arm64) asset="kustomize_v5.4.2_linux_arm64.tar.gz" ;;
+            *) echo "unsupported architecture: $arch" >&2; exit 1 ;;
+          esac
+          mkdir -p bin
+          curl -fsSL --retry 5 --retry-delay 10 -o /tmp/kustomize.tar.gz \
+            "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.2/${asset}"
+          tar -xzf /tmp/kustomize.tar.gz -C bin kustomize
+          chmod +x bin/kustomize
+          bin/kustomize version
+
+      - name: Cache Go modules and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            /tmp/ptp-go-cache/build
+            /tmp/ptp-go-cache/mod
+            /tmp/ptp-go-cache/bin
+          key: go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Cache Go toolchain
+        uses: actions/cache@v4
+        with:
+          path: /tmp/ptp-go-cache/toolchain
+          key: go-toolchain-${{ runner.os }}-${{ runner.arch }}-${{ env.PTP_GO_VERSION }}
 
       - name: Install podman 5.x
         run: |
@@ -336,7 +380,12 @@ jobs:
           sudo bash -l <<'DEPLOY'
           set -euo pipefail
           set -x
-          export PATH=/usr/local/ptp-podman-wrap:/usr/local/bin:/usr/local/go/bin:/root/go/bin:$PATH
+          export PTP_GO_VERSION="${{ env.PTP_GO_VERSION }}"
+          export GOCACHE=/tmp/ptp-go-cache/build
+          export GOMODCACHE=/tmp/ptp-go-cache/mod
+          export GOBIN=/tmp/ptp-go-cache/bin
+          export PATH="$GOBIN:/usr/local/ptp-podman-wrap:/usr/local/bin:/usr/local/go/bin:/root/go/bin:$PATH"
+          mkdir -p "$GOCACHE" "$GOMODCACHE" "$GOBIN"
           export KIND_EXPERIMENTAL_PROVIDER=podman
           export ENABLE_CEPV2=true
           export PTP_AUTH_ENABLED=${{ matrix.auth }}
@@ -345,6 +394,10 @@ jobs:
           cd /root/ptp-operator/scripts
           ./run-on-vm.sh --dkms --deploy "${VM_IP}" --mode "${{ matrix.mode }}" "${VM_IP}"
           DEPLOY
+
+      - name: Make Go cache readable
+        if: always()
+        run: sudo chown -R "$(id -u):$(id -g)" /tmp/ptp-go-cache 2>/dev/null || true
 
       - name: "Collect Kubernetes debug info"
         if: always()
