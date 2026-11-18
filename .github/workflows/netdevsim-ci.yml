@@ -83,7 +83,7 @@ jobs:
           sudo modprobe nsim_ptp       && echo "nsim_ptp loaded"
           sudo modprobe nsim_ptp_mock  && echo "nsim_ptp_mock loaded"
           sudo modprobe nsim_dpll      && echo "nsim_dpll loaded"
-          sudo modprobe netdevsim pci_bus_nr=0x1f && echo "netdevsim loaded"
+          sudo modprobe netdevsim && echo "netdevsim loaded"
           lsmod | grep -E 'nsim_ptp|nsim_dpll|netdevsim|gnss' || true
           sudo chmod 666 /dev/nsim_ptp* 2>/dev/null || true
           echo "load_ok=true" >> "$GITHUB_OUTPUT"
@@ -92,9 +92,22 @@ jobs:
         if: steps.load.outputs.load_ok == 'true'
         run: |
           set -euo pipefail
-          BUS_NR=$(cat /sys/module/netdevsim/parameters/pci_bus_nr 2>/dev/null || echo 31)
+          if [ ! -r /sys/module/netdevsim/parameters/pci_bus_nr ]; then
+            echo "ERROR: netdevsim is not loaded; cannot create a fake PCI root" >&2
+            exit 1
+          fi
+          BUS_NR=$(cat /sys/module/netdevsim/parameters/pci_bus_nr)
+          if ! [[ "$BUS_NR" =~ ^[0-9]+$ ]]; then
+            echo "ERROR: netdevsim did not select a PCI bus (pci_bus_nr=${BUS_NR})" >&2
+            exit 1
+          fi
           BUS=$(printf "%02x" "$BUS_NR")
-          FAKE_ROOT=$(ls /sys/bus/pci/devices/ 2>/dev/null | grep ":${BUS}:00\.0" | head -1)
+          BUS_DEVICES=$(ls /sys/bus/pci/devices/ 2>/dev/null | grep "^0000:${BUS}:" || true)
+          if [ -z "$BUS_DEVICES" ]; then
+            echo "ERROR: netdevsim did not create a fake PCI root bus on 0000:${BUS}" >&2
+            exit 1
+          fi
+          FAKE_ROOT=$(printf '%s\n' "$BUS_DEVICES" | grep "^0000:${BUS}:00\.0" | head -1 || true)
           DOMAIN="${FAKE_ROOT:+$(echo "$FAKE_ROOT" | cut -d: -f1)}"
           : "${DOMAIN:=0000}"
           PCI_ADDR="${DOMAIN}:${BUS}:02.0"
@@ -118,7 +131,7 @@ jobs:
         run: |
           BUS_NR=$(cat /sys/module/netdevsim/parameters/pci_bus_nr 2>/dev/null || echo 31)
           BUS=$(printf "%02x" "$BUS_NR")
-          FAKE_ROOT=$(ls /sys/bus/pci/devices/ 2>/dev/null | grep ":${BUS}:00\.0" | head -1)
+          FAKE_ROOT=$(ls /sys/bus/pci/devices/ 2>/dev/null | grep "^0000:${BUS}:00\.0" | head -1 || true)
           DOMAIN="${FAKE_ROOT:+$(echo "$FAKE_ROOT" | cut -d: -f1)}"
           : "${DOMAIN:=0000}"
           IFACE=$(ls /sys/bus/pci/devices/${DOMAIN}:${BUS}:02.0/net/ 2>/dev/null | head -1)
