@@ -19,14 +19,16 @@ else
 fi
 
 ARCH=$(uname -m)
+BUS_NR=$(cat /sys/module/netdevsim/parameters/pci_bus_nr 2>/dev/null || echo 31)
 if [[ "$ARCH" == "x86_64" ]]; then
-	PCI_PREFIX="0000:1f"
+	DOMAIN="0000"
 elif [[ "$ARCH" == "aarch64" ]]; then
-	PCI_PREFIX="0001:1f"
+	DOMAIN="0001"
 else
 	echo "Unsupported architecture: $ARCH" >&2
 	exit 1
 fi
+PCI_PREFIX=$(printf "%s:%02x" "$DOMAIN" "$BUS_NR")
 
 NSIM_NEW=/sys/bus/netdevsim/new_device
 NSIM_DEL=/sys/bus/netdevsim/del_device

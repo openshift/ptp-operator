@@ -9,10 +9,12 @@ NSIM_NEW=/sys/bus/netdevsim/new_device
 NSIM_DEL=/sys/bus/netdevsim/del_device
 ID=99
 ARCH=$(uname -m)
+BUS_NR=$(cat /sys/module/netdevsim/parameters/pci_bus_nr 2>/dev/null || echo 31)
+BUS=$(printf "%02x" "$BUS_NR")
 if [[ "$ARCH" == "x86_64" ]]; then
-	PCI="0000:1f:1f.0"
+	PCI="0000:${BUS}:1f.0"
 elif [[ "$ARCH" == "aarch64" ]]; then
-	PCI="0001:1f:1f.0"
+	PCI="0001:${BUS}:1f.0"
 else
 	echo "skip: unsupported arch $ARCH"
 	exit 0
