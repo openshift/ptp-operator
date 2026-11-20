@@ -50,6 +50,7 @@ const (
 	PtpLinuxDaemonNamespace      = "openshift-ptp"
 	defaultSchedulingPriority    = 65
 	defaultPriority              = 5
+	defaultHoldOverTimeout       = 5
 	// OrdinaryClockString matches the OC clock mode in Environement
 	OrdinaryClockString = "OC"
 	// DualFollowerClocktring matches the DualFollower clock mode in Environement
@@ -75,7 +76,7 @@ const (
 	phc2sysDualNicBCHA = "-a -r -m -l 7 -n 24 "
 	SCHED_OTHER        = "SCHED_OTHER"
 	SCHED_FIFO         = "SCHED_FIFO"
-	L2_DISCOVERY_IMAGE = "quay.io/redhat-cne/l2discovery:v17"
+	L2_DISCOVERY_IMAGE = "quay.io/redhat-cne/l2discovery:v18"
 )
 
 // Mirrors graphsolver step constants.
@@ -741,11 +742,46 @@ func createPtpConfigurations(ctx context.Context) error {
 		return err
 	}
 
+	if GlobalConfig.PtpModeDesired != Discovery && strings.EqualFold(os.Getenv("KEEP_PTPCONFIG"), "true") {
+		// Force a fresh discovery here. The cached success can survive after
+		// tests that delete all PtpConfigs (e.g. the event suite), which then
+		// makes the next BeforeEach skip recreation and fail discovery.
+		existing := GetFullDiscoveredConfig(pkg.PtpLinuxDaemonNamespace, true)
+		if existing.Status == DiscoverySuccessStatus && existing.PtpModeDiscovered == GlobalConfig.PtpModeDesired {
+			logrus.Infof("KEEP_PTPCONFIG=true: using existing %s configuration", GlobalConfig.PtpModeDesired)
+			// The reuse path returns before the L2 discovery block below, but
+			// specs call methods on GlobalConfig.L2Config unconditionally.
+			l2lib.GlobalL2DiscoveryConfig.SetL2Client(client.Client, client.Client.Config)
+			_, useContainerCmds := os.LookupEnv("USE_CONTAINER_CMDS")
+			config, err := l2lib.GlobalL2DiscoveryConfig.GetL2DiscoveryConfig(true, false, useContainerCmds, getL2DiscoveryImage())
+			if err != nil {
+				return fmt.Errorf("getting L2 discovery info failed with err=%s", err)
+			}
+			GlobalConfig.L2Config = config
+			return nil
+		}
+	}
+
 	if GlobalConfig.PtpModeDesired != Discovery {
-		// for external grand master, clean previous configuration so that it is not detected as a external grandmaster
-		err := clean.All()
-		if err != nil {
-			logrus.Errorf("Error deleting labels and configuration, err=%s", err)
+		// KEEP_PTPCONFIG=true reuses a configuration whose discovered mode
+		// already matches (handled above). Reaching this point means the mode
+		// changed or discovery failed, so stale configs and role labels must be
+		// dropped even when the configuration is otherwise kept.
+		if !strings.EqualFold(os.Getenv("KEEP_PTPCONFIG"), "true") {
+			// for external grand master, clean previous configuration so that it is not detected as a external grandmaster
+			err := clean.All()
+			if err != nil {
+				logrus.Errorf("Error deleting labels and configuration, err=%s", err)
+			}
+		} else {
+			// Drop stale PtpConfigs and node role labels. A matching mode is
+			// reused above and returns early, so reaching this branch means the
+			// mode changed (or discovery failed) and labels left by the previous
+			// mode must not make the new PtpConfig match the wrong node.
+			clean.Configs()
+			if err := clean.Labels(); err != nil {
+				return fmt.Errorf("error deleting node role labels: %w", err)
+			}
 		}
 		ptphelper.RestartPTPDaemon()
 		ptphelper.WaitForPtpDaemonToExist()
@@ -941,17 +977,19 @@ func initAndSolveProblems() {
 			{int(solver.StepSameNic), 2, 0, 1}}, //        and on the same NIC
 	}
 
-	// T-BC with local GM: WPC NIC required for the T-BC (receiver + two transmitters
-	// on that NIC). The local GM is a software ptp4l GM (CreatePtpConfigGrandMaster),
-	// so it must share a LAN with the T-BC receiver and sit on a different node, but
-	// it must not be required to be a second WPC/GNSS NIC — one-WPC-NIC labs (telco5g
-	// GNSS) otherwise get "no T-BC solution found" and never create a PtpConfig.
+	// T-BC with local T-GM: the T-BC (receiver + two transmitters) needs a WPC NIC.
+	// The local GM is a WPC T-GM, like the TGMBC profile: it needs a GNSS device to
+	// discipline its PHC and a second port on the same WPC NIC for ts2phc. It must
+	// share a LAN with the T-BC receiver and sit on a different node from the CUT.
 	data.problems[AlgoTelcoBCString] = &[][][]int{
 		{{int(solver.StepIsWPCNic), 1, 0}},   // step1: T-BC receiver must be on WPC NIC
 		{{int(solver.StepSameNic), 2, 0, 1}}, // step2: transmitter 1 on same NIC as receiver
 		{{int(solver.StepSameNic), 2, 0, 2}}, // step3: transmitter 2 on same NIC as receiver
-		{{int(solver.StepSameLan2), 2, 0, 3}, // step4: local grandmaster on same LAN as receiver
-			{int(solver.StepSameNode), 2, 0, 3, solver.Negative}}, // but on a different node from T-BC (CUT)
+		{{int(solver.StepIsWPCNic), 1, 3}, // step4: local T-GM anchor is WPC
+			{int(solver.StepHasGNSSDevice), 1, 3}}, //        with a GNSS device
+		{{int(solver.StepSameNic), 2, 3, 4}}, // step5: T-GM sibling port on the same NIC
+		{{int(solver.StepSameLan2), 2, 0, 3}, // step6: T-GM on the receiver's LAN
+			{int(solver.StepSameNode), 2, 0, 3, solver.Negative}}, // but not on the T-BC node (CUT)
 	}
 
 	// T-BC with external GM: WPC NIC required, PTP receiver, two transmitters on same NIC
@@ -1143,11 +1181,12 @@ func initAndSolveProblems() {
 	(*data.testClockRolesAlgoMapping[AlgoTelcoGMString])[Grandmaster] = 0
 	(*data.testClockRolesAlgoMapping[AlgoTelcoGMString])[GrandmasterSibling] = 1
 
-	// T-BC with local GM
-	(*data.testClockRolesAlgoMapping[AlgoTelcoBCString])[BC1Slave] = 0    // receiver
-	(*data.testClockRolesAlgoMapping[AlgoTelcoBCString])[BC1Master] = 1   // transmitter 1
-	(*data.testClockRolesAlgoMapping[AlgoTelcoBCString])[BC2Master] = 2   // transmitter 2
-	(*data.testClockRolesAlgoMapping[AlgoTelcoBCString])[Grandmaster] = 3 // local GM
+	// T-BC with local T-GM
+	(*data.testClockRolesAlgoMapping[AlgoTelcoBCString])[BC1Slave] = 0           // receiver
+	(*data.testClockRolesAlgoMapping[AlgoTelcoBCString])[BC1Master] = 1          // transmitter 1
+	(*data.testClockRolesAlgoMapping[AlgoTelcoBCString])[BC2Master] = 2          // transmitter 2
+	(*data.testClockRolesAlgoMapping[AlgoTelcoBCString])[Grandmaster] = 3        // local T-GM
+	(*data.testClockRolesAlgoMapping[AlgoTelcoBCString])[GrandmasterSibling] = 4 // T-GM sibling port
 
 	// T-BC with external GM
 	(*data.testClockRolesAlgoMapping[AlgoTelcoBCExtGMString])[BC1Slave] = 0  // receiver
@@ -1335,11 +1374,11 @@ func CreatePtpConfigWPCGrandMaster(policyName string, nodeName string, ifList []
 
 	ts2phcConfig := BaseTs2PhcConfig + fmt.Sprintf("\nts2phc.nmea_serialport  %s\n", gnssSerialPort(deviceID))
 	ts2phcConfig = fmt.Sprintf("%s\n[%s]\nts2phc.extts_polarity rising\nts2phc.extts_correction 0\n", ts2phcConfig, ifList[0])
-	ptp4lConfig := GetPtp4lConfigWithAuth(BasePtp4lConfig) + "boundary_clock_jbod 1\n"
+	ptp4lConfig := GetPtp4lConfigWithAuth(BasePtp4lConfig) + "boundary_clock_jbod 1\npriority1 0\npriority2 0\nclockClass 6\n"
 	ptp4lConfig = AddAuthSettings(AddInterface(ptp4lConfig, ifList[0], 1))
 	ptp4lConfig = AddAuthSettings(AddInterface(ptp4lConfig, ifList[1], 1))
 	ptp4lsysOpts := ptp4lEthernet
-	ts2phcOpts := " "
+	ts2phcOpts := "--ts2phc.holdover 600"
 	ph2sysOpts := fmt.Sprintf("-r -u 0 -m -N 8 -R 16 -s %s -n 24", ifList[0])
 
 	// Hardware T-GM: restore E810 holdover thresholds from main. Simulation leaves
@@ -1452,7 +1491,8 @@ func CreatePtpConfigWPCGrandMaster(policyName string, nodeName string, ifList []
 		logrus.Fatalf("error: %v", err)
 	}
 	plugins = result
-	return createConfigWithTs2PhcAndPlugins(policyName,
+
+	if err := createConfigWithTs2PhcAndPlugins(policyName,
 		nil,
 		&ptp4lsysOpts,
 		ptp4lConfig,
@@ -1463,7 +1503,10 @@ func CreatePtpConfigWPCGrandMaster(policyName string, nodeName string, ifList []
 		ptpSchedulingPolicy,
 		ptr.To(int64(defaultSchedulingPriority)),
 		&ts2phcOpts,
-		plugins)
+		plugins); err != nil {
+		return err
+	}
+	return nil
 }
 
 func CreatePtpConfigTelcoBoundaryClock(configName, nodeName, ifSlaveName string, ifMasterNames []string, firstNicInterface string, deviceID string) error {
@@ -1480,8 +1523,8 @@ func CreatePtpConfigTelcoBoundaryClock(configName, nodeName, ifSlaveName string,
 	tbcBase = strings.Replace(tbcBase, "verbose 1", "verbose 0", 1)
 	tbcBase = strings.Replace(tbcBase, "summary_interval -4", "summary_interval 0", 1)
 	tbcBase = strings.Replace(tbcBase, "clock_class_threshold 7", "clock_class_threshold 135", 1)
-	tbcBase = strings.Replace(tbcBase, "pi_proportional_const 0.0", "pi_proportional_const 0.60", 1)
-	tbcBase = strings.Replace(tbcBase, "pi_integral_const 0.0", "pi_integral_const 0.0003", 1)
+	// Leave pi_*_const at 0.0 so linuxptp scales kp/ki to logSyncInterval -4.
+	// Fixed 0.60/0.0003 disables that scaling; at 16 Hz the integral is ~300x too small to hold the offset under 10 ns.
 	tbcBase = strings.Replace(tbcBase, "neighborPropDelayThresh 20000000", "neighborPropDelayThresh 20000000\nmasterOnly 0", 1)
 
 	// T-BC receiver profile (tbc-tr)
@@ -1514,20 +1557,15 @@ uds_address /var/run/ptp4l.0.socket
 [%s]
 ts2phc.extts_polarity rising
 ts2phc.extts_correction -10
-ts2phc.master 0`, firstNicInterface)
+ts2phc.master 0
+ts2phc.pin_index 1`, firstNicInterface)
 
-	// Get E810 plugin settings from environment variables (following existing pattern)
-	// MAX_OFFSET_IN_NS = LocalMaxHoldoverOffset, MIN_OFFSET_IN_NS = -LocalMaxHoldoverOffset
-	// HOLDOVER_TIMEOUT_S = LocalHoldoverTimeout (keep from YAML for now)
-	// MAX_IN_SPEC_OFFSET_NS = MaxInSpecOffset
-	testParameters, err := ptptestconfig.GetPtpTestConfig()
-	if err != nil {
-		return fmt.Errorf("failed to get test config: %v", err)
-	}
-
-	localMaxHoldoverOffset := metrics.MaxOffsetNs
-	localHoldoverTimeout := testParameters.GlobalConfig.HoldOverTimeout // Keep this from YAML for now
-	maxInSpecOffset := metrics.MaxInSpecOffsetNs
+	// Match telco-reference PtpConfigTBCWpc.yaml. These are DPLL phase gates,
+	// not the suite's PTP offset threshold (MAX_OFFSET_IN_NS, default 100 ns).
+	// A 0 s holdover timeout prevents the T-BC from returning to clock class 6.
+	localMaxHoldoverOffset := 1500
+	localHoldoverTimeout := 14400
+	maxInSpecOffset := 100
 
 	// E810 plugin configuration for T-BC
 	var plugins map[string]*apiextensions.JSON
@@ -1549,7 +1587,7 @@ ts2phc.master 0`, firstNicInterface)
       "$iface_master":
          "U.FL2": "0 2"
          "U.FL1": "0 1"
-         "SMA2": "2 2"
+         "SMA2": "0 2"
          "SMA1": "0 1"
 `, localMaxHoldoverOffset, localHoldoverTimeout, maxInSpecOffset)
 
@@ -1576,10 +1614,11 @@ ts2phc.master 0`, firstNicInterface)
 	}
 	plugins = result
 
-	// Create multi-profile PTP config for T-BC
-	return createTelcoBCConfig(configName,
+	if err := createTelcoBCConfig(configName,
 		receiverConfig,
 		transmitterConfig,
+		firstNicInterface,
+		ifSlaveName,
 		&ptp4lsysOpts,
 		&phc2sysOpts,
 		pkg.PtpClockUnderTestNodeLabel,
@@ -1588,7 +1627,10 @@ ts2phc.master 0`, firstNicInterface)
 		ptr.To(int64(10)),
 		ts2phcConfig,
 		&ts2phcOpts,
-		plugins)
+		plugins); err != nil {
+		return err
+	}
+	return nil
 }
 
 func CreatePtpConfigBC(policyName, nodeName, ifMasterName, ifSlaveName string, phc2sys bool) (err error) {
@@ -2378,13 +2420,30 @@ func PtpConfigTelcoBC(isExtGM bool) error {
 		return err
 	}
 
-	// Create local Grandmaster if not using external GM
+	// Create a local WPC T-GM if not using an external GM. A software ptp4l GM
+	// cannot feed the T-BC a phase of sufficient quality: the WPC NIC needs a
+	// GNSS-disciplined PHC, same as the TGMBC profile.
 	if !isExtGM {
 		grandmaster := (*data.testClockRolesAlgoMapping[BestSolution])[Grandmaster]
-		gmIf := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[solutionIdx][grandmaster]]
-		err = CreatePtpConfigGrandMaster(gmIf.NodeName, gmIf.IfName)
+		grandmasterSibling := (*data.testClockRolesAlgoMapping[BestSolution])[GrandmasterSibling]
+		gmIf0 := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[solutionIdx][grandmaster]]
+		gmIf1 := GlobalConfig.L2Config.GetPtpIfList()[(*data.solutions[BestSolution])[solutionIdx][grandmasterSibling]]
+
+		gmIfList := []string{gmIf0.IfName, gmIf1.IfName}
+		_, _, gmDeviceID, gmDeviceErr := ptphelper.InterfacesByPHCAndPins(GlobalConfig.L2Config, gmIf0.NodeName, gmIf0.IfName)
+		if gmDeviceErr != nil {
+			return fmt.Errorf("TBC WPC T-GM anchor %s on %s: %w", gmIf0.IfName, gmIf0.NodeName, gmDeviceErr)
+		}
+		if gmDeviceID == "" {
+			return fmt.Errorf("TBC WPC T-GM anchor %s on %s has no GNSS device", gmIf0.IfName, gmIf0.NodeName)
+		}
+		if ptphelper.IsGnssSimConfigured() {
+			ptphelper.MarkGnssSimNmeaActive()
+		}
+
+		err = CreatePtpConfigWPCGrandMaster(pkg.PtpWPCGrandMasterPolicyName, gmIf0.NodeName, gmIfList, gmDeviceID, pkg.PtpGrandmasterNodeLabel)
 		if err != nil {
-			logrus.Errorf("Error creating local Grandmaster ptpconfig: %s", err)
+			logrus.Errorf("Error creating WPC T-GM ptpconfig: %s", err)
 			return err
 		}
 	}
@@ -2515,9 +2574,24 @@ func AddAuthSettings(ptpConfig string) string {
 	return ptpConfig
 }
 
+// envIntDefault returns the integer value of the named environment variable,
+// or def when it is unset or invalid.
+func envIntDefault(name string, def int) int {
+	raw := strings.TrimSpace(os.Getenv(name))
+	if raw == "" {
+		return def
+	}
+	value, err := strconv.Atoi(raw)
+	if err != nil {
+		logrus.Warnf("Ignoring invalid %s=%q: %v", name, raw, err)
+		return def
+	}
+	return value
+}
+
 // createTelcoBCConfig creates a multi-profile PTP config for Telco Boundary Clock
 // with separate receiver (tbc-tr) and transmitter (tbc-tt) profiles
-func createTelcoBCConfig(configName string, receiverConfig, transmitterConfig string, ptp4lOpts, phc2sysOpts *string, nodeLabel string, priority *int64, ptpSchedulingPolicy string, ptpSchedulingPriority *int64, ts2phcConfig string, ts2phcOpts *string, plugins map[string]*apiextensions.JSON) error {
+func createTelcoBCConfig(configName string, receiverConfig, transmitterConfig, leadingIface, upstreamIface string, ptp4lOpts, phc2sysOpts *string, nodeLabel string, priority *int64, ptpSchedulingPolicy string, ptpSchedulingPriority *int64, ts2phcConfig string, ts2phcOpts *string, plugins map[string]*apiextensions.JSON) error {
 	// Create receiver profile (tbc-tr)
 	receiverProfileName := "tbc-tr"
 	receiverProfile := ptpv1.PtpProfile{
@@ -2530,8 +2604,15 @@ func createTelcoBCConfig(configName string, receiverConfig, transmitterConfig st
 		Ts2PhcOpts:            ts2phcOpts,
 		Plugins:               plugins,
 		PtpSettings: map[string]string{
-			"inSyncConditionThreshold": "10",
-			"inSyncConditionTimes":     "12",
+			// Without an explicit clockType the daemon falls back to the
+			// ptp4l clock_type option, treating this profile as an OC/BC.
+			// T-BC mode is required for the clock class state machine and
+			// holdover behavior.
+			"clockType":                "T-BC",
+			"leadingInterface":         leadingIface,
+			"upstreamPort":             upstreamIface,
+			"inSyncConditionThreshold": strconv.Itoa(envIntDefault("PTP_TBC_IN_SYNC_CONDITION_THRESHOLD_NS", 10)),
+			"inSyncConditionTimes":     strconv.Itoa(envIntDefault("PTP_TBC_IN_SYNC_CONDITION_TIMES", 12)),
 			"logReduce":                "false",
 		},
 	}
@@ -2612,7 +2693,7 @@ func createConfig(profileName string, ifaceName, ptp4lOpts *string, ptp4lConfig 
 	}
 	thresholds.MaxOffsetThreshold = int64(testParameters.GlobalConfig.MaxOffset)
 	thresholds.MinOffsetThreshold = int64(testParameters.GlobalConfig.MinOffset)
-	thresholds.HoldOverTimeout = int64(testParameters.GlobalConfig.HoldOverTimeout)
+	thresholds.HoldOverTimeout = defaultHoldOverTimeout
 
 	if testParameters.GlobalConfig.DisableAllSlaveRTUpdate && nodeLabel != pkg.PtpGrandmasterNodeLabel && phc2sysOpts != nil {
 		noRT := stripPhc2sysRealtimeOpts(*phc2sysOpts)
@@ -2842,6 +2923,63 @@ func GetPodsRunningPTP4l(fullConfig *TestConfig) (podList []*v1core.Pod, err err
 	}
 	logrus.Infof("List of pods running ptp4l: %v", podNames)
 	return podList, nil
+}
+
+// GetPodsRunningProfile returns the linuxptp-daemon pods on the nodes to which
+// the named PtpConfig profile is recommended. Looking at every daemon pod is
+// expensive: log-regex waits against pods that do not run the profile only
+// burn their full timeout.
+func GetPodsRunningProfile(configName, profileName string) ([]v1core.Pod, error) {
+	ctx := context.Background()
+	config, err := client.Client.PtpV1Interface.PtpConfigs(PtpLinuxDaemonNamespace).Get(ctx, configName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("could not get ptpconfig %s: %v", configName, err)
+	}
+
+	nodeNames := map[string]bool{}
+	for _, recommend := range config.Spec.Recommend {
+		if recommend.Profile == nil || *recommend.Profile != profileName {
+			continue
+		}
+		for _, match := range recommend.Match {
+			if match.NodeName != nil && *match.NodeName != "" {
+				nodeNames[*match.NodeName] = true
+				continue
+			}
+			if match.NodeLabel == nil || *match.NodeLabel == "" {
+				continue
+			}
+			nodes, err := client.Client.CoreV1().Nodes().List(ctx, metav1.ListOptions{
+				LabelSelector: fmt.Sprintf("%s=", *match.NodeLabel),
+			})
+			if err != nil {
+				return nil, fmt.Errorf("could not list nodes with label %s: %v", *match.NodeLabel, err)
+			}
+			for _, node := range nodes.Items {
+				nodeNames[node.Name] = true
+			}
+		}
+	}
+	if len(nodeNames) == 0 {
+		return nil, fmt.Errorf("no recommended nodes found for profile %s/%s", configName, profileName)
+	}
+
+	pods, err := client.Client.CoreV1().Pods(PtpLinuxDaemonNamespace).List(ctx, metav1.ListOptions{
+		LabelSelector: "app=linuxptp-daemon",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not list linuxptp-daemon pods: %v", err)
+	}
+	result := []v1core.Pod{}
+	for _, pod := range pods.Items {
+		if nodeNames[pod.Spec.NodeName] {
+			result = append(result, pod)
+		}
+	}
+	if len(result) == 0 {
+		return nil, fmt.Errorf("no linuxptp-daemon pod found on recommended nodes for profile %s/%s", configName, profileName)
+	}
+	return result, nil
 }
 
 // CreateTestSecretForVolumeMountTest creates a test secret for volume mount cleanup testing

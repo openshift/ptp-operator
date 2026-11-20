@@ -33,7 +33,7 @@ usage() {
 
 RUN_KIND=""
 TEST_MODES_RAW=""
-PTP_LOG_LEVEL="info"
+PTP_LOG_LEVEL="${PTP_LOG_LEVEL:-info}"
 LINUXPTP_DAEMON_IMAGE=""
 MUST_GATHER_IMAGE=""
 GINKGO_FOCUS=""
@@ -68,14 +68,13 @@ fi
 
 JUNIT_OUTPUT_DIR="${JUNIT_OUTPUT_DIR:-/tmp/artifacts}"
 JUNIT_OUTPUT_FILE="${JUNIT_OUTPUT_FILE:-unit_report.xml}"
-SUITE=../test/conformance
+SUITE="${SCRIPT_DIR}/../test/conformance"
 export KUBECONFIG=${KUBECONFIG:-~/.kube/config}
 go install github.com/onsi/ginkgo/v2/ginkgo
+export PATH="${GOPATH:-$HOME/go}/bin:${PATH}"
 
 mkdir -p "$JUNIT_OUTPUT_DIR"
 
-export MAX_OFFSET_IN_NS="${MAX_OFFSET_IN_NS:-10000}"
-export MIN_OFFSET_IN_NS="${MIN_OFFSET_IN_NS:--10000}"
 export COLLECT_POD_LOGS="${COLLECT_POD_LOGS:-true}"
 export LOG_ARTIFACTS_DIR="${LOG_ARTIFACTS_DIR:-${JUNIT_OUTPUT_DIR}/pod-logs}"
 
@@ -108,27 +107,41 @@ vrt_already_present() {
   return 1
 }
 
-if [[ -n "${DISABLE_SLAVE_RT_UPDATE:-}" ]]; then
-  :
-elif [[ "${PTP_VRT_ENABLE:-true}" != "true" ]]; then
-  DISABLE_SLAVE_RT_UPDATE=true
-elif [[ "${DKMS_MODE:-}" == "true" ]] || vrt_already_present; then
-  DISABLE_SLAVE_RT_UPDATE=false
-else
-  DISABLE_SLAVE_RT_UPDATE=true
-fi
-echo "DisableAllSlaveRTUpdate=${DISABLE_SLAVE_RT_UPDATE}"
+CONFIG_YAML=""
+if [[ -z "${PTP_TEST_CONFIG_FILE:-}" ]]; then
+  export MAX_OFFSET_IN_NS="${MAX_OFFSET_IN_NS:-10000}"
+  export MIN_OFFSET_IN_NS="${MIN_OFFSET_IN_NS:--10000}"
 
-CONFIG_YAML="$(mktemp "${PTP_RUN_DIR:-/tmp}/ptp-config.XXXXXX.yaml")"
-cat <<EOF >"${CONFIG_YAML}"
+  if [[ -n "${DISABLE_SLAVE_RT_UPDATE:-}" ]]; then
+    :
+  elif [[ "${PTP_VRT_ENABLE:-true}" != "true" ]]; then
+    DISABLE_SLAVE_RT_UPDATE=true
+  elif [[ "${DKMS_MODE:-}" == "true" ]] || vrt_already_present; then
+    DISABLE_SLAVE_RT_UPDATE=false
+  else
+    DISABLE_SLAVE_RT_UPDATE=true
+  fi
+  echo "DisableAllSlaveRTUpdate=${DISABLE_SLAVE_RT_UPDATE}"
+
+  CONFIG_YAML="$(mktemp "${PTP_RUN_DIR:-/tmp}/ptp-config.XXXXXX.yaml")"
+  cat <<EOF >"${CONFIG_YAML}"
 global:
   maxoffset: $MAX_OFFSET_IN_NS
   minoffset: $MIN_OFFSET_IN_NS
   holdover_timeout: 5
   DisableAllSlaveRTUpdate: ${DISABLE_SLAVE_RT_UPDATE}
 EOF
+  export PTP_TEST_CONFIG_FILE="${CONFIG_YAML}"
+else
+  # Ginkgo runs the test process from the suite directory, so a relative path
+  # must be resolved against the invocation directory before exporting it.
+  if [[ "${PTP_TEST_CONFIG_FILE}" != /* ]]; then
+    PTP_TEST_CONFIG_FILE="$(cd "$(dirname "${PTP_TEST_CONFIG_FILE}")" && pwd)/$(basename "${PTP_TEST_CONFIG_FILE}")"
+    export PTP_TEST_CONFIG_FILE
+  fi
+  echo "Using provided PTP_TEST_CONFIG_FILE=${PTP_TEST_CONFIG_FILE}"
+fi
 export USE_CONTAINER_CMDS=
-export PTP_TEST_CONFIG_FILE="${CONFIG_YAML}"
 export PTP_LOG_LEVEL
 export GOFLAGS=-mod=vendor
 export KEEP_PTPCONFIG="${KEEP_PTPCONFIG:-true}"
@@ -185,7 +198,9 @@ run_must_gather() {
 
 on_exit() {
   local exit_code=$?
-  rm -f "${CONFIG_YAML:-}"
+  if [[ -n "${CONFIG_YAML:-}" ]]; then
+    rm -f "${CONFIG_YAML}"
+  fi
   if [[ ${exit_code} -ne 0 ]]; then
     echo "Script failed with exit code ${exit_code}, collecting must-gather..."
     run_must_gather
@@ -209,6 +224,7 @@ run_ginkgo_suite() {
   local junit_base="${JUNIT_OUTPUT_FILE%.xml}"
   local ginkgo_args=(
     --keep-going
+    --timeout="${GINKGO_TIMEOUT:-4h}"
     --flake-attempts="${FLAKE_ATTEMPTS:-2}"
     --output-dir="${JUNIT_OUTPUT_DIR}"
     --junit-report="${junit_base}_${mode}_${suite_kind}.xml"

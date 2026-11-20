@@ -60,9 +60,15 @@ export PATH=$PATH:$GOPATH/bin
 
 VALIDATION_SUIT_SUBSTR="validation"
 
+# Ginkgo defaults to a 1h suite timeout. The serial conformance suite alone can
+# exceed that (it applies/reverts PTP profiles and waits on multi-minute
+# timeouts), which aborts the run and skips the parallel suite. Allow the CI to
+# override, but default to a value that fits the whole suite.
+GINKGO_TIMEOUT="${GINKGO_TIMEOUT:-4h}"
+
 go version
 if [[ $SUITE == *"$VALIDATION_SUIT_SUBSTR"* ]]; then
-  GOFLAGS=-mod=vendor ginkgo --output-dir=$JUNIT_OUTPUT_DIR --junit-report=$JUNIT_OUTPUT_FILE -v -p "$SUITE"
+  GOFLAGS=-mod=vendor ginkgo --timeout="$GINKGO_TIMEOUT" --output-dir=$JUNIT_OUTPUT_DIR --junit-report=$JUNIT_OUTPUT_FILE -v -p "$SUITE"
 else
-  GOFLAGS=-mod=vendor ginkgo --keep-going --output-dir=$JUNIT_OUTPUT_DIR --junit-report=$JUNIT_OUTPUT_FILE -v -p "$SUITE"/serial "$SUITE"/parallel
+  GOFLAGS=-mod=vendor ginkgo --timeout="$GINKGO_TIMEOUT" --keep-going --output-dir=$JUNIT_OUTPUT_DIR --junit-report=$JUNIT_OUTPUT_FILE -v -p "$SUITE"/serial "$SUITE"/parallel
 fi
