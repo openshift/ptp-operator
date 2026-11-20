@@ -271,7 +271,9 @@ func WaitForClockIDForeign(ptpConfigName string, profileName string, label *stri
 		return fmt.Errorf("no matching pod found for profile %s: %w", profileName, err)
 	}
 	expectedMasterRegex := fmt.Sprintf(`(?m)\[%s\].* selected best master clock %s`, logID, expectedGMID)
-	_, err = pods.GetPodLogsRegex(pod.Namespace, pod.Name, pkg.PtpContainerName,
+	// The selection line can be much older than the bounded log tail while the
+	// same GM remains selected, so search the full snapshot for it.
+	_, err = pods.GetPodLogsRegexUnbounded(pod.Namespace, pod.Name, pkg.PtpContainerName,
 		expectedMasterRegex, false, pkg.TimeoutIn10Minutes)
 	if err != nil {
 		return fmt.Errorf("expected master %s not found in logs: %w", expectedGMID, err)
@@ -757,7 +759,7 @@ func WaitForPtpDaemonToBeReady(podList []*v1core.Pod) int {
 			}
 		}
 		return nil
-	}, 3*time.Minute, 2*time.Second).Should(Not(HaveOccurred())) // CEP :9043 then ReadyServer :8081 after replace
+	}, 5*time.Minute, 2*time.Second).Should(Not(HaveOccurred())) // CEP :9043 then ReadyServer :8081; T-GM GNSS startup can exceed 3m
 
 	return 0
 }
@@ -1011,10 +1013,23 @@ func ProfileNameMatchPattern(ptpConfigName, profileName string) string {
 	return fmt.Sprintf("(?:%s_)?%s", regexp.QuoteMeta(ptpConfigName), regexp.QuoteMeta(profileName))
 }
 
-// ProfileNameLogPattern is a daemon log regex for "Profile Name:" lines.
-// It includes (?m) because GetPodLogsRegex appends \s*^ when isLiteralText is false.
+// ProfileNameLogPattern is a daemon log regex for profile identification.
+// It accepts both the legacy "Profile Name:" line and the upstream daemon's
+// "Processing profile:" / hardware configuration reconciliation lines. It
+// includes (?m) because GetPodLogsRegex appends \s*^ when isLiteralText is false.
 func ProfileNameLogPattern(ptpConfigName, profileName string) string {
-	return `(?m)Profile Name: ` + ProfileNameMatchPattern(ptpConfigName, profileName)
+	return ProfileNameLogPatternAny(ptpConfigName, profileName)
+}
+
+// ProfileNameLogPatternAny matches any of the supplied profile names in either
+// the legacy or the upstream daemon log format.
+func ProfileNameLogPatternAny(ptpConfigName string, profileNames ...string) string {
+	patterns := make([]string, 0, len(profileNames))
+	for _, profileName := range profileNames {
+		patterns = append(patterns, ProfileNameMatchPattern(ptpConfigName, profileName))
+	}
+	return `(?m)(?:Profile Name: |Processing profile: |Applying [0-9]+ hardware configurations for PTP profile )(?:` +
+		strings.Join(patterns, "|") + `)`
 }
 
 // GetProfileName returns the profile name from a PtpConfig, matching against

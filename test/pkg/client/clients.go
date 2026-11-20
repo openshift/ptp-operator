@@ -26,6 +26,15 @@ import (
 	k8sFakeClient "k8s.io/client-go/kubernetes/fake"
 )
 
+const (
+	// testClientQPS and testClientBurst raise the client-go rate limits above
+	// the 5 QPS / 10 burst defaults. The suite streams logs from every ptp pod
+	// while polling metrics and reconciling daemonsets, so the defaults cause
+	// the client-side rate limiter to block calls until their context expires.
+	testClientQPS   = 50
+	testClientBurst = 100
+)
+
 // Client defines the client set that will be used for testing
 var Client = &ClientSet{}
 
@@ -69,6 +78,14 @@ func New(kubeconfig string) *ClientSet {
 		// Cannot create client, nothing else to do
 		os.Exit(1)
 	}
+
+	// The conformance suite issues many concurrent API calls (pod log streams,
+	// metrics polling, privileged daemonset management) from a single client.
+	// client-go defaults (5 QPS / 10 burst) starve those calls and surface as
+	// "client rate limiter Wait returned an error: context deadline exceeded",
+	// which in turn makes pod log lookups fail and tests burn their timeouts.
+	config.QPS = testClientQPS
+	config.Burst = testClientBurst
 
 	config.Wrap(wrapWithRetry)
 
