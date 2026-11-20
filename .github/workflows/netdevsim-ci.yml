@@ -1,12 +1,24 @@
 # CI for ptp-operator with netdevsim DKMS modules.
 # Builds DKMS modules from netdevsim-dkms, then runs ptp-operator e2e
 # tests using the checked-out ptp-operator source.
+#
+# Reusable: linuxptp-daemon runs this workflow via `uses:` instead of
+# keeping an adapted copy (other callers are rejected for now — the
+# image build assumes the linuxptp-daemon source layout). Self
+# vs. called mode is detected structurally (job.workflow_repository vs
+# GITHUB_REPOSITORY, so forks of this repo still run in self mode). When
+# called, the checkout is the caller's source code: it is stashed at
+# /tmp/caller-repo, this repository is cloned as the CI harness pinned
+# to job.workflow_sha (the exact commit the workflow was resolved from),
+# and Dockerfile.lptpd is patched to build the caller's code into the
+# daemon image. Harness fixes then only need to land here.
 
 name: netdevsim CI
 
 on:
   pull_request:
   workflow_dispatch:
+  workflow_call:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -169,6 +181,81 @@ jobs:
 
       - uses: actions/checkout@v5
 
+      - name: Prepare CI harness
+        id: harness
+        env:
+          # job.workflow_* identify the workflow file that defines this
+          # job: in a called workflow they point at the CALLED workflow,
+          # unlike github.workflow_ref / GITHUB_WORKFLOW_REF which point
+          # at the caller's file.
+          JOB_WORKFLOW_REPO: ${{ job.workflow_repository }}
+          JOB_WORKFLOW_SHA: ${{ job.workflow_sha }}
+        run: |
+          set -euo pipefail
+          [ -n "${JOB_WORKFLOW_REPO}" ] && [ -n "${JOB_WORKFLOW_SHA}" ] \
+            || { echo "ERROR: job.workflow_* context properties are not set" >&2; exit 1; }
+          if [ "${JOB_WORKFLOW_REPO}" = "${GITHUB_REPOSITORY}" ]; then
+            # Running in the repository that defines this workflow
+            # (own PRs and dispatches, including on forks): the checkout
+            # already is the CI harness.
+            [ -f "$GITHUB_WORKSPACE/scripts/run-on-vm.sh" ] \
+              || { echo "ERROR: self-mode checkout has no scripts/run-on-vm.sh" >&2; exit 1; }
+            echo "mode=self" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Called from another repository: the checkout is the caller's
+          # source code. Keep it for the image build and fetch the CI
+          # harness pinned to job.workflow_sha — the exact commit this
+          # workflow was resolved from — so the scripts always match the
+          # workflow file even if the called branch moves mid-run.
+          echo "mode=called" >> "$GITHUB_OUTPUT"
+          mv "$GITHUB_WORKSPACE" /tmp/caller-repo
+          echo "Fetching harness from ${JOB_WORKFLOW_REPO}@${JOB_WORKFLOW_SHA}"
+          git init -q "$GITHUB_WORKSPACE"
+          if ! git -C "$GITHUB_WORKSPACE" fetch --depth 1 \
+              "https://github.com/${JOB_WORKFLOW_REPO}.git" "${JOB_WORKFLOW_SHA}"; then
+            # Exact-SHA fetch refused: fall back to fetching all refs.
+            git -C "$GITHUB_WORKSPACE" fetch \
+              "https://github.com/${JOB_WORKFLOW_REPO}.git" \
+              '+refs/heads/*:refs/remotes/harness/*' '+refs/tags/*:refs/tags/harness/*'
+          fi
+          git -C "$GITHUB_WORKSPACE" checkout --detach "${JOB_WORKFLOW_SHA}"
+          [ -f "$GITHUB_WORKSPACE/scripts/run-on-vm.sh" ] \
+            || { echo "ERROR: harness clone has no scripts/run-on-vm.sh" >&2; exit 1; }
+
+      - name: Build daemon and CEP images from the caller's source
+        if: steps.harness.outputs.mode == 'called'
+        run: |
+          set -euo pipefail
+          # Build the daemon and CEP images from the caller's checkout
+          # instead of cloning linuxptp-daemon main, so the images match
+          # the exact commit under test. The build context is the repo
+          # root (see ptp-tools/Makefile), so the source must live
+          # inside it.
+          #
+          # The image build only knows the linuxptp-daemon source layout
+          # (Dockerfile.lptpd and Dockerfile.cep both run make in it);
+          # reject other callers instead of failing obscurely inside
+          # the image build. addons/ (hardware plugins) is the marker
+          # for a linuxptp-daemon checkout.
+          [ -d /tmp/caller-repo/addons ] \
+            || { echo "ERROR: called-mode image builds are only supported for linuxptp-daemon callers (no addons/ in the caller checkout)" >&2; exit 1; }
+          rm -rf /tmp/caller-repo/.git
+          cp -a /tmp/caller-repo "$GITHUB_WORKSPACE/linuxptp-daemon-src"
+          for df in Dockerfile.lptpd Dockerfile.cep; do
+            sed -i "s|^RUN git clone .*linuxptp-daemon.*|COPY linuxptp-daemon-src/ /go/src/github.com/k8snetworkplumbingwg/linuxptp-daemon|" \
+              "$GITHUB_WORKSPACE/ptp-tools/$df"
+            # sed exits 0 even on no match: fail loudly if the patch
+            # did not apply, otherwise the image would silently be built
+            # from linuxptp-daemon main instead of the caller's source.
+            grep -q '^COPY linuxptp-daemon-src/' "$GITHUB_WORKSPACE/ptp-tools/$df" \
+              || { echo "ERROR: $df patch did not apply" >&2; exit 1; }
+          done
+          echo "=== Patched Dockerfiles (daemon + CEP from the caller's checkout) ==="
+          grep -n "linuxptp-daemon-src" \
+            "$GITHUB_WORKSPACE/ptp-tools/Dockerfile.lptpd" \
+            "$GITHUB_WORKSPACE/ptp-tools/Dockerfile.cep"
+
       - name: Install podman 5.x
         run: |
           sudo mkdir -p /etc/apt/keyrings
@@ -243,6 +330,46 @@ jobs:
           echo "Kernel: $(uname -r)"
 
       - uses: actions/checkout@v5
+
+      - name: Prepare CI harness
+        env:
+          # job.workflow_* identify the workflow file that defines this
+          # job: in a called workflow they point at the CALLED workflow,
+          # unlike github.workflow_ref / GITHUB_WORKFLOW_REF which point
+          # at the caller's file.
+          JOB_WORKFLOW_REPO: ${{ job.workflow_repository }}
+          JOB_WORKFLOW_SHA: ${{ job.workflow_sha }}
+        run: |
+          set -euo pipefail
+          [ -n "${JOB_WORKFLOW_REPO}" ] && [ -n "${JOB_WORKFLOW_SHA}" ] \
+            || { echo "ERROR: job.workflow_* context properties are not set" >&2; exit 1; }
+          if [ "${JOB_WORKFLOW_REPO}" = "${GITHUB_REPOSITORY}" ]; then
+            # Running in the repository that defines this workflow
+            # (own PRs and dispatches, including on forks): the checkout
+            # already is the CI harness.
+            [ -f "$GITHUB_WORKSPACE/scripts/run-on-vm.sh" ] \
+              || { echo "ERROR: self-mode checkout has no scripts/run-on-vm.sh" >&2; exit 1; }
+            exit 0
+          fi
+          # Called from another repository: the checkout is the caller's
+          # source code (not needed in this job). Stash it with mv — rm
+          # would delete this step's own working directory — and fetch
+          # the CI harness pinned to job.workflow_sha — the exact commit
+          # this workflow was resolved from — so the scripts always match
+          # the workflow file even if the called branch moves mid-run.
+          mv "$GITHUB_WORKSPACE" /tmp/caller-repo
+          echo "Fetching harness from ${JOB_WORKFLOW_REPO}@${JOB_WORKFLOW_SHA}"
+          git init -q "$GITHUB_WORKSPACE"
+          if ! git -C "$GITHUB_WORKSPACE" fetch --depth 1 \
+              "https://github.com/${JOB_WORKFLOW_REPO}.git" "${JOB_WORKFLOW_SHA}"; then
+            # Exact-SHA fetch refused: fall back to fetching all refs.
+            git -C "$GITHUB_WORKSPACE" fetch \
+              "https://github.com/${JOB_WORKFLOW_REPO}.git" \
+              '+refs/heads/*:refs/remotes/harness/*' '+refs/tags/*:refs/tags/harness/*'
+          fi
+          git -C "$GITHUB_WORKSPACE" checkout --detach "${JOB_WORKFLOW_SHA}"
+          [ -f "$GITHUB_WORKSPACE/scripts/run-on-vm.sh" ] \
+            || { echo "ERROR: harness clone has no scripts/run-on-vm.sh" >&2; exit 1; }
 
       - name: Cache kustomize
         uses: actions/cache@v4
