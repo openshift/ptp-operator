@@ -85,7 +85,7 @@ metadata:
     categories: Networking
     certified: "false"
     containerImage: quay.io/openshift/origin-ptp-operator:5.1
-    createdAt: "2026-09-15T08:10:09Z"
+    createdAt: "2025-09-10T10:13:05"
     description: This software enables configuration of Precision Time Protocol(PTP)
       on Kubernetes. It detects hardware capable PTP devices on each node, and configures
       linuxptp processes such as ptp4l, phc2sys and timemaster.
@@ -192,12 +192,6 @@ spec:
       clusterPermissions:
       - rules:
         - apiGroups:
-          - ptp.openshift.io
-          resources:
-          - '*'
-          verbs:
-          - '*'
-        - apiGroups:
           - authentication.k8s.io
           resources:
           - tokenreviews
@@ -209,73 +203,8 @@ spec:
           - subjectaccessreviews
           verbs:
           - create
-        - apiGroups:
-          - ""
-          resources:
-          - pods
-          verbs:
-          - '*'
-        - apiGroups:
-          - ""
-          resources:
-          - configmaps
-          verbs:
-          - '*'
         serviceAccountName: linuxptp-daemon
       - rules:
-        - apiGroups:
-          - ""
-          resources:
-          - nodes
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - ""
-          resources:
-          - configmaps
-          - services
-          verbs:
-          - get
-          - create
-          - update
-        - apiGroups:
-          - ""
-          resources:
-          - pods
-          - services
-          - endpoints
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - apps
-          resources:
-          - daemonsets
-          verbs:
-          - get
-          - create
-          - update
-        - apiGroups:
-          - monitoring.coreos.com
-          resources:
-          - servicemonitors
-          - prometheusrules
-          verbs:
-          - get
-          - create
-          - update
-        - apiGroups:
-          - rbac.authorization.k8s.io
-          resources:
-          - roles
-          - rolebindings
-          verbs:
-          - get
-          - create
-          - update
         - apiGroups:
           - config.openshift.io
           resources:
@@ -286,40 +215,10 @@ spec:
           - list
           - watch
         - apiGroups:
-          - networking.k8s.io
+          - ""
           resources:
-          - networkpolicies
+          - nodes
           verbs:
-          - create
-          - delete
-          - get
-          - list
-          - update
-          - watch
-        - apiGroups:
-          - ptp.openshift.io
-          resources:
-          - hardwareconfigs
-          - ptpconfigs
-          verbs:
-          - get
-          - list
-          - watch
-        - apiGroups:
-          - ptp.openshift.io
-          resources:
-          - hardwareconfigs/status
-          - ptpconfigs/status
-          - ptpoperatorconfigs/finalizers
-          verbs:
-          - update
-        - apiGroups:
-          - ptp.openshift.io
-          resources:
-          - nodeptpdevices
-          - ptpoperatorconfigs
-          verbs:
-          - create
           - get
           - list
           - watch
@@ -411,6 +310,25 @@ spec:
           - securitycontextconstraints
           verbs:
           - use
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          verbs:
+          - get
+          - patch
+        - apiGroups:
+          - ""
+          resources:
+          - configmaps
+          verbs:
+          - '*'
+        - apiGroups:
+          - ptp.openshift.io
+          resources:
+          - '*'
+          verbs:
+          - '*'
         serviceAccountName: linuxptp-daemon
       - rules:
         - apiGroups:
@@ -455,6 +373,149 @@ spec:
           - create
           - patch
         - apiGroups:
+          - networking.k8s.io
+          resources:
+          - networkpolicies
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - update
+          - watch
+        - apiGroups:
+          - ptp.openshift.io
+          resources:
+          - hardwareconfigs
+          - ptpconfigs
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - ptp.openshift.io
+          resources:
+          - hardwareconfigs/status
+          - ptpconfigs/status
+          - ptpoperatorconfigs/finalizers
+          verbs:
+          - update
+        - apiGroups:
+          - ptp.openshift.io
+          resources:
+          - nodeptpdevices
+          - ptpoperatorconfigs
+          verbs:
+          - create
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          verbs:
+          - '*'
+        - apiGroups:
+          - ""
+          resources:
+          - configmaps
+          verbs:
+          - '*'
+        - apiGroups:
+          - ""
+          resources:
+          - services
+          verbs:
+          - '*'
+        - apiGroups:
+          - ""
+          resources:
+          - serviceaccounts
+          verbs:
+          - '*'
+        - apiGroups:
+          - apps
+          resources:
+          - daemonsets
+          verbs:
+          - '*'
+        - apiGroups:
+          - apps
+          resources:
+          - replicasets
+          verbs:
+          - '*'
+        - apiGroups:
+          - apps
+          resources:
+          - deployments
+          verbs:
+          - '*'
+        - apiGroups:
+          - monitoring.coreos.com
+          resources:
+          - servicemonitors
+          verbs:
+          - '*'
+        - apiGroups:
+          - monitoring.coreos.com
+          resources:
+          - prometheusrules
+          verbs:
+          - '*'
+        - apiGroups:
+          - rbac.authorization.k8s.io
+          resources:
+          - roles
+          verbs:
+          - get
+          - create
+          - update
+        - apiGroups:
+          - rbac.authorization.k8s.io
+          resources:
+          - rolebindings
+          verbs:
+          - get
+          - create
+          - update
+        - apiGroups:
+          - ""
+          resources:
+          - endpoints
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - ptp.openshift.io
+          resources:
+          - hardwareconfigs
+          - ptpconfigs
+          verbs:
+          - get
+          - list
+          - watch
+        - apiGroups:
+          - ptp.openshift.io
+          resources:
+          - hardwareconfigs/status
+          - ptpconfigs/status
+          - ptpoperatorconfigs/finalizers
+          verbs:
+          - update
+        - apiGroups:
+          - ptp.openshift.io
+          resources:
+          - nodeptpdevices
+          - ptpoperatorconfigs
+          verbs:
+          - get
+          - list
+          - watch
+          - create
+        - apiGroups:
           - ""
           resources:
           - secrets
@@ -467,11 +528,11 @@ spec:
   installModes:
   - supported: true
     type: OwnNamespace
-  - supported: true
+  - supported: false
     type: SingleNamespace
   - supported: false
     type: MultiNamespace
-  - supported: true
+  - supported: false
     type: AllNamespaces
   keywords:
   - ptp

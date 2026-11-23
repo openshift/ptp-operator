@@ -26,6 +26,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/names"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -252,7 +253,7 @@ func (r *PtpConfig) validate() error {
 	return nil
 }
 
-// checking if the secret exists in the openshift-ptp namespace
+// checking if the secret exists in the operator namespace
 func getSecret(secretName string) *corev1.Secret {
 	if webhookClient == nil {
 		ptpconfiglog.Info("webhook client not initialized, skipping secret existence validation")
@@ -260,7 +261,7 @@ func getSecret(secretName string) *corev1.Secret {
 	}
 	secret := &corev1.Secret{}
 	err := webhookClient.Get(context.Background(), types.NamespacedName{
-		Namespace: "openshift-ptp",
+		Namespace: names.Namespace,
 		Name:      secretName,
 	}, secret)
 	if err != nil {

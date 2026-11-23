@@ -23,13 +23,16 @@ import (
 	"github.com/go-logr/logr"
 	ptpv1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v1"
 	ptpv2alpha1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v2alpha1"
+	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/names"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -40,9 +43,9 @@ type HardwareConfigReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=ptp.openshift.io,resources=hardwareconfigs,verbs=get;list;watch
-//+kubebuilder:rbac:groups=ptp.openshift.io,resources=hardwareconfigs/status,verbs=update
-//+kubebuilder:rbac:groups=ptp.openshift.io,resources=ptpconfigs,verbs=get;list;watch
+//+kubebuilder:rbac:groups=ptp.openshift.io,resources=hardwareconfigs,verbs=get;list;watch,namespace=openshift-ptp
+//+kubebuilder:rbac:groups=ptp.openshift.io,resources=hardwareconfigs/status,verbs=update,namespace=openshift-ptp
+//+kubebuilder:rbac:groups=ptp.openshift.io,resources=ptpconfigs,verbs=get;list;watch,namespace=openshift-ptp
 
 func (r *HardwareConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (reconcile.Result, error) {
 	reqLogger := r.Log.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
@@ -60,7 +63,7 @@ func (r *HardwareConfigReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	// Get all PTP configs
 	ptpConfigList := &ptpv1.PtpConfigList{}
-	err = r.List(ctx, ptpConfigList, &client.ListOptions{})
+	err = r.List(ctx, ptpConfigList, client.InNamespace(names.Namespace))
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
@@ -168,7 +171,7 @@ func (h *HardwareConfigPtpConfigHandler) enqueueHardwareConfigs(ctx context.Cont
 
 	// Get all HardwareConfig resources
 	hardwareConfigList := &ptpv2alpha1.HardwareConfigList{}
-	err := h.Client.List(ctx, hardwareConfigList)
+	err := h.Client.List(ctx, hardwareConfigList, client.InNamespace(names.Namespace))
 	if err != nil {
 		h.Log.Error(err, "failed to list HardwareConfig resources")
 		return
@@ -188,8 +191,11 @@ func (h *HardwareConfigPtpConfigHandler) enqueueHardwareConfigs(ctx context.Cont
 }
 
 func (r *HardwareConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	inNamespace := predicate.NewPredicateFuncs(func(object client.Object) bool {
+		return object.GetNamespace() == names.Namespace
+	})
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&ptpv2alpha1.HardwareConfig{}).
-		Watches(&ptpv1.PtpConfig{}, &HardwareConfigPtpConfigHandler{Client: r.Client, Log: r.Log}).
+		For(&ptpv2alpha1.HardwareConfig{}, builder.WithPredicates(inNamespace)).
+		Watches(&ptpv1.PtpConfig{}, &HardwareConfigPtpConfigHandler{Client: r.Client, Log: r.Log}, builder.WithPredicates(inNamespace)).
 		Complete(r)
 }
