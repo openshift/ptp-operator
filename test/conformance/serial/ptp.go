@@ -4022,8 +4022,8 @@ var _ = Describe("["+strings.ToLower(DesiredMode.String())+"-serial]", Serial, f
 				events = getGMEvents(subs.GNSS, subs.CLOCKCLASS, subs.LOCKSTATE, 30*time.Second)
 				fmt.Fprintf(GinkgoWriter, "TGMBC GM recovery events: %v\n", events)
 
-				By("Verifying GM GNSS state Locked")
-				verifyEvent(events[ptpEvent.GnssStateChange], ptpEvent.LOCKED)
+				By("Verifying GM GNSS state Synchronized")
+				verifyEvent(events[ptpEvent.GnssStateChange], ptpEvent.SYNCHRONIZED)
 				By("Verifying GM ClockClass returns to 6")
 				verifyMetric(events[ptpEvent.PtpClockClassChange], float64(fbprotocol.ClockClass6))
 				By("Verifying GM PTP state Locked")
