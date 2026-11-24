@@ -49,7 +49,7 @@ if [[ "${DKMS_MODE:-}" == "true" ]]; then
     modprobe gnss
     modprobe nsim_ptp
     modprobe nsim_dpll
-    modprobe netdevsim pci_bus_nr=0x1f
+    modprobe netdevsim
     chmod 666 /dev/nsim_ptp* 2>/dev/null || true
     udevadm trigger --subsystem-match=gnss 2>/dev/null || true
     udevadm settle
@@ -59,7 +59,7 @@ else
     # devices start from gnss0.
     modprobe -r gnss 2>/dev/null || true
     modprobe gnss
-    modprobe netdevsim pci_bus_nr=0x1f
+    modprobe netdevsim
 fi
 # gpsd drops to nobody; without world/group access it fails with EACCES
 # and frees /dev/gnss*, which starves ts2phc of NMEA.

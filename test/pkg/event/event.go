@@ -659,6 +659,53 @@ func PushInitialEvent(eventType string, timeout time.Duration) error {
 	return nil
 }
 
+// PushLatestInitialEvent publishes the newest CurrentState event of the given
+// type found in the consumer log tail. PushInitialEvent publishes the first
+// matching replayed line, which can be an older state that happens to match
+// while the consumer currently reports a different value; selecting the newest
+// match avoids accepting that stale value for a current-state check.
+func PushLatestInitialEvent(eventType string, timeout time.Duration) error {
+	namespace := ConsumerNamespace
+	podName := ConsumerPodName
+	containerName := ConsumerContainerName
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	tailLines := int64(5000)
+	opts := corev1.PodLogOptions{Container: containerName, TailLines: &tailLines}
+	stream, err := testclient.Client.CoreV1().Pods(namespace).GetLogs(podName, &opts).Stream(ctx)
+	if err != nil {
+		return fmt.Errorf("could not retrieve log in ns=%s pod=%s, err=%s", namespace, podName, err)
+	}
+	defer stream.Close()
+
+	r := regexp.MustCompile(`(?:Got CurrentState: |received event )({.*})`)
+	var latest exports.StoredEvent
+	found := false
+	scanner := bufio.NewScanner(stream)
+	for scanner.Scan() {
+		matches := r.FindAllStringSubmatch(scanner.Text(), -1)
+		for _, match := range matches {
+			aStoredEvent, eType, parseErr := createStoredEvent([]byte(match[1]))
+			if parseErr != nil {
+				continue
+			}
+			if eType == eventType {
+				latest = aStoredEvent
+				found = true
+			}
+		}
+	}
+	if scanErr := scanner.Err(); scanErr != nil {
+		return fmt.Errorf("error reading logs in ns=%s pod=%s: %s", namespace, podName, scanErr)
+	}
+	if !found {
+		return fmt.Errorf("no %s event found in the last %d consumer log lines", eventType, tailLines)
+	}
+	PubSub.Publish(eventType, latest)
+	return nil
+}
+
 // PushInitialEvents scans consumer logs with a single log stream and publishes
 // CurrentState events for all requested topics. Returns the list of topics
 // that were not found before the timeout.
@@ -666,7 +713,7 @@ func PushInitialEvents(eventTypes []string, timeout time.Duration) (missing []st
 	namespace := ConsumerNamespace
 	podName := ConsumerPodName
 	containerName := ConsumerContainerName
-	regex := `Got CurrentState: ({.*})`
+	regex := `(?:Got CurrentState: |received event )({.*})`
 
 	pending := make(map[string]bool, len(eventTypes))
 	for _, t := range eventTypes {
@@ -688,9 +735,16 @@ func PushInitialEvents(eventTypes []string, timeout time.Duration) (missing []st
 	logrus.Infof("PushInitialEvents: pod status is %s, phase: %s, ready: %v",
 		podName, pod.Status.Phase, pod.Status.Conditions)
 
-	count := int64(0)
-	podLogOptions := corev1.PodLogOptions{Container: containerName, Follow: true, TailLines: &count}
-	logrus.Infof("PushInitialEvents: opening log stream for %s/%s container %s", namespace, podName, containerName)
+	// Replay the tail of the consumer log instead of only following new lines.
+	// The consumer emits "Got CurrentState" while it initializes and
+	// "received event" for pushed events; both happen before this stream is
+	// opened. With TailLines=0 those lines are missed and the function can only
+	// succeed if the consumer re-queries CurrentState within the timeout, which
+	// it usually does not.
+	initialReplayLines := int64(200)
+	podLogOptions := corev1.PodLogOptions{Container: containerName, Follow: true, TailLines: &initialReplayLines}
+	logrus.Infof("PushInitialEvents: opening log stream for %s/%s container %s (last %d lines, then follow)",
+		namespace, podName, containerName, initialReplayLines)
 	podLogRequest := testclient.Client.CoreV1().Pods(namespace).GetLogs(podName, &podLogOptions)
 	stream, err := podLogRequest.Stream(ctx)
 	if err != nil {

@@ -24,7 +24,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	configv1 "github.com/openshift/api/config/v1"
@@ -54,7 +53,6 @@ import (
 	ptpv2alpha1 "github.com/k8snetworkplumbingwg/ptp-operator/api/v2alpha1"
 	"github.com/k8snetworkplumbingwg/ptp-operator/controllers"
 	"github.com/k8snetworkplumbingwg/ptp-operator/pkg/leaderelection"
-	corev1 "k8s.io/api/core/v1"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -145,40 +143,19 @@ func main() {
 		WebhookServer: webhookServer,
 	}
 
-	namespace := os.Getenv("WATCH_NAMESPACE")
-	// create multi namespace cache if list of namespaces
-	if namespace != "" {
-		defaultNamespaces := map[string]cache.Config{}
+	if watchNS := os.Getenv("WATCH_NAMESPACE"); watchNS != "" && watchNS != names.Namespace {
+		setupLog.Error(
+			fmt.Errorf(
+				"WATCH_NAMESPACE %q does not match the operator namespace %q",
+				watchNS, names.Namespace,
+			),
+			fmt.Sprintf("Configuration Error watching own namespace %s not configured targetNamespace", names.Namespace),
+		)
+	}
 
-		for _, namespace := range strings.Split(namespace, ",") {
-			defaultNamespaces[namespace] = cache.Config{}
-		}
-
-		options.NewCache = func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
-			opts.DefaultNamespaces = defaultNamespaces
-			// Restrict Secret watching to openshift-ptp namespace only
-			opts.ByObject = map[client.Object]cache.ByObject{
-				&corev1.Secret{}: {
-					Namespaces: map[string]cache.Config{
-						names.Namespace: {},
-					},
-				},
-			}
-			return cache.New(config, opts)
-		}
-		setupLog.Info(fmt.Sprintf("Namespaces added to the cache: %s", namespace))
-	} else {
-		// If no WATCH_NAMESPACE is set, still restrict Secret watching to openshift-ptp namespace
-		options.Cache = cache.Options{
-			ByObject: map[client.Object]cache.ByObject{
-				&corev1.Secret{}: {
-					Namespaces: map[string]cache.Config{
-						names.Namespace: {},
-					},
-				},
-			},
-		}
-		setupLog.Info("Restricting Secret watching to openshift-ptp namespace only")
+	// Only watch operator namespace.
+	options.Cache.DefaultNamespaces = map[string]cache.Config{
+		names.Namespace: {},
 	}
 
 	mgr, err := ctrl.NewManager(restConfig, options)

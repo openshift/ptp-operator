@@ -1,12 +1,24 @@
 # CI for ptp-operator with netdevsim DKMS modules.
 # Builds DKMS modules from netdevsim-dkms, then runs ptp-operator e2e
 # tests using the checked-out ptp-operator source.
+#
+# Reusable: linuxptp-daemon runs this workflow via `uses:` instead of
+# keeping an adapted copy (other callers are rejected for now — the
+# image build assumes the linuxptp-daemon source layout). Self
+# vs. called mode is detected structurally (job.workflow_repository vs
+# GITHUB_REPOSITORY, so forks of this repo still run in self mode). When
+# called, the checkout is the caller's source code: it is stashed at
+# /tmp/caller-repo, this repository is cloned as the CI harness pinned
+# to job.workflow_sha (the exact commit the workflow was resolved from),
+# and Dockerfile.lptpd is patched to build the caller's code into the
+# daemon image. Harness fixes then only need to land here.
 
 name: netdevsim CI
 
 on:
   pull_request:
   workflow_dispatch:
+  workflow_call:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -83,7 +95,7 @@ jobs:
           sudo modprobe nsim_ptp       && echo "nsim_ptp loaded"
           sudo modprobe nsim_ptp_mock  && echo "nsim_ptp_mock loaded"
           sudo modprobe nsim_dpll      && echo "nsim_dpll loaded"
-          sudo modprobe netdevsim pci_bus_nr=0x1f && echo "netdevsim loaded"
+          sudo modprobe netdevsim && echo "netdevsim loaded"
           lsmod | grep -E 'nsim_ptp|nsim_dpll|netdevsim|gnss' || true
           sudo chmod 666 /dev/nsim_ptp* 2>/dev/null || true
           echo "load_ok=true" >> "$GITHUB_OUTPUT"
@@ -92,9 +104,22 @@ jobs:
         if: steps.load.outputs.load_ok == 'true'
         run: |
           set -euo pipefail
-          BUS_NR=$(cat /sys/module/netdevsim/parameters/pci_bus_nr 2>/dev/null || echo 31)
+          if [ ! -r /sys/module/netdevsim/parameters/pci_bus_nr ]; then
+            echo "ERROR: netdevsim is not loaded; cannot create a fake PCI root" >&2
+            exit 1
+          fi
+          BUS_NR=$(cat /sys/module/netdevsim/parameters/pci_bus_nr)
+          if ! [[ "$BUS_NR" =~ ^[0-9]+$ ]]; then
+            echo "ERROR: netdevsim did not select a PCI bus (pci_bus_nr=${BUS_NR})" >&2
+            exit 1
+          fi
           BUS=$(printf "%02x" "$BUS_NR")
-          FAKE_ROOT=$(ls /sys/bus/pci/devices/ 2>/dev/null | grep ":${BUS}:00\.0" | head -1)
+          BUS_DEVICES=$(ls /sys/bus/pci/devices/ 2>/dev/null | grep "^0000:${BUS}:" || true)
+          if [ -z "$BUS_DEVICES" ]; then
+            echo "ERROR: netdevsim did not create a fake PCI root bus on 0000:${BUS}" >&2
+            exit 1
+          fi
+          FAKE_ROOT=$(printf '%s\n' "$BUS_DEVICES" | grep "^0000:${BUS}:00\.0" | head -1 || true)
           DOMAIN="${FAKE_ROOT:+$(echo "$FAKE_ROOT" | cut -d: -f1)}"
           : "${DOMAIN:=0000}"
           PCI_ADDR="${DOMAIN}:${BUS}:02.0"
@@ -118,7 +143,7 @@ jobs:
         run: |
           BUS_NR=$(cat /sys/module/netdevsim/parameters/pci_bus_nr 2>/dev/null || echo 31)
           BUS=$(printf "%02x" "$BUS_NR")
-          FAKE_ROOT=$(ls /sys/bus/pci/devices/ 2>/dev/null | grep ":${BUS}:00\.0" | head -1)
+          FAKE_ROOT=$(ls /sys/bus/pci/devices/ 2>/dev/null | grep "^0000:${BUS}:00\.0" | head -1 || true)
           DOMAIN="${FAKE_ROOT:+$(echo "$FAKE_ROOT" | cut -d: -f1)}"
           : "${DOMAIN:=0000}"
           IFACE=$(ls /sys/bus/pci/devices/${DOMAIN}:${BUS}:02.0/net/ 2>/dev/null | head -1)
@@ -155,6 +180,81 @@ jobs:
           echo "Kernel: $(uname -r)"
 
       - uses: actions/checkout@v5
+
+      - name: Prepare CI harness
+        id: harness
+        env:
+          # job.workflow_* identify the workflow file that defines this
+          # job: in a called workflow they point at the CALLED workflow,
+          # unlike github.workflow_ref / GITHUB_WORKFLOW_REF which point
+          # at the caller's file.
+          JOB_WORKFLOW_REPO: ${{ job.workflow_repository }}
+          JOB_WORKFLOW_SHA: ${{ job.workflow_sha }}
+        run: |
+          set -euo pipefail
+          [ -n "${JOB_WORKFLOW_REPO}" ] && [ -n "${JOB_WORKFLOW_SHA}" ] \
+            || { echo "ERROR: job.workflow_* context properties are not set" >&2; exit 1; }
+          if [ "${JOB_WORKFLOW_REPO}" = "${GITHUB_REPOSITORY}" ]; then
+            # Running in the repository that defines this workflow
+            # (own PRs and dispatches, including on forks): the checkout
+            # already is the CI harness.
+            [ -f "$GITHUB_WORKSPACE/scripts/run-on-vm.sh" ] \
+              || { echo "ERROR: self-mode checkout has no scripts/run-on-vm.sh" >&2; exit 1; }
+            echo "mode=self" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Called from another repository: the checkout is the caller's
+          # source code. Keep it for the image build and fetch the CI
+          # harness pinned to job.workflow_sha — the exact commit this
+          # workflow was resolved from — so the scripts always match the
+          # workflow file even if the called branch moves mid-run.
+          echo "mode=called" >> "$GITHUB_OUTPUT"
+          mv "$GITHUB_WORKSPACE" /tmp/caller-repo
+          echo "Fetching harness from ${JOB_WORKFLOW_REPO}@${JOB_WORKFLOW_SHA}"
+          git init -q "$GITHUB_WORKSPACE"
+          if ! git -C "$GITHUB_WORKSPACE" fetch --depth 1 \
+              "https://github.com/${JOB_WORKFLOW_REPO}.git" "${JOB_WORKFLOW_SHA}"; then
+            # Exact-SHA fetch refused: fall back to fetching all refs.
+            git -C "$GITHUB_WORKSPACE" fetch \
+              "https://github.com/${JOB_WORKFLOW_REPO}.git" \
+              '+refs/heads/*:refs/remotes/harness/*' '+refs/tags/*:refs/tags/harness/*'
+          fi
+          git -C "$GITHUB_WORKSPACE" checkout --detach "${JOB_WORKFLOW_SHA}"
+          [ -f "$GITHUB_WORKSPACE/scripts/run-on-vm.sh" ] \
+            || { echo "ERROR: harness clone has no scripts/run-on-vm.sh" >&2; exit 1; }
+
+      - name: Build daemon and CEP images from the caller's source
+        if: steps.harness.outputs.mode == 'called'
+        run: |
+          set -euo pipefail
+          # Build the daemon and CEP images from the caller's checkout
+          # instead of cloning linuxptp-daemon main, so the images match
+          # the exact commit under test. The build context is the repo
+          # root (see ptp-tools/Makefile), so the source must live
+          # inside it.
+          #
+          # The image build only knows the linuxptp-daemon source layout
+          # (Dockerfile.lptpd and Dockerfile.cep both run make in it);
+          # reject other callers instead of failing obscurely inside
+          # the image build. addons/ (hardware plugins) is the marker
+          # for a linuxptp-daemon checkout.
+          [ -d /tmp/caller-repo/addons ] \
+            || { echo "ERROR: called-mode image builds are only supported for linuxptp-daemon callers (no addons/ in the caller checkout)" >&2; exit 1; }
+          rm -rf /tmp/caller-repo/.git
+          cp -a /tmp/caller-repo "$GITHUB_WORKSPACE/linuxptp-daemon-src"
+          for df in Dockerfile.lptpd Dockerfile.cep; do
+            sed -i "s|^RUN git clone .*linuxptp-daemon.*|COPY linuxptp-daemon-src/ /go/src/github.com/k8snetworkplumbingwg/linuxptp-daemon|" \
+              "$GITHUB_WORKSPACE/ptp-tools/$df"
+            # sed exits 0 even on no match: fail loudly if the patch
+            # did not apply, otherwise the image would silently be built
+            # from linuxptp-daemon main instead of the caller's source.
+            grep -q '^COPY linuxptp-daemon-src/' "$GITHUB_WORKSPACE/ptp-tools/$df" \
+              || { echo "ERROR: $df patch did not apply" >&2; exit 1; }
+          done
+          echo "=== Patched Dockerfiles (daemon + CEP from the caller's checkout) ==="
+          grep -n "linuxptp-daemon-src" \
+            "$GITHUB_WORKSPACE/ptp-tools/Dockerfile.lptpd" \
+            "$GITHUB_WORKSPACE/ptp-tools/Dockerfile.cep"
 
       - name: Install podman 5.x
         run: |
@@ -210,6 +310,8 @@ jobs:
     needs: ptp-images
     runs-on: ubuntu-24.04
     timeout-minutes: 90
+    env:
+      PTP_GO_VERSION: go1.27.4
     name: "ptp-test (${{ matrix.mode }}${{ matrix.auth && '-auth' || '' }})"
     strategy:
       fail-fast: false
@@ -228,6 +330,88 @@ jobs:
           echo "Kernel: $(uname -r)"
 
       - uses: actions/checkout@v5
+
+      - name: Prepare CI harness
+        env:
+          # job.workflow_* identify the workflow file that defines this
+          # job: in a called workflow they point at the CALLED workflow,
+          # unlike github.workflow_ref / GITHUB_WORKFLOW_REF which point
+          # at the caller's file.
+          JOB_WORKFLOW_REPO: ${{ job.workflow_repository }}
+          JOB_WORKFLOW_SHA: ${{ job.workflow_sha }}
+        run: |
+          set -euo pipefail
+          [ -n "${JOB_WORKFLOW_REPO}" ] && [ -n "${JOB_WORKFLOW_SHA}" ] \
+            || { echo "ERROR: job.workflow_* context properties are not set" >&2; exit 1; }
+          if [ "${JOB_WORKFLOW_REPO}" = "${GITHUB_REPOSITORY}" ]; then
+            # Running in the repository that defines this workflow
+            # (own PRs and dispatches, including on forks): the checkout
+            # already is the CI harness.
+            [ -f "$GITHUB_WORKSPACE/scripts/run-on-vm.sh" ] \
+              || { echo "ERROR: self-mode checkout has no scripts/run-on-vm.sh" >&2; exit 1; }
+            exit 0
+          fi
+          # Called from another repository: the checkout is the caller's
+          # source code (not needed in this job). Stash it with mv — rm
+          # would delete this step's own working directory — and fetch
+          # the CI harness pinned to job.workflow_sha — the exact commit
+          # this workflow was resolved from — so the scripts always match
+          # the workflow file even if the called branch moves mid-run.
+          mv "$GITHUB_WORKSPACE" /tmp/caller-repo
+          echo "Fetching harness from ${JOB_WORKFLOW_REPO}@${JOB_WORKFLOW_SHA}"
+          git init -q "$GITHUB_WORKSPACE"
+          if ! git -C "$GITHUB_WORKSPACE" fetch --depth 1 \
+              "https://github.com/${JOB_WORKFLOW_REPO}.git" "${JOB_WORKFLOW_SHA}"; then
+            # Exact-SHA fetch refused: fall back to fetching all refs.
+            git -C "$GITHUB_WORKSPACE" fetch \
+              "https://github.com/${JOB_WORKFLOW_REPO}.git" \
+              '+refs/heads/*:refs/remotes/harness/*' '+refs/tags/*:refs/tags/harness/*'
+          fi
+          git -C "$GITHUB_WORKSPACE" checkout --detach "${JOB_WORKFLOW_SHA}"
+          [ -f "$GITHUB_WORKSPACE/scripts/run-on-vm.sh" ] \
+            || { echo "ERROR: harness clone has no scripts/run-on-vm.sh" >&2; exit 1; }
+
+      - name: Cache kustomize
+        uses: actions/cache@v4
+        with:
+          path: bin/kustomize
+          key: kustomize-5.4.2-${{ runner.os }}-${{ runner.arch }}
+
+      - name: Install kustomize
+        run: |
+          if [ -s bin/kustomize ]; then
+            bin/kustomize version
+            exit 0
+          fi
+          arch="$(dpkg --print-architecture)"
+          case "$arch" in
+            amd64) asset="kustomize_v5.4.2_linux_amd64.tar.gz" ;;
+            arm64) asset="kustomize_v5.4.2_linux_arm64.tar.gz" ;;
+            *) echo "unsupported architecture: $arch" >&2; exit 1 ;;
+          esac
+          mkdir -p bin
+          curl -fsSL --retry 5 --retry-delay 10 -o /tmp/kustomize.tar.gz \
+            "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.2/${asset}"
+          tar -xzf /tmp/kustomize.tar.gz -C bin kustomize
+          chmod +x bin/kustomize
+          bin/kustomize version
+
+      - name: Cache Go modules and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            /tmp/ptp-go-cache/build
+            /tmp/ptp-go-cache/mod
+            /tmp/ptp-go-cache/bin
+          key: go-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Cache Go toolchain
+        uses: actions/cache@v4
+        with:
+          path: /tmp/ptp-go-cache/toolchain
+          key: go-toolchain-${{ runner.os }}-${{ runner.arch }}-${{ env.PTP_GO_VERSION }}
 
       - name: Install podman 5.x
         run: |
@@ -323,7 +507,12 @@ jobs:
           sudo bash -l <<'DEPLOY'
           set -euo pipefail
           set -x
-          export PATH=/usr/local/ptp-podman-wrap:/usr/local/bin:/usr/local/go/bin:/root/go/bin:$PATH
+          export PTP_GO_VERSION="${{ env.PTP_GO_VERSION }}"
+          export GOCACHE=/tmp/ptp-go-cache/build
+          export GOMODCACHE=/tmp/ptp-go-cache/mod
+          export GOBIN=/tmp/ptp-go-cache/bin
+          export PATH="$GOBIN:/usr/local/ptp-podman-wrap:/usr/local/bin:/usr/local/go/bin:/root/go/bin:$PATH"
+          mkdir -p "$GOCACHE" "$GOMODCACHE" "$GOBIN"
           export KIND_EXPERIMENTAL_PROVIDER=podman
           export ENABLE_CEPV2=true
           export PTP_AUTH_ENABLED=${{ matrix.auth }}
@@ -332,6 +521,10 @@ jobs:
           cd /root/ptp-operator/scripts
           ./run-on-vm.sh --dkms --deploy "${VM_IP}" --mode "${{ matrix.mode }}" "${VM_IP}"
           DEPLOY
+
+      - name: Make Go cache readable
+        if: always()
+        run: sudo chown -R "$(id -u):$(id -g)" /tmp/ptp-go-cache 2>/dev/null || true
 
       - name: "Collect Kubernetes debug info"
         if: always()

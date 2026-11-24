@@ -56,10 +56,10 @@ type PtpConfigReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=ptp.openshift.io,resources=ptpconfigs,verbs=get;list;watch
-//+kubebuilder:rbac:groups=ptp.openshift.io,resources=ptpconfigs/status,verbs=update
-//+kubebuilder:rbac:groups=ptp.openshift.io,resources=nodeptpdevices,verbs=get;list;watch;create
-//+kubebuilder:rbac:groups=ptp.openshift.io,resources=hardwareconfigs,verbs=get;list;watch
+//+kubebuilder:rbac:groups=ptp.openshift.io,resources=ptpconfigs,verbs=get;list;watch,namespace=openshift-ptp
+//+kubebuilder:rbac:groups=ptp.openshift.io,resources=ptpconfigs/status,verbs=update,namespace=openshift-ptp
+//+kubebuilder:rbac:groups=ptp.openshift.io,resources=nodeptpdevices,verbs=get;list;watch;create,namespace=openshift-ptp
+//+kubebuilder:rbac:groups=ptp.openshift.io,resources=hardwareconfigs,verbs=get;list;watch,namespace=openshift-ptp
 //+kubebuilder:rbac:groups=config.openshift.io,resources=infrastructures,verbs=get;list;watch
 
 func (r *PtpConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (reconcile.Result, error) {
@@ -67,7 +67,7 @@ func (r *PtpConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	reqLogger.Info("Reconciling PtpConfig")
 
 	instances := &ptpv1.PtpConfigList{}
-	err := r.List(ctx, instances, &client.ListOptions{})
+	err := r.List(ctx, instances, client.InNamespace(names.Namespace))
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return reconcile.Result{}, nil
@@ -83,14 +83,14 @@ func (r *PtpConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	}
 
 	deviceList := &ptpv1.NodePtpDeviceList{}
-	err = r.List(ctx, deviceList, &client.ListOptions{})
+	err = r.List(ctx, deviceList, client.InNamespace(names.Namespace))
 	if err != nil {
 		glog.Errorf("failed to list NodePtpDevices")
 		return reconcile.Result{}, err
 	}
 
 	hwList := &ptpv2alpha1.HardwareConfigList{}
-	err = r.List(ctx, hwList, &client.ListOptions{})
+	err = r.List(ctx, hwList, client.InNamespace(names.Namespace))
 	if err != nil {
 		glog.Errorf("failed to list HardwareConfigs")
 		return reconcile.Result{}, err

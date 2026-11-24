@@ -26,29 +26,27 @@ func DeleteLabel(label string) error {
 	return nil
 }
 
+// Labels removes the node role labels applied by ptp tests.
+func Labels() error {
+	labels := []string{
+		pkg.PtpGrandmasterNodeLabel,
+		pkg.PtpClockUnderTestNodeLabel,
+		pkg.PtpSlave1NodeLabel,
+		pkg.PtpSlave2NodeLabel,
+	}
+	for _, label := range labels {
+		if err := DeleteLabel(label); err != nil {
+			return fmt.Errorf("clean.Labels: fail to delete label: %s, err: %s", label, err)
+		}
+	}
+	return nil
+}
+
 // All removes any configuration applied by ptp tests.
 func All() error {
 	Configs()
 	Secrets()
-
-	err := DeleteLabel(pkg.PtpGrandmasterNodeLabel)
-	if err != nil {
-		return fmt.Errorf("clean.All: fail to delete label: %s, err: %s", pkg.PtpGrandmasterNodeLabel, err)
-	}
-	err = DeleteLabel(pkg.PtpClockUnderTestNodeLabel)
-	if err != nil {
-		return fmt.Errorf("clean.All: fail to delete label: %s, err: %s", pkg.PtpClockUnderTestNodeLabel, err)
-	}
-	err = DeleteLabel(pkg.PtpSlave1NodeLabel)
-	if err != nil {
-		return fmt.Errorf("clean.All: fail to delete label: %s, err: %s", pkg.PtpSlave1NodeLabel, err)
-	}
-	err = DeleteLabel(pkg.PtpSlave2NodeLabel)
-	if err != nil {
-		return fmt.Errorf("clean.All: fail to delete label: %s, err: %s", pkg.PtpSlave2NodeLabel, err)
-	}
-
-	return nil
+	return Labels()
 }
 
 func Configs() {

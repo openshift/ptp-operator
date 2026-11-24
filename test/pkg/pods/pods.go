@@ -257,11 +257,21 @@ func GetPodLogsRegexSince(namespace string, podName string, containerName, regex
 }
 
 // returns last Regex match in the logs for a given pod.
-// It first reads all existing logs (without follow) to get the complete set of
-// matches, so that callers using matches[len-1] get the most recent entry.
-// If no match is found in the existing logs, it falls back to following the
-// stream and waiting for new content up to the given timeout.
+// It first reads a bounded recent snapshot without following, then falls back
+// to following the stream and waiting for new content up to the given timeout.
 func GetPodLogsRegex(namespace string, podName string, containerName, regex string, isLiteralText bool, timeout time.Duration) (matches [][]string, err error) {
+	logTailLines := int64(20000)
+	return getPodLogsRegex(namespace, podName, containerName, regex, isLiteralText, &logTailLines, timeout)
+}
+
+// GetPodLogsRegexUnbounded is like GetPodLogsRegex, but the initial snapshot
+// reads the whole existing log instead of a bounded tail. Use it for rare
+// selection lines that may be older than the bounded window.
+func GetPodLogsRegexUnbounded(namespace string, podName string, containerName, regex string, isLiteralText bool, timeout time.Duration) (matches [][]string, err error) {
+	return getPodLogsRegex(namespace, podName, containerName, regex, isLiteralText, nil, timeout)
+}
+
+func getPodLogsRegex(namespace string, podName string, containerName, regex string, isLiteralText bool, snapshotTailLines *int64, timeout time.Duration) (matches [][]string, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	const matchOnlyFullLines = `\s*^`
@@ -273,12 +283,14 @@ func GetPodLogsRegex(namespace string, podName string, containerName, regex stri
 
 	r := regexp.MustCompile(regex)
 
-	// Pass 1: read all existing log content without following.
-	// Use io.ReadAll to drain the entire log before matching, so that
-	// FindAllStringSubmatch returns ALL matches (not just the first chunk's).
+	// Pass 1: read a snapshot without following. Most callers use a bounded
+	// tail because the PTP daemon logs are high-volume (phc2sys at 16 Hz) and
+	// reading the whole log can exceed the caller's timeout. Callers that need
+	// a rare, possibly old line can request the unbounded snapshot instead.
 	noFollowOpts := corev1.PodLogOptions{
 		Container: containerName,
 		Follow:    false,
+		TailLines: snapshotTailLines,
 	}
 	noFollowReq := testclient.Client.CoreV1().Pods(namespace).GetLogs(podName, &noFollowOpts)
 	snapStream, err := noFollowReq.Stream(ctx)
@@ -296,9 +308,11 @@ func GetPodLogsRegex(namespace string, podName string, containerName, regex stri
 	}
 
 	// Pass 2: no match in existing logs — follow the stream for new content.
+	followTailLines := int64(20000)
 	followOpts := corev1.PodLogOptions{
 		Container: containerName,
 		Follow:    true,
+		TailLines: &followTailLines,
 	}
 	followReq := testclient.Client.CoreV1().Pods(namespace).GetLogs(podName, &followOpts)
 	stream, err := followReq.Stream(ctx)

@@ -49,8 +49,10 @@ import (
 	k8syaml "k8s.io/apimachinery/pkg/util/yaml"
 	kscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -92,11 +94,11 @@ const (
 	DefaultApiVersion  = "2.0"
 )
 
-// +kubebuilder:rbac:groups=ptp.openshift.io,resources=ptpoperatorconfigs,verbs=get;list;watch;create
-// +kubebuilder:rbac:groups=ptp.openshift.io,resources=ptpoperatorconfigs/finalizers,verbs=update
+// +kubebuilder:rbac:groups=ptp.openshift.io,resources=ptpoperatorconfigs,verbs=get;list;watch;create,namespace=openshift-ptp
+// +kubebuilder:rbac:groups=ptp.openshift.io,resources=ptpoperatorconfigs/finalizers,verbs=update,namespace=openshift-ptp
 // +kubebuilder:rbac:groups=config.openshift.io,resources=infrastructures,verbs=get;list;watch
 // +kubebuilder:rbac:groups=config.openshift.io,resources=apiservers,verbs=get;list;watch
-// +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;update;delete
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=get;list;watch;create;update;delete,namespace=openshift-ptp
 
 func (r *PtpOperatorConfigReconciler) Reconcile(ctx context.Context, req ctrl.Request) (reconcile.Result, error) {
 	reqLogger := r.Log.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
@@ -549,9 +551,12 @@ func (r *PtpOperatorConfigReconciler) setTLSTemplateData(data *render.RenderData
 }
 
 func (r *PtpOperatorConfigReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	inNamespace := predicate.NewPredicateFuncs(func(object client.Object) bool {
+		return object.GetNamespace() == names.Namespace
+	})
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&ptpv1.PtpOperatorConfig{}).
-		Owns(&appsv1.DaemonSet{}).
+		For(&ptpv1.PtpOperatorConfig{}, builder.WithPredicates(inNamespace)).
+		Owns(&appsv1.DaemonSet{}, builder.WithPredicates(inNamespace)).
 		Complete(r)
 }
 
